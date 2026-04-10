@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 100 100"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="tau-plot.svg"
+   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <title
+     id="title5">TauPlot Icon</title>
+  <defs
+     id="defs5" />
+  <sodipodi:namedview
+     id="namedview5"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="18.33"
+     inkscape:cx="37.015821"
+     inkscape:cy="55.182761"
+     inkscape:window-width="3840"
+     inkscape:window-height="2042"
+     inkscape:window-x="0"
+     inkscape:window-y="53"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg5" />
+  <line
+     x1="9"
+     y1="90"
+     x2="89"
+     y2="90"
+     stroke="#ffffff"
+     stroke-width="2"
+     id="line1" />
+  <line
+     x1="10"
+     y1="91"
+     x2="10"
+     y2="11"
+     stroke="#ffffff"
+     stroke-width="2"
+     id="line2" />
+  <path
+     d="M20 90 L20 57 Q20 55 22 55 L28 55 Q30 55 30 57 L30 90 Z"
+     fill="white"
+     id="path2" />
+  <path
+     d="M35 90 L35 42 Q35 40 37 40 L43 40 Q45 40 45 42 L45 90 Z"
+     fill="white"
+     id="path3" />
+  <path
+     d="M50 90 L50 67 Q50 65 52 65 L58 65 Q60 65 60 67 L60 90 Z"
+     fill="white"
+     id="path4" />
+  <path
+     d="M65 90 L65 32 Q65 30 67 30 L73 30 Q75 30 75 32 L75 90 Z"
+     fill="white"
+     id="path5" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>TauPlot Icon</dc:title>
+        <cc:license
+           rdf:resource="https://github.com/ze2j/tau-plot/blob/8d57e18f678a46d21387dc2a41bf62b4f92d5cc3/LICENSE" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

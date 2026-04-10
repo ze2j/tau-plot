@@ -1,0 +1,39 @@
+name: Bug report
+description: Report an issue with TauPlot
+labels:
+  - bug
+body:
+  - type: input
+    id: tauplot_version
+    attributes:
+      label: TauPlot version
+      placeholder: e.g. v0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: godot_version
+    attributes:
+      label: Godot version
+      placeholder: e.g. Godot 4.5.stable
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue_description
+    attributes:
+      label: Issue description
+      description: |
+        **Always open *one* issue for *one* bug**.
+        Describe your issue briefly. What do you observe and what do you expect instead?
+        You can include images or videos with drag and drop, and format code blocks with <code>\`\`\`gdscript</code> tags on separate lines before and after the text.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction_project
+    attributes:
+      label: Minimal reproduction project (MRP)
+      description: A small Godot project which reproduces the issue, with no unnecessary files included. Be sure to not include the `.godot` folder in the archive (but keep `project.godot`).
+    validations:
+      required: false

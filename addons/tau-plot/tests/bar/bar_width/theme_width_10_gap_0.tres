@@ -1,0 +1,6 @@
+[gd_resource type="Theme" format=3 uid="uid://blxu22ni3xrsd"]
+
+[resource]
+TauBar/base_type = &"Control"
+TauBar/constants/bar_intragroup_gap_px = 0
+TauBar/constants/bar_width_px = 10

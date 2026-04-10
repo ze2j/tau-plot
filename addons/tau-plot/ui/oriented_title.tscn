@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://c6r440rhqo83c"]
+
+[ext_resource type="Script" uid="uid://di2skp4cc38w1" path="res://addons/sg-plots/ui/oriented_title.gd" id="1_xuhk1"]
+
+[node name="OrientedTitle" type="Control"]
+custom_minimum_size = Vector2(1, 1)
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_xuhk1")
+title_orientation = null
+
+[node name="RichTextLabel" type="RichTextLabel" parent="."]
+custom_minimum_size = Vector2(1, 1)
+layout_mode = 0
+offset_right = 1.0
+offset_bottom = 1.0
+theme_type_variation = &"TauAxisTitle"
+bbcode_enabled = true
+fit_content = true

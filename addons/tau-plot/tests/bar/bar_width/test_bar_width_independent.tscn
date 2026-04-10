@@ -1,0 +1,120 @@
+[gd_scene load_steps=3 format=3 uid="uid://dywyilf2wdi60"]
+
+[ext_resource type="Script" uid="uid://ciwxhfsmys6p1" path="res://addons/tau-plot/tests/bar/bar_width/test_bar_width_independent.gd" id="1_y15s7"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_dmsys"]
+
+[node name="Bars" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_y15s7")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Test bar width computations with all policies except THEME"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 2
+
+[node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+title = "[Policy = CATEGORY_WIDTH_FRACTION] Animate category_width_fraction [0, 1]"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+title = "[Policy = DATA_UNITS][LINEAR] Animate bar_width_x_units [0, 0.5]"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+title = "[Policy = DATA_UNITS][LOGARITHMIC] Animate bar_width_log_factor [1, 2]"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+title = "[Policy = NEIGHBOR_SPACING_FRACTION][LINEAR] Animate neighbor_spacing_fraction [0, 1]"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+title = "[Policy = NEIGHBOR_SPACING_FRACTION][LOGARITHMIC] Animate neighbor_spacing_fraction ]0, 1]"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot9" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot10" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_dmsys")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"

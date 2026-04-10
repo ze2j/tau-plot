@@ -1,0 +1,84 @@
+[gd_scene load_steps=3 format=3 uid="uid://bryduisgdow4v"]
+
+[ext_resource type="Script" uid="uid://yuempeba1cn4" path="res://addons/tau-plot/tests/plot/panes/test_multi_pane_update.gd" id="1_8nxoa"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_3l1s2"]
+
+[node name="Bars" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_8nxoa")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+text = "Update samples in multi pane plots"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 3
+
+[node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_3l1s2")
+title = "[PER_SERIES_X] Update series A Y values only"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_3l1s2")
+title = "[PER_SERIES_X] Update series B Y values only"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_3l1s2")
+title = "[PER_SERIES_X] Update both series Y values"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_3l1s2")
+title = "[PER_SERIES_X] Update series A X values only"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_3l1s2")
+title = "[PER_SERIES_X] Update series B X values only"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_3l1s2")
+title = "[SHARED_X] Update shared X values => both panes shift horizontally"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"

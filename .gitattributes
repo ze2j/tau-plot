@@ -1,0 +1,10 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Exclude everything from exported archives by default
+/** export-ignore
+
+# Re-include only the addon payload
+/addons !export-ignore
+/addons/tau-plot !export-ignore
+/addons/tau-plot/** !export-ignore

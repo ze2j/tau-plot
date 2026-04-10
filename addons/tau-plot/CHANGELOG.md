@@ -1,0 +1,17 @@
+# CHANGELOG
+
+## v0.1.0 - 2026-04-14
+
+Initial release of TauPlot, a pure GDScript charting addon for Godot 4.5+.
+
+### Added
+
+- **Bar and scatter overlays** in any combination within a single plot. Bars support grouped, stacked (with optional normalization), and independent modes.
+- **Real-time streaming** with ring-buffer datasets.
+- **Multi-pane layouts** for displaying series with different Y scales side by side (e.g. price above volume).
+- **Per-sample styling** through attribute buffers or callbacks.
+- **Godot theme integration** with a three-layer cascade: built-in defaults, Godot theme, code overrides.
+- **Hover inspection** with configurable tooltip, crosshair, and highlight.
+- **GPU-accelerated scatter rendering** using MultiMesh and a custom SDF shader. Seven built-in marker shapes (circle, square, triangle up/down, diamond, cross, plus) with per-sample shape assignment.
+- **Categorical and continuous axes**, with linear or logarithmic scales, axis inversion, tick formatting callbacks, and automatic label overlap prevention.
+- **Legend** with configurable placement (inside or outside the plot) and flow direction.

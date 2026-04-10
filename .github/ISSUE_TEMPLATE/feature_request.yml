@@ -1,0 +1,13 @@
+name: Feature request
+description: Suggest an idea or improvement for TauPlot
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: Proposal
+      description: Describe your idea, the problem it solves, or the workflow it would improve. Ideas about API design, implementation, architecture, or trade-offs are welcome.
+      placeholder: Describe your proposal here.
+    validations:
+      required: true

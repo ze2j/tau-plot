@@ -1,0 +1,156 @@
+[gd_scene load_steps=3 format=3 uid="uid://cguld5qi12esn"]
+
+[ext_resource type="Script" uid="uid://m6ovn6nicc85" path="res://addons/tau-plot/tests/plot/legend/test_legend_position.gd" id="1_sptrt"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_sptrt"]
+
+[node name="Bars" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_sptrt")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Test legend position with flow direction = AUTO"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 4
+
+[node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "OUTSIDE_TOP"
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "OUTSIDE_RIGHT"
+legend_position = 3
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "OUTSIDE_BOTTOM"
+legend_position = 1
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "OUTSIDE_LEFT"
+legend_position = 2
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "INSIDE_TOP"
+legend_position = 4
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "INSIDE_RIGHT"
+legend_position = 7
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "INSIDE_BOTTOM"
+legend_position = 5
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "INSIDE_LEFT"
+legend_position = 6
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot9" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "INSIDE_TOP_RIGHT"
+legend_position = 9
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot10" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "INSIDE_BOTTOM_RIGHT"
+legend_position = 11
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot11" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "INSIDE_BOTTOM_LEFT"
+legend_position = 10
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot12" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_sptrt")
+title = "INSIDE_TOP_LEFT"
+legend_position = 8
+metadata/_custom_type_script = "uid://dnhvsf2wip771"

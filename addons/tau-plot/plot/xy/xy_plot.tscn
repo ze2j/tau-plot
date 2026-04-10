@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://dvg16b3xpoqmd"]
+
+[ext_resource type="Script" uid="uid://214ea6fa2avv" path="res://addons/tau-plot/plot/xy/xy_plot.gd" id="1_isq0e"]
+
+[node name="XYPlot" type="VBoxContainer" unique_id=1793514761]
+script = ExtResource("1_isq0e")
+
+[node name="TopAxisTitles" type="HBoxContainer" parent="." unique_id=710736841]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=737441913]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="LeftAxisTitles" type="VBoxContainer" parent="HBoxContainer" unique_id=1699043551]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="RightAxisTitles" type="VBoxContainer" parent="HBoxContainer" unique_id=740028280]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="BottomAxisTitles" type="HBoxContainer" parent="." unique_id=983061784]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2

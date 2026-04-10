@@ -1,0 +1,70 @@
+[gd_resource type="Theme" format=3 uid="uid://mth7t8od1rd1"]
+
+[sub_resource type="StyleBoxFlat" id="panel_bg"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.06, 0.08, 0.16, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="tooltip_pinned_sb"]
+bg_color = Color(0.07, 0.08, 0.14, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 2
+border_color = Color(0.82, 0.68, 0.28, 0.55)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="tooltip_sb"]
+bg_color = Color(0.07, 0.08, 0.14, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 2
+border_color = Color(0.82, 0.68, 0.28, 0.4)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[resource]
+TauAxisTitle/base_type = &"RichTextLabel"
+TauAxisTitle/colors/default_color = Color(0.78, 0.8, 0.88, 1)
+TauBar/base_type = &"Control"
+TauLegend/base_type = &"PanelContainer"
+TauPane/base_type = &"Control"
+TauPane/colors/pane_x_major_grid_line_color = Color(1, 1, 1, 0.06)
+TauPane/colors/pane_y_major_grid_line_color = Color(1, 1, 1, 0.06)
+TauPane/constants/pane_x_major_grid_line_dash = 3
+TauPane/constants/pane_y_major_grid_line_dash = 3
+TauPlot/base_type = &"PanelContainer"
+TauPlot/colors/font_color = Color(0.78, 0.8, 0.88, 1)
+TauPlot/colors/series_color_0 = Color(0.88, 0.76, 0.3, 1)
+TauPlot/colors/xy_axis_color = Color(0.45, 0.5, 0.6, 1)
+TauPlot/constants/xy_padding_bottom = 8
+TauPlot/constants/xy_padding_left = 8
+TauPlot/constants/xy_padding_right = 10
+TauPlot/constants/xy_padding_top = 6
+TauPlot/font_sizes/font_size = 11
+TauPlot/styles/panel = SubResource("panel_bg")
+TauPlotTitle/base_type = &"RichTextLabel"
+TauPlotTitle/colors/default_color = Color(0.78, 0.8, 0.88, 1)
+TauScatter/base_type = &"Control"
+TauScatter/colors/scatter_outline_color = Color(0.82, 0.7, 0.3, 0.9)
+TauScatter/constants/scatter_marker_shape_0 = 4
+TauScatter/constants/scatter_marker_size_px = 9
+TauScatter/constants/scatter_outline_width_px = 2
+TauTooltip/base_type = &"Control"
+TauTooltip/colors/font_color = Color(0.92, 0.82, 0.45, 1)
+TauTooltip/constants/font_size = 12
+TauTooltip/constants/tooltip_padding = 9
+TauTooltip/styles/tooltip_pinned_style_box = SubResource("tooltip_pinned_sb")
+TauTooltip/styles/tooltip_style_box = SubResource("tooltip_sb")

@@ -1,0 +1,35 @@
+# Godot 4
+.godot/
+export_presets.cfg
+
+# Docs
+documentation/.venv/
+documentation/site/
+
+# Python
+__pycache__/
+*.pyc
+
+# Common OS/editor noise
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Temporary / backup files
+*~
+*.tmp
+*.bak
+*.swp
+*.swo
+
+###################################################################################################
+# Explicitly NOT ignored
+###################################################################################################
+# .editorconfig
+# .gitattributes
+# addons/**

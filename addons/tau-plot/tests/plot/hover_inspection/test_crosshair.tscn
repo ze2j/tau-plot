@@ -1,0 +1,198 @@
+[gd_scene load_steps=27 format=3 uid="uid://oh544cmlpcp0"]
+
+[ext_resource type="Script" uid="uid://bf8d38j4kjpai" path="res://addons/tau-plot/tests/plot/hover_inspection/test_crosshair.gd" id="1_1b87k"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_1b87k"]
+[ext_resource type="Script" uid="uid://bxy334odeep0i" path="res://addons/tau-plot/plot/xy/hover/crosshair_style.gd" id="3_ke6fd"]
+[ext_resource type="Script" uid="uid://degruyrb4wk73" path="res://addons/tau-plot/plot/xy/hover/hover_config.gd" id="4_bljtf"]
+[ext_resource type="Script" uid="uid://ddabf2k8rkjpw" path="res://addons/tau-plot/plot/xy/hover/tooltip_style.gd" id="5_st6n7"]
+
+[sub_resource type="Resource" id="Resource_ke6fd"]
+script = ExtResource("3_ke6fd")
+
+[sub_resource type="Resource" id="Resource_bljtf"]
+script = ExtResource("5_st6n7")
+
+[sub_resource type="Resource" id="Resource_st6n7"]
+script = ExtResource("4_bljtf")
+tooltip_style = SubResource("Resource_bljtf")
+crosshair_mode = 3
+crosshair_style = SubResource("Resource_ke6fd")
+
+[sub_resource type="Resource" id="Resource_s1ue3"]
+script = ExtResource("3_ke6fd")
+
+[sub_resource type="Resource" id="Resource_oyryq"]
+script = ExtResource("5_st6n7")
+
+[sub_resource type="Resource" id="Resource_m7di0"]
+script = ExtResource("4_bljtf")
+tooltip_style = SubResource("Resource_oyryq")
+crosshair_mode = 3
+crosshair_style = SubResource("Resource_s1ue3")
+
+[sub_resource type="Resource" id="Resource_j1vw3"]
+script = ExtResource("3_ke6fd")
+
+[sub_resource type="Resource" id="Resource_elvhs"]
+script = ExtResource("5_st6n7")
+
+[sub_resource type="Resource" id="Resource_2iy5b"]
+script = ExtResource("4_bljtf")
+tooltip_style = SubResource("Resource_elvhs")
+crosshair_mode = 3
+crosshair_style = SubResource("Resource_j1vw3")
+
+[sub_resource type="Resource" id="Resource_3yd2p"]
+script = ExtResource("3_ke6fd")
+
+[sub_resource type="Resource" id="Resource_cns3r"]
+script = ExtResource("5_st6n7")
+
+[sub_resource type="Resource" id="Resource_wk5e7"]
+script = ExtResource("4_bljtf")
+tooltip_style = SubResource("Resource_cns3r")
+crosshair_mode = 3
+crosshair_style = SubResource("Resource_3yd2p")
+
+[sub_resource type="Resource" id="Resource_xlrch"]
+script = ExtResource("3_ke6fd")
+
+[sub_resource type="Resource" id="Resource_k2wgk"]
+script = ExtResource("5_st6n7")
+
+[sub_resource type="Resource" id="Resource_onc87"]
+script = ExtResource("4_bljtf")
+tooltip_style = SubResource("Resource_k2wgk")
+crosshair_mode = 3
+crosshair_style = SubResource("Resource_xlrch")
+
+[sub_resource type="Resource" id="Resource_kg74w"]
+script = ExtResource("3_ke6fd")
+
+[sub_resource type="Resource" id="Resource_a8vua"]
+script = ExtResource("5_st6n7")
+
+[sub_resource type="Resource" id="Resource_rcis8"]
+script = ExtResource("4_bljtf")
+tooltip_style = SubResource("Resource_a8vua")
+crosshair_mode = 3
+crosshair_style = SubResource("Resource_kg74w")
+
+[sub_resource type="Resource" id="Resource_31ks8"]
+script = ExtResource("3_ke6fd")
+
+[sub_resource type="Resource" id="Resource_dctv5"]
+script = ExtResource("5_st6n7")
+
+[sub_resource type="Resource" id="Resource_ach0a"]
+script = ExtResource("4_bljtf")
+tooltip_style = SubResource("Resource_dctv5")
+crosshair_mode = 3
+crosshair_style = SubResource("Resource_31ks8")
+
+[node name="Bars" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_1b87k")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Test crosshair (run the scene)"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 2
+
+[node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_1b87k")
+title = "BAR GROUPED + LINEAR"
+hover_config = SubResource("Resource_st6n7")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_1b87k")
+title = "BAR STACKED + LINEAR"
+hover_config = SubResource("Resource_m7di0")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_1b87k")
+title = "BAR INDEPENDENT + LINEAR"
+hover_config = SubResource("Resource_2iy5b")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_1b87k")
+title = "SCATTER + LINEAR"
+hover_config = SubResource("Resource_wk5e7")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_1b87k")
+title = "BAR GROUPED + LOGARITHMIC"
+hover_config = SubResource("Resource_onc87")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_1b87k")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_1b87k")
+title = "BAR INDEPENDENT + LOGARITHMIC"
+hover_config = SubResource("Resource_rcis8")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_1b87k")
+title = "SCATTER + LOGARITHMIC"
+hover_config = SubResource("Resource_ach0a")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"

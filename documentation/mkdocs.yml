@@ -1,0 +1,107 @@
+site_name: TauPlot documentation
+site_description: Plotting library for Godot
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - API Reference:
+      - Overview: api/index.md
+      - TauPlot: api/tau_plot.md
+
+      - Data Classes:
+          - Dataset: api/dataset.md
+          - ColorBuffer: api/color_buffer.md
+          - Float32Buffer: api/float32_buffer.md
+          - Float64Buffer: api/float64_buffer.md
+          - Int32Buffer: api/int32_buffer.md
+          - StringBuffer: api/string_buffer.md
+
+      - Series Binding:
+          - TauXYSeriesBinding: api/xy_series_binding.md
+
+      - Plot Configuration:
+          - TauXYConfig: api/xy_config.md
+          - TauPaneConfig: api/pane_config.md
+          - TauAxisConfig: api/axis_config.md
+          - TauPaneOverlayConfig: api/pane_overlay_config.md
+          - TauBarConfig: api/bar_config.md
+          - TauScatterConfig: api/scatter_config.md
+
+      - Additional Configuration:
+          - TauLegendConfig: api/legend_config.md
+          - TauGridLineConfig: api/grid_line_config.md
+          - TauHoverConfig: api/hover_config.md
+          - SampleHit: api/sample_hit.md
+
+      - Style Resources:
+          - TauXYStyle: api/xy_style.md
+          - TauPaneStyle: api/pane_style.md
+          - TauBarStyle: api/bar_style.md
+          - TauScatterStyle: api/scatter_style.md
+          - TauLegendStyle: api/legend_style.md
+          - TauTooltipStyle: api/tooltip_style.md
+          - TauCrosshairStyle: api/crosshair_style.md
+
+      - Per-sample Visual Attributes:
+          - VisualAttributes: api/visual_attributes.md
+          - BarVisualAttributes: api/bar_visual_attributes.md
+          - ScatterVisualAttributes: api/scatter_visual_attributes.md
+
+      - Per-sample Visual Callbacks:
+          - VisualCallbacks: api/visual_callbacks.md
+          - BarVisualCallbacks: api/bar_visual_callbacks.md
+          - ScatterVisualCallbacks: api/scatter_visual_callbacks.md
+
+theme:
+  name: material
+  logo: assets/tau-plot.svg
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: light blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: light blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.blocks.caption
+  - pymdownx.snippets
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true

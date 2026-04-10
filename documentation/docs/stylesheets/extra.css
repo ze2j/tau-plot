@@ -1,0 +1,143 @@
+/* =========================================
+   Main content hierarchy
+   ========================================= */
+
+.md-typeset
+{
+    font-size: 1.0rem;
+    line-height: 1.7;
+}
+
+.md-typeset h1
+{
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.8rem;
+    color: var(--md-primary-fg-color);
+}
+
+.md-typeset h2
+{
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin-top: 2.4rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--md-default-fg-color--lightest);
+    color: var(--md-primary-fg-color);
+}
+
+.md-typeset h3
+{
+    font-size: 1.2rem;
+    font-weight: 750;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+}
+
+.md-typeset h4
+{
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* =========================================
+   Lists
+   ========================================= */
+
+.md-typeset ul li,
+.md-typeset ol li
+{
+    margin-top: 0.12em;
+    margin-bottom: 0.12em;
+}
+
+/* Reduce paragraph bottom margin only when followed by a list */
+.md-typeset p:has(+ ul),
+.md-typeset p:has(+ ol)
+{
+    margin-bottom: 0.0rem;
+}
+
+/* Reduce list top margin only when preceded by a paragraph */
+.md-typeset p + ul,
+.md-typeset p + ol
+{
+    margin-top: 0.0rem;
+}
+
+.md-typeset ul li p,
+.md-typeset ol li p
+{
+    margin-top: 0.0rem;
+    margin-bottom: 0.0rem;
+}
+
+/* =========================================
+   Tables
+   ========================================= */
+
+.md-typeset table th:first-child,
+.md-typeset table td:first-child
+{
+    white-space: nowrap;
+    width: 1%;
+    vertical-align: top;
+    font-size: 1.0rem;
+}
+
+.md-typeset table th:last-child,
+.md-typeset table td:last-child
+{
+    width: 99%;
+    vertical-align: top;
+    font-size: 1.0rem;
+}
+
+
+/* =========================================
+   API metadata box
+   ========================================= */
+
+/* Neutral API metadata box */
+.md-typeset .admonition.info
+{
+    font-size: 1rem;
+    color: var(--md-default-fg-color);
+    background-color: var(--md-default-bg-color);
+    border: 1px solid var(--md-default-fg-color--lightest);
+    border-radius: 0.6rem;
+    box-shadow: none;
+}
+
+/* Remove the green-ish title strip background */
+.md-typeset .admonition.info > .admonition-title
+{
+    background-color: transparent;
+    color: var(--md-default-fg-color);
+    font-size: 1rem;
+}
+
+/* Make the body text look like normal text */
+.md-typeset .admonition.info p
+{
+    font-size: 1rem;
+    color: var(--md-default-fg-color);
+    line-height: 1.6;
+}
+
+/* Keep labels normal */
+.md-typeset .admonition.info strong
+{
+    color: var(--md-default-fg-color);
+}
+
+/* Keep inline code slightly smaller but normal-looking */
+.md-typeset .admonition.info code
+{
+    font-size: 0.95em;
+}

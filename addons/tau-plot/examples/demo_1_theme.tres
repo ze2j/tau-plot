@@ -1,0 +1,67 @@
+[gd_resource type="Theme" format=3 uid="uid://d226pmiov3uo2"]
+
+[sub_resource type="StyleBoxFlat" id="panel_bg"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.035, 0.035, 0.07, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="tooltip_pinned_sb"]
+bg_color = Color(0.06, 0.06, 0.14, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.6, 0.6, 0.82, 0.45)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="tooltip_sb"]
+bg_color = Color(0.06, 0.06, 0.14, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.55, 0.55, 0.75, 0.3)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[resource]
+TauAxisTitle/base_type = &"RichTextLabel"
+TauAxisTitle/colors/default_color = Color(0.85, 0.85, 0.95, 1)
+TauBar/base_type = &"Control"
+TauLegend/base_type = &"PanelContainer"
+TauPane/base_type = &"Control"
+TauPane/colors/pane_x_major_grid_line_color = Color(1, 1, 1, 0.04)
+TauPane/colors/pane_y_major_grid_line_color = Color(1, 1, 1, 0.04)
+TauPlot/base_type = &"PanelContainer"
+TauPlot/colors/font_color = Color(0.85, 0.85, 0.95, 1)
+TauPlot/colors/series_color_0 = Color(0.85, 0.85, 0.95, 1)
+TauPlot/colors/xy_axis_color = Color(0.45, 0.45, 0.55, 1)
+TauPlot/constants/xy_padding_bottom = 8
+TauPlot/constants/xy_padding_left = 8
+TauPlot/constants/xy_padding_right = 8
+TauPlot/constants/xy_padding_top = 6
+TauPlot/font_sizes/font_size = 11
+TauPlot/styles/panel = SubResource("panel_bg")
+TauPlotTitle/base_type = &"RichTextLabel"
+TauPlotTitle/colors/default_color = Color(0.85, 0.85, 0.95, 1)
+TauScatter/base_type = &"Control"
+TauScatter/constants/scatter_marker_shape_0 = 0
+TauScatter/constants/scatter_marker_size_px = 6
+TauScatter/constants/scatter_outline_width_px = 0
+TauTooltip/base_type = &"Control"
+TauTooltip/colors/font_color = Color(0.82, 0.82, 0.95, 1)
+TauTooltip/constants/font_size = 11
+TauTooltip/constants/tooltip_padding = 10
+TauTooltip/styles/tooltip_pinned_style_box = SubResource("tooltip_pinned_sb")
+TauTooltip/styles/tooltip_style_box = SubResource("tooltip_sb")

@@ -1,0 +1,84 @@
+[gd_resource type="Theme" format=3 uid="uid://d0i8t7e3y08lg"]
+
+[sub_resource type="StyleBoxFlat" id="legend_bg"]
+content_margin_left = 8.0
+content_margin_top = 5.0
+content_margin_right = 8.0
+content_margin_bottom = 5.0
+bg_color = Color(0.08, 0.09, 0.12, 0.88)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="panel_bg"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.05, 0.06, 0.08, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="tooltip_pinned_sb"]
+bg_color = Color(0.1, 0.09, 0.08, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.9, 0.45, 0.18, 0.5)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="tooltip_sb"]
+bg_color = Color(0.1, 0.09, 0.08, 0.93)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.9, 0.45, 0.18, 0.35)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[resource]
+TauAxisTitle/base_type = &"RichTextLabel"
+TauAxisTitle/colors/default_color = Color(0.8, 0.82, 0.88, 1)
+TauBar/base_type = &"Control"
+TauLegend/base_type = &"PanelContainer"
+TauLegend/colors/font_color = Color(0.8, 0.82, 0.88, 1)
+TauLegend/font_sizes/font_size = 10
+TauLegend/styles/legend_background = SubResource("legend_bg")
+TauPane/base_type = &"Control"
+TauPane/colors/pane_x_major_grid_line_color = Color(1, 1, 1, 0.05)
+TauPane/colors/pane_y_major_grid_line_color = Color(1, 1, 1, 0.05)
+TauPlot/base_type = &"PanelContainer"
+TauPlot/colors/font_color = Color(0.8, 0.82, 0.88, 1)
+TauPlot/colors/series_color_0 = Color(0.9, 0.35, 0.18, 1)
+TauPlot/colors/series_color_1 = Color(0.95, 0.65, 0.2, 1)
+TauPlot/colors/series_color_2 = Color(1, 0.92, 0.55, 1)
+TauPlot/colors/series_color_3 = Color(0.72, 0.82, 1, 1)
+TauPlot/colors/xy_axis_color = Color(0.5, 0.52, 0.58, 1)
+TauPlot/constants/xy_padding_bottom = 8
+TauPlot/constants/xy_padding_left = 8
+TauPlot/constants/xy_padding_right = 8
+TauPlot/constants/xy_padding_top = 6
+TauPlot/font_sizes/font_size = 11
+TauPlot/styles/panel = SubResource("panel_bg")
+TauPlotTitle/base_type = &"RichTextLabel"
+TauPlotTitle/colors/default_color = Color(0.8, 0.82, 0.88, 1)
+TauScatter/base_type = &"Control"
+TauScatter/constants/scatter_marker_shape_0 = 0
+TauScatter/constants/scatter_marker_size_px = 3
+TauScatter/constants/scatter_outline_width_px = 0
+TauTooltip/base_type = &"Control"
+TauTooltip/colors/font_color = Color(0.95, 0.92, 0.85, 1)
+TauTooltip/constants/font_size = 11
+TauTooltip/constants/tooltip_padding = 9
+TauTooltip/styles/tooltip_pinned_style_box = SubResource("tooltip_pinned_sb")
+TauTooltip/styles/tooltip_style_box = SubResource("tooltip_sb")
