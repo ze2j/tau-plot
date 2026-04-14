@@ -1,5 +1,6 @@
 site_name: TauPlot documentation
 site_description: Plotting library for Godot
+site_url: https://ze2j.github.io/tau-plot/
 
 nav:
   - Home: index.md

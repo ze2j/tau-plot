@@ -8,7 +8,7 @@ TauPlot draws XY plots inside any Godot UI. It supports bar and scatter overlays
 
 This repository has just been made public (since 2026-04-14). Finalization steps are currently in progress:
 
-- [ ] Deploy documentation
+- [x] Deploy documentation
 - [ ] Register addon on the Godot Asset Library
 
 These steps should be completed within the next few days.
