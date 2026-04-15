@@ -4,15 +4,6 @@ A pure GDScript charting addon for Godot 4.5+. No external dependencies. Interac
 
 TauPlot draws XY plots inside any Godot UI. It supports bar and scatter overlays (with more to come), real-time data streaming, multi-pane layouts, per-sample visual control, and deep integration with Godot's theme system.
 
-## Release Status
-
-This repository has just been made public (since 2026-04-14). Finalization steps are currently in progress:
-
-- [x] Deploy documentation
-- [ ] Register addon on the Godot Asset Library
-
-These steps should be completed within the next few days.
-
 ## Gallery
 
 <p align="center">
@@ -28,13 +19,13 @@ These steps should be completed within the next few days.
 ## Features
 
 - **Bar and scatter overlays** in any combination within a single plot. Bars support grouped, stacked (with optional normalization), and independent modes.
-- **Real-time streaming** with ring-buffer datasets. When the buffer is full, the oldest sample is dropped automatically, making TauPlot a good fit for live dashboards and sensor data.
+- **Categorical and continuous axes**, with linear or logarithmic scales, axis inversion, tick formatting callbacks, and automatic label overlap prevention.
+- **Real-time streaming** with ring-buffer datasets. When the buffer is full, the oldest sample is dropped automatically.
 - **Multi-pane layouts** for displaying series with different Y scales side by side (e.g. price above volume).
 - **Per-sample styling** through attribute buffers or callbacks. Control color, alpha, marker shape, marker size, outline, and more on a per-sample basis.
 - **Godot theme integration** with a three-layer cascade: built-in defaults, Godot theme, code overrides. Every visual property participates in this cascade.
 - **Hover inspection** with configurable tooltip, crosshair, and highlight. Four signals (`sample_hovered`, `sample_hover_exited`, `sample_clicked`, `sample_click_dismissed`) let you react to user interaction.
 - **GPU-accelerated scatter rendering** using MultiMesh and a custom SDF shader. Seven built-in marker shapes (circle, square, triangle up/down, diamond, cross, plus) with per-sample shape assignment.
-- **Categorical and continuous axes**, with linear or logarithmic scales, axis inversion, tick formatting callbacks, and automatic label overlap prevention.
 - **Legend** with configurable placement (inside or outside the plot) and flow direction.
 
 ## Installation
