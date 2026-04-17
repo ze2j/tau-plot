@@ -69,7 +69,7 @@ func _setup_test_1() -> void:
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [X_6, X_6], [Y_A_INIT, Y_B_INIT])
 	_datasets.append(dataset)
 
-	%TestPlot1.title = "[PER_SERIES_X] Update both series Y values"
+	%TestPlot1.title = "[PER_SERIES_X] Update both series Y values, invert y axes"
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.title = "X axis"
@@ -81,11 +81,13 @@ func _setup_test_1() -> void:
 	bottom_a.title = "A Y values"
 	bottom_a.type = TauAxisConfig.Type.CONTINUOUS
 	bottom_a.include_zero_in_domain = true
+	bottom_a.inverted = true
 
 	var bottom_b := TauAxisConfig.new()
 	bottom_b.title = "B Y values"
 	bottom_b.type = TauAxisConfig.Type.CONTINUOUS
 	bottom_b.include_zero_in_domain = true
+	bottom_b.inverted = true
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.INDEPENDENT
@@ -102,7 +104,7 @@ func _setup_test_1() -> void:
 
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
-	config.x_axis_id = TauPlot.AxisId.LEFT
+	config.x_axis_id = TauPlot.AxisId.RIGHT
 	config.panes = [pane_a, pane_b]
 
 	var sb_a := TauXYSeriesBinding.new()
@@ -150,7 +152,7 @@ func _setup_test_2() -> void:
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [X_6], [Y_A_INIT])
 	_datasets.append(dataset)
 
-	%TestPlot2.title = "[PER_SERIES_X] Single series, two panes"
+	%TestPlot2.title = "[PER_SERIES_X] Single series, two panes, invert y axes"
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.title = "X axis"
@@ -162,11 +164,13 @@ func _setup_test_2() -> void:
 	bar_axis.title = "BAR"
 	bar_axis.type = TauAxisConfig.Type.CONTINUOUS
 	bar_axis.include_zero_in_domain = true
+	bar_axis.inverted = true
 
 	var scatter_axis := TauAxisConfig.new()
 	scatter_axis.title = "SCATTER"
 	scatter_axis.type = TauAxisConfig.Type.CONTINUOUS
 	scatter_axis.include_zero_in_domain = true
+	scatter_axis.inverted = true
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.INDEPENDENT
@@ -187,7 +191,7 @@ func _setup_test_2() -> void:
 
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
-	config.x_axis_id = TauPlot.AxisId.LEFT
+	config.x_axis_id = TauPlot.AxisId.RIGHT
 	config.panes = [pane_l, pane_r]
 
 	var sb_l := TauXYSeriesBinding.new()
@@ -233,7 +237,7 @@ func _setup_test_3() -> void:
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [X_6, X_6], [Y_A_INIT, Y_B_INIT])
 	_datasets.append(dataset)
 
-	%TestPlot3.title = "[PER_SERIES_X] Update both series Y values"
+	%TestPlot3.title = "[PER_SERIES_X] Update both series Y values, invert y axes"
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.title = "X axis"
@@ -245,11 +249,13 @@ func _setup_test_3() -> void:
 	bottom_a.title = "A Y values"
 	bottom_a.type = TauAxisConfig.Type.CONTINUOUS
 	bottom_a.include_zero_in_domain = true
+	bottom_a.inverted = true
 
 	var bottom_b := TauAxisConfig.new()
 	bottom_b.title = "B Y values"
 	bottom_b.type = TauAxisConfig.Type.CONTINUOUS
 	bottom_b.include_zero_in_domain = true
+	bottom_b.inverted = true
 
 	var scatter_config := TauScatterConfig.new()
 	scatter_config.marker_size_policy = TauScatterConfig.MarkerSizePolicy.DATA_UNITS
@@ -265,7 +271,7 @@ func _setup_test_3() -> void:
 
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
-	config.x_axis_id = TauPlot.AxisId.LEFT
+	config.x_axis_id = TauPlot.AxisId.RIGHT
 	config.panes = [pane_a, pane_b]
 
 	var sb_a := TauXYSeriesBinding.new()
@@ -319,7 +325,7 @@ func _setup_test_4() -> void:
 	var dataset := TauPlot.Dataset.make_shared_x_continuous(series_names, X_6, [y_volume, y_price], CAPACITY)
 	_datasets.append(dataset)
 
-	%TestPlot4.title = "[SHARED_X] Append Price + Volume (3:1 stretch ratio)"
+	%TestPlot4.title = "[SHARED_X] Append Price + Volume (3:1 stretch ratio), invert y axes"
 
 	var time_axis := TauAxisConfig.new()
 	time_axis.title = "Time"
@@ -330,11 +336,13 @@ func _setup_test_4() -> void:
 	price_axis.title = "Price"
 	price_axis.type = TauAxisConfig.Type.CONTINUOUS
 	price_axis.include_zero_in_domain = false
+	price_axis.inverted = true
 
 	var volume_axis := TauAxisConfig.new()
 	volume_axis.title = "Volume"
 	volume_axis.type = TauAxisConfig.Type.CONTINUOUS
 	volume_axis.include_zero_in_domain = true
+	volume_axis.inverted = true
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.INDEPENDENT
@@ -353,7 +361,7 @@ func _setup_test_4() -> void:
 
 	var config := TauXYConfig.new()
 	config.x_axis = time_axis
-	config.x_axis_id = TauPlot.AxisId.LEFT
+	config.x_axis_id = TauPlot.AxisId.RIGHT
 	config.panes = [pane_vol, pane_price]
 
 	var sb_price := TauXYSeriesBinding.new()
@@ -406,7 +414,7 @@ func _setup_test_5() -> void:
 	var dataset := TauPlot.Dataset.make_shared_x_continuous(series_names, X_6, [Y_A_INIT, Y_B_INIT, Y_C_INIT], CAPACITY)
 	_datasets.append(dataset)
 
-	%TestPlot5.title = "[SHARED_X] Append to 3 panes (2:1:1 stretch ratio)"
+	%TestPlot5.title = "[SHARED_X] Append to 3 panes (2:1:1 stretch ratio), invert y axes"
 
 	var time_axis := TauAxisConfig.new()
 	time_axis.type = TauAxisConfig.Type.CONTINUOUS
@@ -417,16 +425,19 @@ func _setup_test_5() -> void:
 	y_l.title = "Left"
 	y_l.type = TauAxisConfig.Type.CONTINUOUS
 	y_l.include_zero_in_domain = true
+	y_l.inverted = true
 
 	var y_m := TauAxisConfig.new()
 	y_m.title = "Middle"
 	y_m.type = TauAxisConfig.Type.CONTINUOUS
 	y_m.include_zero_in_domain = true
+	y_m.inverted = true
 
 	var y_r := TauAxisConfig.new()
 	y_r.title = "Right"
 	y_r.type = TauAxisConfig.Type.CONTINUOUS
 	y_r.include_zero_in_domain = true
+	y_r.inverted = true
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.INDEPENDENT
@@ -450,7 +461,7 @@ func _setup_test_5() -> void:
 
 	var config := TauXYConfig.new()
 	config.x_axis = time_axis
-	config.x_axis_id = TauPlot.AxisId.LEFT
+	config.x_axis_id = TauPlot.AxisId.RIGHT
 	config.panes = [pane_l, pane_m, pane_r]
 
 	var sb_left := TauXYSeriesBinding.new()
@@ -510,7 +521,7 @@ func _setup_test_6() -> void:
 	var dataset := TauPlot.Dataset.make_shared_x_categorical(series_names, CATS_INIT, [Y_A_INIT, Y_B_INIT], 12)
 	_datasets.append(dataset)
 
-	%TestPlot6.title = "[SHARED_X] Append new categories"
+	%TestPlot6.title = "[SHARED_X] Append new categories, invert y axes"
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.type = TauAxisConfig.Type.CATEGORICAL
@@ -520,11 +531,13 @@ func _setup_test_6() -> void:
 	y_l.title = "Left"
 	y_l.type = TauAxisConfig.Type.CONTINUOUS
 	y_l.include_zero_in_domain = true
+	y_l.inverted = true
 
 	var y_r := TauAxisConfig.new()
 	y_r.title = "Right"
 	y_r.type = TauAxisConfig.Type.CONTINUOUS
 	y_r.include_zero_in_domain = true
+	y_r.inverted = true
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.INDEPENDENT
@@ -539,7 +552,7 @@ func _setup_test_6() -> void:
 
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
-	config.x_axis_id = TauPlot.AxisId.LEFT
+	config.x_axis_id = TauPlot.AxisId.RIGHT
 	config.panes = [pane_t, pane_b]
 
 	var sb_a := TauXYSeriesBinding.new()
