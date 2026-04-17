@@ -536,7 +536,10 @@ class PaneRenderer extends Control:
 					continue
 				var label: String = p_decorate_fn.call(p_categories[i])
 				var label_size := _measure_label(label)
-				var label_center_x := p_pane_rect.position.x + (float(i) + 0.5) * step_px
+				# By default a horizontal axis displays the first category on the left,
+				# when inverted the first category is on the right.
+				var slot := (n - 1 - i) if p_cfg.inverted else i
+				var label_center_x := p_pane_rect.position.x + (float(slot) + 0.5) * step_px
 				var label_y: float
 				if is_bottom:
 					label_y = axis_y + tick_length + label_gap
@@ -613,7 +616,10 @@ class PaneRenderer extends Control:
 					continue
 				var label: String = p_decorate_fn.call(p_categories[i])
 				var label_size := _measure_label(label)
-				var label_center_y := p_pane_rect.position.y + (float(i) + 0.5) * step_px
+				# By default a vertical axis displays the first category at the bottom,
+				# when inverted the first category is at the top.
+				var slot := i if p_cfg.inverted else (n - 1 - i)
+				var label_center_y := p_pane_rect.position.y + (float(slot) + 0.5) * step_px
 				var label_x: float
 				if is_left:
 					label_x = axis_x - tick_length - label_gap - label_size.x
