@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://6oybgwix1pgs"]
+[gd_scene load_steps=3 format=3 uid="uid://c4oiswtjxqaea"]
 
-[ext_resource type="Script" uid="uid://c8a76un6fqw2u" path="res://addons/tau-plot/tests/axis/label_overlapping/test_label_overlap_x_continuous_log.gd" id="1_st0nh"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_b7yuj"]
+[ext_resource type="Script" uid="uid://tt7k1vdvivmh" path="res://addons/tau-plot/tests/axis/label_overlapping/test_label_overlap_zero_alignment.gd" id="1_e2qdi"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_rwro5"]
 
 [node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_st0nh")
+script = ExtResource("1_e2qdi")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test overlap strategy for continuous logarithmic x-axis"
+text = "Test overlap strategy with two y axes and zero alignment"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -31,14 +31,13 @@ size_flags_vertical = 3
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer/CenterContainer1"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
-title = "[NONE] with default min_label_spacing_px"
-legend_enabled = false
+script = ExtResource("2_rwro5")
+title = "[no zero alignment] NONE on left axis, NONE on right axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="CenterContainer2" type="CenterContainer" parent="GridContainer"]
@@ -48,14 +47,13 @@ size_flags_vertical = 3
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer/CenterContainer2"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
-title = "[REDUCE_COUNT] with default min_label_spacing_px"
-legend_enabled = false
+script = ExtResource("2_rwro5")
+title = "[no zero alignment] SKIP_LABELS on left axis, NONE on right axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="CenterContainer3" type="CenterContainer" parent="GridContainer"]
@@ -65,14 +63,13 @@ size_flags_vertical = 3
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer/CenterContainer3"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
-title = "[SKIP_LABELS] with default min_label_spacing_px"
-legend_enabled = false
+script = ExtResource("2_rwro5")
+title = "[no zero alignment] NONE on left axis, REDUCE_COUNT on right axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="CenterContainer4" type="CenterContainer" parent="GridContainer"]
@@ -82,14 +79,13 @@ size_flags_vertical = 3
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer/CenterContainer4"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
-title = "[NONE] with min_label_spacing_px = 100"
-legend_enabled = false
+script = ExtResource("2_rwro5")
+title = "[with zero alignment] SKIP_LABELS on left axis, SKIP_LABELS on right axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="CenterContainer5" type="CenterContainer" parent="GridContainer"]
@@ -99,14 +95,13 @@ size_flags_vertical = 3
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer/CenterContainer5"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
-title = "[REDUCE_COUNT] with min_label_spacing_px = 100"
-legend_enabled = false
+script = ExtResource("2_rwro5")
+title = "[with zero alignment] REDUCE_COUNT on left axis, SKIP_LABELS on right axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="CenterContainer6" type="CenterContainer" parent="GridContainer"]
@@ -116,12 +111,11 @@ size_flags_vertical = 3
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer/CenterContainer6"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
-title = "[SKIP_LABELS] with min_label_spacing_px = 100"
-legend_enabled = false
+script = ExtResource("2_rwro5")
+title = "[with  zero alignment] SKIP_LABELS on left axis, REDUCE_COUNT on right axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

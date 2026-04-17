@@ -14,6 +14,7 @@ script = ExtResource("1_u36sl")
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
+text = "Test overlap strategy for categorical x-axis"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -30,7 +31,8 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
-title = "[NONE] 10 x 8-char categories => labels overlap freely"
+title = "[NONE] 12 chars categories => labels overlap freely"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -40,7 +42,8 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] 10 x 8-char categories => some labels hidden"
+title = "[SKIP_LABELS] 12 chars categories => some labels hidden"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -51,6 +54,7 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
 title = "[SKIP_LABELS] Animate category char count [1, 12] => labels grow and get skipped"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -61,6 +65,7 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
 title = "[SKIP_LABELS] Animate min_x_label_spacing_px [0, 100] => labels disappear progressively"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -71,6 +76,7 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
 title = "[SKIP_LABELS] 1 category, animate char count [1, 100] => label always shown"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
@@ -81,4 +87,5 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
 title = "[SKIP_LABELS] 1 category, animate min_x_label_spacing_px [500, 1500] => label always shown"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

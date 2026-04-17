@@ -81,19 +81,19 @@ func _setup_test_1() -> void:
 	var dataset := TauPlot.Dataset.make_shared_x_categorical(series_names, categories, [y])
 	_datasets.append(dataset)
 
-	%TestPlot1.title = "[NONE] 10 x 8-char categories => labels overlap freely"
+	%TestPlot1.title = "[NONE] 12 chars categories => labels overlap freely"
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.type = TauAxisConfig.Type.CATEGORICAL
 	x_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
-	left_axis.include_zero_in_domain = true
+	var y_axis := TauAxisConfig.new()
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
+	y_axis.include_zero_in_domain = true
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [TauBarConfig.new()]
 
 	var config := TauXYConfig.new()
@@ -107,6 +107,7 @@ func _setup_test_1() -> void:
 
 	var bindings: Array[TauXYSeriesBinding] = [sb]
 
+	%TestPlot1.legend_enabled = false
 	%TestPlot1.plot_xy(dataset, config, bindings)
 
 	_state.append({})
@@ -127,19 +128,19 @@ func _setup_test_2() -> void:
 	var dataset := TauPlot.Dataset.make_shared_x_categorical(series_names, categories, [y])
 	_datasets.append(dataset)
 
-	%TestPlot2.title = "[SKIP_LABELS] 10 x 8-char categories => some labels hidden"
+	%TestPlot2.title = "[SKIP_LABELS] 12 chars categories => some labels hidden"
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.type = TauAxisConfig.Type.CATEGORICAL
 	x_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.SKIP_LABELS
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
-	left_axis.include_zero_in_domain = true
+	var y_axis := TauAxisConfig.new()
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
+	y_axis.include_zero_in_domain = true
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [TauBarConfig.new()]
 
 	var config := TauXYConfig.new()
@@ -153,6 +154,7 @@ func _setup_test_2() -> void:
 
 	var bindings: Array[TauXYSeriesBinding] = [sb]
 
+	%TestPlot2.legend_enabled = false
 	%TestPlot2.plot_xy(dataset, config, bindings)
 
 	_state.append({})
@@ -179,13 +181,13 @@ func _setup_test_3() -> void:
 	x_axis.type = TauAxisConfig.Type.CATEGORICAL
 	x_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.SKIP_LABELS
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
-	left_axis.include_zero_in_domain = true
+	var y_axis := TauAxisConfig.new()
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
+	y_axis.include_zero_in_domain = true
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [TauBarConfig.new()]
 
 	var config := TauXYConfig.new()
@@ -199,6 +201,7 @@ func _setup_test_3() -> void:
 
 	var bindings: Array[TauXYSeriesBinding] = [sb]
 
+	%TestPlot3.legend_enabled = false
 	%TestPlot3.plot_xy(dataset, config, bindings)
 
 	_state.append(
@@ -244,13 +247,13 @@ func _setup_test_4() -> void:
 	x_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.SKIP_LABELS
 	x_axis.min_label_spacing_px = 0
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
-	left_axis.include_zero_in_domain = true
+	var y_axis := TauAxisConfig.new()
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
+	y_axis.include_zero_in_domain = true
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [TauBarConfig.new()]
 
 	var config := TauXYConfig.new()
@@ -264,6 +267,7 @@ func _setup_test_4() -> void:
 
 	var bindings: Array[TauXYSeriesBinding] = [sb]
 
+	%TestPlot4.legend_enabled = false
 	%TestPlot4.plot_xy(dataset, config, bindings)
 
 	_state.append(
@@ -299,13 +303,13 @@ func _setup_test_5() -> void:
 	x_axis.type = TauAxisConfig.Type.CATEGORICAL
 	x_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.SKIP_LABELS
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
-	left_axis.include_zero_in_domain = true
+	var y_axis := TauAxisConfig.new()
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
+	y_axis.include_zero_in_domain = true
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [TauBarConfig.new()]
 
 	var config := TauXYConfig.new()
@@ -319,6 +323,7 @@ func _setup_test_5() -> void:
 
 	var bindings: Array[TauXYSeriesBinding] = [sb]
 
+	%TestPlot5.legend_enabled = false
 	%TestPlot5.plot_xy(dataset, config, bindings)
 
 	_state.append(
@@ -358,13 +363,13 @@ func _setup_test_6() -> void:
 	x_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.SKIP_LABELS
 	x_axis.min_label_spacing_px = 500
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
-	left_axis.include_zero_in_domain = true
+	var y_axis := TauAxisConfig.new()
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
+	y_axis.include_zero_in_domain = true
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [TauBarConfig.new()]
 
 	var config := TauXYConfig.new()
@@ -378,6 +383,7 @@ func _setup_test_6() -> void:
 
 	var bindings: Array[TauXYSeriesBinding] = [sb]
 
+	%TestPlot6.legend_enabled = false
 	%TestPlot6.plot_xy(dataset, config, bindings)
 
 	_state.append(
