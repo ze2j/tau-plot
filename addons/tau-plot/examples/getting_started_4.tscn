@@ -1,6 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://b7wwg7srvem4p"]
+[gd_scene load_steps=3 format=3 uid="uid://bia7w87o6svw4"]
 
-[ext_resource type="Script" uid="uid://b4puy3scdvgpd" path="res://addons/tau-plot/examples/getting_started_4.gd" id="1_anpow"]
+[ext_resource type="Script" uid="uid://cknqhx320ngpa" path="res://addons/tau-plot/examples/getting_started_4.gd" id="1_anpow"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_32ypg"]
 
 [node name="GettingStarted4" type="CenterContainer"]

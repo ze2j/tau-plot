@@ -10,7 +10,9 @@ This guide teaches you how to build XY plots with TauPlot, one step at a time. E
 
 ## 1. Core concepts
 
-An **XY plot** displays data on two axes: one horizontal (X) and one vertical (Y). TauPlot lets you build XY plots from a few simple building blocks.
+An **XY plot** displays data on two axes: one **X axis** and one **Y axis**. By default the X axis runs along the bottom edge of the plot and the Y axis runs along a side edge, which is the most common layout. But the X axis can be placed on any edge. When you move it to the left or right edge, the whole plot flips and bars grow horizontally instead of vertically. You will see an example of this later in the guide.
+
+TauPlot lets you build XY plots from a few simple building blocks.
 
 A **series** is a named sequence of (X, Y) data points. For example, the monthly temperatures of a city form one series. A plot can display one series or many at once.
 
@@ -176,9 +178,9 @@ func _ready() -> void:
 **Example 3**: Bars and scatter markers combined in one pane.
 ///
 
-## 4. Multi-pane layouts
+## 4. Horizontal bars
 
-When two series have very different Y scales, putting them in the same pane would squash one of them against the axis. You can give each series its own pane instead. Both panes share the same X axis, but they have independent Y axes and independent vertical space.
+Every example so far uses the default layout where the X axis sits at the bottom and bars grow upward. To produce horizontal bars, you move the X axis to a side edge by setting [`x_axis_id`](api/xy_config.md#x_axis_id) to `LEFT`. The categories then run vertically on the left edge and the bars grow horizontally. Because the axes swap positions, the Y axis configuration must be assigned to the matching edge slot on the pane (here `y_bottom_axis`), and the binding must target the same edge (`TauPlot.AxisId.BOTTOM`). Apart from those adjustments, the dataset and the overlay work exactly the same way as in a vertical bar chart.
 
 This example is available as `addons/tau-plot/examples/getting_started_4.tscn`.
 
@@ -186,99 +188,131 @@ This example is available as `addons/tau-plot/examples/getting_started_4.tscn`.
 extends CenterContainer
 
 func _ready() -> void:
-	# Two series sharing the same numeric X values (months 1 to 6).
-	var months := PackedFloat64Array([1, 2, 3, 4, 5, 6])
-	var visitors := PackedFloat64Array([1200.0, 1450.0, 1380.0, 1620.0, 1800.0, 1950.0])
-	var rating := PackedFloat64Array([4.1, 4.3, 4.0, 4.5, 4.6, 4.8])
-
-	var dataset := TauPlot.Dataset.make_shared_x_continuous(
-		PackedStringArray(["Visitors", "Rating"]),
-		months,
-		[visitors, rating] as Array[PackedFloat64Array]
+	# The six most spoken languages in the world by number of native
+	# speakers (in millions). Source: Wikipedia.
+	var dataset := TauPlot.Dataset.make_shared_x_categorical(
+		PackedStringArray(["Native speakers"]),
+		PackedStringArray(["Mandarin Chinese", "Spanish", "English", "Hindi", "Portuguese", "Bengali"]),
+		[
+			PackedFloat64Array([988.0, 487.0, 372.0, 347.0, 252.0, 232.0]),
+		]
 	)
 
-	# The X axis uses a format_tick_label callback to turn 1.0 into "Jan",
-	# 2.0 into "Feb", etc. In practice, using a categorical dataset with
-	# month names as strings would be simpler here. We use a continuous
-	# axis on purpose so you can see how format_tick_label works.
+	# The X axis carries the language names.
 	var x_axis := TauAxisConfig.new()
-	x_axis.include_zero_in_domain = false
-	x_axis.tick_count_preferred = 6
-	x_axis.format_tick_label = func(label: String) -> String:
-		const names := ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
-		var idx := int(label.to_float()) - 1
-		if idx >= 0 and idx < names.size():
-			return names[idx]
-		return label
+	x_axis.type = TauAxisConfig.Type.CATEGORICAL
+	# We want the most spoken language to be displayed at the top.
+	x_axis.inverted = true
 
-	# Top pane: visitors shown as bars.
-	# stretch_ratio controls how much vertical space this pane gets compared
-	# to the others. With ratios 3.0 and 1.0, this pane takes 75%.
-	var visitors_y := TauAxisConfig.new()
-	visitors_y.title = "Visitors"
+	# The Y axis shows the number of speakers in millions.
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Millions"
 
-	# The bar overlay. Since there is only one series in this pane, mode does
-	# not change the visual result, but we set it explicitly for clarity.
-	# bar_width_policy controls how wide the bars are. NEIGHBOR_SPACING_FRACTION
-	# makes each bar take a fraction of the distance to its nearest neighbor,
-	# so bars stay proportional even if the X values are not evenly spaced.
-	# Here 0.80 means each bar fills 80% of that gap.
 	var bar_cfg := TauBarConfig.new()
-	bar_cfg.mode = TauBarConfig.BarMode.GROUPED
-	bar_cfg.bar_width_policy = TauBarConfig.BarWidthPolicy.NEIGHBOR_SPACING_FRACTION
-	bar_cfg.neighbor_spacing_fraction = 0.80
 
-	var visitors_pane := TauPaneConfig.new()
-	visitors_pane.y_left_axis = visitors_y
-	visitors_pane.overlays = [bar_cfg]
-	visitors_pane.stretch_ratio = 3.0
+	var pane := TauPaneConfig.new()
+	# The Y axis is on the BOTTOM edge.
+	pane.y_bottom_axis = y_axis
+	pane.overlays = [bar_cfg]
 
-	# Bottom pane: rating shown as scatter markers.
-	var rating_y := TauAxisConfig.new()
-	rating_y.title = "Rating"
-	rating_y.include_zero_in_domain = false
-
-	var scatter_cfg := TauScatterConfig.new()
-
-	var rating_pane := TauPaneConfig.new()
-	rating_pane.y_left_axis = rating_y
-	rating_pane.overlays = [scatter_cfg]
-	rating_pane.stretch_ratio = 1.0
-
-	# The panes array is ordered: index 0 is the top pane, index 1 is below it.
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
-	config.panes = [visitors_pane, rating_pane]
+	config.panes = [pane]
 
-	# Each binding's pane_index points to the right entry in config.panes.
-	var b_visitors := TauXYSeriesBinding.new()
-	b_visitors.series_id = dataset.get_series_id_by_index(0)
-	b_visitors.pane_index = 0
-	b_visitors.overlay_type = TauXYSeriesBinding.PaneOverlayType.BAR
-	b_visitors.y_axis_id = TauPlot.AxisId.LEFT
+	# The X axis is on the LEFT edge.
+	config.x_axis_id = TauPlot.AxisId.LEFT
 
-	var b_rating := TauXYSeriesBinding.new()
-	b_rating.series_id = dataset.get_series_id_by_index(1)
-	b_rating.pane_index = 1
-	b_rating.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	b_rating.y_axis_id = TauPlot.AxisId.LEFT
+	var b := TauXYSeriesBinding.new()
+	b.series_id = dataset.get_series_id_by_index(0)
+	b.pane_index = 0
+	b.overlay_type = TauXYSeriesBinding.PaneOverlayType.BAR
+	# The series is bound to the Y axis occupying the BOTTOM slot.
+	b.y_axis_id = TauPlot.AxisId.BOTTOM
 
-	var bindings: Array[TauXYSeriesBinding] = [b_visitors, b_rating]
+	var bindings: Array[TauXYSeriesBinding] = [b]
 
-	$MyPlot.title = "Restaurant: Visitors and Rating"
+	# With only one series, the legend is not very useful.
+	$MyPlot.legend_enabled = false
+	$MyPlot.title = "Most Spoken Languages by population"
 	$MyPlot.plot_xy(dataset, config, bindings)
 ```
 
 ![Getting started 4](assets/getting_started_4.png)
 /// caption
-**Example 4**: Two panes with different Y scales sharing the same X axis.
+**Example 4**: Horizontal bar chart using `x_axis_id = LEFT`.
 ///
 
-## 5. Styling basics
+## 5. Multi-pane layouts
+
+When two series have very different Y scales, putting them in the same pane would squash one of them against the axis. You can give each series its own pane instead. Both panes share the same X axis, but they have independent Y axes and independent vertical space.
+
+This example is available as `addons/tau-plot/examples/getting_started_5.tscn`.
+
+```gdscript
+extends CenterContainer
+
+func _ready() -> void:
+	# The six most spoken languages in the world by number of native
+	# speakers (in millions). Source: Wikipedia.
+	var dataset := TauPlot.Dataset.make_shared_x_categorical(
+		PackedStringArray(["Native speakers"]),
+		PackedStringArray(["Mandarin Chinese", "Spanish", "English", "Hindi", "Portuguese", "Bengali"]),
+		[
+			PackedFloat64Array([988.0, 487.0, 372.0, 347.0, 252.0, 232.0]),
+		]
+	)
+
+	# The X axis carries the language names.
+	var x_axis := TauAxisConfig.new()
+	x_axis.type = TauAxisConfig.Type.CATEGORICAL
+	# We want the most spoken language to be displayed at the top.
+	x_axis.inverted = true
+	# We don't want to skip any labels.
+	x_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
+
+	# The Y axis shows the number of speakers in millions.
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Millions"
+
+	var bar_cfg := TauBarConfig.new()
+
+	var pane := TauPaneConfig.new()
+	# The Y axis is on the BOTTOM edge.
+	pane.y_bottom_axis = y_axis
+	pane.overlays = [bar_cfg]
+
+	var config := TauXYConfig.new()
+	config.x_axis = x_axis
+	config.panes = [pane]
+
+	# The X axis is on the LEFT edge.
+	config.x_axis_id = TauPlot.AxisId.LEFT
+
+	var b := TauXYSeriesBinding.new()
+	b.series_id = dataset.get_series_id_by_index(0)
+	b.pane_index = 0
+	b.overlay_type = TauXYSeriesBinding.PaneOverlayType.BAR
+	# The series is bound to the Y axis occupying the BOTTOM slot.
+	b.y_axis_id = TauPlot.AxisId.BOTTOM
+
+	var bindings: Array[TauXYSeriesBinding] = [b]
+
+	# With only one series, the legend is not very useful.
+	$MyPlot.legend_enabled = false
+	$MyPlot.title = "Most Spoken Languages by population"
+	$MyPlot.plot_xy(dataset, config, bindings)
+```
+
+![Getting started 5](assets/getting_started_5.png)
+/// caption
+**Example 5**: Two panes with different Y scales sharing the same X axis.
+///
+
+## 6. Styling basics
 
 TauPlot resolves every visual property through a three-layer cascade: built-in defaults, then Godot theme values, then code overrides. You do not need to learn theming to get started. Setting properties directly on the style objects is the simplest way and always takes the highest priority.
 
-This example is available as `addons/tau-plot/examples/getting_started_5.tscn`.
+This example is available as `addons/tau-plot/examples/getting_started_6.tscn`.
 
 ```gdscript
 extends CenterContainer
@@ -353,9 +387,9 @@ func _ready() -> void:
 	$MyPlot.plot_xy(dataset, config, bindings)
 ```
 
-![Getting started 5](assets/getting_started_5.png)
+![Getting started 6](assets/getting_started_6.png)
 /// caption
-**Example 5**: Custom colors, rounded bar corners, grid lines, and legend inside the plot area.
+**Example 6**: Custom colors, rounded bar corners, grid lines, and legend inside the plot area.
 ///
 
 ### More styling options
@@ -388,11 +422,11 @@ legend.flow_direction = TauLegendConfig.FlowDirection.VERTICAL
 $MyPlot.legend_enabled = false
 ```
 
-## 6. Hover, tooltip, and signals
+## 7. Hover, tooltip, and signals
 
 [`TauPlot`](api/tau_plot.md) has a built-in hover inspection system. When activated, it highlights the hovered sample, shows a tooltip, and can draw crosshair guide lines. It also emits signals so you can build your own interactions on top.
 
-This example is available as `addons/tau-plot/examples/getting_started_6.tscn`.
+This example is available as `addons/tau-plot/examples/getting_started_7.tscn`.
 
 ```gdscript
 extends CenterContainer
@@ -485,18 +519,18 @@ func _on_clicked(hits: Array[TauPlot.SampleHit]) -> void:
 	print("Clicked: %s" % hits[0].series_name)
 ```
 
-![Getting started 6](assets/getting_started_6.png)
+![Getting started 7](assets/getting_started_7.png)
 /// caption
-**Example 6**: Hover tooltip, crosshair, and highlight on a scatter plot.
+**Example 7**: Hover tooltip, crosshair, and highlight on a scatter plot.
 ///
 
 See [`TauHoverConfig`](api/hover_config.md) for all the options, and [`SampleHit`](api/sample_hit.md) for the data carried by each hover event. The four signals are documented on [`TauPlot`](api/tau_plot.md): [`sample_hovered`](api/tau_plot.md#sample_hovered), [`sample_hover_exited`](api/tau_plot.md#sample_hover_exited), [`sample_clicked`](api/tau_plot.md#sample_clicked), and [`sample_click_dismissed`](api/tau_plot.md#sample_click_dismissed).
 
-## 7. Real-time streaming
+## 8. Real-time streaming
 
 [`Dataset`](api/dataset.md) uses ring buffers internally. When the buffer is full, appending a new sample automatically drops the oldest one. This makes TauPlot a good fit for live dashboards where you only care about the most recent data.
 
-This example is available as `addons/tau-plot/examples/getting_started_7.tscn`.
+This example is available as `addons/tau-plot/examples/getting_started_8.tscn`.
 
 ```gdscript
 extends CenterContainer
@@ -575,9 +609,9 @@ func _process(delta: float) -> void:
 	_dataset.append_shared_sample(_elapsed, PackedFloat64Array([a, b]))
 ```
 
-![Getting started 7](assets/getting_started_7.png)
+![Getting started 8](assets/getting_started_8.png)
 /// caption
-**Example 7**: Live streaming scatter plot with a 200-sample ring buffer.
+**Example 8**: Live streaming scatter plot with a 200-sample ring buffer.
 ///
 
 See [`Dataset.new()`](api/dataset.md#new) for the constructor and [`append_shared_sample()`](api/dataset.md#append_shared_sample) for the streaming method.
