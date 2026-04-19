@@ -39,7 +39,7 @@ The workflow is always the same:
 
 The [quick start](index.md#quick-start) on the home page shows a categorical bar plot. Here you will create a scatter plot with numeric data on both axes.
 
-This example is available as `addons/tau-plot/examples/getting_started_2.tscn`.
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_2.tscn).
 
 ```gdscript
 extends CenterContainer
@@ -116,7 +116,7 @@ func _ready() -> void:
 
 A pane can host several overlay types at once. Here we use bars for the actual sales and scatter markers for the targets, both in the same pane.
 
-This example is available as `addons/tau-plot/examples/getting_started_3.tscn`.
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_3.tscn).
 
 ```gdscript
 extends CenterContainer
@@ -182,7 +182,7 @@ func _ready() -> void:
 
 Every example so far uses the default layout where the X axis sits at the bottom and bars grow upward. To produce horizontal bars, you move the X axis to a side edge by setting [`x_axis_id`](api/xy_config.md#x_axis_id) to `LEFT`. The categories then run vertically on the left edge and the bars grow horizontally. Because the axes swap positions, the Y axis configuration must be assigned to the matching edge slot on the pane (here `y_bottom_axis`), and the binding must target the same edge (`TauPlot.AxisId.BOTTOM`). Apart from those adjustments, the dataset and the overlay work exactly the same way as in a vertical bar chart.
 
-This example is available as `addons/tau-plot/examples/getting_started_4.tscn`.
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_4.tscn).
 
 ```gdscript
 extends CenterContainer
@@ -203,6 +203,8 @@ func _ready() -> void:
 	x_axis.type = TauAxisConfig.Type.CATEGORICAL
 	# We want the most spoken language to be displayed at the top.
 	x_axis.inverted = true
+	# We don't want to skip any labels.
+	x_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	# The Y axis shows the number of speakers in millions.
 	var y_axis := TauAxisConfig.new()
@@ -246,7 +248,7 @@ func _ready() -> void:
 
 When two series have very different Y scales, putting them in the same pane would squash one of them against the axis. You can give each series its own pane instead. Both panes share the same X axis, but they have independent Y axes and independent vertical space.
 
-This example is available as `addons/tau-plot/examples/getting_started_5.tscn`.
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_5.tscn).
 
 ```gdscript
 extends CenterContainer
@@ -312,7 +314,7 @@ func _ready() -> void:
 
 TauPlot resolves every visual property through a three-layer cascade: built-in defaults, then Godot theme values, then code overrides. You do not need to learn theming to get started. Setting properties directly on the style objects is the simplest way and always takes the highest priority.
 
-This example is available as `addons/tau-plot/examples/getting_started_6.tscn`.
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_6.tscn).
 
 ```gdscript
 extends CenterContainer
@@ -426,7 +428,7 @@ $MyPlot.legend_enabled = false
 
 [`TauPlot`](api/tau_plot.md) has a built-in hover inspection system. When activated, it highlights the hovered sample, shows a tooltip, and can draw crosshair guide lines. It also emits signals so you can build your own interactions on top.
 
-This example is available as `addons/tau-plot/examples/getting_started_7.tscn`.
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_7.tscn).
 
 ```gdscript
 extends CenterContainer
@@ -530,7 +532,7 @@ See [`TauHoverConfig`](api/hover_config.md) for all the options, and [`SampleHit
 
 [`Dataset`](api/dataset.md) uses ring buffers internally. When the buffer is full, appending a new sample automatically drops the oldest one. This makes TauPlot a good fit for live dashboards where you only care about the most recent data.
 
-This example is available as `addons/tau-plot/examples/getting_started_8.tscn`.
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_8.tscn).
 
 ```gdscript
 extends CenterContainer
