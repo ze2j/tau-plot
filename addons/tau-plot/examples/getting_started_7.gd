@@ -1,74 +1,86 @@
 extends CenterContainer
 
-var _dataset: TauPlot.Dataset
-var _elapsed: float = 0.0
-
 func _ready() -> void:
-	# Create an empty dataset with room for 200 samples. When sample 201
-	# arrives, the oldest sample is dropped automatically.
-	_dataset = TauPlot.Dataset.new(
-		TauPlot.Dataset.Mode.SHARED_X,
-		TauPlot.Dataset.XElementType.NUMERIC,
-		200
+	var x := PackedFloat64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+	var downloads := PackedFloat64Array([120.0, 250.0, 310.0, 280.0, 420.0, 510.0, 480.0, 620.0, 590.0, 710.0])
+	var uploads := PackedFloat64Array([80.0, 90.0, 110.0, 105.0, 130.0, 160.0, 150.0, 180.0, 175.0, 200.0])
+
+	var dataset := TauPlot.Dataset.make_shared_x_continuous(
+		PackedStringArray(["Downloads", "Uploads"]),
+		x,
+		[downloads, uploads] as Array[PackedFloat64Array]
 	)
 
-	# add_series() returns a stable ID that we will use in the bindings.
-	var id_a := _dataset.add_series("Sensor A")
-	var id_b := _dataset.add_series("Sensor B")
-
 	var x_axis := TauAxisConfig.new()
-	x_axis.title = "Time (s)"
+	x_axis.title = "Day"
 	x_axis.include_zero_in_domain = false
-	# Padding adds visual space beyond the data bounds and acts as a
-	# performance buffer. When new samples arrive, the plot checks whether
-	# their values fall inside the padded domain before deciding to recompute
-	# the axis domain and ticks. A larger domain_padding_max means the domain
-	# stays valid longer, so recomputes happen less often. The tradeoff:
-	#   - domain_padding_max = 0.0 => recompute on almost every frame (smooth, costly)
-	#   - domain_padding_max = 1.0 => recompute every ~1 s (jumps, cheap)
-	# DATA_UNITS mode is used here so the lookahead is expressed in seconds,
-	# matching the X axis unit directly.
-	x_axis.domain_padding_mode = TauAxisConfig.DomainPaddingMode.DATA_UNITS
-	x_axis.domain_padding_min = 0.0
-	x_axis.domain_padding_max = 0.0
+	x_axis.tick_count_preferred = x.size()
 
+	# The Y axis uses a format_tick_label callback to add units to the Y labels.
 	var y_axis := TauAxisConfig.new()
-	y_axis.title = "Value"
+	y_axis.format_tick_label = func(label: String) -> String:
+		return label + " MB"
 
 	var scatter_cfg := TauScatterConfig.new()
+
+	var grid := TauGridLineConfig.new()
+	grid.y_major_enabled = true
+	grid.x_major_enabled = true
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
 	pane.overlays = [scatter_cfg]
+	pane.grid_line = grid
 
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
 	config.panes = [pane]
 
-	# Use the IDs returned by add_series() to create the bindings.
-	var b_a := TauXYSeriesBinding.new()
-	b_a.series_id = id_a
-	b_a.pane_index = 0
-	b_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	b_a.y_axis_id = TauPlot.AxisId.LEFT
+	var bindings: Array[TauXYSeriesBinding] = []
+	for i in dataset.get_series_count():
+		var b := TauXYSeriesBinding.new()
+		b.series_id = dataset.get_series_id_by_index(i)
+		b.pane_index = 0
+		b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
+		b.y_axis_id = TauPlot.AxisId.LEFT
+		bindings.append(b)
 
-	var b_b := TauXYSeriesBinding.new()
-	b_b.series_id = id_b
-	b_b.pane_index = 0
-	b_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	b_b.y_axis_id = TauPlot.AxisId.LEFT
+	# Activate the hover system and configure it.
+	var hover := TauHoverConfig.new()
 
-	var bindings: Array[TauXYSeriesBinding] = [b_a, b_b]
+	# X_ALIGNED collects all series at the nearest X position, which is the
+	# natural behavior for time series. NEAREST would pick the single closest
+	# sample instead, which works better for pure scatter plots. AUTO picks
+	# between the two automatically based on what overlays the pane contains.
+	hover.hover_mode = TauHoverConfig.HoverMode.X_ALIGNED
 
-	$MyPlot.title = "Live Sensor Data"
-	$MyPlot.plot_xy(_dataset, config, bindings)
+	# Draw a vertical guide line at the hovered X position.
+	hover.crosshair_mode = TauHoverConfig.CrosshairMode.X_ONLY
+
+	# Replace the built-in tooltip text with our own.
+	# The callback receives an array of SampleHit objects, one per hovered
+	# sample. Each SampleHit carries the series name, the X and Y values,
+	# the sample index, and more.
+	hover.format_tooltip_text = func(hits: Array[TauPlot.SampleHit]) -> String:
+		var lines := PackedStringArray()
+		for hit in hits:
+			lines.append("[b]%s[/b]: %.0f MB" % [hit.series_name, hit.y_value])
+		return "\n".join(lines)
+
+	$MyPlot.title = "Daily Network Traffic"
+	$MyPlot.hover_enabled = true
+	$MyPlot.hover_config = hover
+	$MyPlot.plot_xy(dataset, config, bindings)
+
+	# You can also react to hover and click events in your own code.
+	# These signals fire even if the built-in tooltip is disabled.
+	$MyPlot.sample_hovered.connect(_on_hovered)
+	$MyPlot.sample_clicked.connect(_on_clicked)
 
 
-func _process(delta: float) -> void:
-	_elapsed += delta
+func _on_hovered(hits: Array[TauPlot.SampleHit]) -> void:
+	print("Hovered: %s = %.0f" % [hits[0].series_name, hits[0].y_value])
 
-	# Push one X value and one Y value per series. The dataset tells the
-	# plot that data changed, and the plot redraws on its own.
-	var a := sin(_elapsed * 2.0) * 10.0 + 20.0
-	var b := cos(_elapsed * 1.5) * 8.0 + 22.0
-	_dataset.append_shared_sample(_elapsed, PackedFloat64Array([a, b]))
+
+func _on_clicked(hits: Array[TauPlot.SampleHit]) -> void:
+	print("Clicked: %s" % hits[0].series_name)
