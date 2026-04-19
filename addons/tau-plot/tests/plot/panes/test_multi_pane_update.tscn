@@ -13,6 +13,7 @@ script = ExtResource("1_8nxoa")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
+theme_override_font_sizes/font_size = 32
 text = "Update samples in multi pane plots"
 horizontal_alignment = 1
 

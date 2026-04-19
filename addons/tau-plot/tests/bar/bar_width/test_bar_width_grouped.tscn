@@ -31,7 +31,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "[GROUPED] A: first two of six samples pure blue, B: last two of four pure red, others use default colors."
+title = "[Policy = CATEGORY_WIDTH_FRACTION] Animate category_width_fraction [0, 1] with intra_group_gap_fraction = 0.0"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -41,7 +41,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "[STACKED] A: first two of six samples pure blue, B: last two of four pure red, others use default colors."
+title = "[Policy = CATEGORY_WIDTH_FRACTION] Animate intra_group_gap_fraction [0, 1] with category_width_fraction = 0.8"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -51,7 +51,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "[INDEPENDENT] A: first two of six samples pure blue, B: last two of four pure red, others use default colors."
+title = "[Policy = DATA_UNITS][LINEAR] Animate bar_width_x_units [0, 0.5] with bar_gap_x_units = 0"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -61,7 +61,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "[GROUPED] A: first two samples nearly transparent, B: last two half-transparent, others use default colors."
+title = "[Policy = DATA_UNITS][LOGARITHMIC] Animate bar_width_log_factor [1, 2] with bar_gap_log_factor = 1"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -71,7 +71,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "[STACKED] A: first two samples nearly transparent, B: last two half-transparent, others use default colors."
+title = "[Policy = DATA_UNITS][LINEAR] Animate bar_gap_x_units [0, 0.1] with bar_width_x_units = 0.1"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
@@ -81,7 +81,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "[INDEPENDENT] A: first two samples nearly transparent, B: last two half-transparent, others use default colors."
+title = "[Policy = DATA_UNITS][LOGARITHMIC] Animate bar_gap_log_factor [1, 2] with bar_width_log_factor = 1.1"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
@@ -91,7 +91,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "Streaming - New sample and new color every 16 ms"
+title = "[Policy = NEIGHBOR_SPACING_FRACTION][LINEAR] Animate neighbor_spacing_fraction [0, 1] with neighbor_gap_fraction = 0"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
@@ -101,7 +101,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "Right Y labels: VERTICAL + CENTER"
+title = "[Policy = NEIGHBOR_SPACING_FRACTION][LOGARITHMIC] Animate neighbor_spacing_fraction [0, 1] with neighbor_gap_fraction = 0"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot9" type="PanelContainer" parent="GridContainer"]
@@ -111,7 +111,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "Right Y labels: VERTICAL + END"
+title = "[Policy = NEIGHBOR_SPACING_FRACTION][LINEAR] Animate neighbor_gap_fraction [0, 1.0] with neighbor_spacing_fraction = 1"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot10" type="PanelContainer" parent="GridContainer"]
@@ -121,5 +121,5 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_i6vl8")
-title = "Right Y labels: VERTICAL + END"
+title = "[Policy = NEIGHBOR_SPACING_FRACTION][LOGARITHMIC] Animate neighbor_gap_fraction [0, 1] with neighbor_spacing_fraction = 1"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

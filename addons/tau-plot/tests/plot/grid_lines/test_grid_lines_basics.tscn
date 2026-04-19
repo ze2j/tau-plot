@@ -72,6 +72,7 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_usaaj")
 title = "Y major and minor"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
@@ -82,4 +83,5 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_usaaj")
 title = "X and Y major and minor"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

@@ -31,7 +31,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme = ExtResource("3_1hq3r")
+theme = ExtResource("3_0duki")
 theme_type_variation = &"TauPlot"
 script = ExtResource("3_wm5kv")
 title = "[Policy = THEME][LINEAR] Toggle themes every 1s with bar_width_px = 10 and 30"
@@ -42,7 +42,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme = ExtResource("3_0duki")
+theme = ExtResource("3_1hq3r")
 theme_type_variation = &"TauPlot"
 script = ExtResource("3_wm5kv")
 title = "[Policy = THEME][LOGARITHMIC] Toggle themes every 1s with bar_width_px = 10 and 30"
