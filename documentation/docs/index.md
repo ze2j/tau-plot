@@ -118,6 +118,7 @@ This example is available in `addons/tau-plot/examples/quick_start.tscn`.
 
 - [Getting Started](getting-started.md) walks through building your first plot step by step.
 - [API Reference](api/index.md) covers every class, property, enum, and signal.
+- The [**demo**](addons/tau-plot/examples/demo.tscn) is an advanced example with nine plots showcasing theme customization and per-sample styling through attribute buffers and callbacks.
 - [Tests](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/tests) can provide good examples of how to use some features.
 
 ## Stability
