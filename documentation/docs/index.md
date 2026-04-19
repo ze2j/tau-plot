@@ -5,6 +5,7 @@
 ## Key characteristics
 
 - **Bar and scatter overlays** in any combination, with grouped, stacked, or independent bar modes.
+- **Automatic tick and label generation with overlap prevention.** Ticks and labels adapt to the available space so they stay readable at any size, with no manual tuning required. The preferred tick count, overlap strategy, and minimum spacing are configurable, and the axis domain can be overridden with a fixed range when needed.
 - **Real-time streaming** through ring-buffer datasets that drop the oldest samples automatically.
 - **Multi-pane layouts** for displaying series with different Y scales (e.g. price above volume).
 - **Per-sample styling** via attribute buffers or callbacks for color, alpha, marker shape, and more.

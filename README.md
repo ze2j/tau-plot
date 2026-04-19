@@ -19,7 +19,8 @@ TauPlot draws XY plots inside any Godot UI. It supports bar and scatter overlays
 ## Features
 
 - **Bar and scatter overlays** in any combination within a single plot. Bars support grouped, stacked (with optional normalization), and independent modes.
-- **Categorical and continuous axes**, with linear or logarithmic scales, axis inversion, tick formatting callbacks, and automatic label overlap prevention.
+- **Categorical and continuous axes**, with linear or logarithmic scales, axis inversion, and tick label formatting callbacks.
+- **Automatic tick and label generation with overlap prevention.** Tick positions and label density adapt to the available space so labels never collide, even after resizing. The preferred tick count, overlap strategy, and minimum label spacing are all configurable. For full manual control, the axis domain can be overridden with a fixed range.
 - **Real-time streaming** with ring-buffer datasets. When the buffer is full, the oldest sample is dropped automatically.
 - **Multi-pane layouts** for displaying series with different Y scales side by side (e.g. price above volume).
 - **Per-sample styling** through attribute buffers or callbacks. Control color, alpha, marker shape, marker size, outline, and more on a per-sample basis.
