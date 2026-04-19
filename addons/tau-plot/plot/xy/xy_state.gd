@@ -63,7 +63,10 @@ class XYState extends RefCounted:
 	var domain_x_min: float = INF
 	var domain_x_max: float = -INF
 
-	# Shared x axis inverted flag from last refresh
+	# Shared x axis config snapshot from last refresh
+	var x_axis_tick_count_preferred: int = -1
+	var x_axis_overlap_strategy: int = -1
+	var x_axis_min_label_spacing_px: int = -1
 	var x_axis_inverted: int = -1
 
 	# Categorical x labels from last refresh
@@ -164,6 +167,11 @@ class XYState extends RefCounted:
 		domain_x_max = -INF
 		domain_x_categories = []
 
+		x_axis_tick_count_preferred = -1
+		x_axis_overlap_strategy = -1
+		x_axis_min_label_spacing_px = -1
+		x_axis_inverted = -1
+
 		pane_view_rects = []
 
 		bar_config_per_pane.clear()
@@ -257,7 +265,16 @@ class XYState extends RefCounted:
 		var pane_count := p_config.panes.size()
 		init_panes(pane_count)
 
-		x_axis_inverted = int(p_config.x_axis.inverted) if p_config.x_axis != null else -1
+		if p_config.x_axis != null:
+			x_axis_tick_count_preferred = p_config.x_axis.tick_count_preferred
+			x_axis_overlap_strategy = int(p_config.x_axis.overlap_strategy)
+			x_axis_min_label_spacing_px = p_config.x_axis.min_label_spacing_px
+			x_axis_inverted = int(p_config.x_axis.inverted)
+		else:
+			x_axis_tick_count_preferred = -1
+			x_axis_overlap_strategy = -1
+			x_axis_min_label_spacing_px = -1
+			x_axis_inverted = -1
 
 		for i in range(pane_count):
 			var pane: TauPaneConfig = p_config.panes[i]
@@ -272,9 +289,8 @@ class XYState extends RefCounted:
 		if p_config.panes.is_empty():
 			return false
 
-		# Check shared x axis inverted flag.
-		var current_x_inverted: int = int(p_config.x_axis.inverted) if p_config.x_axis != null else -1
-		if current_x_inverted != x_axis_inverted:
+		# Check shared x axis config fields.
+		if _axis_changed(p_config.x_axis, x_axis_tick_count_preferred, x_axis_overlap_strategy, x_axis_min_label_spacing_px, x_axis_inverted):
 			return true
 
 		var pane_count := p_config.panes.size()

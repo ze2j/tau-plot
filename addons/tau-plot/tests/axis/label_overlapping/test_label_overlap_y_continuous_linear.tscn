@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://6oybgwix1pgs"]
+[gd_scene load_steps=3 format=3 uid="uid://bm8ltijfikiqd"]
 
-[ext_resource type="Script" uid="uid://c8a76un6fqw2u" path="res://addons/tau-plot/tests/axis/label_overlapping/test_label_overlap_x_continuous_log.gd" id="1_st0nh"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_b7yuj"]
+[ext_resource type="Script" uid="uid://b8niwils5cr7m" path="res://addons/tau-plot/tests/axis/label_overlapping/test_label_overlap_y_continuous_linear.gd" id="1_dmbk2"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_6bs8r"]
 
 [node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_st0nh")
+script = ExtResource("1_dmbk2")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test overlap strategy for continuous logarithmic x-axis"
+text = "Test overlap strategy for continuous linear y-axis"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -36,8 +36,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
-title = "[NONE] with default min_label_spacing_px"
+script = ExtResource("2_6bs8r")
+title = "[NONE] with min_label_spacing_px = 0"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -53,8 +53,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
-title = "[REDUCE_COUNT] with default min_label_spacing_px"
+script = ExtResource("2_6bs8r")
+title = "[REDUCE_COUNT] with min_label_spacing_px = 0"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -70,8 +70,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
-title = "[SKIP_LABELS] with default min_label_spacing_px"
+script = ExtResource("2_6bs8r")
+title = "[SKIP_LABELS] with min_label_spacing_px = 0"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -87,7 +87,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
+script = ExtResource("2_6bs8r")
 title = "[NONE] with min_label_spacing_px = 100"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
@@ -104,7 +104,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
+script = ExtResource("2_6bs8r")
 title = "[REDUCE_COUNT] with min_label_spacing_px = 100"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
@@ -121,7 +121,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_b7yuj")
+script = ExtResource("2_6bs8r")
 title = "[SKIP_LABELS] with min_label_spacing_px = 100"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
