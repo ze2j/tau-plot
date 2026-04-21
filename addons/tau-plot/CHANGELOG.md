@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## v0.1.1 - 2026-04-21
+
+### Added
+
+- Add horizontal bars example in getting-started (#5)
+
+### Fixed
+
+- Fix vertical x-axis (#4)
+- Fix label overlap prevention (#7)
+
+### Changed
+
+- Documentation cleanup (#8)
+
 ## v0.1.0 - 2026-04-14
 
 Initial release of TauPlot, a pure GDScript charting addon for Godot 4.5+.
