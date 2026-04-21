@@ -31,7 +31,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_khqcl")
-title = "[GROUPED] z-order = SERIES_ORDER"
+title = "Use LEFT y-axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -41,7 +41,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_khqcl")
-title = "[STACKED]  z-order = SERIES_ORDER"
+title = "Use RIGHT y-axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -51,7 +51,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_khqcl")
-title = "[INDEPENDENT]  z-order = SERIES_ORDER"
+title = "Use TOP y-axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -61,5 +61,5 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_khqcl")
-title = "[GROUPED] z-order = REVERSE_SERIES_ORDER"
+title = "Use BOTTOM y-axis"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

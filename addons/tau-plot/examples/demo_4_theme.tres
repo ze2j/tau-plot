@@ -1,4 +1,4 @@
-[gd_resource type="Theme" format=3 uid="uid://b5no6dim1ybuy"]
+[gd_resource type="Theme" load_steps=5 format=3 uid="uid://b5no6dim1ybuy"]
 
 [sub_resource type="StyleBoxFlat" id="legend_bg"]
 content_margin_left = 8.0

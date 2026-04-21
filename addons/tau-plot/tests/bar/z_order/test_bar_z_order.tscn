@@ -31,7 +31,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_ti8bh")
-title = "[LOG X, LINEAR Y] Grouped - Animated Y values in [2.5, 7.5]"
+title = "[GROUPED] z-order = SERIES_ORDER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -41,7 +41,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_ti8bh")
-title = "[LINEAR X, LOG Y] Grouped - Animated Y values (exponential growth)"
+title = "[STACKED]  z-order = SERIES_ORDER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -51,7 +51,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_ti8bh")
-title = "[LOG X, LOG Y] Grouped - Animated Y values (power laws => linear in log-log)"
+title = "[INDEPENDENT]  z-order = SERIES_ORDER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -61,7 +61,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_ti8bh")
-title = "[LOG X, LINEAR Y] Stacked - Animated Y values in [2.5, 7.5]"
+title = "[GROUPED] z-order = REVERSE_SERIES_ORDER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -71,6 +71,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_ti8bh")
+title = "[STACKED]  z-order = REVERSE_SERIES_ORDER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
@@ -80,4 +81,5 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_ti8bh")
+title = "[INDEPENDENT]  z-order = REVERSE_SERIES_ORDER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

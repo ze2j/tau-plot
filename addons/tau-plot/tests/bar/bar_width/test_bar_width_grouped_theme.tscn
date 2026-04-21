@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://f1765wvay6fi"]
+[gd_scene load_steps=6 format=3 uid="uid://f1765wvay6fi"]
 
 [ext_resource type="Script" uid="uid://y1rt8q6tavqw" path="res://addons/tau-plot/tests/bar/bar_width/test_bar_width_grouped_theme.gd" id="1_p1mea"]
 [ext_resource type="Theme" uid="uid://blxu22ni3xrsd" path="res://addons/tau-plot/tests/bar/bar_width/theme_width_10_gap_0.tres" id="3_6hpae"]
 [ext_resource type="Theme" uid="uid://simdy0bmo5m" path="res://addons/tau-plot/tests/bar/bar_width/theme_width_30_gap_0.tres" id="3_p1mea"]
+[ext_resource type="Theme" uid="uid://c7aq0hq2a8cq" path="res://addons/tau-plot/tests/bar/bar_width/theme_width_30_gap_10.tres" id="4_jlifq"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="6_6ncpf"]
 
 [node name="Bars" type="VBoxContainer"]
@@ -31,7 +32,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme = ExtResource("3_6hpae")
+theme = ExtResource("3_p1mea")
 theme_type_variation = &"TauPlot"
 script = ExtResource("6_6ncpf")
 title = "[Policy = THEME][LINEAR] Toggle themes every 1s with bar_width_px = 10 and 30"
@@ -42,7 +43,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme = ExtResource("3_6hpae")
+theme = ExtResource("3_p1mea")
 theme_type_variation = &"TauPlot"
 script = ExtResource("6_6ncpf")
 title = "[Policy = THEME][LOGARITHMIC] Toggle themes every 1s with bar_width_px = 10 and 30"
@@ -53,7 +54,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme = ExtResource("3_p1mea")
+theme = ExtResource("4_jlifq")
 theme_type_variation = &"TauPlot"
 script = ExtResource("6_6ncpf")
 title = "[Policy = THEME][LINEAR] Toggle themes every 1s with bar_intragroup_gap_px = 0 and 10"
@@ -64,7 +65,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme = ExtResource("3_p1mea")
+theme = ExtResource("4_jlifq")
 theme_type_variation = &"TauPlot"
 script = ExtResource("6_6ncpf")
 title = "[Policy = THEME][LOGARITHMIC] Toggle themes every 1s with bar_intragroup_gap_px = 0 and 10"

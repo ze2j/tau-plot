@@ -31,7 +31,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_wsig3")
-title = "[GROUPED] A: first two of six samples pure blue, B: last two of four pure red, others use default colors."
+title = "[GROUPED] Gradient sampled by y value"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -41,7 +41,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_wsig3")
-title = "[STACKED] A: first two of six samples pure blue, B: last two of four pure red, others use default colors."
+title = "[STACKED] Gradient sampled by y value"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -51,5 +51,5 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_wsig3")
-title = "[INDEPENDENT] A: first two of six samples pure blue, B: last two of four pure red, others use default colors."
+title = "[INDEPENDENT] Gradient sampled by y value"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

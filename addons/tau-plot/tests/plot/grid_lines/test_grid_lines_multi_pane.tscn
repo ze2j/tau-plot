@@ -32,6 +32,7 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_srq5i")
 title = "Major and minor grid lines on both axes in all panes"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -42,6 +43,7 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_srq5i")
 title = "Major and minor grid lines on all axes in all panes, except for bottom pane (only major)"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -52,6 +54,7 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_srq5i")
 title = "Major and minor grid lines on both axes in all panes"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -62,4 +65,5 @@ size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_srq5i")
 title = "Major and minor grid lines on all axes in all panes, except for right pane (only major)"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
