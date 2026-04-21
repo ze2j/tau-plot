@@ -1,8 +1,10 @@
 # TauPlot
 
-A pure GDScript charting addon for Godot 4.5+. No external dependencies. Interactive, performant, and fully themeable.
+A charting and data visualization addon for Godot 4.5+. Bar charts, scatter plots, multi-series graphs, real-time dashboards, and multi-pane (subplot) layouts. Pure GDScript, no external dependencies, interactive, performant, fully themeable.
 
-TauPlot draws XY plots inside any Godot UI. It supports bar and scatter overlays (with more to come), real-time data streaming, multi-pane layouts, per-sample visual control, and deep integration with Godot's theme system.
+TauPlot is built for in-game analytics, telemetry overlays, scientific plots, sensor readouts, debug HUDs, financial views, and any tool that needs interactive charts inside a Godot project.
+
+*TauPlot is under active development.* The current release ships with bar and scatter overlays. Line, area, pie, and radar plots are on the [roadmap](#roadmap).
 
 ## Gallery
 
@@ -18,15 +20,15 @@ TauPlot draws XY plots inside any Godot UI. It supports bar and scatter overlays
 
 ## Features
 
-- **Bar and scatter overlays** in any combination within a single plot. Bars support grouped, stacked (with optional normalization), and independent modes.
-- **Categorical and continuous axes**, with linear or logarithmic scales, axis inversion, and tick label formatting callbacks.
-- **Automatic tick and label generation with overlap prevention.** Tick positions and label density adapt to the available space so labels never collide, even after resizing. The preferred tick count, overlap strategy, and minimum label spacing are all configurable. For full manual control, the axis domain can be overridden with a fixed range.
-- **Real-time streaming** with ring-buffer datasets. When the buffer is full, the oldest sample is dropped automatically.
-- **Multi-pane layouts** for displaying series with different Y scales side by side (e.g. price above volume).
-- **Per-sample styling** through attribute buffers or callbacks. Control color, alpha, marker shape, marker size, outline, and more on a per-sample basis.
-- **Godot theme integration** with a three-layer cascade: built-in defaults, Godot theme, code overrides. Every visual property participates in this cascade.
+- **Bar and scatter overlays** can be combined freely in one chart. Bars support grouped, stacked (with optional normalization), and independent layout modes.
+- **Godot theme integration** with a three-layer cascade (built-in defaults, Godot theme, code overrides). Every visual property participates in this cascade, so charts match the rest of your UI without per property work.
+- **Categorical and continuous axes** with linear or logarithmic scales, axis inversion, and custom tick label formatting.
+- **Automatic tick and tick label generation with overlap prevention**, so axes stay readable at any plot size without manual tuning.
+- **Real-time streaming** with ring-buffer datasets. The chart redraws incrementally as samples arrive and the oldest points are dropped when the buffer is full.
+- **Multi-pane layouts** (also known as subplots) for stacked graphs that share an X axis but use different Y scales.
 - **Hover inspection** with configurable tooltip, crosshair, and highlight. Four signals (`sample_hovered`, `sample_hover_exited`, `sample_clicked`, `sample_click_dismissed`) let you react to user interaction.
-- **GPU-accelerated scatter rendering** using MultiMesh and a custom SDF shader. Seven built-in marker shapes (circle, square, triangle up/down, diamond, cross, plus) with per-sample shape assignment.
+- **Per-sample styling** through attribute buffers or callbacks. Control color, alpha, marker shape, marker size, outline, and more on a per-sample basis.
+- **GPU-accelerated scatter rendering** built on Godot's MultiMesh, with seven built-in marker shapes (circle, square, triangle up/down, diamond, cross, plus) and per-sample shape assignment.
 - **Legend** with configurable placement (inside or outside the plot) and flow direction.
 
 ## Installation
