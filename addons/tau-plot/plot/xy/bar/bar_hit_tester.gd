@@ -80,14 +80,12 @@ class BarHitTester extends OverlayHitTester:
 		if _layout.domain.config.x_axis.type == TauAxisConfig.Type.CATEGORICAL:
 			return {}
 
-		# TODO: drop x_is_horizontal once XYLayout exposes a logical-x projector.
-		var x_is_horizontal: bool = _layout._x_is_horizontal
 		var best_px := INF
 		var best_val: float = 0.0
 		var found := false
 
 		for record: BarHitRecord in _bar_renderer.get_hit_records():
-			var anchor_along_x: float = record.anchor.x if x_is_horizontal else record.anchor.y
+			var anchor_along_x: float = _layout.map_screen_to_point(record.anchor).x
 			if absf(p_along_x_px - anchor_along_x) < absf(p_along_x_px - best_px):
 				best_px = anchor_along_x
 				best_val = record.x_value

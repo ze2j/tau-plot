@@ -695,18 +695,11 @@ class ScatterRenderer extends Control:
 		# exactly on the pane boundary due to floating-point rounding in layout
 		# mapping. This is purely cosmetic and does not affect layout or ticks.
 		const TOLERANCE_PX := 0.5
-		var screen_x: float
-		var screen_y: float
-		if _layout._x_is_horizontal:
-			screen_x = p_x
-			screen_y = p_y
-		else:
-			screen_x = p_y
-			screen_y = p_x
-		return (screen_x >= p_pane_rect.position.x - TOLERANCE_PX and
-				screen_x <= p_pane_rect.position.x + p_pane_rect.size.x + TOLERANCE_PX and
-				screen_y >= p_pane_rect.position.y - TOLERANCE_PX and
-				screen_y <= p_pane_rect.position.y + p_pane_rect.size.y + TOLERANCE_PX)
+		var screen := _layout.map_point_to_screen(p_x, p_y)
+		return (screen.x >= p_pane_rect.position.x - TOLERANCE_PX and
+				screen.x <= p_pane_rect.position.x + p_pane_rect.size.x + TOLERANCE_PX and
+				screen.y >= p_pane_rect.position.y - TOLERANCE_PX and
+				screen.y <= p_pane_rect.position.y + p_pane_rect.size.y + TOLERANCE_PX)
 
 	####################################################################################################
 	# Per-instance custom data packing
@@ -757,20 +750,11 @@ class ScatterRenderer extends Control:
 			outline_color = _apply_alpha(_scatter_style.hovered_outline_color, alpha)
 
 		# Transform: translate to center, scale by size_px.
-		# map_x_to_px returns screen-Y when x is vertical, and map_y_to_px returns
-		# screen-X when x is vertical. The callers pass the x-axis pixel as p_cx
-		# and the y-axis pixel as p_cy, so we must swap them for vertical x.
-		var screen_x: float
-		var screen_y: float
-		if _layout._x_is_horizontal:
-			screen_x = p_cx
-			screen_y = p_cy
-		else:
-			screen_x = p_cy
-			screen_y = p_cx
+		# The callers pass the x-axis pixel as p_cx and the y-axis pixel as p_cy
+		var screen := _layout.map_point_to_screen(p_cx, p_cy)
 		var t := Transform2D()
 		t = t.scaled(Vector2(size_px, size_px))
-		t.origin = Vector2(screen_x, screen_y)
+		t.origin = screen
 		p_entry.mm.set_instance_transform_2d(p_slot, t)
 
 		# Color: fill color with alpha
@@ -783,7 +767,7 @@ class ScatterRenderer extends Control:
 		p_entry.mm.set_instance_custom_data(p_slot, _pack_custom_data(outline_color, shape, ow_norm))
 
 		# Record hover data for hit testing.
-		_hover_screen_positions.append(Vector2(screen_x, screen_y))
+		_hover_screen_positions.append(screen)
 		_hover_series_ids.append(series_id)
 		_hover_sample_indices.append(p_sample_index)
 		_hover_x_values.append(p_x_value)

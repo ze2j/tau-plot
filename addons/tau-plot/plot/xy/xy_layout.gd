@@ -391,6 +391,32 @@ class XYLayout extends RefCounted:
 		return map_y_to_px(p_pane_index, 0.0, p_y_axis_id)
 
 
+	## Assembles a screen-space [Vector2] from two pixel coordinates that are
+	## already expressed along the x-axis and y-axis directions respectively.
+	##
+	## [param p_x_axis_px] Pixel coordinate along the x-axis direction, as
+	##                     returned by [method map_x_to_px] or
+	##                     [method map_x_category_center_to_px].
+	## [param p_y_axis_px] Pixel coordinate along the y-axis direction, as
+	##                     returned by [method map_y_to_px].
+	##
+	## When the x axis is horizontal, the x-axis direction is screen-X and
+	## the y-axis direction is screen-Y, so the values map straight through.
+	## When the x axis is vertical, the two are swapped.
+	##
+	## Note: both input values already encode axis inversion and scale
+	## (linear or logarithmic) because those are applied inside the
+	## mapping functions. This helper only performs the orientation swap.
+	func map_point_to_screen(p_x_axis_px: float, p_y_axis_px: float) -> Vector2:
+		if _x_is_horizontal:
+			return Vector2(p_x_axis_px, p_y_axis_px)
+		return Vector2(p_y_axis_px, p_x_axis_px)
+
+	func map_screen_to_point(p_screen_coords: Vector2) -> Vector2:
+		if _x_is_horizontal:
+			return Vector2(p_screen_coords.x, p_screen_coords.y)
+		return Vector2(p_screen_coords.y, p_screen_coords.x)
+
 	################################################################################################
 	# Categorical label visibility
 	################################################################################################
