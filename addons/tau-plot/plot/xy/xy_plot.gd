@@ -41,6 +41,9 @@ const ScatterRenderer := preload("res://addons/tau-plot/plot/xy/scatter/scatter_
 const ScatterVisualAttributes = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
 const ScatterHitTester = preload("res://addons/tau-plot/plot/xy/scatter/scatter_hit_tester.gd").ScatterHitTester
 
+const LineRenderer := preload("res://addons/tau-plot/plot/xy/line/line_renderer.gd").LineRenderer
+const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
+
 
 # External references (provided via setup)
 var _plot: PanelContainer = null
@@ -60,6 +63,7 @@ var _xy_domain_overrides: XYDomainOverrides = null
 var _xy_layout: XYLayout = null
 var _bar_config_per_pane: Array[TauBarConfig] = []			# Elements may be null, one per pane
 var _scatter_config_per_pane: Array[TauScatterConfig] = []	# Elements may be null, one per pane
+var _line_config_per_pane: Array[TauLineConfig] = []		# Elements may be null, one per pane
 var _series_bindings: Array[TauXYSeriesBinding] = []
 var _series_assignment: SeriesAxisAssignment = null
 
@@ -67,9 +71,9 @@ var _series_assignment: SeriesAxisAssignment = null
 var _pane_renderers: Array[PaneRenderer] = []		# Elements are never null, one per pane
 var _bar_renderers: Array[BarRenderer] = []			# Elements may be null, one per pane
 var _scatter_renderers: Array[ScatterRenderer] = []	# Elements may be null, one per pane
+var _line_renderers: Array[LineRenderer] = []		# Elements may be null, one per pane
 
-# The BoxContainer that holds all pane containers. Created as VBoxContainer
-# (x horizontal) or HBoxContainer (x vertical) by _create_pane_stack().
+# The BoxContainer that holds all pane containers.
 var _pane_stack: BoxContainer = null
 
 # Per-pane containers (nodes inside _pane_stack)
@@ -78,6 +82,7 @@ var _pane_containers: Array[Container] = []			# Elements are never null, one per
 # Per-pane series partitioning
 var _bar_series_ids_per_pane: Array[PackedInt64Array] = []
 var _scatter_series_ids_per_pane: Array[PackedInt64Array] = []
+var _line_series_ids_per_pane: Array[PackedInt64Array] = []
 
 # Per-pane resolved TauPaneStyle instances (produced by the three-layer cascade).
 # One entry per pane, always non-null after setup().
@@ -86,6 +91,7 @@ var _resolved_pane_styles: Array[TauPaneStyle] = []
 # Per-pane resolved overlay style instances (produced by the three-layer cascade).
 var _resolved_bar_styles: Array[TauBarStyle] = []
 var _resolved_scatter_styles: Array[TauScatterStyle] = []
+var _resolved_line_styles: Array[TauLineStyle] = []
 
 # Plot-wide resolved TauXYStyle instance (produced by the three-layer cascade).
 # Distributed to all renderers (PaneRenderer, BarRenderer, ScatterRenderer).
@@ -111,6 +117,7 @@ var _styles_dirty: bool = true
 var _xy_dirty_panes: Array[bool] = []
 var _bars_dirty_panes: Array[bool] = []
 var _scatter_dirty_panes: Array[bool] = []
+var _line_dirty_panes: Array[bool] = []
 
 # Hover controller (null when setup() has not been called or hover is not wired)
 var _hover_controller: HoverController = null
@@ -153,15 +160,21 @@ func setup(
 	_bar_config_per_pane.fill(null)
 	_scatter_config_per_pane.resize(pane_count)
 	_scatter_config_per_pane.fill(null)
+	_line_config_per_pane.resize(pane_count)
+	_line_config_per_pane.fill(null)
 	_bar_series_ids_per_pane.clear()
 	_scatter_series_ids_per_pane.clear()
+	_line_series_ids_per_pane.clear()
 	var bar_va_per_pane: Array = []     # Array of Array[BarVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
 	var scatter_va_per_pane: Array = [] # Array of Array[ScatterVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
+	var line_va_per_pane: Array = []    # Array of Array[LineVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
 	for i in range(pane_count):
 		_bar_series_ids_per_pane.append(PackedInt64Array())
 		_scatter_series_ids_per_pane.append(PackedInt64Array())
+		_line_series_ids_per_pane.append(PackedInt64Array())
 		bar_va_per_pane.append([] as Array[BarVisualAttributes])
 		scatter_va_per_pane.append([] as Array[ScatterVisualAttributes])
+		line_va_per_pane.append([] as Array[LineVisualAttributes])
 
 	# Extract series bindings
 	_series_assignment = SeriesAxisAssignment.new(pane_count)
@@ -199,6 +212,20 @@ func setup(
 					# Type is guaranteed by validation (ScatterValidator._validate_scatter_visuals).
 					scatter_va_per_pane[pane_index].append(binding.visual_attributes as ScatterVisualAttributes)
 
+			TauXYSeriesBinding.PaneOverlayType.LINE:
+				if sid not in _line_series_ids_per_pane[pane_index]:
+					_line_series_ids_per_pane[pane_index].append(sid)
+
+				if _line_config_per_pane[pane_index] == null:
+					var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
+					var line_cfg := pane_config.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.LINE) as TauLineConfig
+					if line_cfg != null:
+						_line_config_per_pane[pane_index] = line_cfg
+
+				if binding.visual_attributes != null:
+					# Type is guaranteed by validation (LineValidator._validate_line_visuals).
+					line_va_per_pane[pane_index].append(binding.visual_attributes as LineVisualAttributes)
+
 			_:
 				# Unknown overlay types are rejected by validation.
 				pass
@@ -217,6 +244,8 @@ func setup(
 			_bar_config_per_pane[pane_index].style.changed.connect(_on_style_changed)
 		if _scatter_config_per_pane[pane_index] != null and not _scatter_config_per_pane[pane_index].style.changed.is_connected(_on_style_changed):
 			_scatter_config_per_pane[pane_index].style.changed.connect(_on_style_changed)
+		if _line_config_per_pane[pane_index] != null and not _line_config_per_pane[pane_index].style.changed.is_connected(_on_style_changed):
+			_line_config_per_pane[pane_index].style.changed.connect(_on_style_changed)
 		var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
 		if pane_config.style != null and not pane_config.style.changed.is_connected(_on_style_changed):
 			pane_config.style.changed.connect(_on_style_changed)
@@ -230,16 +259,20 @@ func setup(
 	_pane_renderers.clear()
 	_bar_renderers.clear()
 	_scatter_renderers.clear()
+	_line_renderers.clear()
 	_resolved_pane_styles.clear()
 	_resolved_bar_styles.clear()
 	_resolved_scatter_styles.clear()
+	_resolved_line_styles.clear()
 
 	_pane_renderers.resize(pane_count)
 	_bar_renderers.resize(pane_count)
 	_scatter_renderers.resize(pane_count)
+	_line_renderers.resize(pane_count)
 	_resolved_pane_styles.resize(pane_count)
 	_resolved_bar_styles.resize(pane_count)
 	_resolved_scatter_styles.resize(pane_count)
+	_resolved_line_styles.resize(pane_count)
 	_pane_containers.resize(pane_count)
 
 	# Resolve TauXYStyle cascade once against the TauPlot root so that theme
@@ -310,6 +343,24 @@ func setup(
 			scatter_renderer.set_resolved_scatter_style(resolved_scatter_style)
 			scatter_renderer.set_resolved_xy_style(_resolved_xy_style)
 
+		# Create LineRenderer for this pane if it has line series
+		if not _line_series_ids_per_pane[pane_index].is_empty():
+			var line_renderer := LineRenderer.new(
+				_xy_layout, _dataset, _line_config_per_pane[pane_index], p_xy_config.style,
+				_series_assignment,
+				pane_index, line_va_per_pane[pane_index],
+				_line_series_ids_per_pane[pane_index])
+			pane_container.add_child(line_renderer)
+			line_renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			_line_renderers[pane_index] = line_renderer
+
+			# Resolve TauLineStyle cascade and push it to the renderer.
+			var line_user_style: TauLineStyle = _line_config_per_pane[pane_index].style
+			var resolved_line_style := TauLineStyle.resolve(line_renderer, pane_index, line_user_style)
+			_resolved_line_styles[pane_index] = resolved_line_style
+			line_renderer.set_resolved_line_style(resolved_line_style)
+			line_renderer.set_resolved_xy_style(_resolved_xy_style)
+
 	# Axis titles
 	_axis_title_layout.build(p_xy_config, _series_assignment)
 
@@ -365,7 +416,7 @@ func setup(
 	_hover_controller.setup(
 		_plot, _xy_layout, _domain_config,
 		_pane_containers, _pane_renderers,
-		_bar_renderers, _scatter_renderers,
+		_bar_renderers, _scatter_renderers, _line_renderers,
 		_resolved_xy_style, formatter, hit_testers_per_pane,
 		p_hover_enabled, p_hover_config)
 
@@ -389,11 +440,14 @@ func clear() -> void:
 	_series_assignment = null
 	_bar_config_per_pane.clear()
 	_scatter_config_per_pane.clear()
+	_line_config_per_pane.clear()
 	_bar_series_ids_per_pane.clear()
 	_scatter_series_ids_per_pane.clear()
+	_line_series_ids_per_pane.clear()
 	_resolved_pane_styles.clear()
 	_resolved_bar_styles.clear()
 	_resolved_scatter_styles.clear()
+	_resolved_line_styles.clear()
 	_resolved_xy_style = null
 	_resolved_legend_style = null
 	_user_legend_style = null
@@ -490,6 +544,30 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 					_scatter_dirty_panes[pane_index] = true
 				_state.save_scatter_config_for_pane(pane_index, pane_scatter_config)
 
+	# Step 3-line: Check if line config changed per pane
+	var has_any_line := false
+	for renderer in _line_renderers:
+		if renderer != null:
+			has_any_line = true
+			break
+
+	if has_any_line:
+		for pane_index in range(pane_count):
+			var pane_line_config: TauLineConfig = _line_config_per_pane[pane_index] if pane_index < _line_config_per_pane.size() else null
+			if pane_line_config == null:
+				continue
+			var prev_line_config: TauLineConfig = _state.line_config_per_pane[pane_index] if pane_index < _state.line_config_per_pane.size() else null
+			if not pane_line_config.is_equal_to(prev_line_config):
+				if pane_line_config.has_layout_affecting_change(prev_line_config):
+					_domain_dirty = true
+					_ticks_dirty = true
+					_pane_rect_dirty = true
+					_set_all_pane_flags(_xy_dirty_panes, true)
+					_set_all_pane_flags(_line_dirty_panes, true)
+				else:
+					_line_dirty_panes[pane_index] = true
+				_state.save_line_config_for_pane(pane_index, pane_line_config)
+
 	# Step 3b: Check if styles changed (programmatic mutations via config.style.*)
 	# XY style: three-layer change detection (theme dirty, ref change, content mutation).
 	#  - layout-affecting properties trigger ticks + pane rect recompute,
@@ -522,6 +600,9 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				if renderer != null:
 					renderer.set_resolved_xy_style(_resolved_xy_style)
 			for renderer in _scatter_renderers:
+				if renderer != null:
+					renderer.set_resolved_xy_style(_resolved_xy_style)
+			for renderer in _line_renderers:
 				if renderer != null:
 					renderer.set_resolved_xy_style(_resolved_xy_style)
 
@@ -593,6 +674,34 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				_scatter_renderers[pane_index].set_resolved_scatter_style(resolved_scatter)
 				_state.save_scatter_style_for_pane(pane_index, scatter_config.style)
 				_scatter_dirty_panes[pane_index] = true
+				_legend_rebuild_needed = true
+
+	# Line style: three-layer change detection (theme dirty, ref change, content mutation).
+	# All TauLineStyle properties are visual-only, so only dirty the owning line pane.
+	if has_any_line:
+		for pane_index in range(pane_count):
+			var line_config: TauLineConfig = _line_config_per_pane[pane_index] if pane_index < _line_config_per_pane.size() else null
+			if line_config == null:
+				continue
+			var needs_line_re_resolve := _styles_dirty
+
+			# Reference change: user assigned a different TauLineStyle resource.
+			if _state.has_line_style_ref_changed_for_pane(pane_index, line_config.style):
+				needs_line_re_resolve = true
+				_state.save_line_style_ref_for_pane(pane_index, line_config.style)
+
+			# Content mutation: user changed a property on the existing TauLineStyle.
+			if not needs_line_re_resolve:
+				var prev_line_style: TauLineStyle = _state.line_style_per_pane[pane_index] if pane_index < _state.line_style_per_pane.size() else null
+				if not line_config.style.is_equal_to(prev_line_style):
+					needs_line_re_resolve = true
+
+			if needs_line_re_resolve and _line_renderers[pane_index] != null:
+				var resolved_line := TauLineStyle.resolve(_line_renderers[pane_index], pane_index, line_config.style)
+				_resolved_line_styles[pane_index] = resolved_line
+				_line_renderers[pane_index].set_resolved_line_style(resolved_line)
+				_state.save_line_style_for_pane(pane_index, line_config.style)
+				_line_dirty_panes[pane_index] = true
 				_legend_rebuild_needed = true
 
 	# Step 3c: Check grid_line config changes, style reference changes,
@@ -724,6 +833,9 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		if _scatter_dirty_panes[i] and _scatter_renderers[i] != null:
 			_scatter_renderers[i].update_scatter()
 			_scatter_dirty_panes[i] = false
+		if _line_dirty_panes[i] and _line_renderers[i] != null:
+			_line_renderers[i].queue_redraw()
+			_line_dirty_panes[i] = false
 
 	_state.save_pane_view_rects(pane_view_rects)
 
@@ -790,6 +902,11 @@ func _get_legend_key_factory(p_overlay_type: int, p_pane_index: int) -> Callable
 				var r = _scatter_renderers[p_pane_index]
 				if r != null:
 					return r.create_legend_key_control
+		TauXYSeriesBinding.PaneOverlayType.LINE:
+			if p_pane_index >= 0 and p_pane_index < _line_renderers.size():
+				var r = _line_renderers[p_pane_index]
+				if r != null:
+					return r.create_legend_key_control
 	return Callable()
 
 
@@ -820,9 +937,11 @@ func _init_pane_dirty_flags(p_pane_count: int) -> void:
 	_xy_dirty_panes.resize(p_pane_count)
 	_bars_dirty_panes.resize(p_pane_count)
 	_scatter_dirty_panes.resize(p_pane_count)
+	_line_dirty_panes.resize(p_pane_count)
 	_xy_dirty_panes.fill(true)
 	_bars_dirty_panes.fill(true)
 	_scatter_dirty_panes.fill(true)
+	_line_dirty_panes.fill(true)
 
 
 func _set_all_pane_flags(p_flags: Array[bool], p_value: bool) -> void:
@@ -846,17 +965,20 @@ func _mark_domain_dependents_dirty() -> void:
 	_set_all_pane_flags(_xy_dirty_panes, true)
 	_set_all_pane_flags(_bars_dirty_panes, true)
 	_set_all_pane_flags(_scatter_dirty_panes, true)
+	_set_all_pane_flags(_line_dirty_panes, true)
 
 
 func _mark_renderers_dirty() -> void:
 	_set_all_pane_flags(_bars_dirty_panes, true)
 	_set_all_pane_flags(_scatter_dirty_panes, true)
+	_set_all_pane_flags(_line_dirty_panes, true)
 
 
 func _mark_visual_dirty() -> void:
 	_set_all_pane_flags(_xy_dirty_panes, true)
 	_set_all_pane_flags(_bars_dirty_panes, true)
 	_set_all_pane_flags(_scatter_dirty_panes, true)
+	_set_all_pane_flags(_line_dirty_panes, true)
 
 
 func _reset_dataset() -> void:
@@ -879,6 +1001,10 @@ func _disconnect_style_signals() -> void:
 		if scatter_cfg != null and scatter_cfg.style != null:
 			if scatter_cfg.style.changed.is_connected(_on_style_changed):
 				scatter_cfg.style.changed.disconnect(_on_style_changed)
+	for line_cfg in _line_config_per_pane:
+		if line_cfg != null and line_cfg.style != null:
+			if line_cfg.style.changed.is_connected(_on_style_changed):
+				line_cfg.style.changed.disconnect(_on_style_changed)
 	if _domain_config != null:
 		for pane_config in _domain_config.panes:
 			if pane_config != null and pane_config.style != null:
@@ -914,6 +1040,9 @@ func _has_any_data_renderer() -> bool:
 	for renderer in _scatter_renderers:
 		if renderer != null:
 			return true
+	for renderer in _line_renderers:
+		if renderer != null:
+			return true
 	return false
 
 
@@ -932,6 +1061,11 @@ func _clear_pane_containers() -> void:
 		if renderer != null and is_instance_valid(renderer):
 			renderer.queue_free()
 	_scatter_renderers.clear()
+
+	for renderer in _line_renderers:
+		if renderer != null and is_instance_valid(renderer):
+			renderer.queue_free()
+	_line_renderers.clear()
 
 	if _pane_stack != null:
 		for container in _pane_containers:

@@ -78,6 +78,7 @@ class XYState extends RefCounted:
 	# Per-pane config snapshots from last refresh
 	var bar_config_per_pane: Array[TauBarConfig] = []
 	var scatter_config_per_pane: Array[TauScatterConfig] = []
+	var line_config_per_pane: Array[TauLineConfig] = []
 
 	# Per-pane grid_line config snapshots
 	var grid_line_config_per_pane: Array[TauGridLineConfig] = []
@@ -94,11 +95,13 @@ class XYState extends RefCounted:
 	var xy_style_ref: TauXYStyle = null
 	var bar_style_per_pane: Array[TauBarStyle] = []
 	var scatter_style_per_pane: Array[TauScatterStyle] = []
+	var line_style_per_pane: Array[TauLineStyle] = []
 
 	# Per-pane overlay style resource references (for detecting when the user
 	# assigns a different style resource to the config).
 	var bar_style_ref_per_pane: Array = []
 	var scatter_style_ref_per_pane: Array = []
+	var line_style_ref_per_pane: Array = []
 
 	# TauLegendStyle ref + content tracking
 	var legend_style_ref: TauLegendStyle = null
@@ -126,6 +129,11 @@ class XYState extends RefCounted:
 		while scatter_config_per_pane.size() < p_pane_count:
 			scatter_config_per_pane.append(null)
 
+		while line_config_per_pane.size() > p_pane_count:
+			line_config_per_pane.pop_back()
+		while line_config_per_pane.size() < p_pane_count:
+			line_config_per_pane.append(null)
+
 		while grid_line_config_per_pane.size() > p_pane_count:
 			grid_line_config_per_pane.pop_back()
 		while grid_line_config_per_pane.size() < p_pane_count:
@@ -151,6 +159,11 @@ class XYState extends RefCounted:
 		while scatter_style_per_pane.size() < p_pane_count:
 			scatter_style_per_pane.append(null)
 
+		while line_style_per_pane.size() > p_pane_count:
+			line_style_per_pane.pop_back()
+		while line_style_per_pane.size() < p_pane_count:
+			line_style_per_pane.append(null)
+
 		while bar_style_ref_per_pane.size() > p_pane_count:
 			bar_style_ref_per_pane.pop_back()
 		while bar_style_ref_per_pane.size() < p_pane_count:
@@ -160,6 +173,11 @@ class XYState extends RefCounted:
 			scatter_style_ref_per_pane.pop_back()
 		while scatter_style_ref_per_pane.size() < p_pane_count:
 			scatter_style_ref_per_pane.append(null)
+
+		while line_style_ref_per_pane.size() > p_pane_count:
+			line_style_ref_per_pane.pop_back()
+		while line_style_ref_per_pane.size() < p_pane_count:
+			line_style_ref_per_pane.append(null)
 
 
 	func reset() -> void:
@@ -176,6 +194,7 @@ class XYState extends RefCounted:
 
 		bar_config_per_pane.clear()
 		scatter_config_per_pane.clear()
+		line_config_per_pane.clear()
 
 		grid_line_config_per_pane.clear()
 		pane_style_ref_per_pane.clear()
@@ -185,9 +204,11 @@ class XYState extends RefCounted:
 		xy_style_ref = null
 		bar_style_per_pane.clear()
 		scatter_style_per_pane.clear()
+		line_style_per_pane.clear()
 
 		bar_style_ref_per_pane.clear()
 		scatter_style_ref_per_pane.clear()
+		line_style_ref_per_pane.clear()
 
 		legend_style_ref = null
 		legend_style_snapshot = null
@@ -321,6 +342,12 @@ class XYState extends RefCounted:
 		scatter_config_per_pane[p_pane_index] = p_scatter_config.duplicate() if p_scatter_config != null else null
 
 
+	func save_line_config_for_pane(p_pane_index: int, p_line_config: TauLineConfig) -> void:
+		if p_pane_index < 0 or p_pane_index >= line_config_per_pane.size():
+			return
+		line_config_per_pane[p_pane_index] = p_line_config.duplicate() if p_line_config != null else null
+
+
 	func save_grid_line_config_for_pane(p_pane_index: int, p_grid_line_config: TauGridLineConfig) -> void:
 		if p_pane_index < 0 or p_pane_index >= grid_line_config_per_pane.size():
 			return
@@ -404,6 +431,24 @@ class XYState extends RefCounted:
 		if p_pane_index < 0 or p_pane_index >= scatter_style_ref_per_pane.size():
 			return true
 		return scatter_style_ref_per_pane[p_pane_index] != p_style_ref
+
+
+	func save_line_style_for_pane(p_pane_index: int, p_style: TauLineStyle) -> void:
+		if p_pane_index < 0 or p_pane_index >= line_style_per_pane.size():
+			return
+		line_style_per_pane[p_pane_index] = p_style.duplicate() if p_style != null else null
+
+
+	func save_line_style_ref_for_pane(p_pane_index: int, p_style_ref: TauLineStyle) -> void:
+		if p_pane_index < 0 or p_pane_index >= line_style_ref_per_pane.size():
+			return
+		line_style_ref_per_pane[p_pane_index] = p_style_ref
+
+
+	func has_line_style_ref_changed_for_pane(p_pane_index: int, p_style_ref: TauLineStyle) -> bool:
+		if p_pane_index < 0 or p_pane_index >= line_style_ref_per_pane.size():
+			return true
+		return line_style_ref_per_pane[p_pane_index] != p_style_ref
 
 
 	func save_pane_style_for_pane(p_pane_index: int, p_style: TauPaneStyle) -> void:

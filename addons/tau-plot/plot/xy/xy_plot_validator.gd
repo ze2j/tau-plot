@@ -2,6 +2,7 @@
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const BarValidator := preload("res://addons/tau-plot/plot/xy/bar/bar_validator.gd").BarValidator
 const ScatterValidator := preload("res://addons/tau-plot/plot/xy/scatter/scatter_validator.gd").ScatterValidator
+const LineValidator := preload("res://addons/tau-plot/plot/xy/line/line_validator.gd").LineValidator
 const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 const ValidationResult = preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
@@ -263,6 +264,7 @@ class XYPlotValidator extends RefCounted:
 		# Group series by overlay type and pane
 		var bar_bindings_by_pane: Dictionary[int, Array] = {}   # Array[TauXYSeriesBinding]. FIXME Godot 4.5 does not support nested typed collections.
 		var scatter_bindings_by_pane: Dictionary[int, Array] = {} # Array[TauXYSeriesBinding]. FIXME Godot 4.5 does not support nested typed collections.
+		var line_bindings_by_pane: Dictionary[int, Array] = {} # Array[TauXYSeriesBinding]. FIXME Godot 4.5 does not support nested typed collections.
 
 		for binding in p_series_bindings:
 			match binding.overlay_type:
@@ -274,6 +276,10 @@ class XYPlotValidator extends RefCounted:
 					if not scatter_bindings_by_pane.has(binding.pane_index):
 						scatter_bindings_by_pane[binding.pane_index] = []
 					scatter_bindings_by_pane[binding.pane_index].append(binding)
+				TauXYSeriesBinding.PaneOverlayType.LINE:
+					if not line_bindings_by_pane.has(binding.pane_index):
+						line_bindings_by_pane[binding.pane_index] = []
+					line_bindings_by_pane[binding.pane_index].append(binding)
 				_:
 					p_result.add_error("XYPlotValidator: unsupported overlay_type %d" % int(binding.overlay_type))
 
@@ -286,6 +292,11 @@ class XYPlotValidator extends RefCounted:
 			var scatter_overlay_bindings: Array[TauXYSeriesBinding] = []
 			scatter_overlay_bindings.assign(scatter_bindings_by_pane[pane_index])
 			ScatterValidator.validate(p_dataset, p_xy_config, pane_index, scatter_overlay_bindings, p_result)
+
+		for pane_index in line_bindings_by_pane:
+			var line_overlay_bindings: Array[TauXYSeriesBinding] = []
+			line_overlay_bindings.assign(line_bindings_by_pane[pane_index])
+			LineValidator.validate(p_dataset, p_xy_config, pane_index, line_overlay_bindings, p_result)
 
 
 	####################################################################################################

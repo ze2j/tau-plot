@@ -9,6 +9,7 @@ const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const PaneRenderer := preload("res://addons/tau-plot/plot/xy/pane_renderer.gd").PaneRenderer
 const BarRenderer := preload("res://addons/tau-plot/plot/xy/bar/bar_renderer.gd").BarRenderer
 const ScatterRenderer := preload("res://addons/tau-plot/plot/xy/scatter/scatter_renderer.gd").ScatterRenderer
+const LineRenderer := preload("res://addons/tau-plot/plot/xy/line/line_renderer.gd").LineRenderer
 
 
 ## Handles input dispatch, hover mode resolution, hit aggregation across
@@ -24,6 +25,7 @@ class HoverController extends RefCounted:
 	var _pane_renderers: Array[PaneRenderer] = []
 	var _bar_renderers: Array[BarRenderer] = []
 	var _scatter_renderers: Array[ScatterRenderer] = []
+	var _line_renderers: Array[LineRenderer] = []
 	var _resolved_xy_style: TauXYStyle = null
 
 	# Hover state.
@@ -58,6 +60,7 @@ class HoverController extends RefCounted:
 			p_pane_renderers: Array[PaneRenderer],
 			p_bar_renderers: Array[BarRenderer],
 			p_scatter_renderers: Array[ScatterRenderer],
+			p_line_renderers: Array[LineRenderer],
 			p_resolved_xy_style: TauXYStyle,
 			p_formatter: HoverFormatter,
 			p_hit_testers_per_pane: Array, # Array[Array[OverlayHitTester]] FIXME Godot 4.5 does not support nested typed collections.
@@ -70,6 +73,7 @@ class HoverController extends RefCounted:
 		_pane_renderers = p_pane_renderers
 		_bar_renderers = p_bar_renderers
 		_scatter_renderers = p_scatter_renderers
+		_line_renderers = p_line_renderers
 		_resolved_xy_style = p_resolved_xy_style
 		_formatter = p_formatter
 		_hit_testers_per_pane = p_hit_testers_per_pane
@@ -102,6 +106,7 @@ class HoverController extends RefCounted:
 		_pane_renderers = []
 		_bar_renderers = []
 		_scatter_renderers = []
+		_line_renderers = []
 		_resolved_xy_style = null
 		_formatter = null
 		_hover_config = null
@@ -574,6 +579,9 @@ class HoverController extends RefCounted:
 					var existing: SampleHit = scatter_hits_by_pane.get(hit.pane_index)
 					if existing == null or hit.distance_px < existing.distance_px:
 						scatter_hits_by_pane[hit.pane_index] = hit
+			elif hit.overlay_type == PaneOverlayType.LINE:
+				# TODO: categorize line hits once line hover is wired.
+				pass
 
 		for pane_index: int in range(_bar_renderers.size()):
 			var renderer: BarRenderer = _bar_renderers[pane_index]
