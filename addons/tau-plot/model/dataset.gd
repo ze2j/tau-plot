@@ -68,7 +68,7 @@ class Dataset extends RefCounted:
 					push_error("Dataset(): unexpected X element type")
 
 
-	# Convenience method to create and fully initialize a SHARED_X dataset with categorical X values and multiple series from bulk arrays.
+	## Convenience method to create and fully initialize a SHARED_X dataset with categorical X values and multiple series from bulk arrays.
 	static func make_shared_x_categorical(p_series_names: PackedStringArray, p_x: PackedStringArray, p_y_by_series: Array[PackedFloat64Array], p_capacity: int = -1) -> Dataset:
 		if p_series_names.is_empty():
 			push_error("Dataset.make_shared_x_categorical(): p_series_names is empty")
@@ -103,7 +103,7 @@ class Dataset extends RefCounted:
 		return dataset
 
 
-	# Convenience method to create and fully initialize a SHARED_X dataset with continuous X values and multiple series from bulk arrays.
+	## Convenience method to create and fully initialize a SHARED_X dataset with continuous X values and multiple series from bulk arrays.
 	static func make_shared_x_continuous(p_series_names: PackedStringArray, p_x: PackedFloat64Array, p_y_by_series: Array[PackedFloat64Array], p_capacity: int = -1) -> Dataset:
 		if p_series_names.is_empty():
 			push_error("Dataset.make_shared_x_continuous(): p_series_names is empty")
@@ -138,7 +138,7 @@ class Dataset extends RefCounted:
 		return dataset
 
 
-	# Convenience method to create and fully initialize a PER_SERIES_X dataset with continuous X values, where each series provides its own X/Y arrays.
+	## Convenience method to create and fully initialize a PER_SERIES_X dataset with continuous X values, where each series provides its own X/Y arrays.
 	static func make_per_series_x_continuous(p_series_names: PackedStringArray, p_x_by_series: Array[PackedFloat64Array], p_y_by_series: Array[PackedFloat64Array], p_capacity_by_series: PackedInt32Array = PackedInt32Array()) -> Dataset:
 		if p_series_names.is_empty():
 			push_error("Dataset.make_per_series_x_continuous(): p_series_names is empty")

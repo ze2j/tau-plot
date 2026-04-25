@@ -595,12 +595,6 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				_scatter_dirty_panes[pane_index] = true
 				_legend_rebuild_needed = true
 
-	# Rebuild legend keys once if any overlay or plot-wide style changed.
-	# Renderers already have their updated styles at this point, so the
-	# factory callables will produce Controls with the new appearance.
-	if _legend_rebuild_needed:
-		_legend_builder.controller.legend.rebuild()
-
 	# Step 3c: Check grid_line config changes, style reference changes,
 	# and pane style mutations. All visual-only.
 	for pane_index in range(pane_count):
@@ -703,6 +697,13 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		_axis_title_layout.update_insets(_xy_layout, _pane_containers)
 		_pane_rect_dirty = false
 		_ticks_dirty = false
+
+	# Rebuild legend keys once if any overlay or plot-wide style changed.
+	# Must run after the layout update as some legend keys depends on the
+	# layout (e.g. scatter with DATA_UNITS marker size policy, which uses
+	# map_x_to_px).
+	if _legend_rebuild_needed:
+		_legend_builder.controller.legend.rebuild()
 
 	# Step 7b: Update legend overlay if INSIDE position
 	if _is_inside_legend_position(p_legend_position):
