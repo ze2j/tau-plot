@@ -21,12 +21,7 @@ enum BarMode
 }
 @export var mode: BarMode = BarMode.GROUPED
 
-enum StackedNormalization
-{
-	NONE,       # Draw raw stacked sums.
-	FRACTION,   # Each stack sums to 1.0.
-	PERCENT     # Each stack sums to 100.0.
-}
+const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
 @export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
 
 
