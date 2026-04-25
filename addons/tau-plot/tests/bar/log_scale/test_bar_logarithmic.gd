@@ -82,13 +82,13 @@ func _setup_test_1() -> void:
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
 	x_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (linear)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
-	left_axis.range_override_enabled = true
-	left_axis.min_override = 0.01
-	left_axis.max_override = 8.00
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Y (linear)"
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
+	y_axis.range_override_enabled = true
+	y_axis.min_override = 0.01
+	y_axis.max_override = 8.00
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.GROUPED
@@ -96,7 +96,7 @@ func _setup_test_1() -> void:
 	bar_config.bar_gap_x_units = 1.01
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [bar_config]
 
 	var config := TauXYConfig.new()
@@ -169,17 +169,17 @@ func _setup_test_2() -> void:
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
 	x_axis.scale = TauAxisConfig.Scale.LINEAR
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (log scale)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
-	left_axis.include_zero_in_domain = false
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Y (log scale)"
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
+	y_axis.include_zero_in_domain = false
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.GROUPED
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [bar_config]
 
 	var config := TauXYConfig.new()
@@ -251,17 +251,17 @@ func _setup_test_3() -> void:
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
 	x_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (log scale)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
-	left_axis.include_zero_in_domain = false
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Y (log scale)"
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
+	y_axis.include_zero_in_domain = false
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.GROUPED
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [bar_config]
 
 	var config := TauXYConfig.new()
@@ -336,10 +336,10 @@ func _setup_test_4() -> void:
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
 	x_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (linear)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Y (linear)"
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.STACKED
@@ -347,7 +347,7 @@ func _setup_test_4() -> void:
 	bar_config.bar_gap_x_units = 1.01
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [bar_config]
 
 	var config := TauXYConfig.new()
@@ -451,13 +451,13 @@ func _setup_test_7() -> void:
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
 	x_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (linear)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
-	left_axis.range_override_enabled = true
-	left_axis.min_override = 0.01
-	left_axis.max_override = 8.00
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Y (linear)"
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
+	y_axis.range_override_enabled = true
+	y_axis.min_override = 0.01
+	y_axis.max_override = 8.00
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.INDEPENDENT
@@ -465,7 +465,7 @@ func _setup_test_7() -> void:
 	bar_config.style.bar_width_px = 25
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [bar_config]
 
 	var config := TauXYConfig.new()
@@ -540,17 +540,17 @@ func _setup_test_8() -> void:
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
 	x_axis.scale = TauAxisConfig.Scale.LINEAR
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (log scale)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
-	left_axis.include_zero_in_domain = false
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Y (log scale)"
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
+	y_axis.include_zero_in_domain = false
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.INDEPENDENT
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [bar_config]
 
 	var config := TauXYConfig.new()
@@ -623,17 +623,17 @@ func _setup_test_9() -> void:
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
 	x_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (log scale)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
-	left_axis.include_zero_in_domain = false
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Y (log scale)"
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
+	y_axis.include_zero_in_domain = false
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.INDEPENDENT
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [bar_config]
 
 	var config := TauXYConfig.new()
@@ -678,7 +678,7 @@ func _step_test_9() -> void:
 	dataset.end_batch()
 
 ####################################################################################################
-# Test 10: Log X with streaming data (append samples)
+# Test 10
 ####################################################################################################
 
 func _setup_test_10() -> void:
@@ -704,16 +704,16 @@ func _setup_test_10() -> void:
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
 	x_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (linear)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Y (linear)"
+	y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	y_axis.scale = TauAxisConfig.Scale.LINEAR
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.GROUPED
 
 	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
+	pane.y_left_axis = y_axis
 	pane.overlays = [bar_config]
 
 	var config := TauXYConfig.new()
