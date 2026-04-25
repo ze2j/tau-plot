@@ -36,7 +36,7 @@ func _setup_test_1() -> void:
 	y_axis.include_zero_in_domain = true
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
+	line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
 
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis
@@ -87,7 +87,7 @@ func _setup_test_2() -> void:
 	y_axis.include_zero_in_domain = true
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
+	line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -137,7 +137,7 @@ func _setup_test_3() -> void:
 	y_axis.include_zero_in_domain = true
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
+	line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
 
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis
@@ -188,7 +188,7 @@ func _setup_test_4() -> void:
 	y_axis.include_zero_in_domain = true
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
+	line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -238,7 +238,7 @@ func _setup_test_5() -> void:
 	y_axis.include_zero_in_domain = true
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
+	line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
 
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis
@@ -289,7 +289,7 @@ func _setup_test_6() -> void:
 	y_axis.include_zero_in_domain = true
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
+	line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -339,7 +339,7 @@ func _setup_test_7() -> void:
 	y_axis.include_zero_in_domain = false
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
+	line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
 
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis
@@ -390,7 +390,7 @@ func _setup_test_8() -> void:
 	y_axis.include_zero_in_domain = false
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
+	line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis

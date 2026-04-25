@@ -23,6 +23,25 @@ enum LineMode
 const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
 @export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
 
+## Strategy applied when the curve encounters a sample with a NaN or infinite
+## X or Y value (or a value forbidden by the active axis scale, such as a
+## non-positive value on a logarithmic axis).
+##
+## SKIP breaks the polyline at the invalid sample. The runs on each side of
+## the gap are drawn as independent contiguous polylines.
+##
+## BRIDGE drops the invalid sample from the sequence and connects the valid
+## sample before it directly to the valid sample after it, so the polyline
+## stays continuous across the gap.
+##
+## This property is visual-only and does not affect layout or domain.
+enum GapPolicy
+{
+	SKIP,    ## Break the polyline at invalid samples.
+	BRIDGE   ## Drop invalid samples and connect the surrounding valid samples.
+}
+@export var gap_policy: GapPolicy = GapPolicy.SKIP
+
 ## Maximum pixel distance from the cursor to a sample position for the sample
 ## to be considered a hover hit.
 ##
@@ -68,6 +87,8 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	if mode != other.mode:
 		return false
 	if stacked_normalization != other.stacked_normalization:
+		return false
+	if gap_policy != other.gap_policy:
 		return false
 	if hover_max_distance_px != other.hover_max_distance_px:
 		return false

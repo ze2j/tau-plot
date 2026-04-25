@@ -15,9 +15,12 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 # draw_polyline() call per series.
 #
 # Runtime behavior:
-# - NaN and Inf X or Y values break the polyline (SKIP gap policy).
-# - Logarithmic Y scales: y <= 0 breaks the polyline.
-# - Logarithmic X scales: x <= 0 breaks the polyline.
+# - NaN and Inf X or Y values are treated according to TauLineConfig.gap_policy.
+# - Logarithmic Y scales: y <= 0 is treated as invalid.
+# - Logarithmic X scales: x <= 0 is treated as invalid.
+# - GapPolicy.SKIP breaks the polyline at every invalid sample.
+# - GapPolicy.BRIDGE drops invalid samples and keeps the polyline contiguous,
+#   so the surrounding valid samples are connected directly.
 #
 # LineValidator is expected to enforce binding-level typing constraints.
 class LineRenderer extends Control:
@@ -118,11 +121,13 @@ class LineRenderer extends Control:
 			_draw_series_independent(series_index, width_px)
 
 
-	# Draws a single series as one or more polyline runs, respecting SKIP
-	# gap policy. Run emission follows these rules:
+	# Draws a single series as one or more polyline runs, respecting the
+	# active gap policy. Run emission follows these rules:
 	#   - A valid sample is appended to the current run.
 	#   - An invalid sample (NaN/Inf X or Y, or a value forbidden by the
-	#     active axis scale) flushes the current run and starts a new one.
+	#     active axis scale) is handled according to gap_policy:
+	#     - SKIP   flushes the current run and starts a new one.
+	#     - BRIDGE drops the sample and keeps appending into the same run.
 	#   - A run of fewer than two points is discarded (no polyline).
 	func _draw_series_independent(p_series_index: int, p_width_px: float) -> void:
 		var x_cfg := _get_x_axis_config()
@@ -137,6 +142,7 @@ class LineRenderer extends Control:
 		var global_series_index := _get_global_series_index(p_series_index)
 		var color := _resolve_series_color(global_series_index)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
+		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 
 		var run := PackedVector2Array()
 
@@ -146,12 +152,14 @@ class LineRenderer extends Control:
 		for i in range(sample_count):
 			var x_value: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
 			if is_nan(x_value) or is_inf(x_value) or not _is_x_value_valid_for_scale(x_value):
-				run = _flush_run(run, color, p_width_px)
+				if not bridge:
+					run = _flush_run(run, color, p_width_px)
 				continue
 
 			var y_value := _dataset.get_series_y(series_id, i)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
-				run = _flush_run(run, color, p_width_px)
+				if not bridge:
+					run = _flush_run(run, color, p_width_px)
 				continue
 
 			var x_px := _layout.map_x_to_px(_pane_index, x_value)
@@ -167,6 +175,7 @@ class LineRenderer extends Control:
 		var global_series_index := _get_global_series_index(p_series_index)
 		var color := _resolve_series_color(global_series_index)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
+		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 
 		var run := PackedVector2Array()
 		var sample_count := _dataset.get_series_sample_count(series_id)
@@ -174,7 +183,8 @@ class LineRenderer extends Control:
 		for cat_idx in range(sample_count):
 			var y_value := _dataset.get_series_y(series_id, cat_idx)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
-				run = _flush_run(run, color, p_width_px)
+				if not bridge:
+					run = _flush_run(run, color, p_width_px)
 				continue
 
 			var x_px := _layout.map_x_category_center_to_px(_pane_index, cat_idx)

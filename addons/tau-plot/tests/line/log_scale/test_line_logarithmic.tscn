@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://rct3vbvdtmly"]
 
-[ext_resource type="Script" uid="uid://b5nqjwb6flndn" path="res://addons/tau-plot/tests/line/log_scale/test_line_log.gd" id="1_k4moc"]
+[ext_resource type="Script" uid="uid://b5nqjwb6flndn" path="res://addons/tau-plot/tests/line/log_scale/test_line_logarithmic.gd" id="1_k4moc"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_erpj8"]
 
 [node name="Bars" type="VBoxContainer"]
