@@ -14,6 +14,7 @@ const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visu
 # Runtime validation:
 # - NaN and Inf are always silently skipped
 # - Logarithmic Y scales: y <= 0 are skipped
+# - Logarithmic X scales: x <= 0 are skipped
 # - STACKED mode: negative values are skipped (would produce misleading visualization)
 # BarValidator is expected to enforce:
 # - dataset shape constraints for the chosen mode,
@@ -449,6 +450,10 @@ class BarRenderer extends Control:
 		return true
 
 
+	func _is_x_value_valid_for_scale(p_x_value: float) -> bool:
+		return _layout.domain.config.x_axis.scale != TauAxisConfig.Scale.LOGARITHMIC or p_x_value > 0.0
+
+
 	## Draws a single bar, orientation-aware, using a StyleBox.
 	func _draw_bar(p_pane_rect: Rect2, p_x_screen: float, p_y_from_screen: float,
 				   p_y_to_screen: float, p_thickness_px: float, p_color: Color,
@@ -540,7 +545,7 @@ class BarRenderer extends Control:
 				if is_nan(y_value) or is_inf(y_value):
 					continue
 				if not _is_y_value_valid_for_scale(series_id, y_value):
-					continue  # Skip invalid values for log scale (y <= 0)
+					continue
 
 				var group_center_px := _layout.map_x_category_center_to_px(_pane_index, category_index)
 				var y_px := _get_y_px_for_series_value(series_id, y_value)
@@ -576,6 +581,8 @@ class BarRenderer extends Control:
 				var x_value := float(_dataset.get_shared_x(i))
 				if is_nan(x_value) or is_inf(x_value):
 					continue
+				if not _is_x_value_valid_for_scale(x_value):
+					continue
 
 				if i >= _dataset.get_series_sample_count(series_id):
 					push_error("BarRenderer: sample index %d is out of range for series_index=%d. Please report this issue." % [i, series_index])
@@ -585,7 +592,7 @@ class BarRenderer extends Control:
 				if is_nan(y_value) or is_inf(y_value):
 					continue
 				if not _is_y_value_valid_for_scale(series_id, y_value):
-					continue  # Skip invalid values for log scale (y <= 0)
+					continue
 
 				var group_center_px := _layout.map_x_to_px(_pane_index, x_value)
 
@@ -727,6 +734,9 @@ class BarRenderer extends Control:
 			if is_nan(x_value) or is_inf(x_value):
 				all_segments[i] = []
 				continue
+			if not _is_x_value_valid_for_scale(x_value):
+				all_segments[i] = []
+				continue
 
 			var total := 0.0
 			if _bar_config.stacked_normalization != TauBarConfig.StackedNormalization.NONE:
@@ -771,6 +781,8 @@ class BarRenderer extends Control:
 			for i in range(n):
 				var x_value := float(_dataset.get_shared_x(i))
 				if is_nan(x_value) or is_inf(x_value):
+					continue
+				if not _is_x_value_valid_for_scale(x_value):
 					continue
 
 				var segments = all_segments[i]
@@ -847,7 +859,7 @@ class BarRenderer extends Control:
 				if is_nan(y_value) or is_inf(y_value):
 					continue
 				if not _is_y_value_valid_for_scale(series_id, y_value):
-					continue  # Skip invalid values for log scale (y <= 0)
+					continue
 
 				var y_px := _get_y_px_for_series_value(series_id, y_value)
 				var zero_px := _get_zero_px_for_series(series_id)
@@ -882,6 +894,8 @@ class BarRenderer extends Control:
 				var x_value := float(_dataset.get_shared_x(i))
 				if is_nan(x_value) or is_inf(x_value):
 					continue
+				if not _is_x_value_valid_for_scale(x_value):
+					continue
 
 				if i >= _dataset.get_series_sample_count(series_id):
 					continue
@@ -890,7 +904,7 @@ class BarRenderer extends Control:
 				if is_nan(y_value) or is_inf(y_value):
 					continue
 				if not _is_y_value_valid_for_scale(series_id, y_value):
-					continue  # Skip invalid values for log scale (y <= 0)
+					continue
 
 				var center_px := _get_x_px_for_series_value(series_id, x_value)
 
@@ -928,12 +942,14 @@ class BarRenderer extends Control:
 				var x_value := float(_dataset.get_series_x(series_id, i))
 				if is_nan(x_value) or is_inf(x_value):
 					continue
+				if not _is_x_value_valid_for_scale(x_value):
+					continue
 
 				var y_value := _dataset.get_series_y(series_id, i)
 				if is_nan(y_value) or is_inf(y_value):
 					continue
 				if not _is_y_value_valid_for_scale(series_id, y_value):
-					continue  # Skip invalid values for log scale (y <= 0)
+					continue
 
 				var bar_width_px := 0.0
 				match resolved_bar_width_policy:

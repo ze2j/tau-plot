@@ -37,6 +37,7 @@ class XYPlotValidator extends RefCounted:
 		_validate_dataset_structure(p_dataset, p_xy_config, p_result)
 		_validate_secondary_x_axis(p_xy_config, p_result)
 		_validate_pane_configs(p_xy_config, p_result)
+		_validate_axis_range_overrides(p_xy_config, p_result)
 		if p_result.has_errors():
 			return false
 
@@ -148,6 +149,48 @@ class XYPlotValidator extends RefCounted:
 	static func _validate_pane_configs(p_xy_config: TauXYConfig, p_result: ValidationResult) -> void:
 		if p_xy_config.panes.is_empty():
 			p_result.add_error("XYPlotValidator: TauXYConfig.panes is empty")
+
+
+	####################################################################################################
+	# Axis range overrides
+	####################################################################################################
+
+	## Validates that when an axis has range_override_enabled, the override bounds form a valid range.
+	static func _validate_axis_range_overrides(p_xy_config: TauXYConfig, p_result: ValidationResult) -> void:
+		if p_xy_config.x_axis != null:
+			_validate_axis_range_override(p_xy_config.x_axis, "x_axis", p_result)
+		if p_xy_config.secondary_x_axis != null:
+			_validate_axis_range_override(p_xy_config.secondary_x_axis, "secondary_x_axis", p_result)
+
+		for pane_index in range(p_xy_config.panes.size()):
+			var pane: TauPaneConfig = p_xy_config.panes[pane_index]
+			if pane == null:
+				continue
+			if pane.y_bottom_axis != null:
+				_validate_axis_range_override(pane.y_bottom_axis, "pane %d y_bottom_axis" % pane_index, p_result)
+			if pane.y_top_axis != null:
+				_validate_axis_range_override(pane.y_top_axis, "pane %d y_top_axis" % pane_index, p_result)
+			if pane.y_left_axis != null:
+				_validate_axis_range_override(pane.y_left_axis, "pane %d y_left_axis" % pane_index, p_result)
+			if pane.y_right_axis != null:
+				_validate_axis_range_override(pane.y_right_axis, "pane %d y_right_axis" % pane_index, p_result)
+
+
+	static func _validate_axis_range_override(p_axis: TauAxisConfig, p_axis_label: String, p_result: ValidationResult) -> void:
+		if not p_axis.range_override_enabled:
+			return
+
+		var min_v := p_axis.min_override
+		var max_v := p_axis.max_override
+
+		if min_v > max_v:
+			p_result.add_error("XYPlotValidator: %s has range_override_enabled with min_override (%f) > max_override (%f)" % [p_axis_label, min_v, max_v])
+
+		if p_axis.scale == TauAxisConfig.Scale.LOGARITHMIC:
+			if min_v <= 0.0:
+				p_result.add_error("XYPlotValidator: %s is LOGARITHMIC but min_override (%f) is not strictly positive" % [p_axis_label, min_v])
+			if max_v <= 0.0:
+				p_result.add_error("XYPlotValidator: %s is LOGARITHMIC but max_override (%f) is not strictly positive" % [p_axis_label, max_v])
 
 
 	####################################################################################################
