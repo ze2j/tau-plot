@@ -10,7 +10,8 @@ func _ready() -> void:
 	_setup_test_6()
 	_setup_test_7()
 	_setup_test_8()
-
+	_setup_test_9()
+	_setup_test_10()
 
 ####################################################################################################
 # Helpers
@@ -19,7 +20,7 @@ func _ready() -> void:
 func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
 	var series_names := PackedStringArray(["Series A"])
 	var x := PackedFloat64Array([pow(10, -2), pow(10, -1), pow(10, 0), pow(10, 1), pow(10, 2)])
-	var y_a := PackedFloat64Array([10.0, 20.0, 30.0, 40.0, 50.0])
+	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 65.0, 70.0])
 
 	var dataset := TauPlot.Dataset.make_shared_x_continuous(series_names, x, [y_a])
 
@@ -35,6 +36,7 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 	y_axis.type = TauAxisConfig.Type.CONTINUOUS
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.tick_count_preferred = 10
+	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
@@ -61,7 +63,7 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
 	var series_names := PackedStringArray(["Series A"])
 	var x_a := PackedFloat64Array([pow(10, -2), pow(10, -1), pow(10, 0), pow(10, 1), pow(10, 2)])
-	var y_a := PackedFloat64Array([10.0, 20.0, 30.0, 40.0, 50.0])
+	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 65.0, 70.0])
 
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a], [y_a])
 
@@ -77,6 +79,7 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 	y_axis.type = TauAxisConfig.Type.CONTINUOUS
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.tick_count_preferred = 10
+	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
@@ -155,3 +158,17 @@ func _setup_test_7() -> void:
 
 func _setup_test_8() -> void:
 	make_per_series_x_continuous_plot(%TestPlot8, "[STEP_AFTER] PER_SERIES_X + CONTINUOUS", TauLineConfig.InterpolationMode.STEP_AFTER)
+
+####################################################################################################
+# Test 9
+####################################################################################################
+
+func _setup_test_9() -> void:
+	make_shared_x_continuous_plot(%TestPlot9, "[SMOOTH_MONOTONE] SHARED_X + CONTINUOUS", TauLineConfig.InterpolationMode.SMOOTH_MONOTONE)
+
+####################################################################################################
+# Test 10
+####################################################################################################
+
+func _setup_test_10() -> void:
+	make_per_series_x_continuous_plot(%TestPlot10, "[SMOOTH_MONOTONE] PER_SERIES_X + CONTINUOUS", TauLineConfig.InterpolationMode.SMOOTH_MONOTONE)

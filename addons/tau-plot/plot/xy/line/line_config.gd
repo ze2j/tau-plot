@@ -53,13 +53,19 @@ enum GapPolicy
 ## next sample's X position), and STEP_MIDDLE jumps at the pixel midpoint
 ## between the two X positions.
 ##
+## SMOOTH_MONOTONE draws a piecewise cubic Hermite curve through the samples,
+## using Fritsch-Carlson tangent selection. The curve is C1 continuous,
+## interpolates every sample exactly, and preserves local monotonicity, so
+## no overshoot or local extrema are introduced between samples.
+##
 ## This property is visual-only and does not affect layout or domain.
 enum InterpolationMode
 {
-	LINEAR,         ## Straight segment between consecutive samples.
-	STEP_BEFORE,    ## Vertical jump first at the previous sample's X, then horizontal.
-	STEP_AFTER,     ## Horizontal first, then vertical jump at the next sample's X.
-	STEP_MIDDLE     ## Horizontal, vertical jump at the pixel midpoint, horizontal.
+	LINEAR,            ## Straight segment between consecutive samples.
+	STEP_BEFORE,       ## Vertical jump first at the previous sample's X, then horizontal.
+	STEP_AFTER,        ## Horizontal first, then vertical jump at the next sample's X.
+	STEP_MIDDLE,       ## Horizontal, vertical jump at the pixel midpoint, horizontal.
+	SMOOTH_MONOTONE    ## Fritsch-Carlson monotone piecewise cubic Hermite curve.
 }
 @export var interpolation_mode: InterpolationMode = InterpolationMode.LINEAR
 

@@ -22,9 +22,13 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 # - GapPolicy.BRIDGE drops invalid samples and keeps the polyline contiguous,
 #   so the surrounding valid samples are connected directly.
 # - TauLineConfig.interpolation_mode controls the curve drawn between two
-#   consecutive valid samples. The step modes (STEP_BEFORE, STEP_AFTER,
-#   STEP_MIDDLE) are realized by inserting synthetic intermediate points in
-#   screen space into the polyline. LINEAR draws straight segments.
+#   consecutive valid samples. LINEAR draws straight segments. The step
+#   modes (STEP_BEFORE, STEP_AFTER, STEP_MIDDLE) insert synthetic
+#   intermediate points in screen space into the polyline. SMOOTH_MONOTONE
+#   replaces each segment with a fixed number of sub-samples from a
+#   Fritsch-Carlson piecewise cubic Hermite curve evaluated in screen space.
+#   Whichever interpolation is active, a contiguous run is still drawn with a
+#   single draw_polyline() call.
 #
 # LineValidator is expected to enforce binding-level typing constraints.
 class LineRenderer extends Control:
@@ -45,6 +49,12 @@ class LineRenderer extends Control:
 	# Resolved style instances pushed by xy_plot. Treat as read-only.
 	var _line_style: TauLineStyle = null
 	var _xy_style: TauXYStyle = null
+
+	# One-shot guard for the non-monotonic SMOOTH_MONOTONE fallback warning.
+	# Reset is intentionally absent: a single warning per renderer instance
+	# is enough to surface the misconfiguration without flooding the output
+	# on every redraw.
+	var _smooth_non_monotonic_warned: bool = false
 
 
 	func _init(p_layout: XYLayout,
@@ -158,21 +168,22 @@ class LineRenderer extends Control:
 			var x_value: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
 			if is_nan(x_value) or is_inf(x_value) or not _is_x_value_valid_for_scale(x_value):
 				if not bridge:
-					run = _flush_run(run, color, p_width_px)
+					_finalize_run(run, color, p_width_px, interpolation)
+					run = PackedVector2Array()
 				continue
 
 			var y_value := _dataset.get_series_y(series_id, i)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					run = _flush_run(run, color, p_width_px)
+					_finalize_run(run, color, p_width_px, interpolation)
+					run = PackedVector2Array()
 				continue
 
 			var x_px := _layout.map_x_to_px(_pane_index, x_value)
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
 			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
 
-		if run.size() >= 2:
-			draw_polyline(run, color, p_width_px)
+		_finalize_run(run, color, p_width_px, interpolation)
 
 
 	func _draw_series_categorical(p_series_index: int, p_width_px: float) -> void:
@@ -190,25 +201,22 @@ class LineRenderer extends Control:
 			var y_value := _dataset.get_series_y(series_id, cat_idx)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					run = _flush_run(run, color, p_width_px)
+					_finalize_run(run, color, p_width_px, interpolation)
+					run = PackedVector2Array()
 				continue
 
 			var x_px := _layout.map_x_category_center_to_px(_pane_index, cat_idx)
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
 			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
 
-		if run.size() >= 2:
-			draw_polyline(run, color, p_width_px)
-
-
-	func _flush_run(p_run: PackedVector2Array, p_color: Color, p_width_px: float) -> PackedVector2Array:
-		if p_run.size() >= 2:
-			draw_polyline(p_run, p_color, p_width_px)
-		return PackedVector2Array()
+		_finalize_run(run, color, p_width_px, interpolation)
 
 
 	func _append_with_interpolation(p_run: PackedVector2Array, p_point: Vector2, p_mode: TauLineConfig.InterpolationMode) -> void:
-		if p_run.size() == 0 or p_mode == TauLineConfig.InterpolationMode.LINEAR:
+		# SMOOTH_MONOTONE buffers raw sample points untouched: cubic resampling
+		# requires the full neighborhood of every sample to compute tangents and
+		# is therefore deferred to _finalize_run().
+		if p_run.size() == 0 or p_mode == TauLineConfig.InterpolationMode.LINEAR or p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE:
 			p_run.append(p_point)
 			return
 
@@ -223,6 +231,208 @@ class LineRenderer extends Control:
 				p_run.append(Vector2(mid_x, last_pt.y))
 				p_run.append(Vector2(mid_x, p_point.y))
 		p_run.append(p_point)
+
+
+	####################################################################################################
+	# Smooth-monotone (Fritsch-Carlson) resampling
+	####################################################################################################
+
+	# Number of sub-segments inserted between two consecutive samples by
+	# SMOOTH_MONOTONE. The value balances visual smoothness on a typical
+	# screen against the per-segment cost paid by draw_polyline().
+	const _SMOOTH_SUBDIVISIONS: int = 16
+
+
+	# Draw the polyline for one buffered run.
+	# For LINEAR and the step modes the buffered run is already the final polyline.
+	# For SMOOTH_MONOTONE the run is first replaced by its Fritsch-Carlson piecewise cubic resampling.
+	# Runs of fewer than two points are silently dropped.
+	func _finalize_run(p_run: PackedVector2Array, p_color: Color, p_width_px: float, p_mode: TauLineConfig.InterpolationMode) -> void:
+		var polyline: PackedVector2Array = p_run
+		if p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE and p_run.size() > 2:
+			polyline = _resample_smooth_monotone(p_run)
+		if polyline.size() >= 2:
+			draw_polyline(polyline, p_color, p_width_px)
+
+
+	# Builds the Fritsch-Carlson piecewise cubic Hermite curve through p_points
+	# and returns it sampled at _SMOOTH_SUBDIVISIONS sub-segments per input
+	# segment. Operates in screen space (the input is already in pixels), which
+	# keeps the curve visually smooth regardless of axis scale.
+	#
+	# The algorithm requires strictly monotonic X. The expected case is
+	# monotonically increasing screen X, but a user-inverted X axis produces
+	# monotonically decreasing screen X. Both directions are accepted: the
+	# input is processed internally on a strictly increasing X copy and the
+	# output is reversed back when needed. Consecutive points sharing the same
+	# screen X are dropped since the secant slope is undefined at h = 0.
+	# Inputs that are not monotonic in either direction fall back to the raw
+	# polyline for that run and emit a one-shot warning.
+	func _resample_smooth_monotone(p_points: PackedVector2Array) -> PackedVector2Array:
+		var direction := _detect_monotonic_x_direction(p_points)
+		if direction == 0:
+			if not _smooth_non_monotonic_warned:
+				push_warning("LineRenderer: SMOOTH_MONOTONE received samples whose screen X is not monotonic. Falling back to a straight polyline for the affected run. Use LINEAR interpolation if your data does not have a monotonic X parameter.")
+				_smooth_non_monotonic_warned = true
+			return p_points
+
+		var ascending: bool = direction > 0
+
+		# Build strictly increasing X arrays, dropping flat-X duplicates.
+		var xs := PackedFloat32Array()
+		var ys := PackedFloat32Array()
+		var input_count := p_points.size()
+		if ascending:
+			xs.append(p_points[0].x)
+			ys.append(p_points[0].y)
+			for i in range(1, input_count):
+				if p_points[i].x > xs[xs.size() - 1]:
+					xs.append(p_points[i].x)
+					ys.append(p_points[i].y)
+		else:
+			xs.append(p_points[input_count - 1].x)
+			ys.append(p_points[input_count - 1].y)
+			for i in range(input_count - 2, -1, -1):
+				if p_points[i].x > xs[xs.size() - 1]:
+					xs.append(p_points[i].x)
+					ys.append(p_points[i].y)
+
+		var n := xs.size()
+		if n < 2:
+			# All inputs collapsed to a single screen X. Nothing to draw.
+			return PackedVector2Array()
+		if n == 2:
+			# Two distinct X values produce a straight line through Hermite
+			# with both tangents equal to the secant slope. Short-circuit.
+			var trivial := PackedVector2Array()
+			trivial.append(Vector2(xs[0], ys[0]))
+			trivial.append(Vector2(xs[1], ys[1]))
+			if not ascending:
+				trivial.reverse()
+			return trivial
+
+		var tangents := _fritsch_carlson_tangents(xs, ys)
+
+		var out := PackedVector2Array()
+		# Pre-size the output for speed: n-1 segments times subdivisions plus
+		# the very first sample.
+		out.resize(1 + (n - 1) * _SMOOTH_SUBDIVISIONS)
+		out[0] = Vector2(xs[0], ys[0])
+
+		var write_index: int = 1
+		var inv_subs: float = 1.0 / float(_SMOOTH_SUBDIVISIONS)
+		for k in range(n - 1):
+			var x0: float = xs[k]
+			var x1: float = xs[k + 1]
+			var y0: float = ys[k]
+			var y1: float = ys[k + 1]
+			var h: float = x1 - x0
+			var m0: float = tangents[k]
+			var m1: float = tangents[k + 1]
+
+			# Sub-points at t = 1/N, 2/N, ..., 1. The endpoint t=1 is the next
+			# sample, included here so the next segment begins at t=1/N.
+			for s in range(1, _SMOOTH_SUBDIVISIONS + 1):
+				var t: float = float(s) * inv_subs
+				var t2: float = t * t
+				var t3: float = t2 * t
+				var h00: float = 2.0 * t3 - 3.0 * t2 + 1.0
+				var h10: float = t3 - 2.0 * t2 + t
+				var h01: float = -2.0 * t3 + 3.0 * t2
+				var h11: float = t3 - t2
+				var x: float = x0 + t * h
+				var y: float = h00 * y0 + h10 * h * m0 + h01 * y1 + h11 * h * m1
+				out[write_index] = Vector2(x, y)
+				write_index += 1
+
+		if not ascending:
+			out.reverse()
+		return out
+
+
+	# Returns +1 if screen X is strictly monotonically increasing across the
+	# whole run, -1 if strictly decreasing, 0 if neither (some pair has equal
+	# X) or the run has fewer than 2 points. Equal consecutive X is allowed
+	# only as a single-point run (n < 2 case).
+	func _detect_monotonic_x_direction(p_points: PackedVector2Array) -> int:
+		var n := p_points.size()
+		if n < 2:
+			return 0
+		var first_diff: float = p_points[1].x - p_points[0].x
+		# Find the first non-zero diff to set the direction. Equal-X pairs in
+		# the middle of an otherwise increasing run are tolerated and dropped
+		# by the caller, so they do not invalidate monotonicity here.
+		var direction: int = 0
+		if first_diff > 0.0:
+			direction = 1
+		elif first_diff < 0.0:
+			direction = -1
+		for i in range(2, n):
+			var diff: float = p_points[i].x - p_points[i - 1].x
+			if diff > 0.0:
+				if direction == -1:
+					return 0
+				direction = 1
+			elif diff < 0.0:
+				if direction == 1:
+					return 0
+				direction = -1
+		return direction
+
+
+	# Fritsch-Carlson tangent computation. Returns one tangent per input point
+	# such that the resulting piecewise cubic Hermite curve is monotone where
+	# the data is monotone and never overshoots its data values.
+	#
+	# Reference: Fritsch, F. N. and Carlson, R. E. (1980), "Monotone Piecewise
+	# Cubic Interpolation", SIAM Journal on Numerical Analysis, 17 (2): 238-246.
+	#
+	# Precondition: xs is strictly increasing and xs.size() == ys.size() >= 2.
+	func _fritsch_carlson_tangents(p_xs: PackedFloat32Array, p_ys: PackedFloat32Array) -> PackedFloat32Array:
+		var n := p_xs.size()
+		var m := PackedFloat32Array()
+		m.resize(n)
+
+		# Secant slopes between consecutive samples.
+		var d := PackedFloat32Array()
+		d.resize(n - 1)
+		for k in range(n - 1):
+			d[k] = (p_ys[k + 1] - p_ys[k]) / (p_xs[k + 1] - p_xs[k])
+
+		# Initial tangents: endpoint tangents copy the adjacent secant slope.
+		# Interior tangents are zero at extrema and the average of the two
+		# adjacent secants otherwise.
+		m[0] = d[0]
+		m[n - 1] = d[n - 2]
+		for k in range(1, n - 1):
+			if d[k - 1] * d[k] <= 0.0:
+				m[k] = 0.0
+			else:
+				m[k] = 0.5 * (d[k - 1] + d[k])
+
+		# Fritsch-Carlson monotonicity correction. For each segment, project
+		# the (m[k], m[k+1]) pair onto the disk of radius 3 in the (alpha,
+		# beta) plane to guarantee no overshoot.
+		for k in range(n - 1):
+			if d[k] == 0.0:
+				m[k] = 0.0
+				m[k + 1] = 0.0
+				continue
+			var alpha: float = m[k] / d[k]
+			var beta: float = m[k + 1] / d[k]
+			if alpha < 0.0:
+				m[k] = 0.0
+				alpha = 0.0
+			if beta < 0.0:
+				m[k + 1] = 0.0
+				beta = 0.0
+			var sq: float = alpha * alpha + beta * beta
+			if sq > 9.0:
+				var tau: float = 3.0 / sqrt(sq)
+				m[k] = tau * alpha * d[k]
+				m[k + 1] = tau * beta * d[k]
+
+		return m
 
 
 	####################################################################################################

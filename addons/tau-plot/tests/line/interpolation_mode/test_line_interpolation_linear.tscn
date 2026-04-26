@@ -155,3 +155,36 @@ script = ExtResource("2_nry5o")
 title = "[STEP_AFTER] SHARED_X + CATEGORICAL"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot13" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_nry5o")
+title = "[SMOOTH_MONOTONE] SHARED_X + CONTINUOUS"
+legend_enabled = false
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot14" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_nry5o")
+title = "[SMOOTH_MONOTONE] PER_SERIES_X + CONTINUOUS"
+legend_enabled = false
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot15" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_nry5o")
+title = "[SMOOTH_MONOTONE] SHARED_X + CATEGORICAL"
+legend_enabled = false
+metadata/_custom_type_script = "uid://dnhvsf2wip771"

@@ -14,7 +14,9 @@ func _ready() -> void:
 	_setup_test_10()
 	_setup_test_11()
 	_setup_test_12()
-
+	_setup_test_13()
+	_setup_test_14()
+	_setup_test_15()
 
 ####################################################################################################
 # Helpers
@@ -23,7 +25,7 @@ func _ready() -> void:
 func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
 	var series_names := PackedStringArray(["Series A"])
 	var x := PackedFloat64Array([10.0, 11.0, 12.0, 13.0, 14.0])
-	var y_a := PackedFloat64Array([10.0, 20.0, 30.0, 40.0, 50.0])
+	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 65.0, 70.0])
 
 	var dataset := TauPlot.Dataset.make_shared_x_continuous(series_names, x, [y_a])
 
@@ -38,6 +40,7 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 	y_axis.type = TauAxisConfig.Type.CONTINUOUS
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.tick_count_preferred = 10
+	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
@@ -64,7 +67,7 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
 	var series_names := PackedStringArray(["Series A"])
 	var x_a := PackedFloat64Array([10.0, 11.0, 12.0, 13.0, 14.0])
-	var y_a := PackedFloat64Array([10.0, 20.0, 30.0, 40.0, 50.0])
+	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 65.0, 70.0])
 
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a], [y_a])
 
@@ -79,6 +82,7 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 	y_axis.type = TauAxisConfig.Type.CONTINUOUS
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.tick_count_preferred = 10
+	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
@@ -105,7 +109,7 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 func make_shared_x_categorical_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
 	var series_names := PackedStringArray(["Series A"])
 	var x := PackedStringArray(["One", "Two", "Three", "Four", "Five"])
-	var y_a := PackedFloat64Array([10.0, 20.0, 30.0, 40.0, 50.0])
+	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 65.0, 70.0])
 
 	var dataset := TauPlot.Dataset.make_shared_x_categorical(series_names, x, [y_a])
 
@@ -120,6 +124,7 @@ func make_shared_x_categorical_plot(p_plot: TauPlot, p_title: String, p_interpol
 	y_axis.type = TauAxisConfig.Type.CONTINUOUS
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.tick_count_preferred = 10
+	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
@@ -226,3 +231,24 @@ func _setup_test_11() -> void:
 
 func _setup_test_12() -> void:
 	make_shared_x_categorical_plot(%TestPlot12, "[STEP_AFTER] SHARED_X + CATEGORICAL", TauLineConfig.InterpolationMode.STEP_AFTER)
+
+####################################################################################################
+# Test 13
+####################################################################################################
+
+func _setup_test_13() -> void:
+	make_shared_x_continuous_plot(%TestPlot13, "[SMOOTH_MONOTONE] SHARED_X + CONTINUOUS", TauLineConfig.InterpolationMode.SMOOTH_MONOTONE)
+
+####################################################################################################
+# Test 14
+####################################################################################################
+
+func _setup_test_14() -> void:
+	make_per_series_x_continuous_plot(%TestPlot14, "[SMOOTH_MONOTONE] PER_SERIES_X + CONTINUOUS", TauLineConfig.InterpolationMode.SMOOTH_MONOTONE)
+
+####################################################################################################
+# Test 15
+####################################################################################################
+
+func _setup_test_15() -> void:
+	make_shared_x_categorical_plot(%TestPlot15, "[SMOOTH_MONOTONE] SHARED_X + CATEGORICAL", TauLineConfig.InterpolationMode.SMOOTH_MONOTONE)

@@ -111,3 +111,25 @@ script = ExtResource("2_u5as0")
 title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot9" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_u5as0")
+title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS"
+legend_enabled = false
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot10" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_u5as0")
+title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS"
+legend_enabled = false
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
