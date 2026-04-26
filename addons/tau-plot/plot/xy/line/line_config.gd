@@ -42,6 +42,27 @@ enum GapPolicy
 }
 @export var gap_policy: GapPolicy = GapPolicy.SKIP
 
+## How consecutive samples are interpolated.
+##
+## LINEAR draws a straight segment between consecutive samples.
+##
+## The three step modes interpolate as a staircase between consecutive
+## samples: only horizontal or vertical motion, with the modes differing by
+## when the vertical jump happens. STEP_BEFORE jumps as early as possible (at
+## the previous sample's X position), STEP_AFTER as late as possible (at the
+## next sample's X position), and STEP_MIDDLE jumps at the pixel midpoint
+## between the two X positions.
+##
+## This property is visual-only and does not affect layout or domain.
+enum InterpolationMode
+{
+	LINEAR,         ## Straight segment between consecutive samples.
+	STEP_BEFORE,    ## Vertical jump first at the previous sample's X, then horizontal.
+	STEP_AFTER,     ## Horizontal first, then vertical jump at the next sample's X.
+	STEP_MIDDLE     ## Horizontal, vertical jump at the pixel midpoint, horizontal.
+}
+@export var interpolation_mode: InterpolationMode = InterpolationMode.LINEAR
+
 ## Maximum pixel distance from the cursor to a sample position for the sample
 ## to be considered a hover hit.
 ##
@@ -89,6 +110,8 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	if stacked_normalization != other.stacked_normalization:
 		return false
 	if gap_policy != other.gap_policy:
+		return false
+	if interpolation_mode != other.interpolation_mode:
 		return false
 	if hover_max_distance_px != other.hover_max_distance_px:
 		return false

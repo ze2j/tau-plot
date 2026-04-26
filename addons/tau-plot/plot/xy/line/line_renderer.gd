@@ -21,6 +21,10 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 # - GapPolicy.SKIP breaks the polyline at every invalid sample.
 # - GapPolicy.BRIDGE drops invalid samples and keeps the polyline contiguous,
 #   so the surrounding valid samples are connected directly.
+# - TauLineConfig.interpolation_mode controls the curve drawn between two
+#   consecutive valid samples. The step modes (STEP_BEFORE, STEP_AFTER,
+#   STEP_MIDDLE) are realized by inserting synthetic intermediate points in
+#   screen space into the polyline. LINEAR draws straight segments.
 #
 # LineValidator is expected to enforce binding-level typing constraints.
 class LineRenderer extends Control:
@@ -143,6 +147,7 @@ class LineRenderer extends Control:
 		var color := _resolve_series_color(global_series_index)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
+		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
 
 		var run := PackedVector2Array()
 
@@ -164,7 +169,7 @@ class LineRenderer extends Control:
 
 			var x_px := _layout.map_x_to_px(_pane_index, x_value)
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
-			run.append(_layout.map_point_to_screen(x_px, y_px))
+			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
 
 		if run.size() >= 2:
 			draw_polyline(run, color, p_width_px)
@@ -176,6 +181,7 @@ class LineRenderer extends Control:
 		var color := _resolve_series_color(global_series_index)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
+		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
 
 		var run := PackedVector2Array()
 		var sample_count := _dataset.get_series_sample_count(series_id)
@@ -189,7 +195,7 @@ class LineRenderer extends Control:
 
 			var x_px := _layout.map_x_category_center_to_px(_pane_index, cat_idx)
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
-			run.append(_layout.map_point_to_screen(x_px, y_px))
+			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
 
 		if run.size() >= 2:
 			draw_polyline(run, color, p_width_px)
@@ -199,6 +205,24 @@ class LineRenderer extends Control:
 		if p_run.size() >= 2:
 			draw_polyline(p_run, p_color, p_width_px)
 		return PackedVector2Array()
+
+
+	func _append_with_interpolation(p_run: PackedVector2Array, p_point: Vector2, p_mode: TauLineConfig.InterpolationMode) -> void:
+		if p_run.size() == 0 or p_mode == TauLineConfig.InterpolationMode.LINEAR:
+			p_run.append(p_point)
+			return
+
+		var last_pt: Vector2 = p_run[p_run.size() - 1]
+		match p_mode:
+			TauLineConfig.InterpolationMode.STEP_BEFORE:
+				p_run.append(Vector2(last_pt.x, p_point.y))
+			TauLineConfig.InterpolationMode.STEP_AFTER:
+				p_run.append(Vector2(p_point.x, last_pt.y))
+			TauLineConfig.InterpolationMode.STEP_MIDDLE:
+				var mid_x: float = (last_pt.x + p_point.x) * 0.5
+				p_run.append(Vector2(mid_x, last_pt.y))
+				p_run.append(Vector2(mid_x, p_point.y))
+		p_run.append(p_point)
 
 
 	####################################################################################################
