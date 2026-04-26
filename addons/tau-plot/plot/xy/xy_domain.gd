@@ -102,18 +102,6 @@ class XYDomain extends RefCounted:
 	func update_from_dataset(p_dataset: Dataset) -> void:
 		_reset_domain()
 
-		if p_dataset == null:
-			push_error("XYDomain.update_from_dataset(): Dataset is null")
-			return
-
-		if config.panes.is_empty():
-			push_error("XYDomain.update_from_dataset(): TauXYConfig.panes is empty")
-			return
-
-		if series_assignment == null:
-			push_error("XYDomain.update_from_dataset(): series_assignment is null")
-			return
-
 		# Compute shared x axis domain.
 		_compute_x_domain(p_dataset)
 
@@ -129,6 +117,7 @@ class XYDomain extends RefCounted:
 			var pane_domain: PaneYDomains = pane_y_domains[pane_idx]
 			if not pane_domain.pane_config.align_y_axes_at_zero:
 				continue
+
 			# Zero alignment requires exactly two y axes, both linear.
 			if y_axes.size() != 2:
 				continue
@@ -138,6 +127,7 @@ class XYDomain extends RefCounted:
 				continue
 			if y_axis_domain_0.scale != TauAxisConfig.Scale.LINEAR or y_axis_domain_1.scale != TauAxisConfig.Scale.LINEAR:
 				continue
+
 			var overridden_0 := (y_axis_domain_0.config != null and y_axis_domain_0.config.range_override_enabled)
 			var overridden_1 := (y_axis_domain_1.config != null and y_axis_domain_1.config.range_override_enabled)
 			var include_zero_0 := (y_axis_domain_0.config != null and y_axis_domain_0.config.include_zero_in_domain)
@@ -157,22 +147,6 @@ class XYDomain extends RefCounted:
 			# lock_a / lock_b tell the alignment function which domain(s) it
 			# must not modify. When one axis is overridden its range is locked.
 			_align_y_axes_at_zero_for_pane(y_axis_domain_0, y_axis_domain_1, overridden_0, overridden_1)
-
-		# Validate log scale constraints.
-		if not _validate_log_scale_constraints(y_axes):
-			# Reset X domain to safe defaults on validation failure.
-			var x_axis_cfg := config.x_axis
-			if x_axis_cfg != null and x_axis_cfg.type == TauAxisConfig.Type.CONTINUOUS and x_axis_cfg.scale == TauAxisConfig.Scale.LOGARITHMIC:
-				x_axis_domain.min_val = 0.1
-				x_axis_domain.max_val = 10.0
-			# Reset Y domains to safe defaults on validation failure.
-			for pane_idx in range(pane_count):
-				var pane_y_domain: PaneYDomains = pane_y_domains[pane_idx]
-				for y_axis_id in y_axes:
-					var y_axis_domain: AxisDomain = pane_y_domain.get_y_axis_domain(y_axis_id)
-					if y_axis_domain != null and y_axis_domain.scale == TauAxisConfig.Scale.LOGARITHMIC:
-						y_axis_domain.min_val = 0.1
-						y_axis_domain.max_val = 10.0
 
 
 	####################################################################################################
@@ -206,13 +180,14 @@ class XYDomain extends RefCounted:
 					xmin = x_axis_cfg.min_override
 					xmax = x_axis_cfg.max_override
 				else:
+					var is_log := x_axis_cfg.scale == TauAxisConfig.Scale.LOGARITHMIC
 					if p_dataset.get_mode() == Dataset.Mode.SHARED_X:
-						var x_range := _compute_continuous_shared_x(p_dataset)
+						var x_range := _compute_continuous_shared_x(p_dataset, is_log)
 						xmin = x_range.x
 						xmax = x_range.y
 					else:
 						var series_ids := series_assignment.get_x_axis_series_ids()
-						var x_range := _compute_continuous_per_series_x(p_dataset, series_ids)
+						var x_range := _compute_continuous_per_series_x(p_dataset, series_ids, is_log)
 						xmin = x_range.x
 						xmax = x_range.y
 
@@ -234,7 +209,7 @@ class XYDomain extends RefCounted:
 						xmin = padded.x
 						xmax = padded.y
 
-				var fixed := _ensure_non_degenerate_range(Axis.as_string(config.x_axis_id), xmin, xmax, x_axis_cfg.scale)
+				var fixed := _ensure_non_degenerate_range(xmin, xmax, x_axis_cfg.scale)
 				x_axis_domain.min_val = fixed.x
 				x_axis_domain.max_val = fixed.y
 				_compute_recompute_thresholds(x_axis_domain)
@@ -247,9 +222,6 @@ class XYDomain extends RefCounted:
 		var pane_domain := PaneYDomains.new()
 
 		var pane_config: TauPaneConfig = config.panes[p_pane_idx]
-		if pane_config == null:
-			push_error("TauXYConfig.panes[%d] is null" % p_pane_idx)
-			return
 		pane_domain.pane_config = pane_config
 
 		for y_axis_id in p_y_axis_ids:
@@ -268,7 +240,8 @@ class XYDomain extends RefCounted:
 
 			# Scan raw data range for the y axis.
 			var y_axis_series_ids: PackedInt64Array = series_assignment.get_y_axis_series_ids(p_pane_idx, y_axis_id)
-			var raw_range := _scan_series_y_range(p_dataset, y_axis_series_ids, p_pane_idx, y_axis_id)
+			var is_log := y_axis_cfg.scale == TauAxisConfig.Scale.LOGARITHMIC
+			var raw_range := _scan_series_y_range(p_dataset, y_axis_series_ids, p_pane_idx, y_axis_id, is_log)
 			y_axis_domain.min_val = raw_range.x
 			y_axis_domain.max_val = raw_range.y
 			y_axis_domain.data_min = raw_range.x
@@ -279,7 +252,7 @@ class XYDomain extends RefCounted:
 				y_axis_domain.min_val = _get_forced_y_min(p_pane_idx)
 				y_axis_domain.max_val = _get_forced_y_max(p_pane_idx)
 			else:
-				var final_range := _finalize_y_axis_domain(y_axis_id, y_axis_domain)
+				var final_range := _finalize_y_axis_domain(y_axis_domain)
 				y_axis_domain.min_val = final_range.x
 				y_axis_domain.max_val = final_range.y
 
@@ -289,7 +262,7 @@ class XYDomain extends RefCounted:
 		pane_y_domains[p_pane_idx] = pane_domain
 
 
-	func _finalize_y_axis_domain(p_y_axis_id: AxisId, y_axis_domain: AxisDomain) -> Vector2:
+	func _finalize_y_axis_domain(y_axis_domain: AxisDomain) -> Vector2:
 		var y_min := y_axis_domain.min_val
 		var y_max := y_axis_domain.max_val
 
@@ -329,10 +302,10 @@ class XYDomain extends RefCounted:
 				y_max = padded.y
 
 
-		return _ensure_non_degenerate_range(Axis.as_string(p_y_axis_id), y_min, y_max, y_axis_domain.config.scale)
+		return _ensure_non_degenerate_range(y_min, y_max, y_axis_domain.config.scale)
 
 
-	func _ensure_non_degenerate_range(p_axis_name: String, p_min: float, p_max: float, p_scale: TauAxisConfig.Scale = TauAxisConfig.Scale.LINEAR) -> Vector2:
+	func _ensure_non_degenerate_range(p_min: float, p_max: float, p_scale: TauAxisConfig.Scale = TauAxisConfig.Scale.LINEAR) -> Vector2:
 		const DEGENERATE_LOG_EXPAND := 1.1
 
 		var min_v := p_min
@@ -345,17 +318,6 @@ class XYDomain extends RefCounted:
 
 		match p_scale:
 			TauAxisConfig.Scale.LOGARITHMIC:
-				# Log scale: ensure strictly positive
-				if min_v <= 0.0 or max_v <= 0.0:
-					push_error("%s domain invalid for logarithmic scale: values must be positive (min=%f, max=%f)" % [p_axis_name, min_v, max_v])
-					return Vector2(0.1, 10.0)
-
-				if min_v > max_v:
-					push_error("%s domain invalid: min (%f) must be <= max (%f)" % [p_axis_name, min_v, max_v])
-					var tmp := min_v
-					min_v = max_v
-					max_v = tmp
-
 				if is_equal_approx(min_v, max_v):
 					# Degenerate: expand multiplicatively
 					min_v /= DEGENERATE_LOG_EXPAND
@@ -369,13 +331,6 @@ class XYDomain extends RefCounted:
 				return Vector2(min_v, max_v)
 
 			TauAxisConfig.Scale.LINEAR:
-				if min_v > max_v:
-					push_error("%s domain invalid: min (%f) must be <= max (%f)" % [p_axis_name, min_v, max_v])
-					var tmp := min_v
-					min_v = max_v
-					max_v = tmp
-					return Vector2(min_v, max_v)
-
 				# Degenerate: min == max
 				if is_equal_approx(min_v, max_v):
 					var v := min_v
@@ -432,7 +387,7 @@ class XYDomain extends RefCounted:
 		return ydo.stack_y_values and ydo.target_y_axis_id == p_y_axis_id
 
 
-	func _scan_series_y_range(p_dataset: Dataset, p_y_axis_series_ids: PackedInt64Array, p_pane_idx: int, p_y_axis_id: AxisId) -> Vector2:
+	func _scan_series_y_range(p_dataset: Dataset, p_y_axis_series_ids: PackedInt64Array, p_pane_idx: int, p_y_axis_id: AxisId, p_is_log: bool) -> Vector2:
 		var y_min := INF
 		var y_max := -INF
 
@@ -443,12 +398,14 @@ class XYDomain extends RefCounted:
 						continue
 
 					if _must_stack_y_values(p_pane_idx, p_y_axis_id):
-						return _scan_stacked_series_y_range(p_dataset, p_y_axis_series_ids)
+						return _scan_stacked_series_y_range(p_dataset, p_y_axis_series_ids, p_is_log)
 
 					var sample_count := p_dataset.get_shared_sample_count()
 					for sample_index in range(sample_count):
 						var y_value := p_dataset.get_series_y(series_id, sample_index)
 						if is_nan(y_value) or is_inf(y_value):
+							continue
+						if p_is_log and y_value <= 0.0:
 							continue
 						y_min = minf(y_min, y_value)
 						y_max = maxf(y_max, y_value)
@@ -463,13 +420,15 @@ class XYDomain extends RefCounted:
 						var y_value := p_dataset.get_series_y(series_id, sample_index)
 						if is_nan(y_value) or is_inf(y_value):
 							continue
+						if p_is_log and y_value <= 0.0:
+							continue
 						y_min = minf(y_min, y_value)
 						y_max = maxf(y_max, y_value)
 
 		return Vector2(y_min, y_max)
 
 
-	func _scan_stacked_series_y_range(p_dataset: Dataset, p_y_axis_series_ids: PackedInt64Array) -> Vector2:
+	func _scan_stacked_series_y_range(p_dataset: Dataset, p_y_axis_series_ids: PackedInt64Array, p_is_log: bool) -> Vector2:
 		var y_min := INF
 		var y_max := -INF
 		var sample_count := p_dataset.get_shared_sample_count()
@@ -483,6 +442,8 @@ class XYDomain extends RefCounted:
 				var y_value := p_dataset.get_series_y(series_id, sample_index)
 				if is_nan(y_value) or is_inf(y_value):
 					continue
+				if p_is_log and y_value <= 0.0:
+					continue
 				sum += y_value
 			y_min = minf(y_min, sum)
 			y_max = maxf(y_max, sum)
@@ -490,7 +451,7 @@ class XYDomain extends RefCounted:
 		return Vector2(y_min, y_max)
 
 
-	func _compute_continuous_shared_x(p_dataset: Dataset) -> Vector2:
+	func _compute_continuous_shared_x(p_dataset: Dataset, p_is_log: bool) -> Vector2:
 		var xmin := INF
 		var xmax := -INF
 		var sample_count := p_dataset.get_shared_sample_count()
@@ -498,12 +459,14 @@ class XYDomain extends RefCounted:
 			var x_value := float(p_dataset.get_shared_x(sample_index))
 			if is_nan(x_value) or is_inf(x_value):
 				continue
+			if p_is_log and x_value <= 0.0:
+				continue
 			xmin = minf(xmin, x_value)
 			xmax = maxf(xmax, x_value)
 		return Vector2(xmin, xmax)
 
 
-	func _compute_continuous_per_series_x(p_dataset: Dataset, p_series_ids: PackedInt64Array) -> Vector2:
+	func _compute_continuous_per_series_x(p_dataset: Dataset, p_series_ids: PackedInt64Array, p_is_log: bool) -> Vector2:
 		var xmin := INF
 		var xmax := -INF
 		for series_id_v in p_series_ids:
@@ -514,6 +477,8 @@ class XYDomain extends RefCounted:
 			for sample_index in range(sample_count):
 				var x_value := float(p_dataset.get_series_x(series_id, sample_index))
 				if is_nan(x_value) or is_inf(x_value):
+					continue
+				if p_is_log and x_value <= 0.0:
 					continue
 				xmin = minf(xmin, x_value)
 				xmax = maxf(xmax, x_value)
@@ -639,42 +604,6 @@ class XYDomain extends RefCounted:
 		var new_min: float = -p_t * s
 		var new_max: float = (1.0 - p_t) * s
 		return Vector2(new_min, new_max)
-
-
-	func _validate_log_scale_constraints(p_y_axes: Array[AxisId]) -> bool:
-		var valid := true
-
-		# Validate x-axis
-		var x_axis_cfg := config.x_axis
-		if x_axis_cfg != null and x_axis_cfg.type == TauAxisConfig.Type.CONTINUOUS and x_axis_cfg.scale == TauAxisConfig.Scale.LOGARITHMIC:
-			if x_axis_domain.min_val <= 0.0 or x_axis_domain.max_val <= 0.0:
-				push_error("Logarithmic x axis requires strictly positive values (x_min=%f, x_max=%f)" % [x_axis_domain.min_val, x_axis_domain.max_val])
-				valid = false
-			if is_inf(x_axis_domain.min_val) or is_inf(x_axis_domain.max_val):
-				push_error("Logarithmic x axis cannot have infinite bounds")
-				valid = false
-
-		# Validate y-axes
-		for pane_index in range(pane_y_domains.size()):
-			var pane_y_domain: PaneYDomains = pane_y_domains[pane_index]
-			for y_axis_id in p_y_axes:
-				var y_axis_domain: AxisDomain = pane_y_domain.get_y_axis_domain(y_axis_id)
-				if y_axis_domain == null:
-					continue
-				if y_axis_domain.scale != TauAxisConfig.Scale.LOGARITHMIC:
-					continue
-				var y_axis_name := Axis.as_string(y_axis_id)
-				if y_axis_domain.min_val <= 0.0 or y_axis_domain.max_val <= 0.0:
-					push_error("Logarithmic %s axis (pane %d) requires strictly positive values (min=%f, max=%f)" % [y_axis_name, pane_index, y_axis_domain.min_val, y_axis_domain.max_val])
-					valid = false
-				if is_inf(y_axis_domain.min_val) or is_inf(y_axis_domain.max_val):
-					push_error("Logarithmic %s axis (pane %d) cannot have infinite bounds" % [y_axis_name, pane_index])
-					valid = false
-				if y_axis_domain.config != null and y_axis_domain.config.include_zero_in_domain:
-					push_error("Logarithmic %s axis (pane %d) is incompatible with include_zero_in_domain policy" % [y_axis_name, pane_index])
-					valid = false
-
-		return valid
 
 
 	# Resolves AUTO domain padding mode into a concrete (mode, pad_min, pad_max).
