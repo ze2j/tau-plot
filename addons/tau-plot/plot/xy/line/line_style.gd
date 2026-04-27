@@ -21,11 +21,27 @@ class_name TauLineStyle extends Resource
 const DEFAULT_LINE_WIDTH_PX: float = 2.0
 @export var line_width_px: float = DEFAULT_LINE_WIDTH_PX
 
-## Dash length in pixels. A value of 0 produces a solid line. Any positive
-## value switches the line to dashed rendering with alternating on-off
-## segments of that pixel length.
-const DEFAULT_LINE_DASH_PX: int = 0
-@export var dash_px: int = DEFAULT_LINE_DASH_PX
+## Per-series dash length cycle, in pixels. Each entry sets the dash length
+## for one series, with the array indexed cyclically by series index using
+## modulo: series [code]i[/code] reads entry
+## [code]i % dash_lengths_px.size()[/code]. An entry of [code]0[/code]
+## produces a solid line for that series. Any positive entry switches that
+## series to dashed rendering with alternating on-off segments of that pixel
+## length. An empty array is treated as all series solid.
+const DEFAULT_DASH_LENGTHS_PX: Array[int] = [0]
+@export var dash_lengths_px: Array[int] = [0]
+
+
+####################################################################################################
+# Helpers
+####################################################################################################
+
+## Returns the resolved dash length in pixels for the given series index.
+func get_series_dash_px(p_series_index: int) -> int:
+	if dash_lengths_px.is_empty():
+		return 0
+	var entry: int = dash_lengths_px[p_series_index % dash_lengths_px.size()]
+	return max(entry, 0)
 
 
 ####################################################################################################
@@ -34,9 +50,15 @@ const DEFAULT_LINE_DASH_PX: int = 0
 
 ## Loads properties from the Godot theme attached to [param p_control].
 ##
-## For each property, the non-indexed theme key is fetched first (shared base
-## for all panes), then the indexed key for [param p_pane_index] overwrites it
-## if present.
+## For scalar properties, the non-indexed theme key is fetched first (shared
+## base for all panes), then the indexed key for [param p_pane_index]
+## overwrites it if present.
+##
+## For [code]dash_lengths_px[/code], the same convention applies at series
+## granularity:
+##   1. [code]line_dash_px_N[/code] sets the dash length for series N across
+##      all panes.
+##   2. [code]line_dash_px_N_P[/code] overrides series N in pane P only.
 ##
 ## This method writes every property unconditionally because it is called on
 ## the resolved instance, not on the user-provided resource.
@@ -45,17 +67,39 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		push_error("TauLineStyle.load_from_theme(): control is null")
 		return
 
+	# line_width_px
 	if p_control.has_theme_constant(&"line_width_px"):
 		line_width_px = max(float(p_control.get_theme_constant(&"line_width_px")), 0.0)
 	var indexed_width_key := StringName("line_width_px_%d" % p_pane_index)
 	if p_control.has_theme_constant(indexed_width_key):
 		line_width_px = max(float(p_control.get_theme_constant(indexed_width_key)), 0.0)
 
-	if p_control.has_theme_constant(&"line_dash_px"):
-		dash_px = max(int(p_control.get_theme_constant(&"line_dash_px")), 0)
-	var indexed_dash_key := StringName("line_dash_px_%d" % p_pane_index)
-	if p_control.has_theme_constant(indexed_dash_key):
-		dash_px = max(int(p_control.get_theme_constant(indexed_dash_key)), 0)
+	# dash_lengths_px: two-level indexed lookup.
+	# Level 1 (global): line_dash_px_N
+	var global_dashes: Array[int] = []
+	var dash_index := 0
+	while true:
+		var key := "line_dash_px_%d" % dash_index
+		if not p_control.has_theme_constant(key):
+			break
+		global_dashes.append(max(int(p_control.get_theme_constant(key)), 0))
+		dash_index += 1
+
+	if not global_dashes.is_empty():
+		dash_lengths_px = global_dashes
+
+	# Level 2 (per-pane): line_dash_px_N_P overrides series N in pane P.
+	var pane_dash_index := 0
+	while true:
+		var key := "line_dash_px_%d_%d" % [pane_dash_index, p_pane_index]
+		if not p_control.has_theme_constant(key):
+			break
+		# Grow the array if the per-pane theme defines more dash entries than
+		# the global theme (or the default).
+		if pane_dash_index >= dash_lengths_px.size():
+			dash_lengths_px.resize(pane_dash_index + 1)
+		dash_lengths_px[pane_dash_index] = max(int(p_control.get_theme_constant(key)), 0)
+		pane_dash_index += 1
 
 
 ####################################################################################################
@@ -72,8 +116,9 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 	if p_user_style.line_width_px != DEFAULT_LINE_WIDTH_PX:
 		line_width_px = p_user_style.line_width_px
 
-	if p_user_style.dash_px != DEFAULT_LINE_DASH_PX:
-		dash_px = p_user_style.dash_px
+	# dash_lengths_px: element-wise comparison against the default array.
+	if _is_dash_lengths_overridden(p_user_style.dash_lengths_px):
+		dash_lengths_px = p_user_style.dash_lengths_px.duplicate()
 
 
 ####################################################################################################
@@ -110,12 +155,30 @@ func is_equal_to(p_other: TauLineStyle) -> bool:
 		return false
 	if line_width_px != p_other.line_width_px:
 		return false
-	if dash_px != p_other.dash_px:
+	if dash_lengths_px.size() != p_other.dash_lengths_px.size():
 		return false
+	for i in range(dash_lengths_px.size()):
+		if dash_lengths_px[i] != p_other.dash_lengths_px[i]:
+			return false
 	return true
 
 
 # All TauLineStyle properties are visual-only. They control how lines are
 # drawn within a fixed domain but do not affect domain, ticks, or pane rect.
 func has_layout_affecting_change(p_other: TauLineStyle) -> bool:
+	return false
+
+
+####################################################################################################
+# Private
+####################################################################################################
+
+## Returns true if [param p_dashes] differs from DEFAULT_DASH_LENGTHS_PX using
+## a size + element loop (safest approach for typed arrays in GDScript).
+static func _is_dash_lengths_overridden(p_dashes: Array[int]) -> bool:
+	if p_dashes.size() != DEFAULT_DASH_LENGTHS_PX.size():
+		return true
+	for i in range(p_dashes.size()):
+		if p_dashes[i] != DEFAULT_DASH_LENGTHS_PX[i]:
+			return true
 	return false

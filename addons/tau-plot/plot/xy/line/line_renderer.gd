@@ -28,13 +28,19 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 #   replaces each segment with a fixed number of sub-samples from a
 #   Fritsch-Carlson piecewise cubic Hermite curve evaluated in screen space.
 #
-# Rendering path selection:
-# - Path 1, fast path: TauLineStyle.dash_px == 0. The run is drawn with a
-#   single draw_polyline() call.
-# - Path 2, dashed batched path: TauLineStyle.dash_px > 0. Dash phase is
-#   precomputed across the full run, the "on" intervals are collected into a
-#   flat segment array, and the run is drawn with a single draw_multiline()
-#   call. The dash phase is continuous across all segments of the polyline.
+# Rendering path selection (per series):
+# - The active dash length for a series is resolved from
+#   TauLineStyle.dash_lengths_px through the helper
+#   TauLineStyle.get_series_dash_px(global_series_index). Path selection is
+#   therefore per series: two series in the same overlay can run on
+#   different paths in the same frame.
+# - Path 1, fast path: resolved per-series dash length is 0. The run is
+#   drawn with a single draw_polyline() call.
+# - Path 2, dashed batched path: resolved per-series dash length is positive.
+#   Dash phase is precomputed across the full run, the "on" intervals are
+#   collected into a flat segment array, and the run is drawn with a single
+#   draw_multiline() call. The dash phase is continuous across all segments
+#   of the polyline.
 #
 # LineValidator is expected to enforce binding-level typing constraints.
 class LineRenderer extends Control:
@@ -166,6 +172,7 @@ class LineRenderer extends Control:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
 		var color := _resolve_series_color(global_series_index)
+		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
@@ -179,14 +186,14 @@ class LineRenderer extends Control:
 			var x_value: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
 			if is_nan(x_value) or is_inf(x_value) or not _is_x_value_valid_for_scale(x_value):
 				if not bridge:
-					_finalize_run(run, color, p_width_px, interpolation)
+					_finalize_run(run, color, p_width_px, interpolation, dash_px)
 					run = PackedVector2Array()
 				continue
 
 			var y_value := _dataset.get_series_y(series_id, i)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					_finalize_run(run, color, p_width_px, interpolation)
+					_finalize_run(run, color, p_width_px, interpolation, dash_px)
 					run = PackedVector2Array()
 				continue
 
@@ -194,13 +201,14 @@ class LineRenderer extends Control:
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
 			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
 
-		_finalize_run(run, color, p_width_px, interpolation)
+		_finalize_run(run, color, p_width_px, interpolation, dash_px)
 
 
 	func _draw_series_categorical(p_series_index: int, p_width_px: float) -> void:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
 		var color := _resolve_series_color(global_series_index)
+		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
@@ -212,7 +220,7 @@ class LineRenderer extends Control:
 			var y_value := _dataset.get_series_y(series_id, cat_idx)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					_finalize_run(run, color, p_width_px, interpolation)
+					_finalize_run(run, color, p_width_px, interpolation, dash_px)
 					run = PackedVector2Array()
 				continue
 
@@ -220,7 +228,7 @@ class LineRenderer extends Control:
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
 			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
 
-		_finalize_run(run, color, p_width_px, interpolation)
+		_finalize_run(run, color, p_width_px, interpolation, dash_px)
 
 
 	func _append_with_interpolation(p_run: PackedVector2Array, p_point: Vector2, p_mode: TauLineConfig.InterpolationMode) -> void:
@@ -249,18 +257,19 @@ class LineRenderer extends Control:
 	# For SMOOTH_MONOTONE the run is first replaced by its Fritsch-Carlson piecewise cubic resampling.
 	# Runs of fewer than two points are silently dropped.
 	#
-	# When TauLineStyle.dash_px is 0, the polyline is emitted via path 1
-	# (draw_polyline). Otherwise it is emitted via path 2: dash phase is
-	# precomputed across the whole polyline and the resulting "on" intervals
-	# are flushed in a single draw_multiline() call.
-	func _finalize_run(p_run: PackedVector2Array, p_color: Color, p_width_px: float, p_mode: TauLineConfig.InterpolationMode) -> void:
+	# When p_dash_px is 0, the polyline is emitted via path 1 (draw_polyline).
+	# Otherwise it is emitted via path 2: dash phase is precomputed across the
+	# whole polyline and the resulting "on" intervals are flushed in a single
+	# draw_multiline() call. p_dash_px is the resolved per-series dash length
+	# obtained from TauLineStyle.get_series_dash_px().
+	func _finalize_run(p_run: PackedVector2Array, p_color: Color, p_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int) -> void:
 		var polyline: PackedVector2Array = p_run
 		if p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE and p_run.size() > 2:
 			polyline = _resample_smooth_monotone(p_run)
 		if polyline.size() < 2:
 			return
 
-		var dash_px: int = max(_line_style.dash_px, 0)
+		var dash_px: int = max(p_dash_px, 0)
 		if dash_px <= 0:
 			draw_polyline(polyline, p_color, p_width_px)
 		else:

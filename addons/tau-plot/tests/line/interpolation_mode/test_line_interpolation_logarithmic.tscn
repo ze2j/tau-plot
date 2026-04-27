@@ -119,7 +119,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_u5as0")
-title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS"
+title = "[SMOOTH_MONOTONE] SHARED_X + CONTINUOUS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -130,6 +130,6 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_u5as0")
-title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS"
+title = "[SMOOTH_MONOTONE] PER_SERIES_X + CONTINUOUS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
