@@ -3,5 +3,4 @@ const VisualCallbacks = preload("res://addons/tau-plot/plot/xy/visual_callbacks.
 
 ## LINE overlay specific callbacks.
 class LineVisualCallbacks extends VisualCallbacks:
-	# TODO: add width_callback.
 	pass

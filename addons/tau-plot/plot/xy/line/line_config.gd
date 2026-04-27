@@ -9,7 +9,7 @@ const LineVisualCallbacks := preload("res://addons/tau-plot/plot/xy/line/line_vi
 ################################################################################################
 
 ## Theme-driven visual parameters for lines.
-## Never null. Modify properties directly: line_config.style.line_width_px = 3.0.
+## Never null. Modify properties directly: line_config.style.line_widths_px = [3.0].
 ## Properties set this way are automatically guarded from theme overwriting.
 @export var style: TauLineStyle = TauLineStyle.new()
 

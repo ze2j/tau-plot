@@ -29,6 +29,10 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 #   Fritsch-Carlson piecewise cubic Hermite curve evaluated in screen space.
 #
 # Rendering path selection (per series):
+# - The active line width for a series is resolved from
+#   TauLineStyle.line_widths_px through the helper
+#   TauLineStyle.get_series_width_px(global_series_index). A series whose
+#   resolved width is 0 is skipped entirely.
 # - The active dash length for a series is resolved from
 #   TauLineStyle.dash_lengths_px through the helper
 #   TauLineStyle.get_series_dash_px(global_series_index). Path selection is
@@ -143,13 +147,10 @@ class LineRenderer extends Control:
 			return
 
 		var draw_order := _get_series_draw_order(series_count)
-		var width_px: float = max(_line_style.line_width_px, 0.0)
-		if width_px <= 0.0:
-			return
 
 		for draw_rank in range(draw_order.size()):
 			var series_index: int = draw_order[draw_rank]
-			_draw_series_independent(series_index, width_px)
+			_draw_series_independent(series_index)
 
 
 	# Draws a single series as one or more polyline runs, respecting the
@@ -160,18 +161,21 @@ class LineRenderer extends Control:
 	#     - SKIP   flushes the current run and starts a new one.
 	#     - BRIDGE drops the sample and keeps appending into the same run.
 	#   - A run of fewer than two points is discarded (no polyline).
-	func _draw_series_independent(p_series_index: int, p_width_px: float) -> void:
+	func _draw_series_independent(p_series_index: int) -> void:
 		var x_cfg := _get_x_axis_config()
 		if x_cfg != null and x_cfg.type == TauAxisConfig.Type.CATEGORICAL:
-			_draw_series_categorical(p_series_index, p_width_px)
+			_draw_series_categorical(p_series_index)
 		else:
-			_draw_series_continuous(p_series_index, p_width_px)
+			_draw_series_continuous(p_series_index)
 
 
-	func _draw_series_continuous(p_series_index: int, p_width_px: float) -> void:
+	func _draw_series_continuous(p_series_index: int) -> void:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
 		var color := _resolve_series_color(global_series_index)
+		var width_px: float = _line_style.get_series_width_px(global_series_index)
+		if width_px <= 0.0:
+			return
 		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
@@ -186,14 +190,14 @@ class LineRenderer extends Control:
 			var x_value: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
 			if is_nan(x_value) or is_inf(x_value) or not _is_x_value_valid_for_scale(x_value):
 				if not bridge:
-					_finalize_run(run, color, p_width_px, interpolation, dash_px)
+					_finalize_run(run, color, width_px, interpolation, dash_px)
 					run = PackedVector2Array()
 				continue
 
 			var y_value := _dataset.get_series_y(series_id, i)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					_finalize_run(run, color, p_width_px, interpolation, dash_px)
+					_finalize_run(run, color, width_px, interpolation, dash_px)
 					run = PackedVector2Array()
 				continue
 
@@ -201,13 +205,16 @@ class LineRenderer extends Control:
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
 			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
 
-		_finalize_run(run, color, p_width_px, interpolation, dash_px)
+		_finalize_run(run, color, width_px, interpolation, dash_px)
 
 
-	func _draw_series_categorical(p_series_index: int, p_width_px: float) -> void:
+	func _draw_series_categorical(p_series_index: int) -> void:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
 		var color := _resolve_series_color(global_series_index)
+		var width_px: float = _line_style.get_series_width_px(global_series_index)
+		if width_px <= 0.0:
+			return
 		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
@@ -220,7 +227,7 @@ class LineRenderer extends Control:
 			var y_value := _dataset.get_series_y(series_id, cat_idx)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					_finalize_run(run, color, p_width_px, interpolation, dash_px)
+					_finalize_run(run, color, width_px, interpolation, dash_px)
 					run = PackedVector2Array()
 				continue
 
@@ -228,7 +235,7 @@ class LineRenderer extends Control:
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
 			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
 
-		_finalize_run(run, color, p_width_px, interpolation, dash_px)
+		_finalize_run(run, color, width_px, interpolation, dash_px)
 
 
 	func _append_with_interpolation(p_run: PackedVector2Array, p_point: Vector2, p_mode: TauLineConfig.InterpolationMode) -> void:
