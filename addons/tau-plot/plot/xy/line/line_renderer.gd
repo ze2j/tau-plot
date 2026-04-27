@@ -11,8 +11,8 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 # Draws line overlays from an XYLayout + Dataset.
 #
 # This renderer reads all samples through the Dataset public API (no direct
-# buffer/series access). One contiguous run of valid samples produces one
-# draw_polyline() call per series.
+# buffer/series access). Each contiguous run of valid samples is drawn with
+# one Godot draw call.
 #
 # Runtime behavior:
 # - NaN and Inf X or Y values are treated according to TauLineConfig.gap_policy.
@@ -27,11 +27,22 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 #   intermediate points in screen space into the polyline. SMOOTH_MONOTONE
 #   replaces each segment with a fixed number of sub-samples from a
 #   Fritsch-Carlson piecewise cubic Hermite curve evaluated in screen space.
-#   Whichever interpolation is active, a contiguous run is still drawn with a
+#
+# Rendering path selection:
+# - Path 1, fast path: TauLineStyle.dash_px == 0. The run is drawn with a
 #   single draw_polyline() call.
+# - Path 2, dashed batched path: TauLineStyle.dash_px > 0. Dash phase is
+#   precomputed across the full run, the "on" intervals are collected into a
+#   flat segment array, and the run is drawn with a single draw_multiline()
+#   call. The dash phase is continuous across all segments of the polyline.
 #
 # LineValidator is expected to enforce binding-level typing constraints.
 class LineRenderer extends Control:
+	# Number of sub-segments inserted between two consecutive samples by
+	# SMOOTH_MONOTONE. The value balances visual smoothness on a typical
+	# screen against the per-segment cost paid by draw_polyline().
+	const _SMOOTH_SUBDIVISIONS: int = 16
+
 	var _layout: XYLayout = null
 	var _dataset: Dataset = null
 	var _line_config: TauLineConfig = null
@@ -233,27 +244,85 @@ class LineRenderer extends Control:
 		p_run.append(p_point)
 
 
-	####################################################################################################
-	# Smooth-monotone (Fritsch-Carlson) resampling
-	####################################################################################################
-
-	# Number of sub-segments inserted between two consecutive samples by
-	# SMOOTH_MONOTONE. The value balances visual smoothness on a typical
-	# screen against the per-segment cost paid by draw_polyline().
-	const _SMOOTH_SUBDIVISIONS: int = 16
-
-
 	# Draw the polyline for one buffered run.
 	# For LINEAR and the step modes the buffered run is already the final polyline.
 	# For SMOOTH_MONOTONE the run is first replaced by its Fritsch-Carlson piecewise cubic resampling.
 	# Runs of fewer than two points are silently dropped.
+	#
+	# When TauLineStyle.dash_px is 0, the polyline is emitted via path 1
+	# (draw_polyline). Otherwise it is emitted via path 2: dash phase is
+	# precomputed across the whole polyline and the resulting "on" intervals
+	# are flushed in a single draw_multiline() call.
 	func _finalize_run(p_run: PackedVector2Array, p_color: Color, p_width_px: float, p_mode: TauLineConfig.InterpolationMode) -> void:
 		var polyline: PackedVector2Array = p_run
 		if p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE and p_run.size() > 2:
 			polyline = _resample_smooth_monotone(p_run)
-		if polyline.size() >= 2:
-			draw_polyline(polyline, p_color, p_width_px)
+		if polyline.size() < 2:
+			return
 
+		var dash_px: int = max(_line_style.dash_px, 0)
+		if dash_px <= 0:
+			draw_polyline(polyline, p_color, p_width_px)
+		else:
+			_draw_dashed_polyline(polyline, p_color, p_width_px, float(dash_px))
+
+
+	# Builds the flat segment array of "on" dash intervals along p_polyline and
+	# emits it with a single draw_multiline() call. The dash period is
+	# 2 * p_dash_px (one "on" length followed by one "off" length of equal
+	# size). Dash phase is tracked as a single scalar that advances along the
+	# polyline arc length, so the pattern is continuous across consecutive
+	# segments and does not reset at sample positions.
+	#
+	# Degenerate segments (zero length) are skipped: they cannot carry any
+	# dash and do not advance the phase.
+	func _draw_dashed_polyline(p_polyline: PackedVector2Array, p_color: Color, p_width_px: float, p_dash_px: float) -> void:
+		var period: float = p_dash_px * 2.0
+		var n := p_polyline.size()
+		var phase: float = 0.0
+		var segments := PackedVector2Array()
+
+		for i in range(n - 1):
+			var seg_start: Vector2 = p_polyline[i]
+			var seg_end: Vector2 = p_polyline[i + 1]
+			var seg_vec: Vector2 = seg_end - seg_start
+			var seg_len: float = seg_vec.length()
+			if seg_len <= 0.0:
+				continue
+
+			var seg_dir: Vector2 = seg_vec / seg_len
+
+			# Position along the current segment, in pixels from seg_start.
+			# Phase 0..p_dash_px is "on", p_dash_px..period is "off".
+			var pos: float = 0.0
+			while pos < seg_len:
+				var phase_in_period: float = phase
+				if phase_in_period < p_dash_px:
+					# Currently inside an "on" interval.
+					var remaining_on: float = p_dash_px - phase_in_period
+					var on_end: float = min(pos + remaining_on, seg_len)
+					segments.append(seg_start + seg_dir * pos)
+					segments.append(seg_start + seg_dir * on_end)
+					var consumed: float = on_end - pos
+					phase += consumed
+					pos = on_end
+				else:
+					# Currently inside an "off" interval.
+					var remaining_off: float = period - phase_in_period
+					var off_end: float = min(pos + remaining_off, seg_len)
+					var consumed_off: float = off_end - pos
+					phase += consumed_off
+					pos = off_end
+
+				if phase >= period:
+					phase -= period
+
+		if segments.size() >= 2:
+			draw_multiline(segments, p_color, p_width_px)
+
+	####################################################################################################
+	# Smooth-monotone (Fritsch-Carlson) resampling
+	####################################################################################################
 
 	# Builds the Fritsch-Carlson piecewise cubic Hermite curve through p_points
 	# and returns it sampled at _SMOOTH_SUBDIVISIONS sub-segments per input

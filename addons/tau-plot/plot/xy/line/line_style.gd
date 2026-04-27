@@ -21,6 +21,12 @@ class_name TauLineStyle extends Resource
 const DEFAULT_LINE_WIDTH_PX: float = 2.0
 @export var line_width_px: float = DEFAULT_LINE_WIDTH_PX
 
+## Dash length in pixels. A value of 0 produces a solid line. Any positive
+## value switches the line to dashed rendering with alternating on-off
+## segments of that pixel length.
+const DEFAULT_LINE_DASH_PX: int = 0
+@export var dash_px: int = DEFAULT_LINE_DASH_PX
+
 
 ####################################################################################################
 # Cascade: theme loading (layer 2)
@@ -39,12 +45,17 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		push_error("TauLineStyle.load_from_theme(): control is null")
 		return
 
-	# line_width_px
 	if p_control.has_theme_constant(&"line_width_px"):
 		line_width_px = max(float(p_control.get_theme_constant(&"line_width_px")), 0.0)
 	var indexed_width_key := StringName("line_width_px_%d" % p_pane_index)
 	if p_control.has_theme_constant(indexed_width_key):
 		line_width_px = max(float(p_control.get_theme_constant(indexed_width_key)), 0.0)
+
+	if p_control.has_theme_constant(&"line_dash_px"):
+		dash_px = max(int(p_control.get_theme_constant(&"line_dash_px")), 0)
+	var indexed_dash_key := StringName("line_dash_px_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_dash_key):
+		dash_px = max(int(p_control.get_theme_constant(indexed_dash_key)), 0)
 
 
 ####################################################################################################
@@ -60,6 +71,9 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 
 	if p_user_style.line_width_px != DEFAULT_LINE_WIDTH_PX:
 		line_width_px = p_user_style.line_width_px
+
+	if p_user_style.dash_px != DEFAULT_LINE_DASH_PX:
+		dash_px = p_user_style.dash_px
 
 
 ####################################################################################################
@@ -95,6 +109,8 @@ func is_equal_to(p_other: TauLineStyle) -> bool:
 	if p_other == null:
 		return false
 	if line_width_px != p_other.line_width_px:
+		return false
+	if dash_px != p_other.dash_px:
 		return false
 	return true
 
