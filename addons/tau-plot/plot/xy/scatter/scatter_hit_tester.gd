@@ -84,7 +84,7 @@ class ScatterHitTester extends OverlayHitTester:
 	## p_category_index: zero-based index into the category array.
 	## p_x_value: the category label at that index (String).
 	## p_local_pos: pointer position in pane-local screen coordinates.
-	func collect_hits_at_category(p_category_index: int, p_x_value: Variant, p_local_pos: Vector2) -> Array[SampleHit]:
+	func collect_hits_at_category(p_category_index: int, p_x_value: String, p_local_pos: Vector2) -> Array[SampleHit]:
 		var hits: Array[SampleHit] = []
 		var cache_size: int = _scatter_renderer.get_hover_cache_size()
 		var max_dist: float = float(_scatter_config.hover_max_distance_px)
