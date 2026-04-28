@@ -7,6 +7,7 @@ const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
+const BarHitRecord := preload("res://addons/tau-plot/plot/xy/bar/bar_hit_record.gd").BarHitRecord
 
 
 # Draws bar overlays from a XYLayout + Dataset.
@@ -66,6 +67,10 @@ class BarRenderer extends Control:
 	# _derived_style_box is re-duplicated. Reset to null at the start of each
 	# _draw() to pick up property mutations on the source between frames.
 	var _derived_source_ref: StyleBox = null
+
+	# One record per painted bar rect, rebuilt every _draw() so the cache
+	# never drifts from what is on screen.
+	var _hit_records: Array[BarHitRecord] = []
 
 
 	func _init(p_layout: XYLayout,
@@ -171,6 +176,9 @@ class BarRenderer extends Control:
 
 
 	func _draw() -> void:
+		# Cleared before any early-return so the cache cannot outlive the bars it describes.
+		_hit_records.clear()
+
 		if _bar_style == null or _bar_style.style_box == null:
 			push_error("BarRenderer: resolved TauBarStyle.style_box is null. Every bar must be drawn with a StyleBox.")
 			return
@@ -455,11 +463,14 @@ class BarRenderer extends Control:
 
 
 	## Draws a single bar, orientation-aware, using a StyleBox.
+	## Records a BarHitRecord for every bar that survives clipping.
 	func _draw_bar(p_pane_rect: Rect2, p_x_screen: float, p_y_from_screen: float,
 				   p_y_to_screen: float, p_thickness_px: float, p_color: Color,
 				   p_series_index: int, p_sample_index: int,
 				   p_x_value: Variant, p_y_value: float) -> void:
 		var x_is_horizontal: bool = _layout._x_is_horizontal
+
+		# TODO: replace the x_is_horizontal branches below with XYLayout.map_point_to_screen() once it exists.
 
 		# Build the clipped screen rect.
 		var rect: Rect2
@@ -505,6 +516,29 @@ class BarRenderer extends Control:
 			_remap_corners_and_borders(style_box as StyleBoxFlat, _derived_source_ref as StyleBoxFlat, x_is_horizontal, tip_at_min)
 
 		draw_style_box(style_box, rect)
+
+		# Tip-center in screen coords, un-clipped so the anchor stays on the data point
+		# even when the bar is partly outside the pane.
+		# TODO: use XYLayout.map_point_to_screen() once it exists.
+		var anchor: Vector2
+		if x_is_horizontal:
+			anchor = Vector2(p_x_screen, p_y_to_screen)
+		else:
+			anchor = Vector2(p_y_to_screen, p_x_screen)
+
+		var record := BarHitRecord.new()
+		record.series_id = _get_bar_series_id(p_series_index)
+		record.sample_index = p_sample_index
+		record.x_value = p_x_value
+		record.y_value = p_y_value
+		record.rect = rect
+		record.anchor = anchor
+		_hit_records.append(record)
+
+
+	## Returns the per-frame hit records cache. Treat as read-only.
+	func get_hit_records() -> Array[BarHitRecord]:
+		return _hit_records
 
 
 	func _draw_grouped_bars(p_pane_rect: Rect2, p_series_count: int) -> void:

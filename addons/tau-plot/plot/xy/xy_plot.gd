@@ -348,9 +348,9 @@ func setup(
 			testers.append(BarHitTester.new(
 				pane_index,
 				_bar_config_per_pane[pane_index],
-				_resolved_bar_styles[pane_index],
-				_dataset, _xy_layout, _series_assignment,
-				_bar_series_ids_per_pane[pane_index]))
+				_bar_renderers[pane_index],
+				_dataset,
+				_xy_layout))
 
 		if _scatter_renderers[pane_index] != null:
 			testers.append(ScatterHitTester.new(

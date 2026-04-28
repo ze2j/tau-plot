@@ -53,7 +53,7 @@ const HoverMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd")
 	## p_category_index: zero-based index into the category array.
 	## p_x_value: the category label at that index (String).
 	## p_local_pos: pointer position in pane-local screen coordinates.
-	@abstract func collect_hits_at_category(p_category_index: int, p_x_value: Variant, p_local_pos: Vector2) -> Array[SampleHit]
+	@abstract func collect_hits_at_category(p_category_index: int, p_x_value: String, p_local_pos: Vector2) -> Array[SampleHit]
 
 	## X_ALIGNED mode, continuous x. Returns all hits whose x value
 	## matches p_x_value for this overlay.
