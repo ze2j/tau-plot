@@ -39,18 +39,31 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 #   therefore per series: two series in the same overlay can run on
 #   different paths in the same frame.
 # - Path 1, fast path: resolved per-series dash length is 0. The run is
-#   drawn with a single draw_polyline() call.
+#   drawn with a single draw_polyline_colors() call.
 # - Path 2, dashed batched path: resolved per-series dash length is positive.
 #   Dash phase is precomputed across the full run, the "on" intervals are
 #   collected into a flat segment array, and the run is drawn with a single
-#   draw_multiline() call. The dash phase is continuous across all segments
-#   of the polyline.
+#   draw_multiline_colors() call. The dash phase is continuous across all
+#   segments of the polyline.
+#
+# Per-sample color and alpha resolution:
+# - Color resolution order: LineVisualAttributes.color_buffer, then
+#   LineVisualCallbacks.color_callback, then the per-series color from
+#   TauXYStyle.series_colors.
+# - Alpha resolution order: LineVisualAttributes.alpha_buffer, then
+#   LineVisualCallbacks.alpha_callback, then TauXYStyle.series_alpha.
+# - The resolved alpha overwrites the alpha channel of the resolved color.
+# - Each vertex of the polyline carries its own resolved color. Colors are
+#   linearly interpolated by Godot between consecutive vertices.
+# - Synthetic step-mode intermediate vertices and SMOOTH_MONOTONE sub-samples
+#   are colored consistently with the underlying segment endpoints so the
+#   resulting interpolation matches the chosen interpolation mode.
 #
 # LineValidator is expected to enforce binding-level typing constraints.
 class LineRenderer extends Control:
 	# Number of sub-segments inserted between two consecutive samples by
 	# SMOOTH_MONOTONE. The value balances visual smoothness on a typical
-	# screen against the per-segment cost paid by draw_polyline().
+	# screen against the per-segment cost paid by draw_polyline_colors().
 	const _SMOOTH_SUBDIVISIONS: int = 16
 
 	var _layout: XYLayout = null
@@ -172,7 +185,6 @@ class LineRenderer extends Control:
 	func _draw_series_continuous(p_series_index: int) -> void:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
-		var color := _resolve_series_color(global_series_index)
 		var width_px: float = _line_style.get_series_width_px(global_series_index)
 		if width_px <= 0.0:
 			return
@@ -182,6 +194,7 @@ class LineRenderer extends Control:
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
 
 		var run := PackedVector2Array()
+		var run_colors := PackedColorArray()
 
 		var is_shared_x := _dataset.get_mode() == Dataset.Mode.SHARED_X
 		var sample_count := _dataset.get_series_sample_count(series_id)
@@ -190,28 +203,30 @@ class LineRenderer extends Control:
 			var x_value: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
 			if is_nan(x_value) or is_inf(x_value) or not _is_x_value_valid_for_scale(x_value):
 				if not bridge:
-					_finalize_run(run, color, width_px, interpolation, dash_px)
+					_finalize_run(run, run_colors, width_px, interpolation, dash_px)
 					run = PackedVector2Array()
+					run_colors = PackedColorArray()
 				continue
 
 			var y_value := _dataset.get_series_y(series_id, i)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					_finalize_run(run, color, width_px, interpolation, dash_px)
+					_finalize_run(run, run_colors, width_px, interpolation, dash_px)
 					run = PackedVector2Array()
+					run_colors = PackedColorArray()
 				continue
 
 			var x_px := _layout.map_x_to_px(_pane_index, x_value)
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
-			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
+			var sample_color := _resolve_sample_color(p_series_index, i, x_value, y_value)
+			_append_with_interpolation(run, run_colors, _layout.map_point_to_screen(x_px, y_px), sample_color, interpolation)
 
-		_finalize_run(run, color, width_px, interpolation, dash_px)
+		_finalize_run(run, run_colors, width_px, interpolation, dash_px)
 
 
 	func _draw_series_categorical(p_series_index: int) -> void:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
-		var color := _resolve_series_color(global_series_index)
 		var width_px: float = _line_style.get_series_width_px(global_series_index)
 		if width_px <= 0.0:
 			return
@@ -220,43 +235,58 @@ class LineRenderer extends Control:
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
 
+		var categories := _layout.domain.x_categories
 		var run := PackedVector2Array()
+		var run_colors := PackedColorArray()
 		var sample_count := _dataset.get_series_sample_count(series_id)
 
 		for cat_idx in range(sample_count):
 			var y_value := _dataset.get_series_y(series_id, cat_idx)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					_finalize_run(run, color, width_px, interpolation, dash_px)
+					_finalize_run(run, run_colors, width_px, interpolation, dash_px)
 					run = PackedVector2Array()
+					run_colors = PackedColorArray()
 				continue
 
 			var x_px := _layout.map_x_category_center_to_px(_pane_index, cat_idx)
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
-			_append_with_interpolation(run, _layout.map_point_to_screen(x_px, y_px), interpolation)
+			var x_value: Variant = categories[cat_idx]
+			var sample_color := _resolve_sample_color(p_series_index, cat_idx, x_value, y_value)
+			_append_with_interpolation(run, run_colors, _layout.map_point_to_screen(x_px, y_px), sample_color, interpolation)
 
-		_finalize_run(run, color, width_px, interpolation, dash_px)
+		_finalize_run(run, run_colors, width_px, interpolation, dash_px)
 
 
-	func _append_with_interpolation(p_run: PackedVector2Array, p_point: Vector2, p_mode: TauLineConfig.InterpolationMode) -> void:
+	# Each appended sample (real or synthetic) gets the new sample's color.
+	# Combined with linear interpolation by draw_polyline_colors() between
+	# consecutive vertices, this places the color transition at the segment
+	# leading INTO the new sample, leaving the staircase tail solid.
+	func _append_with_interpolation(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_point: Vector2, p_color: Color, p_mode: TauLineConfig.InterpolationMode) -> void:
 		# SMOOTH_MONOTONE buffers raw sample points untouched: cubic resampling
 		# requires the full neighborhood of every sample to compute tangents and
 		# is therefore deferred to _finalize_run().
 		if p_run.size() == 0 or p_mode == TauLineConfig.InterpolationMode.LINEAR or p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE:
 			p_run.append(p_point)
+			p_run_colors.append(p_color)
 			return
 
 		var last_pt: Vector2 = p_run[p_run.size() - 1]
 		match p_mode:
 			TauLineConfig.InterpolationMode.STEP_BEFORE:
 				p_run.append(Vector2(last_pt.x, p_point.y))
+				p_run_colors.append(p_color)
 			TauLineConfig.InterpolationMode.STEP_AFTER:
 				p_run.append(Vector2(p_point.x, last_pt.y))
+				p_run_colors.append(p_color)
 			TauLineConfig.InterpolationMode.STEP_MIDDLE:
 				var mid_x: float = (last_pt.x + p_point.x) * 0.5
 				p_run.append(Vector2(mid_x, last_pt.y))
+				p_run_colors.append(p_color)
 				p_run.append(Vector2(mid_x, p_point.y))
+				p_run_colors.append(p_color)
 		p_run.append(p_point)
+		p_run_colors.append(p_color)
 
 
 	# Draw the polyline for one buffered run.
@@ -264,39 +294,50 @@ class LineRenderer extends Control:
 	# For SMOOTH_MONOTONE the run is first replaced by its Fritsch-Carlson piecewise cubic resampling.
 	# Runs of fewer than two points are silently dropped.
 	#
-	# When p_dash_px is 0, the polyline is emitted via path 1 (draw_polyline).
+	# When p_dash_px is 0, the polyline is emitted via path 1 (draw_polyline_colors).
 	# Otherwise it is emitted via path 2: dash phase is precomputed across the
 	# whole polyline and the resulting "on" intervals are flushed in a single
-	# draw_multiline() call. p_dash_px is the resolved per-series dash length
-	# obtained from TauLineStyle.get_series_dash_px().
-	func _finalize_run(p_run: PackedVector2Array, p_color: Color, p_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int) -> void:
+	# draw_multiline_colors() call. p_dash_px is the resolved per-series dash
+	# length obtained from TauLineStyle.get_series_dash_px().
+	func _finalize_run(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int) -> void:
 		var polyline: PackedVector2Array = p_run
+		var polyline_colors: PackedColorArray = p_run_colors
 		if p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE and p_run.size() > 2:
-			polyline = _resample_smooth_monotone(p_run)
+			var resampled := _resample_smooth_monotone(p_run, p_run_colors)
+			polyline = resampled[0]
+			polyline_colors = resampled[1]
 		if polyline.size() < 2:
 			return
 
 		var dash_px: int = max(p_dash_px, 0)
 		if dash_px <= 0:
-			draw_polyline(polyline, p_color, p_width_px)
+			draw_polyline_colors(polyline, polyline_colors, p_width_px)
 		else:
-			_draw_dashed_polyline(polyline, p_color, p_width_px, float(dash_px))
+			_draw_dashed_polyline(polyline, polyline_colors, p_width_px, float(dash_px))
 
 
 	# Builds the flat segment array of "on" dash intervals along p_polyline and
-	# emits it with a single draw_multiline() call. The dash period is
+	# emits it with a single draw_multiline_colors() call. The dash period is
 	# 2 * p_dash_px (one "on" length followed by one "off" length of equal
 	# size). Dash phase is tracked as a single scalar that advances along the
 	# polyline arc length, so the pattern is continuous across consecutive
 	# segments and does not reset at sample positions.
 	#
+	# draw_multiline_colors takes one solid color per emitted segment (a pair
+	# of points). Each "on" interval gets the color of its midpoint along the
+	# enclosing polyline segment, computed by linear interpolation between the
+	# two flanking polyline-vertex colors. For typical dash sizes this is a
+	# good approximation of the per-vertex color gradient produced by the
+	# undashed path.
+	#
 	# Degenerate segments (zero length) are skipped: they cannot carry any
 	# dash and do not advance the phase.
-	func _draw_dashed_polyline(p_polyline: PackedVector2Array, p_color: Color, p_width_px: float, p_dash_px: float) -> void:
+	func _draw_dashed_polyline(p_polyline: PackedVector2Array, p_polyline_colors: PackedColorArray, p_width_px: float, p_dash_px: float) -> void:
 		var period: float = p_dash_px * 2.0
 		var n := p_polyline.size()
 		var phase: float = 0.0
 		var segments := PackedVector2Array()
+		var segment_colors := PackedColorArray()
 
 		for i in range(n - 1):
 			var seg_start: Vector2 = p_polyline[i]
@@ -307,6 +348,8 @@ class LineRenderer extends Control:
 				continue
 
 			var seg_dir: Vector2 = seg_vec / seg_len
+			var col_start: Color = p_polyline_colors[i]
+			var col_end: Color = p_polyline_colors[i + 1]
 
 			# Position along the current segment, in pixels from seg_start.
 			# Phase 0..p_dash_px is "on", p_dash_px..period is "off".
@@ -319,6 +362,8 @@ class LineRenderer extends Control:
 					var on_end: float = min(pos + remaining_on, seg_len)
 					segments.append(seg_start + seg_dir * pos)
 					segments.append(seg_start + seg_dir * on_end)
+					var midpoint_t: float = ((pos + on_end) * 0.5) / seg_len
+					segment_colors.append(col_start.lerp(col_end, midpoint_t))
 					var consumed: float = on_end - pos
 					phase += consumed
 					pos = on_end
@@ -334,7 +379,7 @@ class LineRenderer extends Control:
 					phase -= period
 
 		if segments.size() >= 2:
-			draw_multiline(segments, p_color, p_width_px)
+			draw_multiline_colors(segments, segment_colors, p_width_px)
 
 	####################################################################################################
 	# Smooth-monotone (Fritsch-Carlson) resampling
@@ -342,67 +387,90 @@ class LineRenderer extends Control:
 
 	# Builds the Fritsch-Carlson piecewise cubic Hermite curve through p_points
 	# and returns it sampled at _SMOOTH_SUBDIVISIONS sub-segments per input
-	# segment. Operates in screen space (the input is already in pixels), which
-	# keeps the curve visually smooth regardless of axis scale.
+	# segment, paired with a colors array sampled in lock-step. Operates in
+	# screen space (the input is already in pixels), which keeps the curve
+	# visually smooth regardless of axis scale.
 	#
 	# The algorithm requires strictly monotonic X. The expected case is
 	# monotonically increasing screen X, but a user-inverted X axis produces
 	# monotonically decreasing screen X. Both directions are accepted: the
 	# input is processed internally on a strictly increasing X copy and the
 	# output is reversed back when needed. Consecutive points sharing the same
-	# screen X are dropped since the secant slope is undefined at h = 0.
+	# screen X are dropped since the secant slope is undefined at h = 0. The
+	# matching color entries are dropped at the same indices.
 	# Inputs that are not monotonic in either direction fall back to the raw
 	# polyline for that run and emit a one-shot warning.
-	func _resample_smooth_monotone(p_points: PackedVector2Array) -> PackedVector2Array:
+	#
+	# Sub-sample colors are linearly interpolated between the two flanking
+	# kept-sample colors so that the visual color gradient matches what
+	# draw_polyline_colors would produce on a LINEAR polyline through the
+	# same kept samples.
+	#
+	# Returns [points: PackedVector2Array, colors: PackedColorArray].
+	func _resample_smooth_monotone(p_points: PackedVector2Array, p_colors: PackedColorArray) -> Array:
 		var direction := _detect_monotonic_x_direction(p_points)
 		if direction == 0:
 			if not _smooth_non_monotonic_warned:
 				push_warning("LineRenderer: SMOOTH_MONOTONE received samples whose screen X is not monotonic. Falling back to a straight polyline for the affected run. Use LINEAR interpolation if your data does not have a monotonic X parameter.")
 				_smooth_non_monotonic_warned = true
-			return p_points
+			return [p_points, p_colors]
 
 		var ascending: bool = direction > 0
 
 		# Build strictly increasing X arrays, dropping flat-X duplicates.
+		# Colors are kept in lock-step with the kept points.
 		var xs := PackedFloat32Array()
 		var ys := PackedFloat32Array()
+		var cs := PackedColorArray()
 		var input_count := p_points.size()
 		if ascending:
 			xs.append(p_points[0].x)
 			ys.append(p_points[0].y)
+			cs.append(p_colors[0])
 			for i in range(1, input_count):
 				if p_points[i].x > xs[xs.size() - 1]:
 					xs.append(p_points[i].x)
 					ys.append(p_points[i].y)
+					cs.append(p_colors[i])
 		else:
 			xs.append(p_points[input_count - 1].x)
 			ys.append(p_points[input_count - 1].y)
+			cs.append(p_colors[input_count - 1])
 			for i in range(input_count - 2, -1, -1):
 				if p_points[i].x > xs[xs.size() - 1]:
 					xs.append(p_points[i].x)
 					ys.append(p_points[i].y)
+					cs.append(p_colors[i])
 
 		var n := xs.size()
 		if n < 2:
 			# All inputs collapsed to a single screen X. Nothing to draw.
-			return PackedVector2Array()
+			return [PackedVector2Array(), PackedColorArray()]
 		if n == 2:
 			# Two distinct X values produce a straight line through Hermite
 			# with both tangents equal to the secant slope. Short-circuit.
 			var trivial := PackedVector2Array()
+			var trivial_colors := PackedColorArray()
 			trivial.append(Vector2(xs[0], ys[0]))
 			trivial.append(Vector2(xs[1], ys[1]))
+			trivial_colors.append(cs[0])
+			trivial_colors.append(cs[1])
 			if not ascending:
 				trivial.reverse()
-			return trivial
+				trivial_colors.reverse()
+			return [trivial, trivial_colors]
 
 		var tangents := _fritsch_carlson_tangents(xs, ys)
 
 		var out := PackedVector2Array()
-		# Pre-size the output for speed: n-1 segments times subdivisions plus
+		var out_colors := PackedColorArray()
+		# Pre-size the outputs for speed: n-1 segments times subdivisions plus
 		# the very first sample.
-		out.resize(1 + (n - 1) * _SMOOTH_SUBDIVISIONS)
+		var out_size: int = 1 + (n - 1) * _SMOOTH_SUBDIVISIONS
+		out.resize(out_size)
+		out_colors.resize(out_size)
 		out[0] = Vector2(xs[0], ys[0])
+		out_colors[0] = cs[0]
 
 		var write_index: int = 1
 		var inv_subs: float = 1.0 / float(_SMOOTH_SUBDIVISIONS)
@@ -414,6 +482,8 @@ class LineRenderer extends Control:
 			var h: float = x1 - x0
 			var m0: float = tangents[k]
 			var m1: float = tangents[k + 1]
+			var c0: Color = cs[k]
+			var c1: Color = cs[k + 1]
 
 			# Sub-points at t = 1/N, 2/N, ..., 1. The endpoint t=1 is the next
 			# sample, included here so the next segment begins at t=1/N.
@@ -428,11 +498,13 @@ class LineRenderer extends Control:
 				var x: float = x0 + t * h
 				var y: float = h00 * y0 + h10 * h * m0 + h01 * y1 + h11 * h * m1
 				out[write_index] = Vector2(x, y)
+				out_colors[write_index] = c0.lerp(c1, t)
 				write_index += 1
 
 		if not ascending:
 			out.reverse()
-		return out
+			out_colors.reverse()
+		return [out, out_colors]
 
 
 	# Returns +1 if screen X is strictly monotonically increasing across the
@@ -555,14 +627,55 @@ class LineRenderer extends Control:
 
 
 	####################################################################################################
-	# Color resolution
+	# Per-sample color and alpha resolution
 	####################################################################################################
 
-	# TODO: fully implement _resolve_series_color
-	func _resolve_series_color(p_global_series_index: int) -> Color:
-		var color := _xy_style.get_series_color(p_global_series_index)
-		color.a = clampf(_xy_style.series_alpha, 0.0, 1.0)
-		return color
+	# Combined per-sample color resolution. The alpha resolved by
+	# _resolve_sample_alpha overwrites the alpha channel of the color resolved
+	# by _resolve_sample_color_only.
+	func _resolve_sample_color(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
+		var base := _resolve_sample_color_only(p_series_index, p_sample_index, p_x_value, p_y_value)
+		var alpha := _resolve_sample_alpha(p_series_index, p_sample_index, p_x_value, p_y_value)
+		base.a = clampf(alpha, 0.0, 1.0)
+		return base
+
+
+	func _resolve_sample_color_only(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
+		# Per-sample override from LineVisualAttributes.color_buffer.
+		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
+			var color_buffer: VisualAttributes.ColorBuffer = _visual_attributes[p_series_index].color_buffer
+			if color_buffer != null and p_sample_index >= 0 and p_sample_index < color_buffer.size():
+				var c := color_buffer.get_value(p_sample_index)
+				if c != VisualAttributes.ColorBuffer.NO_COLOR:
+					return c
+
+		var global_series_index := _get_global_series_index(p_series_index)
+
+		# Per-sample override from LineVisualCallbacks.color_callback.
+		var vc := _line_config.line_visual_callbacks
+		if vc != null and vc.color_callback.is_valid():
+			return vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+
+		return _xy_style.get_series_color(global_series_index)
+
+
+	func _resolve_sample_alpha(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
+		# Per-sample override from LineVisualAttributes.alpha_buffer.
+		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
+			var alpha_buffer: VisualAttributes.AlphaBuffer = _visual_attributes[p_series_index].alpha_buffer
+			if alpha_buffer != null and p_sample_index >= 0 and p_sample_index < alpha_buffer.size():
+				var a := alpha_buffer.get_value(p_sample_index)
+				if a >= 0.0:
+					return a
+
+		# Per-sample override from LineVisualCallbacks.alpha_callback.
+		var vc := _line_config.line_visual_callbacks
+		if vc != null and vc.alpha_callback.is_valid():
+			var a: float = vc.alpha_callback.call(_get_global_series_index(p_series_index), p_sample_index, p_x_value, p_y_value)
+			if a >= 0.0:
+				return a
+
+		return _xy_style.series_alpha
 
 
 	####################################################################################################
