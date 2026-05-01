@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## v0.1.2 - 2026-05-01
+
+### Added
+
+- Add tests for StackedNormalization (#12)
+- Add tests for NaN and INF values (#16)
+
+### Fixed
+
+- Legend key not displayed for scatter overlay with marker_size_policy = DATA_UNITS (#17)
+- Negative values in logarithmic scale (#19)
+- Hover detection is broken for STACKED bars with normalization enabled (#20)
+- Fix copy paste error in getting started examples (#21)
+
+
 ## v0.1.1 - 2026-04-21
 
 ### Added
@@ -14,6 +29,7 @@
 ### Changed
 
 - Documentation cleanup (#8)
+
 
 ## v0.1.0 - 2026-04-14
 
