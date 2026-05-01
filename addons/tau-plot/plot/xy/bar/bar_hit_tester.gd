@@ -35,7 +35,7 @@ class BarHitTester extends OverlayHitTester:
 		return _bar_config.hoverable
 
 
-	func get_preferred_hover_mode() -> int:
+	func get_preferred_hover_mode() -> HoverMode:
 		return HoverMode.X_ALIGNED
 
 

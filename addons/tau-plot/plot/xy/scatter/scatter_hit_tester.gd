@@ -43,7 +43,7 @@ class ScatterHitTester extends OverlayHitTester:
 
 
 	## Scatter points are best selected individually, so NEAREST is preferred.
-	func get_preferred_hover_mode() -> int:
+	func get_preferred_hover_mode() -> HoverMode:
 		return HoverMode.NEAREST
 
 

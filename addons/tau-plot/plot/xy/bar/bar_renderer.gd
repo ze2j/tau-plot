@@ -145,6 +145,11 @@ class BarRenderer extends Control:
 			queue_redraw()
 
 
+	## Returns the per-frame hit records cache. Treat as read-only.
+	func get_hit_records() -> Array[BarHitRecord]:
+		return _hit_records
+
+
 	## Creates a legend key Control for a bar overlay: a filled square with alpha.
 	## Reads fill color and alpha from resolved styles on this renderer instance.
 	## Does not set custom_minimum_size, so the legend applies its default key_size_px.
@@ -534,11 +539,6 @@ class BarRenderer extends Control:
 		record.rect = rect
 		record.anchor = anchor
 		_hit_records.append(record)
-
-
-	## Returns the per-frame hit records cache. Treat as read-only.
-	func get_hit_records() -> Array[BarHitRecord]:
-		return _hit_records
 
 
 	func _draw_grouped_bars(p_pane_rect: Rect2, p_series_count: int) -> void:
