@@ -43,6 +43,7 @@ const ScatterHitTester = preload("res://addons/tau-plot/plot/xy/scatter/scatter_
 
 const LineRenderer := preload("res://addons/tau-plot/plot/xy/line/line_renderer.gd").LineRenderer
 const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
+const LineHitTester = preload("res://addons/tau-plot/plot/xy/line/line_hit_tester.gd").LineHitTester
 
 
 # External references (provided via setup)
@@ -408,6 +409,13 @@ func setup(
 				pane_index,
 				_scatter_config_per_pane[pane_index],
 				_scatter_renderers[pane_index],
+				_dataset, _xy_layout))
+
+		if _line_renderers[pane_index] != null:
+			testers.append(LineHitTester.new(
+				pane_index,
+				_line_config_per_pane[pane_index],
+				_line_renderers[pane_index],
 				_dataset, _xy_layout))
 
 		hit_testers_per_pane.append(testers)

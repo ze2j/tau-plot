@@ -26,6 +26,20 @@ class_name TauLineStyle extends Resource
 const DEFAULT_LINE_WIDTHS_PX: Array[float] = [2.0]
 @export var line_widths_px: Array[float] = [2.0]
 
+## Per-series cycle of line widths in pixels for the two segments adjacent to
+## the hovered sample. Each entry sets the hovered width for one series, with
+## the array indexed cyclically by series index using modulo: series
+## [code]i[/code] reads entry [code]i % hovered_line_widths_px.size()[/code].
+## An empty array means no hover emphasis: the segments adjacent to the
+## hovered sample are drawn at the resolved [member line_widths_px] value for
+## that series.
+##
+## At draw time, the resolved per-series hovered width is clamped to be at
+## least the resolved per-series base width from [member line_widths_px], so
+## a thicker series never becomes thinner on hover.
+const DEFAULT_HOVERED_LINE_WIDTHS_PX: Array[float] = [3.0]
+@export var hovered_line_widths_px: Array[float] = [3.0]
+
 ## Per-series dash length cycle, in pixels. Each entry sets the dash length
 ## for one series, with the array indexed cyclically by series index using
 ## modulo: series [code]i[/code] reads entry
@@ -53,6 +67,19 @@ func get_series_width_px(p_series_index: int) -> float:
 	return max(entry, 0.0)
 
 
+## Returns the resolved hovered line width in pixels for the given series
+## index. An empty [member hovered_line_widths_px] returns [code]0.0[/code]
+## as a "no hover emphasis" sentinel. The renderer clamps the result against
+## the per-series base width from [member line_widths_px], so the empty-array
+## case naturally falls back to the base width and never produces a thinner
+## line on hover.
+func get_series_hovered_width_px(p_series_index: int) -> float:
+	if hovered_line_widths_px.is_empty():
+		return 0.0
+	var entry: float = hovered_line_widths_px[p_series_index % hovered_line_widths_px.size()]
+	return max(entry, 0.0)
+
+
 ## Returns the resolved dash length in pixels for the given series index.
 func get_series_dash_px(p_series_index: int) -> int:
 	if dash_lengths_px.is_empty():
@@ -72,9 +99,10 @@ func get_series_dash_px(p_series_index: int) -> int:
 ##   1. [code]<key>_N[/code] sets the value for series N across all panes.
 ##   2. [code]<key>_N_P[/code] overrides series N in pane P only.
 ##
-## For [code]line_widths_px[/code] the keys are [code]line_width_px_N[/code]
-## and [code]line_width_px_N_P[/code]. For [code]dash_lengths_px[/code] they
-## are [code]line_dash_px_N[/code] and [code]line_dash_px_N_P[/code].
+## Theme key prefixes:
+##   - [member line_widths_px]:         [code]line_width_px[/code]
+##   - [member hovered_line_widths_px]: [code]line_hovered_width_px[/code]
+##   - [member dash_lengths_px]:        [code]line_dash_px[/code]
 ##
 ## This method writes every property unconditionally because it is called on
 ## the resolved instance, not on the user-provided resource.
@@ -109,6 +137,31 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 			line_widths_px.resize(pane_width_index + 1)
 		line_widths_px[pane_width_index] = max(float(p_control.get_theme_constant(key)), 0.0)
 		pane_width_index += 1
+
+	# hovered_line_widths_px: two-level indexed lookup.
+	# Level 1 (global): line_hovered_width_px_N
+	var global_hovered: Array[float] = []
+	var hovered_index := 0
+	while true:
+		var key := "line_hovered_width_px_%d" % hovered_index
+		if not p_control.has_theme_constant(key):
+			break
+		global_hovered.append(max(float(p_control.get_theme_constant(key)), 0.0))
+		hovered_index += 1
+
+	if not global_hovered.is_empty():
+		hovered_line_widths_px = global_hovered
+
+	# Level 2 (per-pane): line_hovered_width_px_N_P overrides series N in pane P.
+	var pane_hovered_index := 0
+	while true:
+		var key := "line_hovered_width_px_%d_%d" % [pane_hovered_index, p_pane_index]
+		if not p_control.has_theme_constant(key):
+			break
+		if pane_hovered_index >= hovered_line_widths_px.size():
+			hovered_line_widths_px.resize(pane_hovered_index + 1)
+		hovered_line_widths_px[pane_hovered_index] = max(float(p_control.get_theme_constant(key)), 0.0)
+		pane_hovered_index += 1
 
 	# dash_lengths_px: two-level indexed lookup.
 	# Level 1 (global): line_dash_px_N
@@ -153,6 +206,10 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 	if _is_line_widths_overridden(p_user_style.line_widths_px):
 		line_widths_px = p_user_style.line_widths_px.duplicate()
 
+	# hovered_line_widths_px: element-wise comparison against the default array.
+	if _is_hovered_line_widths_overridden(p_user_style.hovered_line_widths_px):
+		hovered_line_widths_px = p_user_style.hovered_line_widths_px.duplicate()
+
 	# dash_lengths_px: element-wise comparison against the default array.
 	if _is_dash_lengths_overridden(p_user_style.dash_lengths_px):
 		dash_lengths_px = p_user_style.dash_lengths_px.duplicate()
@@ -195,6 +252,11 @@ func is_equal_to(p_other: TauLineStyle) -> bool:
 	for i in range(line_widths_px.size()):
 		if line_widths_px[i] != p_other.line_widths_px[i]:
 			return false
+	if hovered_line_widths_px.size() != p_other.hovered_line_widths_px.size():
+		return false
+	for i in range(hovered_line_widths_px.size()):
+		if hovered_line_widths_px[i] != p_other.hovered_line_widths_px[i]:
+			return false
 	if dash_lengths_px.size() != p_other.dash_lengths_px.size():
 		return false
 	for i in range(dash_lengths_px.size()):
@@ -220,6 +282,17 @@ static func _is_line_widths_overridden(p_widths: Array[float]) -> bool:
 		return true
 	for i in range(p_widths.size()):
 		if p_widths[i] != DEFAULT_LINE_WIDTHS_PX[i]:
+			return true
+	return false
+
+
+## Returns true if [param p_widths] differs from DEFAULT_HOVERED_LINE_WIDTHS_PX
+## using a size + element loop (safest approach for typed arrays in GDScript).
+static func _is_hovered_line_widths_overridden(p_widths: Array[float]) -> bool:
+	if p_widths.size() != DEFAULT_HOVERED_LINE_WIDTHS_PX.size():
+		return true
+	for i in range(p_widths.size()):
+		if p_widths[i] != DEFAULT_HOVERED_LINE_WIDTHS_PX[i]:
 			return true
 	return false
 

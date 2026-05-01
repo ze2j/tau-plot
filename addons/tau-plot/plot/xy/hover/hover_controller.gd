@@ -139,7 +139,7 @@ class HoverController extends RefCounted:
 		_current_pane = -1
 		_hide_transient_tooltip()
 		_hide_all_crosshairs()
-		_clear_highlight_state_on_renderers()
+		_clear_renderers_hover_state()
 		# Also hide pinned tooltip since screen positions are stale.
 		if not _pinned_hits.is_empty():
 			_pinned_hits.clear()
@@ -193,7 +193,7 @@ class HoverController extends RefCounted:
 			return
 
 		if p_event is InputEventMouseMotion:
-			_process_motion(p_pane_index, p_local_pos)
+			_process_mouse_motion(p_pane_index, p_local_pos)
 
 		elif p_event is InputEventMouseButton:
 			var mb := p_event as InputEventMouseButton
@@ -210,7 +210,7 @@ class HoverController extends RefCounted:
 
 
 	## Processes mouse motion: runs hit testing and emits hover signals.
-	func _process_motion(p_pane_index: int, p_local_pos: Vector2) -> void:
+	func _process_mouse_motion(p_pane_index: int, p_local_pos: Vector2) -> void:
 		# Convert pane-local position to plot-local for tooltip positioning.
 		_last_mouse_pos = _pane_to_plot_local(p_pane_index, p_local_pos)
 
@@ -228,7 +228,7 @@ class HoverController extends RefCounted:
 				_current_pane = -1
 				_hide_transient_tooltip()
 				_hide_all_crosshairs()
-				_clear_highlight_state_on_renderers()
+				_clear_renderers_hover_state()
 				_plot.sample_hover_exited.emit()
 			return
 
@@ -236,7 +236,7 @@ class HoverController extends RefCounted:
 		_current_pane = p_pane_index
 		_show_transient_tooltip(hits, p_pane_index)
 		_show_crosshairs(hits, p_pane_index, p_local_pos)
-		_push_highlight_state_to_renderers(hits)
+		_update_renderers_hover_state(hits)
 		_plot.sample_hovered.emit(hits)
 
 
@@ -282,15 +282,14 @@ class HoverController extends RefCounted:
 		for hit_tester: OverlayHitTester in hit_testers:
 			if not hit_tester.is_hoverable():
 				continue
+
 			var preferred: int = hit_tester.get_preferred_hover_mode()
 			if agreed_mode == -1:
 				agreed_mode = preferred
 			elif agreed_mode != preferred:
 				return HoverMode.NEAREST
 
-		if agreed_mode == -1:
-			return HoverMode.NEAREST
-		return agreed_mode as HoverMode
+		return agreed_mode as HoverMode if agreed_mode != -1 else HoverMode.NEAREST
 
 
 	####################################################################
@@ -534,32 +533,41 @@ class HoverController extends RefCounted:
 		return _resolve_mode(p_pane_index) == HoverMode.X_ALIGNED
 
 
-	## Pushes highlight state to all bar and scatter renderers based on the
-	## current set of hits. Each renderer receives set_hover_state with the
-	## hit that belongs to it (matched by pane index and overlay type). If a
-	## renderer has no hit, it still receives p_active = true so that the
-	## color callback dims its samples, but p_series_id = -1 so no sample
-	## gets hovered-state style properties.
+	## Update the renderers hover state based on the current set of hits.
+	## Each renderer receives set_hover_state with the hit that belongs to it
+	## (matched by pane index and overlay type). If a renderer has no hit, it
+	## still receives p_active = true so that the color callback dims its samples,
+	## but p_series_id = -1 so no sample gets hovered-state style properties.
 	##
 	## For GROUPED bars in X_ALIGNED mode, the entire group at the hovered
 	## sample index is highlighted together via set_hover_state_group.
-	func _push_highlight_state_to_renderers(p_hits: Array[SampleHit]) -> void:
+	##
+	## For line overlays in X_ALIGNED mode, the closest hit to the pointer
+	## (smallest distance_px) is selected as the visually emphasized sample
+	## in each pane: hovering "the line at column X" picks the single line
+	## whose curve passes nearest to the cursor for the thicker emphasis,
+	## while the tooltip still lists all line series at that X.
+	func _update_renderers_hover_state(p_hits: Array[SampleHit]) -> void:
 		if not _is_highlight_enabled():
-			_clear_highlight_state_on_renderers()
+			_clear_renderers_hover_state()
 			return
 
 		var highlight_cb: Callable = _get_hover_highlight_callback()
 
 		# Build a lookup from pane_index to the best hit for that pane, per
-		# overlay type. Selection priority:
+		# overlay type. Selection priority for bars and scatter:
 		#   1. Hits where contains_pointer is true (cursor inside the visual
 		#      element). Among those, pick the one with the smallest distance_px.
 		#   2. If no hit contains the pointer, no sample is highlighted for that
 		#      overlay (series_id = -1). The tooltip still shows all hits, but
 		#      the visual highlight is suppressed because the cursor is not
 		#      physically inside any element.
+		# Lines are not bounded by a visual element along the y axis in
+		# X_ALIGNED mode, so they pick the smallest distance_px regardless of
+		# contains_pointer: the closest curve to the cursor wins the emphasis.
 		var bar_hits_by_pane: Dictionary[int, SampleHit] = {}
 		var scatter_hits_by_pane: Dictionary[int, SampleHit] = {}
+		var line_hits_by_pane: Dictionary[int, SampleHit] = {}
 
 		# Also track the sample_index for group highlighting (any bar hit,
 		# even without contains_pointer, tells us the hovered category).
@@ -580,8 +588,9 @@ class HoverController extends RefCounted:
 					if existing == null or hit.distance_px < existing.distance_px:
 						scatter_hits_by_pane[hit.pane_index] = hit
 			elif hit.overlay_type == PaneOverlayType.LINE:
-				# TODO: categorize line hits once line hover is wired.
-				pass
+				var existing: SampleHit = line_hits_by_pane.get(hit.pane_index)
+				if existing == null or hit.distance_px < existing.distance_px:
+					line_hits_by_pane[hit.pane_index] = hit
 
 		for pane_index: int in range(_bar_renderers.size()):
 			var renderer: BarRenderer = _bar_renderers[pane_index]
@@ -612,10 +621,20 @@ class HoverController extends RefCounted:
 			else:
 				renderer.set_hover_state(true, -1, -1, highlight_cb)
 
+		for pane_index: int in range(_line_renderers.size()):
+			var renderer: LineRenderer = _line_renderers[pane_index]
+			if renderer == null:
+				continue  # Pane has no line overlay.
+			var hit: SampleHit = line_hits_by_pane.get(pane_index)
+			if hit != null:
+				renderer.set_hover_state(true, hit.series_id, hit.sample_index, highlight_cb)
+			else:
+				renderer.set_hover_state(true, -1, -1, highlight_cb)
 
-	## Clears highlight state on all bar and scatter renderers, returning
-	## them to normal (non-highlighted) drawing.
-	func _clear_highlight_state_on_renderers() -> void:
+
+	## Clears hover state on all bar, scatter, and line renderers,
+	## returning them to normal (non-highlighted) drawing.
+	func _clear_renderers_hover_state() -> void:
 		for pane_index: int in range(_bar_renderers.size()):
 			var renderer: BarRenderer = _bar_renderers[pane_index]
 			if renderer == null:
@@ -626,6 +645,12 @@ class HoverController extends RefCounted:
 			var renderer: ScatterRenderer = _scatter_renderers[pane_index]
 			if renderer == null:
 				continue  # Pane has no scatter overlay.
+			renderer.set_hover_state(false, -1, -1, Callable())
+
+		for pane_index: int in range(_line_renderers.size()):
+			var renderer: LineRenderer = _line_renderers[pane_index]
+			if renderer == null:
+				continue  # Pane has no line overlay.
 			renderer.set_hover_state(false, -1, -1, Callable())
 
 

@@ -6,13 +6,15 @@ const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
+const LineHitRecord := preload("res://addons/tau-plot/plot/xy/line/line_hit_record.gd").LineHitRecord
 
 
 # Draws line overlays from an XYLayout + Dataset.
 #
 # This renderer reads all samples through the Dataset public API (no direct
 # buffer/series access). Each contiguous run of valid samples is drawn with
-# one Godot draw call.
+# one Godot draw call when no hover emphasis applies, or up to three
+# draw calls when the hovered sample lies inside the run.
 #
 # Runtime behavior:
 # - NaN and Inf X or Y values are treated according to TauLineConfig.gap_policy.
@@ -38,13 +40,27 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 #   TauLineStyle.get_series_dash_px(global_series_index). Path selection is
 #   therefore per series: two series in the same overlay can run on
 #   different paths in the same frame.
-# - Path 1, fast path: resolved per-series dash length is 0. The run is
+# - Fast path: resolved per-series dash length is 0. The run is
 #   drawn with a single draw_polyline_colors() call.
-# - Path 2, dashed batched path: resolved per-series dash length is positive.
+# - Dashed batched path: resolved per-series dash length is positive.
 #   Dash phase is precomputed across the full run, the "on" intervals are
 #   collected into a flat segment array, and the run is drawn with a single
 #   draw_multiline_colors() call. The dash phase is continuous across all
 #   segments of the polyline.
+#
+# Hover behavior:
+# - When TauLineConfig.hoverable is true and set_hover_state() has flagged a
+#   sample as hovered, the per-sample color is routed through
+#   TauHoverConfig.hover_highlight_callback (or a built-in dim/brighten
+#   default) so non-hovered samples are de-emphasized.
+# - When the hovered sample lies inside a drawn run, the polyline is split
+#   into up to three contiguous parts at the hovered sample's adjacent real
+#   neighbors. The middle part is drawn at the per-series resolved hovered
+#   width from TauLineStyle.hovered_line_widths_px, clamped to be at least
+#   the per-series base width. The outer two parts keep the base width.
+#   Each part is one draw call. For dashed lines, each part inherits the
+#   cumulative arc-length offset from the polyline start, so the dash
+#   pattern stays continuous through the slices.
 #
 # Per-sample color and alpha resolution:
 # - Color resolution order: LineVisualAttributes.color_buffer, then
@@ -53,6 +69,8 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 # - Alpha resolution order: LineVisualAttributes.alpha_buffer, then
 #   LineVisualCallbacks.alpha_callback, then TauXYStyle.series_alpha.
 # - The resolved alpha overwrites the alpha channel of the resolved color.
+# - When the highlight feature is active, the resulting color is then
+#   routed through TauHoverConfig.hover_highlight_callback.
 # - Each vertex of the polyline carries its own resolved color. Colors are
 #   linearly interpolated by Godot between consecutive vertices.
 # - Synthetic step-mode intermediate vertices and SMOOTH_MONOTONE sub-samples
@@ -89,6 +107,20 @@ class LineRenderer extends Control:
 	# is enough to surface the misconfiguration without flooding the output
 	# on every redraw.
 	var _smooth_non_monotonic_warned: bool = false
+
+	# Per-frame cache of every real sample drawn onto a polyline this frame.
+	# Rebuilt every _draw() so the cache never drifts from what is on screen.
+	var _hit_records: Array[LineHitRecord] = []
+
+	# Hover highlight state. When _highlight_active is true, the per-sample
+	# color is routed through the hover color callback (or a built-in
+	# dim/brighten default). When the hovered sample lies within a drawn
+	# run, the two segments adjacent to it are drawn at the per-series
+	# resolved hovered width clamped to be at least the per-series base width.
+	var _highlight_active: bool = false
+	var _hovered_series_id: int = -1
+	var _hovered_sample_index: int = -1
+	var _hover_highlight_callback: Callable = Callable()
 
 
 	func _init(p_layout: XYLayout,
@@ -136,6 +168,23 @@ class LineRenderer extends Control:
 		_xy_style = p_style
 
 
+	## Updates the hover highlight state. A change triggers a redraw so the
+	## line is repainted with the new emphasis slice and dimming pattern.
+	func set_hover_state(p_active: bool, p_series_id: int, p_sample_index: int, p_color_callback: Callable) -> void:
+		var changed := p_active != _highlight_active or p_series_id != _hovered_series_id or p_sample_index != _hovered_sample_index
+		_highlight_active = p_active
+		_hovered_series_id = p_series_id
+		_hovered_sample_index = p_sample_index
+		_hover_highlight_callback = p_color_callback
+		if changed:
+			queue_redraw()
+
+
+	## Returns the per-frame hit records cache. Treat as read-only.
+	func get_hit_records() -> Array[LineHitRecord]:
+		return _hit_records
+
+
 	## Creates a legend key Control for a line overlay.
 	func create_legend_key_control(_p_series_index: int) -> Control:
 		# TODO: implement create_legend_key_control for lines
@@ -147,6 +196,8 @@ class LineRenderer extends Control:
 	####################################################################################################
 
 	func _draw() -> void:
+		_hit_records.clear()
+
 		if _line_style == null:
 			push_error("LineRenderer: resolved TauLineStyle is null.")
 			return
@@ -189,12 +240,20 @@ class LineRenderer extends Control:
 		if width_px <= 0.0:
 			return
 		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
+		var hover_width_px: float = max(_line_style.get_series_hovered_width_px(global_series_index), width_px)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
 
 		var run := PackedVector2Array()
 		var run_colors := PackedColorArray()
+		# Parallel arrays describing the real samples appended to the current
+		# run. real_polyline_indices[k] is the index into `run` where the k-th
+		# real sample of this run landed before any post-processing
+		# (SMOOTH_MONOTONE resampling). The dataset index is needed so the
+		# finalizer can locate the hovered sample within the current run.
+		var real_polyline_indices := PackedInt32Array()
+		var real_dataset_indices := PackedInt32Array()
 
 		var is_shared_x := _dataset.get_mode() == Dataset.Mode.SHARED_X
 		var sample_count := _dataset.get_series_sample_count(series_id)
@@ -203,25 +262,42 @@ class LineRenderer extends Control:
 			var x_value: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
 			if is_nan(x_value) or is_inf(x_value) or not _is_x_value_valid_for_scale(x_value):
 				if not bridge:
-					_finalize_run(run, run_colors, width_px, interpolation, dash_px)
+					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
+					real_polyline_indices = PackedInt32Array()
+					real_dataset_indices = PackedInt32Array()
 				continue
 
 			var y_value := _dataset.get_series_y(series_id, i)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					_finalize_run(run, run_colors, width_px, interpolation, dash_px)
+					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
+					real_polyline_indices = PackedInt32Array()
+					real_dataset_indices = PackedInt32Array()
 				continue
 
 			var x_px := _layout.map_x_to_px(_pane_index, x_value)
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
+			var screen_pos := _layout.map_point_to_screen(x_px, y_px)
 			var sample_color := _resolve_sample_color(p_series_index, i, x_value, y_value)
-			_append_with_interpolation(run, run_colors, _layout.map_point_to_screen(x_px, y_px), sample_color, interpolation)
+			_append_with_interpolation(run, run_colors, screen_pos, sample_color, interpolation)
+			# The real sample is always the last vertex appended by
+			# _append_with_interpolation, regardless of the interpolation mode.
+			real_polyline_indices.append(run.size() - 1)
+			real_dataset_indices.append(i)
 
-		_finalize_run(run, run_colors, width_px, interpolation, dash_px)
+			var record := LineHitRecord.new()
+			record.series_id = series_id
+			record.sample_index = i
+			record.x_value = x_value
+			record.y_value = y_value
+			record.screen_position = screen_pos
+			_hit_records.append(record)
+
+		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
 
 
 	func _draw_series_categorical(p_series_index: int) -> void:
@@ -231,6 +307,7 @@ class LineRenderer extends Control:
 		if width_px <= 0.0:
 			return
 		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
+		var hover_width_px: float = max(_line_style.get_series_hovered_width_px(global_series_index), width_px)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
@@ -238,24 +315,39 @@ class LineRenderer extends Control:
 		var categories := _layout.domain.x_categories
 		var run := PackedVector2Array()
 		var run_colors := PackedColorArray()
+		var real_polyline_indices := PackedInt32Array()
+		var real_dataset_indices := PackedInt32Array()
 		var sample_count := _dataset.get_series_sample_count(series_id)
 
 		for cat_idx in range(sample_count):
 			var y_value := _dataset.get_series_y(series_id, cat_idx)
 			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
 				if not bridge:
-					_finalize_run(run, run_colors, width_px, interpolation, dash_px)
+					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
+					real_polyline_indices = PackedInt32Array()
+					real_dataset_indices = PackedInt32Array()
 				continue
 
 			var x_px := _layout.map_x_category_center_to_px(_pane_index, cat_idx)
 			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
+			var screen_pos := _layout.map_point_to_screen(x_px, y_px)
 			var x_value: Variant = categories[cat_idx]
 			var sample_color := _resolve_sample_color(p_series_index, cat_idx, x_value, y_value)
-			_append_with_interpolation(run, run_colors, _layout.map_point_to_screen(x_px, y_px), sample_color, interpolation)
+			_append_with_interpolation(run, run_colors, screen_pos, sample_color, interpolation)
+			real_polyline_indices.append(run.size() - 1)
+			real_dataset_indices.append(cat_idx)
 
-		_finalize_run(run, run_colors, width_px, interpolation, dash_px)
+			var record := LineHitRecord.new()
+			record.series_id = series_id
+			record.sample_index = cat_idx
+			record.x_value = x_value
+			record.y_value = y_value
+			record.screen_position = screen_pos
+			_hit_records.append(record)
+
+		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
 
 
 	# Each appended sample (real or synthetic) gets the new sample's color.
@@ -294,36 +386,184 @@ class LineRenderer extends Control:
 	# For SMOOTH_MONOTONE the run is first replaced by its Fritsch-Carlson piecewise cubic resampling.
 	# Runs of fewer than two points are silently dropped.
 	#
-	# When p_dash_px is 0, the polyline is emitted via path 1 (draw_polyline_colors).
-	# Otherwise it is emitted via path 2: dash phase is precomputed across the
-	# whole polyline and the resulting "on" intervals are flushed in a single
-	# draw_multiline_colors() call. p_dash_px is the resolved per-series dash
-	# length obtained from TauLineStyle.get_series_dash_px().
-	func _finalize_run(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int) -> void:
+	# Path selection per series (no hover):
+	#   - p_dash_px == 0: one draw_polyline_colors call.
+	#   - p_dash_px  > 0: one draw_multiline_colors call after dash precomputation.
+	#
+	# When the hovered sample belongs to this run, the polyline is split into
+	# up to three contiguous parts and each part is drawn with its own draw
+	# call:
+	#   - Part A: vertices [0 .. slice_start], drawn at p_width_px.
+	#   - Part B: vertices [slice_start .. slice_end], drawn at p_hover_width_px.
+	#   - Part C: vertices [slice_end .. last], drawn at p_width_px.
+	# slice_start is the polyline index of the hovered sample's previous real
+	# neighbor, or the hovered sample itself when it has no previous neighbor
+	# in this run. slice_end is the index of the next real neighbor, or the
+	# hovered sample itself when it has none. For dashed lines, the dash phase
+	# is carried across parts using each part's cumulative arc-length offset
+	# from the polyline start, so the dash pattern stays continuous through
+	# the slices.
+	#
+	# p_real_polyline_indices and p_real_dataset_indices are parallel arrays
+	# whose length equals the number of real samples appended to this run.
+	# real_polyline_indices[k] is the index in p_run where the k-th real
+	# sample landed. real_dataset_indices[k] is the dataset sample index for
+	# that real sample.
+	func _finalize_run(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_real_polyline_indices: PackedInt32Array, p_real_dataset_indices: PackedInt32Array, p_series_id: int, p_width_px: float, p_hover_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int) -> void:
 		var polyline: PackedVector2Array = p_run
 		var polyline_colors: PackedColorArray = p_run_colors
+		var real_polyline_indices: PackedInt32Array = p_real_polyline_indices
 		if p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE and p_run.size() > 2:
 			var resampled := _resample_smooth_monotone(p_run, p_run_colors)
 			polyline = resampled[0]
 			polyline_colors = resampled[1]
+			# In SMOOTH_MONOTONE the input run holds only real samples, so
+			# every entry in p_real_polyline_indices is its own input index
+			# and the resample's input-to-output map is the new mapping.
+			real_polyline_indices = resampled[2]
 		if polyline.size() < 2:
 			return
 
 		var dash_px: int = max(p_dash_px, 0)
-		if dash_px <= 0:
-			draw_polyline_colors(polyline, polyline_colors, p_width_px)
+		var slice_bounds := _resolve_hover_slice_bounds(real_polyline_indices, p_real_dataset_indices, p_series_id)
+
+		if slice_bounds.is_empty():
+			# No hover emphasis: draw the entire polyline in a single call.
+			_draw_polyline_segment(polyline, polyline_colors, 0, polyline.size() - 1, p_width_px, dash_px, 0.0)
+			return
+
+		var slice_start: int = slice_bounds[0]
+		var slice_end: int = slice_bounds[1]
+		var last: int = polyline.size() - 1
+
+		# Precompute cumulative arc length so each part inherits a starting
+		# phase that keeps the dash pattern continuous across the slices.
+		# When dash_px is 0 the offsets are still computed but ignored by the
+		# solid path.
+		var arc_at_slice_start: float = _arc_length_to_index(polyline, slice_start)
+		var arc_at_slice_end: float = arc_at_slice_start + _arc_length_between(polyline, slice_start, slice_end)
+
+		# Part A: from the polyline start up to and including slice_start.
+		_draw_polyline_segment(polyline, polyline_colors, 0, slice_start, p_width_px, dash_px, 0.0)
+		# Part B: the two adjacent portions, emphasized.
+		_draw_polyline_segment(polyline, polyline_colors, slice_start, slice_end, p_hover_width_px, dash_px, arc_at_slice_start)
+		# Part C: from slice_end to the polyline end.
+		_draw_polyline_segment(polyline, polyline_colors, slice_end, last, p_width_px, dash_px, arc_at_slice_end)
+
+
+	# Resolves the polyline-vertex bounds of the hover-emphasized slice for
+	# the current run, or an empty array when no emphasis applies.
+	#
+	# Returns [slice_start, slice_end] when the hovered sample belongs to the
+	# current run and has at least one real neighbor that produces a non-zero
+	# slice. slice_start is the polyline index of the previous real neighbor
+	# (or the hovered sample itself when it has no previous neighbor).
+	# slice_end is the polyline index of the next real neighbor (or the
+	# hovered sample itself when it has none).
+	#
+	# When the hovered sample has been deduplicated by SMOOTH_MONOTONE
+	# resampling (consecutive real samples sharing the same screen X), it
+	# shares its polyline index with the surviving neighbor it was deduped
+	# against, so the slice still covers the right neighborhood.
+	func _resolve_hover_slice_bounds(p_real_polyline_indices: PackedInt32Array, p_real_dataset_indices: PackedInt32Array, p_series_id: int) -> PackedInt32Array:
+		if not _highlight_active or _hovered_series_id != p_series_id or _hovered_sample_index < 0:
+			return PackedInt32Array()
+		var real_count: int = p_real_dataset_indices.size()
+		if real_count <= 1:
+			return PackedInt32Array()
+
+		var hover_pos_in_run: int = -1
+		for k in range(real_count):
+			if p_real_dataset_indices[k] == _hovered_sample_index:
+				hover_pos_in_run = k
+				break
+		if hover_pos_in_run < 0:
+			return PackedInt32Array()
+
+		var hovered_idx: int = p_real_polyline_indices[hover_pos_in_run]
+		var slice_start: int = hovered_idx
+		if hover_pos_in_run > 0:
+			slice_start = p_real_polyline_indices[hover_pos_in_run - 1]
+		var slice_end: int = hovered_idx
+		if hover_pos_in_run < real_count - 1:
+			slice_end = p_real_polyline_indices[hover_pos_in_run + 1]
+
+		if slice_end <= slice_start:
+			return PackedInt32Array()
+
+		var bounds := PackedInt32Array()
+		bounds.append(slice_start)
+		bounds.append(slice_end)
+		return bounds
+
+
+	# Draws a contiguous polyline part bounded by the given vertex indices,
+	# inclusive on both ends. Dispatches to draw_polyline_colors or _draw_dashed_polyline
+	# based on p_dash_px. p_phase_offset seeds the dash phase tracker so
+	# callers can chain multiple parts with continuous phase across slice
+	# boundaries.
+	#
+	# Parts of length less than 2 are skipped: a single-vertex slice cannot
+	# produce any drawable segment.
+	func _draw_polyline_segment(p_polyline: PackedVector2Array, p_polyline_colors: PackedColorArray, p_first: int, p_last: int, p_width_px: float, p_dash_px: int, p_phase_offset: float) -> void:
+		if p_last <= p_first:
+			return
+		# A non-fragmented full run is the common case: avoid the slice copy.
+		if p_first == 0 and p_last == p_polyline.size() - 1:
+			if p_dash_px <= 0:
+				draw_polyline_colors(p_polyline, p_polyline_colors, p_width_px)
+			else:
+				_draw_dashed_polyline(p_polyline, p_polyline_colors, p_width_px, float(p_dash_px), p_phase_offset)
+			return
+
+		var sub_polyline := PackedVector2Array()
+		var sub_colors := PackedColorArray()
+		var sub_size: int = p_last - p_first + 1
+		sub_polyline.resize(sub_size)
+		sub_colors.resize(sub_size)
+		for j in range(sub_size):
+			sub_polyline[j] = p_polyline[p_first + j]
+			sub_colors[j] = p_polyline_colors[p_first + j]
+
+		if p_dash_px <= 0:
+			draw_polyline_colors(sub_polyline, sub_colors, p_width_px)
 		else:
-			_draw_dashed_polyline(polyline, polyline_colors, p_width_px, float(dash_px))
+			_draw_dashed_polyline(sub_polyline, sub_colors, p_width_px, float(p_dash_px), p_phase_offset)
+
+
+	func _arc_length_to_index(p_polyline: PackedVector2Array, p_index: int) -> float:
+		if p_index <= 0:
+			return 0.0
+		var total: float = 0.0
+		for i in range(p_index):
+			total += p_polyline[i].distance_to(p_polyline[i + 1])
+		return total
+
+
+	func _arc_length_between(p_polyline: PackedVector2Array, p_first: int, p_last: int) -> float:
+		if p_last <= p_first:
+			return 0.0
+		var total: float = 0.0
+		for i in range(p_first, p_last):
+			total += p_polyline[i].distance_to(p_polyline[i + 1])
+		return total
 
 
 	# Builds the flat segment array of "on" dash intervals along p_polyline and
-	# emits it with a single draw_multiline_colors() call. The dash period is
+	# draws it with a single draw_multiline_colors() call. The dash period is
 	# 2 * p_dash_px (one "on" length followed by one "off" length of equal
 	# size). Dash phase is tracked as a single scalar that advances along the
 	# polyline arc length, so the pattern is continuous across consecutive
 	# segments and does not reset at sample positions.
 	#
-	# draw_multiline_colors takes one solid color per emitted segment (a pair
+	# p_phase_offset seeds the phase tracker at the start of the polyline,
+	# expressed in pixels of arc length. It lets a caller draw a contiguous
+	# polyline as multiple back-to-back parts (each with its own draw call)
+	# and keep the dash pattern continuous across the part boundaries: each
+	# subsequent part passes the cumulative arc length from the original
+	# polyline start as its phase offset.
+	#
+	# draw_multiline_colors takes one solid color per drawn segment (a pair
 	# of points). Each "on" interval gets the color of its midpoint along the
 	# enclosing polyline segment, computed by linear interpolation between the
 	# two flanking polyline-vertex colors. For typical dash sizes this is a
@@ -332,10 +572,10 @@ class LineRenderer extends Control:
 	#
 	# Degenerate segments (zero length) are skipped: they cannot carry any
 	# dash and do not advance the phase.
-	func _draw_dashed_polyline(p_polyline: PackedVector2Array, p_polyline_colors: PackedColorArray, p_width_px: float, p_dash_px: float) -> void:
+	func _draw_dashed_polyline(p_polyline: PackedVector2Array, p_polyline_colors: PackedColorArray, p_width_px: float, p_dash_px: float, p_phase_offset: float = 0.0) -> void:
 		var period: float = p_dash_px * 2.0
 		var n := p_polyline.size()
-		var phase: float = 0.0
+		var phase: float = fposmod(p_phase_offset, period)
 		var segments := PackedVector2Array()
 		var segment_colors := PackedColorArray()
 
@@ -399,53 +639,71 @@ class LineRenderer extends Control:
 	# screen X are dropped since the secant slope is undefined at h = 0. The
 	# matching color entries are dropped at the same indices.
 	# Inputs that are not monotonic in either direction fall back to the raw
-	# polyline for that run and emit a one-shot warning.
+	# polyline for that run and push a one-shot warning.
 	#
 	# Sub-sample colors are linearly interpolated between the two flanking
 	# kept-sample colors so that the visual color gradient matches what
 	# draw_polyline_colors would produce on a LINEAR polyline through the
 	# same kept samples.
 	#
-	# Returns [points: PackedVector2Array, colors: PackedColorArray].
+	# Returns [points: PackedVector2Array, colors: PackedColorArray, input_to_output: PackedInt32Array].
+	# input_to_output[i] is the index in the returned points array where input point i lands.
+	# Dropped inputs (consecutive same-screen-X duplicates) inherit the output index of the
+	# neighbor they were deduplicated against.
 	func _resample_smooth_monotone(p_points: PackedVector2Array, p_colors: PackedColorArray) -> Array:
+		var input_count := p_points.size()
 		var direction := _detect_monotonic_x_direction(p_points)
 		if direction == 0:
 			if not _smooth_non_monotonic_warned:
 				push_warning("LineRenderer: SMOOTH_MONOTONE received samples whose screen X is not monotonic. Falling back to a straight polyline for the affected run. Use LINEAR interpolation if your data does not have a monotonic X parameter.")
 				_smooth_non_monotonic_warned = true
-			return [p_points, p_colors]
+			var identity := PackedInt32Array()
+			identity.resize(input_count)
+			for i in range(input_count):
+				identity[i] = i
+			return [p_points, p_colors, identity]
 
 		var ascending: bool = direction > 0
 
 		# Build strictly increasing X arrays, dropping flat-X duplicates.
-		# Colors are kept in lock-step with the kept points.
+		# Colors are kept in lock-step with the kept points. kept_of[i] is the
+		# kept-array index for original input i, used later to remap real
+		# samples to their output-polyline position. Dropped inputs share
+		# their surviving neighbor's kept index.
 		var xs := PackedFloat32Array()
 		var ys := PackedFloat32Array()
 		var cs := PackedColorArray()
-		var input_count := p_points.size()
+		var kept_of := PackedInt32Array()
+		kept_of.resize(input_count)
 		if ascending:
 			xs.append(p_points[0].x)
 			ys.append(p_points[0].y)
 			cs.append(p_colors[0])
+			kept_of[0] = 0
 			for i in range(1, input_count):
 				if p_points[i].x > xs[xs.size() - 1]:
 					xs.append(p_points[i].x)
 					ys.append(p_points[i].y)
 					cs.append(p_colors[i])
+				kept_of[i] = xs.size() - 1
 		else:
 			xs.append(p_points[input_count - 1].x)
 			ys.append(p_points[input_count - 1].y)
 			cs.append(p_colors[input_count - 1])
+			kept_of[input_count - 1] = 0
 			for i in range(input_count - 2, -1, -1):
 				if p_points[i].x > xs[xs.size() - 1]:
 					xs.append(p_points[i].x)
 					ys.append(p_points[i].y)
 					cs.append(p_colors[i])
+				kept_of[i] = xs.size() - 1
 
 		var n := xs.size()
 		if n < 2:
 			# All inputs collapsed to a single screen X. Nothing to draw.
-			return [PackedVector2Array(), PackedColorArray()]
+			var empty_map := PackedInt32Array()
+			empty_map.resize(input_count)
+			return [PackedVector2Array(), PackedColorArray(), empty_map]
 		if n == 2:
 			# Two distinct X values produce a straight line through Hermite
 			# with both tangents equal to the secant slope. Short-circuit.
@@ -458,7 +716,15 @@ class LineRenderer extends Control:
 			if not ascending:
 				trivial.reverse()
 				trivial_colors.reverse()
-			return [trivial, trivial_colors]
+			var trivial_map := PackedInt32Array()
+			trivial_map.resize(input_count)
+			for i in range(input_count):
+				var kept_idx: int = kept_of[i]
+				if ascending:
+					trivial_map[i] = kept_idx
+				else:
+					trivial_map[i] = 1 - kept_idx
+			return [trivial, trivial_colors, trivial_map]
 
 		var tangents := _fritsch_carlson_tangents(xs, ys)
 
@@ -504,7 +770,20 @@ class LineRenderer extends Control:
 		if not ascending:
 			out.reverse()
 			out_colors.reverse()
-		return [out, out_colors]
+
+		# Build the input-to-output index map. In the ascending output, kept
+		# input k sits at out[k * SUBS]. When the output is reversed for a
+		# descending input, that position becomes (out_size - 1 - k * SUBS).
+		var input_to_output := PackedInt32Array()
+		input_to_output.resize(input_count)
+		for i in range(input_count):
+			var kept_idx: int = kept_of[i]
+			var out_idx: int = kept_idx * _SMOOTH_SUBDIVISIONS
+			if not ascending:
+				out_idx = out_size - 1 - out_idx
+			input_to_output[i] = out_idx
+
+		return [out, out_colors, input_to_output]
 
 
 	# Returns +1 if screen X is strictly monotonically increasing across the
@@ -630,14 +909,28 @@ class LineRenderer extends Control:
 	# Per-sample color and alpha resolution
 	####################################################################################################
 
-	# Combined per-sample color resolution. The alpha resolved by
-	# _resolve_sample_alpha overwrites the alpha channel of the color resolved
-	# by _resolve_sample_color_only.
+	# Combined per-sample color resolution. Alpha overwrites the resolved
+	# color's alpha channel, then the result is routed through the
+	# hover-highlight callback when active.
 	func _resolve_sample_color(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
 		var base := _resolve_sample_color_only(p_series_index, p_sample_index, p_x_value, p_y_value)
 		var alpha := _resolve_sample_alpha(p_series_index, p_sample_index, p_x_value, p_y_value)
 		base.a = clampf(alpha, 0.0, 1.0)
-		return base
+		return _apply_hover_color(base, _get_line_series_id(p_series_index), p_sample_index)
+
+
+	# Applies the hover-highlight callback (or the built-in dim/brighten
+	# default) to a resolved per-sample color. Returns the color unchanged
+	# when the highlight feature is off.
+	func _apply_hover_color(p_color: Color, p_series_id: int, p_sample_index: int) -> Color:
+		if not _highlight_active:
+			return p_color
+		var is_hovered: bool = (p_series_id == _hovered_series_id) and (p_sample_index == _hovered_sample_index)
+		if _hover_highlight_callback.is_valid():
+			return _hover_highlight_callback.call(p_color, is_hovered)
+		if is_hovered:
+			return p_color.lightened(0.15)
+		return Color(p_color, 0.5)
 
 
 	func _resolve_sample_color_only(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
