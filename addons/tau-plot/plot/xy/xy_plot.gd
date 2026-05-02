@@ -231,6 +231,13 @@ func setup(
 				# Unknown overlay types are rejected by validation.
 				pass
 
+	# Bindings populate the per-pane series id arrays in binding-iteration
+	# order, which is unrelated to dataset order. Sorting here makes the
+	# stacking order predictable (layer 0 = first declared series).
+	for pane_index in range(pane_count):
+		_sort_series_ids_by_dataset_index(_bar_series_ids_per_pane[pane_index])
+		_sort_series_ids_by_dataset_index(_line_series_ids_per_pane[pane_index])
+
 	# Domain + layout creation
 	_xy_domain_overrides = XYDomainOverrides.new()
 	_xy_domain_overrides.init_panes(pane_count)
@@ -939,6 +946,21 @@ func _attach_legend_outside(p_legend: Control, p_position: Position) -> void:
 			var hbox := $HBoxContainer
 			hbox.add_child(p_legend)
 			hbox.move_child(p_legend, hbox.get_child_count() - 1)
+
+
+func _sort_series_ids_by_dataset_index(p_ids: PackedInt64Array) -> void:
+	# Insertion sort. PackedInt64Array exposes no sort_custom, and the per-pane
+	# series count is small enough that anything more elaborate is overkill.
+	var count := p_ids.size()
+	for sorted_count in range(count):
+		# Pick the next unsorted element and find where it belongs in the already-sorted [0, sorted_count) part.
+		var current_sid := p_ids[sorted_count]
+		var current_dataset_index := _dataset.get_series_index_by_id(current_sid)
+		var insert_at := sorted_count
+		while insert_at > 0 and _dataset.get_series_index_by_id(p_ids[insert_at - 1]) > current_dataset_index:
+			p_ids[insert_at] = p_ids[insert_at - 1]
+			insert_at -= 1
+		p_ids[insert_at] = current_sid
 
 
 func _init_pane_dirty_flags(p_pane_count: int) -> void:
