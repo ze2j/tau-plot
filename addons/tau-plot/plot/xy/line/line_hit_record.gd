@@ -11,8 +11,14 @@ class LineHitRecord extends RefCounted:
 	## Float for continuous x, String for categorical.
 	var x_value: Variant
 
-	## Plotted y value.
-	var y_value: float
+	## Y position the polyline vertex is drawn at, in axis units.
+	## Differs from y_raw_value when STACKED is on (cumulative top) or when
+	## FRACTION/PERCENT normalization is on.
+	var y_plotted_value: float
+
+	## Original dataset value, before any stacking, normalization, or
+	## accumulation. Equal to y_plotted_value when STACKED is off.
+	var y_raw_value: float
 
 	## Real sample position in pane-local screen coordinates.
 	var screen_position: Vector2

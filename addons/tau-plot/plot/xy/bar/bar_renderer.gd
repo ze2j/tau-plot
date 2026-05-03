@@ -469,27 +469,37 @@ class BarRenderer extends Control:
 
 	## Draws a single bar, orientation-aware, using a StyleBox.
 	## Records a BarHitRecord for every bar that survives clipping.
-	## [param p_y_value] is stored in the hit record.
-	## [param p_y_value_for_callbacks] is passed to color, alpha, and style_box callbacks.
-	func _draw_bar(p_pane_rect: Rect2, p_x_screen: float, p_y_from_screen: float,
-				   p_y_to_screen: float, p_thickness_px: float, p_color: Color,
-				   p_series_index: int, p_sample_index: int,
-				   p_x_value: Variant, p_y_value: float,
-				   p_y_value_for_callbacks: float) -> void:
+	## p_pane_rect: pane bounds used to clip the bar rect.
+	## p_x_axis_px: bar center along the x-axis direction, in pixels.
+	## p_y_axis_from_px: baseline end of the bar along the y-axis direction, in pixels.
+	## p_y_axis_to_px: tip end of the bar along the y-axis direction, in pixels.
+	## p_thickness_px: bar thickness across the x-axis direction, in pixels.
+	## p_color: fill color before hover remap.
+	## p_series_index: index into the bar series list, not the dataset series id.
+	## p_sample_index: sample index / category index.
+	## p_x_value: float for continuous x, String for categorical.
+	## p_y_plotted_value: cumulative top in STACKED mode, scaled when FRACTION/PERCENT is on.
+	## p_y_raw_value: original dataset value. Equal to p_y_plotted_value when STACKED is off.
+	func _draw_bar(
+			p_pane_rect: Rect2, p_x_axis_px: float, p_y_axis_from_px: float, p_y_axis_to_px: float,
+			p_thickness_px: float, p_color: Color,
+			p_series_index: int, p_sample_index: int,
+			p_x_value: Variant, p_y_plotted_value: float, p_y_raw_value: float
+		) -> void:
 		var x_is_horizontal: bool = _layout._x_is_horizontal
 
 		# Build the clipped screen rect.
 		var rect: Rect2
 		if x_is_horizontal:
-			var left := p_x_screen - p_thickness_px * 0.5
+			var left := p_x_axis_px - p_thickness_px * 0.5
 			var right := left + p_thickness_px
 			var clipped_left := max(left, p_pane_rect.position.x)
 			var clipped_right := min(right, p_pane_rect.position.x + p_pane_rect.size.x)
 			var w: float = clipped_right - clipped_left
 			if w <= 0.0:
 				return
-			var top := min(p_y_from_screen, p_y_to_screen)
-			var bottom := max(p_y_from_screen, p_y_to_screen)
+			var top := min(p_y_axis_from_px, p_y_axis_to_px)
+			var bottom := max(p_y_axis_from_px, p_y_axis_to_px)
 			var clipped_top := max(top, p_pane_rect.position.y)
 			var clipped_bottom := min(bottom, p_pane_rect.position.y + p_pane_rect.size.y)
 			var h: float = clipped_bottom - clipped_top
@@ -497,15 +507,15 @@ class BarRenderer extends Control:
 				return
 			rect = Rect2(Vector2(clipped_left, clipped_top), Vector2(w, h))
 		else:
-			var top := p_x_screen - p_thickness_px * 0.5
+			var top := p_x_axis_px - p_thickness_px * 0.5
 			var bottom := top + p_thickness_px
 			var clipped_top := max(top, p_pane_rect.position.y)
 			var clipped_bottom := min(bottom, p_pane_rect.position.y + p_pane_rect.size.y)
 			var h: float = clipped_bottom - clipped_top
 			if h <= 0.0:
 				return
-			var left := min(p_y_from_screen, p_y_to_screen)
-			var right := max(p_y_from_screen, p_y_to_screen)
+			var left := min(p_y_axis_from_px, p_y_axis_to_px)
+			var right := max(p_y_axis_from_px, p_y_axis_to_px)
 			var clipped_left := max(left, p_pane_rect.position.x)
 			var clipped_right := min(right, p_pane_rect.position.x + p_pane_rect.size.x)
 			var w: float = clipped_right - clipped_left
@@ -513,30 +523,26 @@ class BarRenderer extends Control:
 				return
 			rect = Rect2(Vector2(clipped_left, clipped_top), Vector2(w, h))
 
-		var style_box := _get_style_box(p_series_index, p_sample_index, p_x_value, p_y_value_for_callbacks)
+		var style_box := _get_style_box(p_series_index, p_sample_index, p_x_value, p_y_raw_value)
 		var final_color := _apply_hover_color(p_color, _get_bar_series_id(p_series_index), p_sample_index)
 		_set_style_box_color(style_box, final_color)
 
 		if style_box is StyleBoxFlat:
-			var tip_at_min: bool = (p_y_to_screen < p_y_from_screen)
+			var tip_at_min: bool = (p_y_axis_to_px < p_y_axis_from_px)
 			_remap_corners_and_borders(style_box as StyleBoxFlat, _derived_source_ref as StyleBoxFlat, x_is_horizontal, tip_at_min)
 
 		draw_style_box(style_box, rect)
 
-		# Tip-center in screen coords, un-clipped so the anchor stays on the data point
-		# even when the bar is partly outside the pane.
-		# TODO: use XYLayout.map_point_to_screen() once it exists.
-		var anchor: Vector2
-		if x_is_horizontal:
-			anchor = Vector2(p_x_screen, p_y_to_screen)
-		else:
-			anchor = Vector2(p_y_to_screen, p_x_screen)
+		# Tip center in screen coords, un-clipped so the anchor stays on the data
+		# point even when the bar is partly outside the pane.
+		var anchor := _layout.map_point_to_screen(p_x_axis_px, p_y_axis_to_px)
 
 		var record := BarHitRecord.new()
 		record.series_id = _get_bar_series_id(p_series_index)
 		record.sample_index = p_sample_index
 		record.x_value = p_x_value
-		record.y_value = p_y_value
+		record.y_plotted_value = p_y_plotted_value
+		record.y_raw_value = p_y_raw_value
 		record.rect = rect
 		record.anchor = anchor
 		_hit_records.append(record)

@@ -293,7 +293,8 @@ class LineRenderer extends Control:
 			record.series_id = series_id
 			record.sample_index = i
 			record.x_value = x_value
-			record.y_value = y_value
+			record.y_plotted_value = y_value
+			record.y_raw_value = y_value
 			record.screen_position = screen_pos
 			_hit_records.append(record)
 
@@ -343,7 +344,8 @@ class LineRenderer extends Control:
 			record.series_id = series_id
 			record.sample_index = cat_idx
 			record.x_value = x_value
-			record.y_value = y_value
+			record.y_plotted_value = y_value
+			record.y_raw_value = y_value
 			record.screen_position = screen_pos
 			_hit_records.append(record)
 

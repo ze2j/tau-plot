@@ -104,7 +104,8 @@ class ScatterHitTester extends OverlayHitTester:
 			hit.series_name = _dataset.get_series_name(hit.series_id)
 			hit.sample_index = sample_idx
 			hit.x_value = p_x_value
-			hit.y_value = _scatter_renderer.get_hover_y_value(i)
+			hit.y_plotted_value = _scatter_renderer.get_hover_y_value(i)
+			hit.y_raw_value = hit.y_plotted_value
 			hit.screen_position = screen_pos
 			hit.pane_index = _pane_index
 			hit.overlay_type = PaneOverlayType.SCATTER
@@ -153,7 +154,8 @@ class ScatterHitTester extends OverlayHitTester:
 			hit.series_name = _dataset.get_series_name(hit.series_id)
 			hit.sample_index = _scatter_renderer.get_hover_sample_index(i)
 			hit.x_value = _scatter_renderer.get_hover_x_value(i)
-			hit.y_value = _scatter_renderer.get_hover_y_value(i)
+			hit.y_plotted_value = _scatter_renderer.get_hover_y_value(i)
+			hit.y_raw_value = hit.y_plotted_value
 			hit.screen_position = screen_pos
 			hit.pane_index = _pane_index
 			hit.overlay_type = PaneOverlayType.SCATTER
@@ -213,7 +215,8 @@ class ScatterHitTester extends OverlayHitTester:
 		hit.series_name = _dataset.get_series_name(hit.series_id)
 		hit.sample_index = _scatter_renderer.get_hover_sample_index(p_cache_index)
 		hit.x_value = _scatter_renderer.get_hover_x_value(p_cache_index)
-		hit.y_value = _scatter_renderer.get_hover_y_value(p_cache_index)
+		hit.y_plotted_value = _scatter_renderer.get_hover_y_value(p_cache_index)
+		hit.y_raw_value = hit.y_plotted_value
 		hit.screen_position = _scatter_renderer.get_hover_screen_position(p_cache_index)
 		hit.pane_index = _pane_index
 		hit.overlay_type = PaneOverlayType.SCATTER

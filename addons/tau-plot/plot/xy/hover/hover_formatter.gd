@@ -98,7 +98,7 @@ class HoverFormatter extends RefCounted:
 	## Formats the y value of a hit, using axis format_tick_label if available.
 	func _format_hit_y_value(p_hit: SampleHit) -> String:
 		var span := _get_y_domain_span(p_hit)
-		var raw_str := _format_value(p_hit.y_value, span, _precision_digits)
+		var raw_str := _format_value(p_hit.y_raw_value, span, _precision_digits)
 		return _apply_y_format_callback(raw_str, p_hit)
 
 

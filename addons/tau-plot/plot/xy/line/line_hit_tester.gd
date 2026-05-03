@@ -156,7 +156,8 @@ class LineHitTester extends OverlayHitTester:
 		hit.series_name = _dataset.get_series_name(p_record.series_id)
 		hit.sample_index = p_record.sample_index
 		hit.x_value = p_record.x_value
-		hit.y_value = p_record.y_value
+		hit.y_plotted_value = p_record.y_plotted_value
+		hit.y_raw_value = p_record.y_raw_value
 		hit.screen_position = p_record.screen_position
 		hit.pane_index = _pane_index
 		hit.overlay_type = PaneOverlayType.LINE
