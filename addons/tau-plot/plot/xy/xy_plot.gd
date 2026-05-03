@@ -396,7 +396,7 @@ func setup(
 
 	# Hover setup
 	var tooltip_precision_digits := p_hover_config.tooltip_precision_digits if p_hover_config != null else 3
-	var formatter := HoverFormatter.new(_xy_domain, _domain_config, _series_assignment, tooltip_precision_digits)
+	var formatter := HoverFormatter.new(_xy_domain, _series_assignment, tooltip_precision_digits)
 
 	# Create per-pane hit testers.
 	var hit_testers_per_pane: Array = []
