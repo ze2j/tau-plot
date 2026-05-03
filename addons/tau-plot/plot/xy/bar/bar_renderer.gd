@@ -16,7 +16,8 @@ const BarHitRecord := preload("res://addons/tau-plot/plot/xy/bar/bar_hit_record.
 # - NaN and Inf are always silently skipped
 # - Logarithmic Y scales: y <= 0 are skipped
 # - Logarithmic X scales: x <= 0 are skipped
-# - STACKED mode: negative values are skipped (would produce misleading visualization)
+# - STACKED mode: negative values follow TauBarConfig.stacked_negative_policy
+#   (DIVERGING by default: a separate downward stack from zero).
 # BarValidator is expected to enforce:
 # - dataset shape constraints for the chosen mode,
 # - length consistency in SHARED_X mode,
@@ -661,6 +662,76 @@ class BarRenderer extends Control:
 				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, i, x_value, y_value, y_value)
 
 
+	# Builds one X column's worth of stacked bar segments in dataset order,
+	# applying the active normalization and negative policy. The returned list
+	# drives the second-pass painter, which looks up segments by series_index.
+	func _compute_stacked_segments_at(p_series_count: int, p_sample_index: int) -> Array:
+		var normalization := _bar_config.stacked_normalization
+		var policy := _bar_config.stacked_negative_policy
+
+		# DIVERGING needs positive and absolute-negative totals tracked
+		# separately so each half-stack normalizes against its own total.
+		var pos_total := 0.0
+		var neg_total_abs := 0.0
+		if normalization != TauBarConfig.StackedNormalization.NONE:
+			for series_index in range(p_series_count):
+				var series_id := _get_bar_series_id(series_index)
+				var y_value := _dataset.get_series_y(series_id, p_sample_index)
+				if is_nan(y_value) or is_inf(y_value):
+					continue
+				if y_value >= 0.0:
+					pos_total += y_value
+				else:
+					neg_total_abs += -y_value
+
+		var pos_scale := 1.0
+		var neg_scale := 1.0
+		match normalization:
+			TauBarConfig.StackedNormalization.FRACTION:
+				pos_scale = 1.0 / pos_total if pos_total > 0.0 else 0.0
+				neg_scale = 1.0 / neg_total_abs if neg_total_abs > 0.0 else 0.0
+
+			TauBarConfig.StackedNormalization.PERCENT:
+				pos_scale = 100.0 / pos_total if pos_total > 0.0 else 0.0
+				neg_scale = 100.0 / neg_total_abs if neg_total_abs > 0.0 else 0.0
+
+		var segments: Array = []
+		var accum_pos := 0.0
+		var accum_neg := 0.0
+
+		for series_index in range(p_series_count):
+			var series_id := _get_bar_series_id(series_index)
+			var y_raw := _dataset.get_series_y(series_id, p_sample_index)
+			if is_nan(y_raw) or is_inf(y_raw):
+				continue
+
+			match policy:
+				TauBarConfig.StackedNegativePolicy.SKIP_NEGATIVES:
+					if y_raw < 0.0:
+						continue
+					var y := y_raw * pos_scale
+					var y0 := accum_pos
+					var y1 := accum_pos + y
+					segments.append({"series_index": series_index, "y0": y0, "y1": y1})
+					accum_pos = y1
+
+				TauBarConfig.StackedNegativePolicy.DIVERGING:
+					if y_raw >= 0.0:
+						var y := y_raw * pos_scale
+						var y0 := accum_pos
+						var y1 := accum_pos + y
+						segments.append({"series_index": series_index, "y0": y0, "y1": y1})
+						accum_pos = y1
+					else:
+						var y := y_raw * neg_scale
+						var y0 := accum_neg
+						var y1 := accum_neg + y
+						segments.append({"series_index": series_index, "y0": y0, "y1": y1})
+						accum_neg = y1
+
+		return segments
+
+
 	func _draw_stacked_bars(p_pane_rect: Rect2, p_series_count: int) -> void:
 		# Validator ensures: STACKED requires SHARED_X and SHARED y-axis
 		if p_series_count <= 0:
@@ -677,6 +748,7 @@ class BarRenderer extends Control:
 				push_error("Unexpected x-axis type %d" % int(x_config.type))
 
 
+	# FIXME: the second pass here duplicates _draw_stacked_bars_continuous_shared_x almost line-for-line.
 	func _draw_stacked_bars_categorical(p_pane_rect: Rect2, p_series_count: int) -> void:
 		var stacked_axis_id := _get_y_axis_id_for_series(_get_bar_series_id(0))
 		var categories := _layout.domain.x_categories
@@ -690,44 +762,8 @@ class BarRenderer extends Control:
 		# First pass: compute all segments for all categories (in dataset order for stacking)
 		var all_segments: Array = []  # Array of arrays, one per category. FIXME Godot 4.5 does not support nested typed collections.
 		all_segments.resize(n)
-
 		for category_index in range(n):
-			var total := 0.0
-			if _bar_config.stacked_normalization != TauBarConfig.StackedNormalization.NONE:
-				for series_index in range(p_series_count):
-					var series_id := _get_bar_series_id(series_index)
-					var y_value := _dataset.get_series_y(series_id, category_index)
-					if is_nan(y_value) or is_inf(y_value):
-						continue
-					if y_value < 0.0:
-						continue  # STACKED: skip negative values for total calculation
-					total += y_value
-
-			var scale := 1.0
-			if _bar_config.stacked_normalization == TauBarConfig.StackedNormalization.FRACTION:
-				scale = 1.0 / total if total > 0.0 else 0.0
-			elif _bar_config.stacked_normalization == TauBarConfig.StackedNormalization.PERCENT:
-				scale = 100.0 / total if total > 0.0 else 0.0
-
-			# Compute segments for this category in dataset order
-			var segments: Array = []
-			var accum := 0.0
-			for series_index in range(p_series_count):
-				var series_id := _get_bar_series_id(series_index)
-				var y_raw := _dataset.get_series_y(series_id, category_index)
-				if is_nan(y_raw) or is_inf(y_raw):
-					continue
-				if y_raw < 0.0:
-					continue  # STACKED: skip negative values
-
-				var y := y_raw * scale
-				var y0 := accum
-				var y1 := accum + y
-
-				segments.append({"series_index": series_index, "y0": y0, "y1": y1})
-				accum = y1
-
-			all_segments[category_index] = segments
+			all_segments[category_index] = _compute_stacked_segments_at(p_series_count, category_index)
 
 		# Second pass: paint in z_order (series first, then categories)
 		var draw_order := _get_series_draw_order(p_series_count)
@@ -760,6 +796,7 @@ class BarRenderer extends Control:
 				_draw_bar(p_pane_rect, group_center_px, y0_px, y1_px, bar_width_px, color, series_index, category_index, x_value, y_value, y_raw)
 
 
+	# FIXME: the second pass here duplicates _draw_stacked_bars_categorical almost line-for-line.
 	func _draw_stacked_bars_continuous_shared_x(p_pane_rect: Rect2, p_series_count: int) -> void:
 		var stacked_axis_id := _get_y_axis_id_for_series(_get_bar_series_id(0))
 		var n := _dataset.get_shared_sample_count()
@@ -771,7 +808,6 @@ class BarRenderer extends Control:
 		# First pass: compute all segments for all X positions (in dataset order for stacking)
 		var all_segments: Array = []  # Array of arrays, one per X position. FIXME Godot 4.5 does not support nested typed collections.
 		all_segments.resize(n)
-
 		for i in range(n):
 			var x_value := float(_dataset.get_shared_x(i))
 			if is_nan(x_value) or is_inf(x_value):
@@ -781,42 +817,7 @@ class BarRenderer extends Control:
 				all_segments[i] = []
 				continue
 
-			var total := 0.0
-			if _bar_config.stacked_normalization != TauBarConfig.StackedNormalization.NONE:
-				for series_index in range(p_series_count):
-					var series_id := _get_bar_series_id(series_index)
-					var y_value := _dataset.get_series_y(series_id, i)
-					if is_nan(y_value) or is_inf(y_value):
-						continue
-					if y_value < 0.0:
-						continue  # STACKED: skip negative values for total calculation
-					total += y_value
-
-			var scale := 1.0
-			if _bar_config.stacked_normalization == TauBarConfig.StackedNormalization.FRACTION:
-				scale = 1.0 / total if total > 0.0 else 0.0
-			elif _bar_config.stacked_normalization == TauBarConfig.StackedNormalization.PERCENT:
-				scale = 100.0 / total if total > 0.0 else 0.0
-
-			# Compute segments for this X position in dataset order
-			var segments: Array = []
-			var accum := 0.0
-			for series_index in range(p_series_count):
-				var series_id := _get_bar_series_id(series_index)
-				var y_raw := _dataset.get_series_y(series_id, i)
-				if is_nan(y_raw) or is_inf(y_raw):
-					continue
-				if y_raw < 0.0:
-					continue  # STACKED: skip negative values
-
-				var y := y_raw * scale
-				var y0 := accum
-				var y1 := accum + y
-
-				segments.append({"series_index": series_index, "y0": y0, "y1": y1})
-				accum = y1
-
-			all_segments[i] = segments
+			all_segments[i] = _compute_stacked_segments_at(p_series_count, i)
 
 		# Second pass: paint in z_order (series first, then X positions)
 		var draw_order := _get_series_draw_order(p_series_count)

@@ -24,6 +24,17 @@ enum BarMode
 const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
 @export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
 
+const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
+
+## How negative values are handled in STACKED mode:
+## - SKIP_NEGATIVES (default) drops negative samples entirely from the stack.
+## - DIVERGING splits each X into an upper stack of positive values and
+## a lower stack of negative values, both anchored at zero.
+## - SIGNED_SUM is not a valid choice for bars: bar geometry cannot represent a
+## downward dip without overlapping rectangles. Setting it produces a validation
+## error.
+@export var stacked_negative_policy: StackedNegativePolicy = StackedNegativePolicy.SKIP_NEGATIVES
+
 
 enum BarWidthPolicy
 {
@@ -150,6 +161,8 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 		return false
 	if stacked_normalization != other.stacked_normalization:
 		return false
+	if stacked_negative_policy != other.stacked_negative_policy:
+		return false
 
 	if bar_width_policy != other.bar_width_policy:
 		return false
@@ -180,10 +193,11 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 # Returns true if the change between this and p_other affects layout/domain.
 # Returns false if the change only affects visual appearance.
 #
-# Only mode and stacked_normalization affect the domain (stacking changes Y
-# bounds via _apply_bar_domain_overrides_y). All width, gap, and spacing
-# properties are visual-only: they control how bars are drawn within a fixed
-# domain but do not feed into domain or tick computation.
+# mode, stacked_normalization, and stacked_negative_policy affect the domain:
+# stacking changes Y bounds, normalization pins the range, and the negative
+# policy decides whether the lower half-axis exists. All width, gap, and
+# spacing properties are visual-only: they control how bars are drawn within
+# a fixed domain but do not feed into domain or tick computation.
 func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauBarConfig
 	if other == null:
@@ -196,6 +210,9 @@ func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 		return true
 
 	if mode == BarMode.STACKED and stacked_normalization != other.stacked_normalization:
+		return true
+
+	if mode == BarMode.STACKED and stacked_negative_policy != other.stacked_negative_policy:
 		return true
 
 	return false

@@ -23,6 +23,7 @@ const XYState := preload("res://addons/tau-plot/plot/xy/xy_state.gd").XYState
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const XYDomainOverrides := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").XYDomainOverrides
 const YDomainOverride := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").YDomainOverride
+const StackedPinnedRange := preload("res://addons/tau-plot/plot/xy/stacked_pinned_range.gd").StackedPinnedRange
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const XYAxisTitleLayout := preload("res://addons/tau-plot/plot/xy/xy_axis_title_layout.gd").XYAxisTitleLayout
 const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
@@ -1184,15 +1185,11 @@ func _apply_bar_domain_overrides_y() -> void:
 			TauBarConfig.StackedNormalization.NONE:
 				y_domain_override.stack_y_values = true
 
-			TauBarConfig.StackedNormalization.FRACTION:
+			TauBarConfig.StackedNormalization.FRACTION, TauBarConfig.StackedNormalization.PERCENT:
+				var pinned := StackedPinnedRange.compute(pane_bar_config.stacked_normalization, pane_bar_config.stacked_negative_policy)
 				y_domain_override.force_y_range = true
-				y_domain_override.force_y_min = 0.0
-				y_domain_override.force_y_max = 1.0
-
-			TauBarConfig.StackedNormalization.PERCENT:
-				y_domain_override.force_y_range = true
-				y_domain_override.force_y_min = 0.0
-				y_domain_override.force_y_max = 100.0
+				y_domain_override.force_y_min = pinned.x
+				y_domain_override.force_y_max = pinned.y
 
 			_:
 				push_error("_apply_bar_domain_overrides_y(): unexpected stacked normalization")

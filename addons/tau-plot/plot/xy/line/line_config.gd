@@ -23,6 +23,15 @@ enum LineMode
 const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
 @export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
 
+const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
+
+## How negative values are handled in STACKED mode.
+## SIGNED_SUM (default) folds negative values into the cumulative as a downward
+## dip, the streamgraph behavior. DIVERGING splits each X into an upper stack
+## of positive values and a lower stack of negative values, both anchored at
+## zero. SKIP_NEGATIVES drops negative samples entirely from the stack.
+@export var stacked_negative_policy: StackedNegativePolicy = StackedNegativePolicy.SIGNED_SUM
+
 ## Strategy applied when the curve encounters a sample with a NaN or infinite
 ## X or Y value (or a value forbidden by the active axis scale, such as a
 ## non-positive value on a logarithmic axis).
@@ -115,6 +124,8 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 		return false
 	if stacked_normalization != other.stacked_normalization:
 		return false
+	if stacked_negative_policy != other.stacked_negative_policy:
+		return false
 	if gap_policy != other.gap_policy:
 		return false
 	if interpolation_mode != other.interpolation_mode:
@@ -128,8 +139,10 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 # Returns true if the change between this and p_other affects layout/domain.
 # Returns false if the change only affects visual appearance.
 #
-# Only mode and stacked_normalization affect the domain: stacking changes the
-# Y bounds. Hover distance is a pure hit-test parameter with no layout effect.
+# mode, stacked_normalization, and stacked_negative_policy affect the domain:
+# stacking changes Y bounds, normalization pins the range, and the negative
+# policy decides whether the lower half-axis exists. Hover distance is a pure
+# hit-test parameter with no layout effect.
 func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauLineConfig
 	if other == null:
@@ -142,6 +155,9 @@ func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 		return true
 
 	if mode == LineMode.STACKED and stacked_normalization != other.stacked_normalization:
+		return true
+
+	if mode == LineMode.STACKED and stacked_negative_policy != other.stacked_negative_policy:
 		return true
 
 	return false
