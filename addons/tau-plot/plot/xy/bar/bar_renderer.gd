@@ -469,13 +469,14 @@ class BarRenderer extends Control:
 
 	## Draws a single bar, orientation-aware, using a StyleBox.
 	## Records a BarHitRecord for every bar that survives clipping.
+	## [param p_y_value] is stored in the hit record.
+	## [param p_y_value_for_callbacks] is passed to color, alpha, and style_box callbacks.
 	func _draw_bar(p_pane_rect: Rect2, p_x_screen: float, p_y_from_screen: float,
 				   p_y_to_screen: float, p_thickness_px: float, p_color: Color,
 				   p_series_index: int, p_sample_index: int,
-				   p_x_value: Variant, p_y_value: float) -> void:
+				   p_x_value: Variant, p_y_value: float,
+				   p_y_value_for_callbacks: float) -> void:
 		var x_is_horizontal: bool = _layout._x_is_horizontal
-
-		# TODO: replace the x_is_horizontal branches below with XYLayout.map_point_to_screen() once it exists.
 
 		# Build the clipped screen rect.
 		var rect: Rect2
@@ -512,7 +513,7 @@ class BarRenderer extends Control:
 				return
 			rect = Rect2(Vector2(clipped_left, clipped_top), Vector2(w, h))
 
-		var style_box := _get_style_box(p_series_index, p_sample_index, p_x_value, p_y_value)
+		var style_box := _get_style_box(p_series_index, p_sample_index, p_x_value, p_y_value_for_callbacks)
 		var final_color := _apply_hover_color(p_color, _get_bar_series_id(p_series_index), p_sample_index)
 		_set_style_box_color(style_box, final_color)
 
@@ -592,7 +593,7 @@ class BarRenderer extends Control:
 				var base_color := _get_bar_color(series_index, category_index, x_value, y_value)
 				var alpha_override := _get_bar_alpha(series_index, category_index, x_value, y_value)
 				var color := _apply_alpha_override(base_color, alpha_override)
-				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, category_index, x_value, y_value)
+				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, category_index, x_value, y_value, y_value)
 
 
 	func _draw_grouped_bars_continuous(p_pane_rect: Rect2, p_series_count: int) -> void:
@@ -651,7 +652,7 @@ class BarRenderer extends Control:
 				var base_color := _get_bar_color(series_index, i, x_value, y_value)
 				var alpha_override := _get_bar_alpha(series_index, i, x_value, y_value)
 				var color := _apply_alpha_override(base_color, alpha_override)
-				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, i, x_value, y_value)
+				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, i, x_value, y_value, y_value)
 
 
 	func _draw_stacked_bars(p_pane_rect: Rect2, p_series_count: int) -> void:
@@ -744,11 +745,13 @@ class BarRenderer extends Control:
 
 				var x_value: Variant = categories[category_index]
 				var y_value: float = segment["y1"]
-				var base_color := _get_bar_color(series_index, category_index, x_value, y_value)
-				var alpha_override := _get_bar_alpha(series_index, category_index, x_value, y_value)
+				# Callbacks see the raw dataset value, not the stacked top.
+				var y_raw: float = _dataset.get_series_y(_get_bar_series_id(series_index), category_index)
+				var base_color := _get_bar_color(series_index, category_index, x_value, y_raw)
+				var alpha_override := _get_bar_alpha(series_index, category_index, x_value, y_raw)
 				var color := _apply_alpha_override(base_color, alpha_override)
 
-				_draw_bar(p_pane_rect, group_center_px, y0_px, y1_px, bar_width_px, color, series_index, category_index, x_value, y_value)
+				_draw_bar(p_pane_rect, group_center_px, y0_px, y1_px, bar_width_px, color, series_index, category_index, x_value, y_value, y_raw)
 
 
 	func _draw_stacked_bars_continuous_shared_x(p_pane_rect: Rect2, p_series_count: int) -> void:
@@ -846,11 +849,13 @@ class BarRenderer extends Control:
 				var y1_px := _layout.map_y_to_px(_pane_index, segment["y1"], stacked_axis_id)
 
 				var y_value: float = segment["y1"]
-				var base_color := _get_bar_color(series_index, i, x_value, y_value)
-				var alpha_override := _get_bar_alpha(series_index, i, x_value, y_value)
+				# Callbacks see the raw dataset value, not the stacked top.
+				var y_raw: float = _dataset.get_series_y(_get_bar_series_id(series_index), i)
+				var base_color := _get_bar_color(series_index, i, x_value, y_raw)
+				var alpha_override := _get_bar_alpha(series_index, i, x_value, y_raw)
 				var color := _apply_alpha_override(base_color, alpha_override)
 
-				_draw_bar(p_pane_rect, group_center_px, y0_px, y1_px, bar_width_px, color, series_index, i, x_value, y_value)
+				_draw_bar(p_pane_rect, group_center_px, y0_px, y1_px, bar_width_px, color, series_index, i, x_value, y_value, y_raw)
 
 
 	func _draw_independent_bars(p_pane_rect: Rect2, p_series_count: int) -> void:
@@ -903,7 +908,7 @@ class BarRenderer extends Control:
 				var alpha_override := _get_bar_alpha(series_index, category_index, x_value, y_value)
 				var color := _apply_alpha_override(base_color, alpha_override)
 
-				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, category_index, x_value, y_value)
+				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, category_index, x_value, y_value, y_value)
 
 
 	func _draw_independent_bars_continuous(p_pane_rect: Rect2, p_series_count: int) -> void:
@@ -960,7 +965,7 @@ class BarRenderer extends Control:
 				var alpha_override := _get_bar_alpha(series_index, i, x_value, y_value)
 				var color := _apply_alpha_override(base_color, alpha_override)
 
-				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, i, x_value, y_value)
+				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, i, x_value, y_value, y_value)
 
 
 	func _draw_independent_bars_continuous_per_series_x(p_pane_rect: Rect2, p_series_count: int) -> void:
@@ -1004,7 +1009,7 @@ class BarRenderer extends Control:
 				var alpha_override := _get_bar_alpha(series_index, i, x_value, y_value)
 				var color := _apply_alpha_override(base_color, alpha_override)
 
-				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, i, x_value, y_value)
+				_draw_bar(p_pane_rect, center_px, zero_px, y_px, bar_width_px, color, series_index, i, x_value, y_value, y_value)
 
 
 	func _get_series_draw_order(p_series_count: int) -> Array[int]:
