@@ -1148,6 +1148,8 @@ func _update_xy_layout(p_pane_view_rects: Array[Rect2], p_pane_positions: Array[
 func _apply_bar_domain_overrides_y() -> void:
 	var pane_count := _domain_config.panes.size()
 	for pane_index in range(pane_count):
+		_xy_domain_overrides.clear_pane(pane_index)
+
 		if pane_index >= _bar_series_ids_per_pane.size():
 			continue
 		if _bar_series_ids_per_pane[pane_index].is_empty():
@@ -1156,11 +1158,6 @@ func _apply_bar_domain_overrides_y() -> void:
 		var pane_bar_config: TauBarConfig = _bar_config_per_pane[pane_index] if pane_index < _bar_config_per_pane.size() else null
 		if pane_bar_config == null:
 			continue
-
-		var y_domain_override: YDomainOverride = _xy_domain_overrides.y_domain_overrides[pane_index]
-
-		# Reset vertical overrides each recompute then re-apply if needed.
-		y_domain_override.reset()
 
 		if pane_bar_config.mode != TauBarConfig.BarMode.STACKED:
 			continue
@@ -1179,7 +1176,7 @@ func _apply_bar_domain_overrides_y() -> void:
 		if stacked_y_cfg != null and stacked_y_cfg.range_override_enabled:
 			continue
 
-		y_domain_override.target_y_axis_id = stacked_y_axis_id
+		var y_domain_override: YDomainOverride = _xy_domain_overrides.get_or_create_override(pane_index, stacked_y_axis_id)
 
 		match pane_bar_config.stacked_normalization:
 			TauBarConfig.StackedNormalization.NONE:

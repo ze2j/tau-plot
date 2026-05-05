@@ -249,8 +249,8 @@ class XYDomain extends RefCounted:
 
 			var y_range_forced := _is_y_range_forced(p_pane_idx, y_axis_id)
 			if y_range_forced:
-				y_axis_domain.min_val = _get_forced_y_min(p_pane_idx)
-				y_axis_domain.max_val = _get_forced_y_max(p_pane_idx)
+				y_axis_domain.min_val = _get_forced_y_min(p_pane_idx, y_axis_id)
+				y_axis_domain.max_val = _get_forced_y_max(p_pane_idx, y_axis_id)
 			else:
 				var final_range := _finalize_y_axis_domain(y_axis_domain)
 				y_axis_domain.min_val = final_range.x
@@ -356,35 +356,37 @@ class XYDomain extends RefCounted:
 	func _is_y_range_forced(p_pane_index: int, p_y_axis_id: AxisId) -> bool:
 		if overrides == null:
 			return false
-		if p_pane_index < 0 or p_pane_index >= overrides.y_domain_overrides.size():
+		var ydo := overrides.get_override(p_pane_index, p_y_axis_id)
+		if ydo == null:
 			return false
-		var ydo := overrides.y_domain_overrides[p_pane_index]
-		return ydo.force_y_range and ydo.target_y_axis_id == p_y_axis_id
+		return ydo.force_y_range
 
 
-	func _get_forced_y_min(p_pane_index: int) -> float:
+	func _get_forced_y_min(p_pane_index: int, p_y_axis_id: AxisId) -> float:
 		if overrides == null:
 			return 0.0
-		if p_pane_index < 0 or p_pane_index >= overrides.y_domain_overrides.size():
+		var ydo := overrides.get_override(p_pane_index, p_y_axis_id)
+		if ydo == null:
 			return 0.0
-		return overrides.y_domain_overrides[p_pane_index].force_y_min
+		return ydo.force_y_min
 
 
-	func _get_forced_y_max(p_pane_index: int) -> float:
+	func _get_forced_y_max(p_pane_index: int, p_y_axis_id: AxisId) -> float:
 		if overrides == null:
 			return 1.0
-		if p_pane_index < 0 or p_pane_index >= overrides.y_domain_overrides.size():
+		var ydo := overrides.get_override(p_pane_index, p_y_axis_id)
+		if ydo == null:
 			return 1.0
-		return overrides.y_domain_overrides[p_pane_index].force_y_max
+		return ydo.force_y_max
 
 
 	func _must_stack_y_values(p_pane_index: int, p_y_axis_id: AxisId) -> bool:
 		if overrides == null:
 			return false
-		if p_pane_index < 0 or p_pane_index >= overrides.y_domain_overrides.size():
+		var ydo := overrides.get_override(p_pane_index, p_y_axis_id)
+		if ydo == null:
 			return false
-		var ydo := overrides.y_domain_overrides[p_pane_index]
-		return ydo.stack_y_values and ydo.target_y_axis_id == p_y_axis_id
+		return ydo.stack_y_values
 
 
 	func _scan_series_y_range(p_dataset: Dataset, p_y_axis_series_ids: PackedInt64Array, p_pane_idx: int, p_y_axis_id: AxisId, p_is_log: bool) -> Vector2:

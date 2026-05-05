@@ -1,10 +1,8 @@
-class YDomainOverride extends RefCounted:
-	const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
-	# The y-axis that the override targets. Only that axis is affected by
-	# force_y_range and stack_y_values. A value of -1 means "no axis targeted"
-	# (override is inactive regardless of the flags above).
-	var target_y_axis_id: int = -1
+
+# Stacking and forced-range override for one (pane, y-axis) pair.
+class YDomainOverride extends RefCounted:
 
 	var force_y_range: bool = false
 	var force_y_min: float = 0.0
@@ -14,23 +12,47 @@ class YDomainOverride extends RefCounted:
 
 
 	func reset() -> void:
-		target_y_axis_id = -1
 		force_y_range = false
 		force_y_min = 0.0
 		force_y_max = 1.0
 		stack_y_values = false
 
 
-# XY plot domain overrides driven by renderers.
-# Y axis overrides are per-pane.
+# Per-pane and per-axis Y domain overrides driven by renderers.
 class XYDomainOverrides extends RefCounted:
 
-	var y_domain_overrides: Array[YDomainOverride] = [] # Per-pane Y axis overrides.
+	var y_domain_overrides: Array = [] # FIXME Real type is Array[Dictionary[AxisId, YDomainOverride]. Godot 4.5 does not support nested typed collections.
 
-	# Initializes per-pane override storage. Existing entries are preserved up to
-	# p_pane_count. Excess entries are trimmed and missing entries are appended.
+
+	# Resizes per-pane storage. Existing entries below p_pane_count are kept.
 	func init_panes(p_pane_count: int) -> void:
 		while y_domain_overrides.size() > p_pane_count:
 			y_domain_overrides.pop_back()
 		while y_domain_overrides.size() < p_pane_count:
-			y_domain_overrides.append(YDomainOverride.new())
+			var empty: Dictionary[AxisId, YDomainOverride] = {}
+			y_domain_overrides.append(empty)
+
+
+	# Returns null when no override exists for that (pane, axis).
+	func get_override(p_pane_index: int, p_y_axis_id: AxisId) -> YDomainOverride:
+		if p_pane_index < 0 or p_pane_index >= y_domain_overrides.size():
+			return null
+		var pane_dict: Dictionary[AxisId, YDomainOverride] = y_domain_overrides[p_pane_index]
+		if p_y_axis_id in pane_dict:
+			return pane_dict[p_y_axis_id]
+		return null
+
+
+	func get_or_create_override(p_pane_index: int, p_y_axis_id: AxisId) -> YDomainOverride:
+		var pane_dict: Dictionary[AxisId, YDomainOverride] = y_domain_overrides[p_pane_index]
+		if p_y_axis_id in pane_dict:
+			return pane_dict[p_y_axis_id]
+		var override := YDomainOverride.new()
+		pane_dict[p_y_axis_id] = override
+		return override
+
+
+	func clear_pane(p_pane_index: int) -> void:
+		if p_pane_index < 0 or p_pane_index >= y_domain_overrides.size():
+			return
+		y_domain_overrides[p_pane_index].clear()

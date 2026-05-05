@@ -113,9 +113,9 @@ class DatasetChangeAnalyzer extends RefCounted:
 					if axis_domain.config != null and axis_domain.config.range_override_enabled:
 						continue
 
-					# Bar stacking override (FRACTION/PERCENT) pins the range on the target axis.
-					var pane_override: YDomainOverride = p_domain_overrides.y_domain_overrides[pane_idx]
-					if pane_override.force_y_range and pane_override.target_y_axis_id == y_axis_id:
+					# A stacking override (FRACTION/PERCENT) on this axis pins the range.
+					var pane_override: YDomainOverride = p_domain_overrides.get_override(pane_idx, y_axis_id)
+					if pane_override != null and pane_override.force_y_range:
 						continue
 
 					# include_zero could shift bounds even if the new values are in range.
