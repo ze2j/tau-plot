@@ -1,6 +1,7 @@
 # Dependencies
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const LineVisualAttributes = preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
 const LineVisualCallbacks = preload("res://addons/tau-plot/plot/xy/line/line_visual_callbacks.gd").LineVisualCallbacks
 const ValidationResult = preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
@@ -46,6 +47,9 @@ class LineValidator extends RefCounted:
 
 		_validate_line_visuals(p_pane_index, line_config, p_line_overlay_bindings, p_result)
 
+		var is_shared_x := (p_dataset.get_mode() == Dataset.Mode.SHARED_X)
+		_validate_line_mode_constraints(p_pane_index, line_config, pane_cfg, p_line_overlay_bindings, is_shared_x, p_result)
+
 
 	####################################################################################################
 	# Private
@@ -59,3 +63,31 @@ class LineValidator extends RefCounted:
 			var binding: TauXYSeriesBinding = p_line_overlay_bindings[i]
 			if binding.visual_attributes != null and binding.visual_attributes is not LineVisualAttributes:
 				p_result.add_error("LineValidator: pane %d: series_id %d has visual_attributes that is not a LineVisualAttributes" % [p_pane_index, binding.series_id])
+
+
+	static func _validate_line_mode_constraints(p_pane_index: int, p_line_config: TauLineConfig, p_pane_cfg: TauPaneConfig, p_line_overlay_bindings: Array[TauXYSeriesBinding], p_is_shared_x: bool, p_result: ValidationResult) -> void:
+		match p_line_config.mode:
+			TauLineConfig.LineMode.INDEPENDENT:
+				pass
+
+			TauLineConfig.LineMode.STACKED:
+				# STACKED computes a per-X cumulative across series, so all series
+				# must share aligned X positions.
+				if not p_is_shared_x:
+					p_result.add_error("LineValidator: pane %d: STACKED mode requires SHARED_X dataset mode" % p_pane_index)
+
+				if not p_line_overlay_bindings.is_empty():
+					# All stacked line series must share the same y axis.
+					var first_y_axis_id := p_line_overlay_bindings[0].y_axis_id
+					for i in range(1, p_line_overlay_bindings.size()):
+						var binding: TauXYSeriesBinding = p_line_overlay_bindings[i]
+						if binding.y_axis_id != first_y_axis_id:
+							p_result.add_error("LineValidator: pane %d: STACKED mode requires all line series on the same y axis, but series_id %d uses %s (expected %s)" % [p_pane_index, binding.series_id, Axis.as_string(binding.y_axis_id), Axis.as_string(first_y_axis_id)])
+
+					# Cumulative sums on a logarithmic axis are not meaningful.
+					var y_axis_config: TauAxisConfig = p_pane_cfg.get_y_axis_config(first_y_axis_id)
+					if y_axis_config != null and y_axis_config.scale == TauAxisConfig.Scale.LOGARITHMIC:
+						p_result.add_error("LineValidator: pane %d: STACKED mode is incompatible with logarithmic y axis" % p_pane_index)
+
+			_:
+				p_result.add_error("LineValidator: pane %d: unsupported line mode %d" % [p_pane_index, p_line_config.mode])
