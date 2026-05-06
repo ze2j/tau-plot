@@ -242,7 +242,8 @@ func setup(
 	# Domain + layout creation
 	_xy_domain_overrides = XYDomainOverrides.new()
 	_xy_domain_overrides.init_panes(pane_count)
-	_xy_domain = XYDomain.new(_dataset, _domain_config, _series_assignment, _xy_domain_overrides)
+	_xy_domain = XYDomain.new(_dataset, _domain_config, _series_assignment,
+			_bar_series_ids_per_pane, _line_series_ids_per_pane, _xy_domain_overrides)
 	_xy_layout = XYLayout.new(_xy_domain)
 
 	# Connect style changed signals for programmatic mutation detection.
@@ -1178,9 +1179,13 @@ func _apply_bar_domain_overrides_y() -> void:
 
 		var y_domain_override: YDomainOverride = _xy_domain_overrides.get_or_create_override(pane_index, stacked_y_axis_id)
 
+		y_domain_override.bar_stack_active = true
+		y_domain_override.stacked_normalization = pane_bar_config.stacked_normalization
+		y_domain_override.stacked_negative_policy = pane_bar_config.stacked_negative_policy
+
 		match pane_bar_config.stacked_normalization:
 			TauBarConfig.StackedNormalization.NONE:
-				y_domain_override.stack_y_values = true
+				pass
 
 			TauBarConfig.StackedNormalization.FRACTION, TauBarConfig.StackedNormalization.PERCENT:
 				var pinned := StackedPinnedRange.compute(pane_bar_config.stacked_normalization, pane_bar_config.stacked_negative_policy)

@@ -1,21 +1,28 @@
 const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 
 
 # Stacking and forced-range override for one (pane, y-axis) pair.
+#
+# bar_stack_active and line_stack_active are independent flags: each tells the
+# domain scanner that the corresponding overlay type contributes a stacked
+# cumulative on this axis. Both can be true at the same time, in which case
+# their cumulatives are computed separately and unioned with the non-stacked
+# range. Cross-overlay validation enforces a single shared
+# stacked_normalization and a single shared stacked_negative_policy on the
+# axis when both flags are true.
 class YDomainOverride extends RefCounted:
 
 	var force_y_range: bool = false
 	var force_y_min: float = 0.0
 	var force_y_max: float = 1.0
 
-	var stack_y_values: bool = false
+	var bar_stack_active: bool = false
+	var line_stack_active: bool = false
 
-
-	func reset() -> void:
-		force_y_range = false
-		force_y_min = 0.0
-		force_y_max = 1.0
-		stack_y_values = false
+	var stacked_normalization: StackedNormalization = StackedNormalization.NONE
+	var stacked_negative_policy: StackedNegativePolicy = StackedNegativePolicy.DIVERGING
 
 
 # Per-pane and per-axis Y domain overrides driven by renderers.
