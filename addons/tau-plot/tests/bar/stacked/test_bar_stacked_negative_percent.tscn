@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://dtphakr4ucelg"]
+[gd_scene load_steps=3 format=3 uid="uid://15u65yn0mbjv"]
 
-[ext_resource type="Script" uid="uid://dc8xbkxehai5e" path="res://addons/tau-plot/tests/bar/stacking_order/test_bar_stacking_order.gd" id="1_6dmnp"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_p3gyn"]
+[ext_resource type="Script" uid="uid://54kryum6jpqn" path="res://addons/tau-plot/tests/bar/stacked/test_bar_stacked_negative_percent.gd" id="1_ru6as"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_1qp56"]
 
 [node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_6dmnp")
+script = ExtResource("1_ru6as")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test stacking order which is dataset order, not binding order."
+text = "Test stacked bars negative policy with normalization = PERCENT"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -30,8 +30,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_p3gyn")
-title = "[CONTINUOUS] with stacked_normalization = NONE"
+script = ExtResource("2_1qp56")
+title = "[CONTINUOUS] with stacked_negative_policy = SKIP_NEGATIVES"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -40,8 +40,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_p3gyn")
-title = "[CONTINUOUS] with stacked_normalization = FRACTION"
+script = ExtResource("2_1qp56")
+title = "[CONTINUOUS] with stacked_negative_policy = DIVERGING"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -50,8 +50,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_p3gyn")
-title = "[CONTINUOUS] with stacked_normalization = PERCENT"
+script = ExtResource("2_1qp56")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -60,8 +59,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_p3gyn")
-title = "[CATEGORICAL] with stacked_normalization = NONE"
+script = ExtResource("2_1qp56")
+title = "[CATEGORICAL] with stacked_negative_policy = SKIP_NEGATIVES"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -70,8 +69,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_p3gyn")
-title = "[CATEGORICAL] with stacked_normalization = FRACTION"
+script = ExtResource("2_1qp56")
+title = "[CATEGORICAL] with stacked_negative_policy = DIVERGING"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
@@ -80,6 +79,5 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_p3gyn")
-title = "[CATEGORICAL] with stacked_normalization = PERCENT"
+script = ExtResource("2_1qp56")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://b3ryyw2r4icth"]
+[gd_scene load_steps=3 format=3 uid="uid://dtphakr4ucelg"]
 
-[ext_resource type="Script" uid="uid://bvr1lhw6xrucv" path="res://addons/tau-plot/tests/bar/stacked_normalization/test_bar_stacked_normalization.gd" id="1_13osl"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_t5ugu"]
+[ext_resource type="Script" uid="uid://dc8xbkxehai5e" path="res://addons/tau-plot/tests/bar/stacked/test_bar_stacking_order.gd" id="1_6dmnp"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_p3gyn"]
 
 [node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_13osl")
+script = ExtResource("1_6dmnp")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test stacked bars normalization"
+text = "Test stacking order which is dataset order, not binding order."
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -30,7 +30,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_t5ugu")
+script = ExtResource("2_p3gyn")
 title = "[CONTINUOUS] with stacked_normalization = NONE"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -40,7 +40,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_t5ugu")
+script = ExtResource("2_p3gyn")
 title = "[CONTINUOUS] with stacked_normalization = FRACTION"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -50,7 +50,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_t5ugu")
+script = ExtResource("2_p3gyn")
 title = "[CONTINUOUS] with stacked_normalization = PERCENT"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -60,7 +60,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_t5ugu")
+script = ExtResource("2_p3gyn")
 title = "[CATEGORICAL] with stacked_normalization = NONE"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -70,7 +70,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_t5ugu")
+script = ExtResource("2_p3gyn")
 title = "[CATEGORICAL] with stacked_normalization = FRACTION"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -80,6 +80,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_t5ugu")
+script = ExtResource("2_p3gyn")
 title = "[CATEGORICAL] with stacked_normalization = PERCENT"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
