@@ -24,6 +24,8 @@ const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const XYDomainOverrides := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").XYDomainOverrides
 const YDomainOverride := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").YDomainOverride
 const StackedPinnedRange := preload("res://addons/tau-plot/plot/xy/stacked_pinned_range.gd").StackedPinnedRange
+const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const XYAxisTitleLayout := preload("res://addons/tau-plot/plot/xy/xy_axis_title_layout.gd").XYAxisTitleLayout
 const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
@@ -522,10 +524,10 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 	if has_any_bar:
 		for pane_index in range(pane_count):
-			var pane_bar_config: TauBarConfig = _bar_config_per_pane[pane_index] if pane_index < _bar_config_per_pane.size() else null
+			var pane_bar_config: TauBarConfig = _bar_config_per_pane[pane_index]
 			if pane_bar_config == null:
 				continue
-			var prev_bar_config: TauBarConfig = _state.bar_config_per_pane[pane_index] if pane_index < _state.bar_config_per_pane.size() else null
+			var prev_bar_config: TauBarConfig = _state.bar_config_per_pane[pane_index]
 			if not pane_bar_config.is_equal_to(prev_bar_config):
 				if pane_bar_config.has_layout_affecting_change(prev_bar_config):
 					_domain_dirty = true
@@ -546,10 +548,10 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 	if has_any_scatter:
 		for pane_index in range(pane_count):
-			var pane_scatter_config: TauScatterConfig = _scatter_config_per_pane[pane_index] if pane_index < _scatter_config_per_pane.size() else null
+			var pane_scatter_config: TauScatterConfig = _scatter_config_per_pane[pane_index]
 			if pane_scatter_config == null:
 				continue
-			var prev_scatter_config: TauScatterConfig = _state.scatter_config_per_pane[pane_index] if pane_index < _state.scatter_config_per_pane.size() else null
+			var prev_scatter_config: TauScatterConfig = _state.scatter_config_per_pane[pane_index]
 			if not pane_scatter_config.is_equal_to(prev_scatter_config):
 				if pane_scatter_config.has_layout_affecting_change(prev_scatter_config):
 					_domain_dirty = true
@@ -570,10 +572,10 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 	if has_any_line:
 		for pane_index in range(pane_count):
-			var pane_line_config: TauLineConfig = _line_config_per_pane[pane_index] if pane_index < _line_config_per_pane.size() else null
+			var pane_line_config: TauLineConfig = _line_config_per_pane[pane_index]
 			if pane_line_config == null:
 				continue
-			var prev_line_config: TauLineConfig = _state.line_config_per_pane[pane_index] if pane_index < _state.line_config_per_pane.size() else null
+			var prev_line_config: TauLineConfig = _state.line_config_per_pane[pane_index]
 			if not pane_line_config.is_equal_to(prev_line_config):
 				if pane_line_config.has_layout_affecting_change(prev_line_config):
 					_domain_dirty = true
@@ -641,7 +643,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	# All TauBarStyle properties are visual-only, so only dirty the owning bar pane.
 	if has_any_bar:
 		for pane_index in range(pane_count):
-			var bar_config: TauBarConfig = _bar_config_per_pane[pane_index] if pane_index < _bar_config_per_pane.size() else null
+			var bar_config: TauBarConfig = _bar_config_per_pane[pane_index]
 			if bar_config == null:
 				continue
 			var needs_bar_re_resolve := _styles_dirty
@@ -653,7 +655,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 			# Content mutation: user changed a property on the existing TauBarStyle.
 			if not needs_bar_re_resolve:
-				var prev_bar_style: TauBarStyle = _state.bar_style_per_pane[pane_index] if pane_index < _state.bar_style_per_pane.size() else null
+				var prev_bar_style: TauBarStyle = _state.bar_style_per_pane[pane_index]
 				if not bar_config.style.is_equal_to(prev_bar_style):
 					needs_bar_re_resolve = true
 
@@ -669,7 +671,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	# All TauScatterStyle properties are visual-only, so only dirty the owning scatter pane.
 	if has_any_scatter:
 		for pane_index in range(pane_count):
-			var scatter_config: TauScatterConfig = _scatter_config_per_pane[pane_index] if pane_index < _scatter_config_per_pane.size() else null
+			var scatter_config: TauScatterConfig = _scatter_config_per_pane[pane_index]
 			if scatter_config == null:
 				continue
 			var needs_scatter_re_resolve := _styles_dirty
@@ -681,7 +683,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 			# Content mutation: user changed a property on the existing TauScatterStyle.
 			if not needs_scatter_re_resolve:
-				var prev_scatter_style: TauScatterStyle = _state.scatter_style_per_pane[pane_index] if pane_index < _state.scatter_style_per_pane.size() else null
+				var prev_scatter_style: TauScatterStyle = _state.scatter_style_per_pane[pane_index]
 				if not scatter_config.style.is_equal_to(prev_scatter_style):
 					needs_scatter_re_resolve = true
 
@@ -697,7 +699,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	# All TauLineStyle properties are visual-only, so only dirty the owning line pane.
 	if has_any_line:
 		for pane_index in range(pane_count):
-			var line_config: TauLineConfig = _line_config_per_pane[pane_index] if pane_index < _line_config_per_pane.size() else null
+			var line_config: TauLineConfig = _line_config_per_pane[pane_index]
 			if line_config == null:
 				continue
 			var needs_line_re_resolve := _styles_dirty
@@ -709,7 +711,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 			# Content mutation: user changed a property on the existing TauLineStyle.
 			if not needs_line_re_resolve:
-				var prev_line_style: TauLineStyle = _state.line_style_per_pane[pane_index] if pane_index < _state.line_style_per_pane.size() else null
+				var prev_line_style: TauLineStyle = _state.line_style_per_pane[pane_index]
 				if not line_config.style.is_equal_to(prev_line_style):
 					needs_line_re_resolve = true
 
@@ -741,7 +743,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 		# TauPaneStyle resource mutation (user changed a property on the assigned style).
 		if not needs_re_resolve:
-			var prev_pane_style: TauPaneStyle = _state.pane_style_per_pane[pane_index] if pane_index < _state.pane_style_per_pane.size() else null
+			var prev_pane_style: TauPaneStyle = _state.pane_style_per_pane[pane_index]
 			var user_style_check: TauPaneStyle = pane_config.style
 			if user_style_check != null:
 				if not user_style_check.is_equal_to(prev_pane_style):
@@ -800,9 +802,11 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		if _hover_controller != null:
 			_hover_controller.invalidate()
 
-	# Step 5: Apply bar-specific Y overrides (stacking normalization) only if bars active
-	if _domain_dirty and has_any_bar:
-		_apply_bar_domain_overrides_y()
+	# Step 5: Apply stacking Y overrides. Bar and line stacked overlays
+	# write to the same per-axis entry, with the cross-overlay validator
+	# guaranteeing they agree on the shared fields.
+	if _domain_dirty and (has_any_bar or has_any_line):
+		_apply_stacking_domain_overrides_y()
 
 	# Step 6: Recompute domain from dataset if needed
 	if _domain_dirty:
@@ -1146,52 +1150,75 @@ func _update_xy_layout(p_pane_view_rects: Array[Rect2], p_pane_positions: Array[
 	_xy_layout.update()
 
 
-func _apply_bar_domain_overrides_y() -> void:
+func _apply_stacking_domain_overrides_y() -> void:
 	var pane_count := _domain_config.panes.size()
 	for pane_index in range(pane_count):
 		_xy_domain_overrides.clear_pane(pane_index)
+		_apply_bar_stacking_for_pane(pane_index)
+		_apply_line_stacking_for_pane(pane_index)
 
-		if pane_index >= _bar_series_ids_per_pane.size():
-			continue
-		if _bar_series_ids_per_pane[pane_index].is_empty():
-			continue
 
-		var pane_bar_config: TauBarConfig = _bar_config_per_pane[pane_index] if pane_index < _bar_config_per_pane.size() else null
-		if pane_bar_config == null:
-			continue
+func _apply_bar_stacking_for_pane(p_pane_index: int) -> void:
+	if _bar_series_ids_per_pane[p_pane_index].is_empty():
+		return
 
-		if pane_bar_config.mode != TauBarConfig.BarMode.STACKED:
-			continue
+	var pane_bar_config: TauBarConfig = _bar_config_per_pane[p_pane_index]
+	if pane_bar_config.mode != TauBarConfig.BarMode.STACKED:
+		return
 
-		# Resolve the y-axis actually used by the stacked bar series.
-		# The validator enforces that all stacked bar series share the same y_axis_id,
-		# so checking the first one is enough.
-		var first_bar_sid: int = _bar_series_ids_per_pane[pane_index][0]
-		var stacked_y_axis_id: int = _series_assignment.get_y_axis_id_for_series(first_bar_sid, pane_index)
-		if stacked_y_axis_id == -1:
-			continue
+	# Stacked bar series in a pane share one y axis, so any series id resolves it.
+	var first_bar_sid: int = _bar_series_ids_per_pane[p_pane_index][0]
+	var stacked_y_axis_id: int = _series_assignment.get_y_axis_id_for_series(first_bar_sid, p_pane_index)
 
-		# Only check the axis that the stacked bars are bound to.
-		var pane_config: TauPaneConfig = _domain_config.panes[pane_index]
-		var stacked_y_cfg: TauAxisConfig = pane_config.get_y_axis_config(stacked_y_axis_id)
-		if stacked_y_cfg != null and stacked_y_cfg.range_override_enabled:
-			continue
+	var pane_config: TauPaneConfig = _domain_config.panes[p_pane_index]
+	var stacked_y_cfg: TauAxisConfig = pane_config.get_y_axis_config(stacked_y_axis_id)
+	# An explicit user range wins over any stacking-driven range.
+	if stacked_y_cfg.range_override_enabled:
+		return
 
-		var y_domain_override: YDomainOverride = _xy_domain_overrides.get_or_create_override(pane_index, stacked_y_axis_id)
+	var y_domain_override: YDomainOverride = _xy_domain_overrides.get_or_create_override(p_pane_index, stacked_y_axis_id)
 
-		y_domain_override.bar_stack_active = true
-		y_domain_override.stacked_normalization = pane_bar_config.stacked_normalization
-		y_domain_override.stacked_negative_policy = pane_bar_config.stacked_negative_policy
+	y_domain_override.bar_stack_active = true
+	y_domain_override.stacked_normalization = pane_bar_config.stacked_normalization
+	y_domain_override.stacked_negative_policy = pane_bar_config.stacked_negative_policy
 
-		match pane_bar_config.stacked_normalization:
-			TauBarConfig.StackedNormalization.NONE:
-				pass
+	_apply_pinned_range(y_domain_override, pane_bar_config.stacked_normalization, pane_bar_config.stacked_negative_policy)
 
-			TauBarConfig.StackedNormalization.FRACTION, TauBarConfig.StackedNormalization.PERCENT:
-				var pinned := StackedPinnedRange.compute(pane_bar_config.stacked_normalization, pane_bar_config.stacked_negative_policy)
-				y_domain_override.force_y_range = true
-				y_domain_override.force_y_min = pinned.x
-				y_domain_override.force_y_max = pinned.y
 
-			_:
-				push_error("_apply_bar_domain_overrides_y(): unexpected stacked normalization")
+func _apply_line_stacking_for_pane(p_pane_index: int) -> void:
+	if _line_series_ids_per_pane[p_pane_index].is_empty():
+		return
+
+	var pane_line_config: TauLineConfig = _line_config_per_pane[p_pane_index]
+	if pane_line_config.mode != TauLineConfig.LineMode.STACKED:
+		return
+
+	# Stacked line series in a pane share one y axis, so any series id resolves it.
+	var first_line_sid: int = _line_series_ids_per_pane[p_pane_index][0]
+	var stacked_y_axis_id: int = _series_assignment.get_y_axis_id_for_series(first_line_sid, p_pane_index)
+
+	var pane_config: TauPaneConfig = _domain_config.panes[p_pane_index]
+	var stacked_y_cfg: TauAxisConfig = pane_config.get_y_axis_config(stacked_y_axis_id)
+	# An explicit user range wins over any stacking-driven range.
+	if stacked_y_cfg.range_override_enabled:
+		return
+
+	var y_domain_override: YDomainOverride = _xy_domain_overrides.get_or_create_override(p_pane_index, stacked_y_axis_id)
+
+	y_domain_override.line_stack_active = true
+	y_domain_override.stacked_normalization = pane_line_config.stacked_normalization
+	y_domain_override.stacked_negative_policy = pane_line_config.stacked_negative_policy
+
+	_apply_pinned_range(y_domain_override, pane_line_config.stacked_normalization, pane_line_config.stacked_negative_policy)
+
+
+# NONE keeps the range data-driven. FRACTION and PERCENT need a fixed
+# range so every per-X stack fits exactly the available space.
+func _apply_pinned_range(p_override: YDomainOverride,
+		p_normalization: StackedNormalization, p_policy: StackedNegativePolicy) -> void:
+	if p_normalization == StackedNormalization.NONE:
+		return
+	var pinned := StackedPinnedRange.compute(p_normalization, p_policy)
+	p_override.force_y_range = true
+	p_override.force_y_min = pinned.x
+	p_override.force_y_max = pinned.y

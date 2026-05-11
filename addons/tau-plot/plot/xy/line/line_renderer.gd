@@ -7,6 +7,7 @@ const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
 const LineHitRecord := preload("res://addons/tau-plot/plot/xy/line/line_hit_record.gd").LineHitRecord
+const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_series_values.gd").StackedSeriesValues
 
 
 # Draws line overlays from an XYLayout + Dataset.
@@ -76,6 +77,14 @@ const LineHitRecord := preload("res://addons/tau-plot/plot/xy/line/line_hit_reco
 # - Synthetic step-mode intermediate vertices and SMOOTH_MONOTONE sub-samples
 #   are colored consistently with the underlying segment endpoints so the
 #   resulting interpolation matches the chosen interpolation mode.
+#
+# STACKED mode:
+# - Each polyline is drawn at the per-X cumulative top of its layer.
+#   Layer 0 sits at the bottom, ordered by dataset index.
+# - Color and alpha callbacks always receive the original dataset value,
+#   never the cumulative or the normalized value.
+# - LineHitRecord.y_plotted_value carries the cumulative top.
+#   LineHitRecord.y_raw_value carries the original dataset value.
 #
 # LineValidator is expected to enforce binding-level typing constraints.
 class LineRenderer extends Control:
@@ -210,30 +219,35 @@ class LineRenderer extends Control:
 		if series_count <= 0:
 			return
 
-		var draw_order := _get_series_draw_order(series_count)
+		var stacked_values: StackedSeriesValues = null
+		if _line_config.mode == TauLineConfig.LineMode.STACKED:
+			stacked_values = StackedSeriesValues.new(_dataset, _line_series_ids,
+					_line_config.stacked_normalization,
+					_line_config.stacked_negative_policy)
 
+		var draw_order := _get_series_draw_order(series_count)
 		for draw_rank in range(draw_order.size()):
 			var series_index: int = draw_order[draw_rank]
-			_draw_series_independent(series_index)
+			_draw_series(series_index, stacked_values)
 
 
-	# Draws a single series as one or more polyline runs, respecting the
-	# active gap policy. Run emission follows these rules:
+	# Run emission rules, applied by both variants:
 	#   - A valid sample is appended to the current run.
-	#   - An invalid sample (NaN/Inf X or Y, or a value forbidden by the
-	#     active axis scale) is handled according to gap_policy:
+	#   - An invalid sample (NaN/Inf X or Y, value forbidden by the active
+	#     axis scale, or dropped by the negative policy in STACKED mode)
+	#     is handled according to gap_policy:
 	#     - SKIP   flushes the current run and starts a new one.
 	#     - BRIDGE drops the sample and keeps appending into the same run.
-	#   - A run of fewer than two points is discarded (no polyline).
-	func _draw_series_independent(p_series_index: int) -> void:
+	#   - A run of fewer than two points is discarded.
+	func _draw_series(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
 		var x_cfg := _get_x_axis_config()
 		if x_cfg != null and x_cfg.type == TauAxisConfig.Type.CATEGORICAL:
-			_draw_series_categorical(p_series_index)
+			_draw_series_categorical(p_series_index, p_stacked)
 		else:
-			_draw_series_continuous(p_series_index)
+			_draw_series_continuous(p_series_index, p_stacked)
 
 
-	func _draw_series_continuous(p_series_index: int) -> void:
+	func _draw_series_continuous(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
 		var width_px: float = _line_style.get_series_width_px(global_series_index)
@@ -244,6 +258,10 @@ class LineRenderer extends Control:
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
+
+		var independent_y: PackedFloat64Array
+		if p_stacked == null:
+			independent_y = _build_independent_y_row(series_id)
 
 		var run := PackedVector2Array()
 		var run_colors := PackedColorArray()
@@ -269,8 +287,16 @@ class LineRenderer extends Control:
 					real_dataset_indices = PackedInt32Array()
 				continue
 
-			var y_value := _dataset.get_series_y(series_id, i)
-			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
+			var y_plotted: float
+			var y_raw: float
+			if p_stacked != null:
+				y_plotted = p_stacked.get_y_plotted(p_series_index, i)
+				y_raw = p_stacked.get_y_raw(p_series_index, i)
+			else:
+				y_plotted = independent_y[i]
+				y_raw = y_plotted
+
+			if is_nan(y_plotted):
 				if not bridge:
 					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
 					run = PackedVector2Array()
@@ -280,9 +306,9 @@ class LineRenderer extends Control:
 				continue
 
 			var x_px := _layout.map_x_to_px(_pane_index, x_value)
-			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
+			var y_px := _layout.map_y_to_px(_pane_index, y_plotted, y_axis_id)
 			var screen_pos := _layout.map_point_to_screen(x_px, y_px)
-			var sample_color := _resolve_sample_color(p_series_index, i, x_value, y_value)
+			var sample_color := _resolve_sample_color(p_series_index, i, x_value, y_raw)
 			_append_with_interpolation(run, run_colors, screen_pos, sample_color, interpolation)
 			# The real sample is always the last vertex appended by
 			# _append_with_interpolation, regardless of the interpolation mode.
@@ -293,15 +319,15 @@ class LineRenderer extends Control:
 			record.series_id = series_id
 			record.sample_index = i
 			record.x_value = x_value
-			record.y_plotted_value = y_value
-			record.y_raw_value = y_value
+			record.y_plotted_value = y_plotted
+			record.y_raw_value = y_raw
 			record.screen_position = screen_pos
 			_hit_records.append(record)
 
 		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
 
 
-	func _draw_series_categorical(p_series_index: int) -> void:
+	func _draw_series_categorical(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
 		var width_px: float = _line_style.get_series_width_px(global_series_index)
@@ -313,6 +339,10 @@ class LineRenderer extends Control:
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
 
+		var independent_y: PackedFloat64Array
+		if p_stacked == null:
+			independent_y = _build_independent_y_row(series_id)
+
 		var categories := _layout.domain.x_categories
 		var run := PackedVector2Array()
 		var run_colors := PackedColorArray()
@@ -321,8 +351,16 @@ class LineRenderer extends Control:
 		var sample_count := _dataset.get_series_sample_count(series_id)
 
 		for cat_idx in range(sample_count):
-			var y_value := _dataset.get_series_y(series_id, cat_idx)
-			if is_nan(y_value) or is_inf(y_value) or not _is_y_value_valid_for_scale(series_id, y_value):
+			var y_plotted: float
+			var y_raw: float
+			if p_stacked != null:
+				y_plotted = p_stacked.get_y_plotted(p_series_index, cat_idx)
+				y_raw = p_stacked.get_y_raw(p_series_index, cat_idx)
+			else:
+				y_plotted = independent_y[cat_idx]
+				y_raw = y_plotted
+
+			if is_nan(y_plotted):
 				if not bridge:
 					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
 					run = PackedVector2Array()
@@ -332,10 +370,10 @@ class LineRenderer extends Control:
 				continue
 
 			var x_px := _layout.map_x_category_center_to_px(_pane_index, cat_idx)
-			var y_px := _layout.map_y_to_px(_pane_index, y_value, y_axis_id)
+			var y_px := _layout.map_y_to_px(_pane_index, y_plotted, y_axis_id)
 			var screen_pos := _layout.map_point_to_screen(x_px, y_px)
 			var x_value: Variant = categories[cat_idx]
-			var sample_color := _resolve_sample_color(p_series_index, cat_idx, x_value, y_value)
+			var sample_color := _resolve_sample_color(p_series_index, cat_idx, x_value, y_raw)
 			_append_with_interpolation(run, run_colors, screen_pos, sample_color, interpolation)
 			real_polyline_indices.append(run.size() - 1)
 			real_dataset_indices.append(cat_idx)
@@ -344,12 +382,29 @@ class LineRenderer extends Control:
 			record.series_id = series_id
 			record.sample_index = cat_idx
 			record.x_value = x_value
-			record.y_plotted_value = y_value
-			record.y_raw_value = y_value
+			record.y_plotted_value = y_plotted
+			record.y_raw_value = y_raw
 			record.screen_position = screen_pos
 			_hit_records.append(record)
 
 		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
+
+
+	# Marks dropped samples (NaN, Inf, log-axis violations) as NAN up front
+	# so the inner draw loop only needs a single is_nan() check per sample.
+	func _build_independent_y_row(p_series_id: int) -> PackedFloat64Array:
+		var sample_count := _dataset.get_series_sample_count(p_series_id)
+		var y_plotted := PackedFloat64Array()
+		y_plotted.resize(sample_count)
+		y_plotted.fill(NAN)
+		for i in range(sample_count):
+			var y := _dataset.get_series_y(p_series_id, i)
+			if is_nan(y) or is_inf(y):
+				continue
+			if not _is_y_value_valid_for_scale(p_series_id, y):
+				continue
+			y_plotted[i] = y
+		return y_plotted
 
 
 	# Each appended sample (real or synthetic) gets the new sample's color.
