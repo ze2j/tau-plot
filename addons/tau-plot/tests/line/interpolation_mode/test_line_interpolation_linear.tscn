@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dagnw8rnu7ils" path="res://addons/tau-plot/tests/line/interpolation_mode/test_line_interpolation_linear.gd" id="1_ahkji"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_nry5o"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="Lines" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

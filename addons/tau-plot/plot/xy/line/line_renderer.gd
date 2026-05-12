@@ -86,6 +86,19 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 # - LineHitRecord.y_plotted_value carries the cumulative top.
 #   LineHitRecord.y_raw_value carries the original dataset value.
 #
+# Area fill:
+# - When TauLineConfig.fill_mode is TO_BASELINE, the area between the line
+#   and the constant TauLineConfig.fill_baseline is filled before the line
+#   is drawn. The polygon is built from the rendered polyline (after
+#   interpolation has materialized any synthetic vertices) and is split at
+#   every baseline crossing into same-side sub-polygons, each emitted as
+#   one draw_colored_polygon call. The line itself is unaffected by the
+#   split and remains one draw call per contiguous run.
+# - Fill color resolution: when TauLineStyle.fill_color is the sentinel
+#   Color(0, 0, 0, 0), the per-series color from TauXYStyle.series_colors
+#   is used. Otherwise the flat TauLineStyle.fill_color wins. The resolved
+#   color's alpha channel is multiplied by TauLineStyle.fill_alpha.
+#
 # LineValidator is expected to enforce binding-level typing constraints.
 class LineRenderer extends Control:
 	# Number of sub-segments inserted between two consecutive samples by
@@ -207,16 +220,8 @@ class LineRenderer extends Control:
 	func _draw() -> void:
 		_hit_records.clear()
 
-		if _line_style == null:
-			push_error("LineRenderer: resolved TauLineStyle is null.")
-			return
-
 		var pane_rect := _layout.get_pane_rect(_pane_index)
 		if pane_rect.size.x <= 0.0 or pane_rect.size.y <= 0.0:
-			return
-
-		var series_count := _get_line_series_count()
-		if series_count <= 0:
 			return
 
 		var stacked_values: StackedSeriesValues = null
@@ -225,7 +230,7 @@ class LineRenderer extends Control:
 					_line_config.stacked_normalization,
 					_line_config.stacked_negative_policy)
 
-		var draw_order := _get_series_draw_order(series_count)
+		var draw_order := _get_series_draw_order(_get_line_series_count())
 		for draw_rank in range(draw_order.size()):
 			var series_index: int = draw_order[draw_rank]
 			_draw_series(series_index, stacked_values)
@@ -240,8 +245,7 @@ class LineRenderer extends Control:
 	#     - BRIDGE drops the sample and keeps appending into the same run.
 	#   - A run of fewer than two points is discarded.
 	func _draw_series(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
-		var x_cfg := _get_x_axis_config()
-		if x_cfg != null and x_cfg.type == TauAxisConfig.Type.CATEGORICAL:
+		if _get_x_axis_config().type == TauAxisConfig.Type.CATEGORICAL:
 			_draw_series_categorical(p_series_index, p_stacked)
 		else:
 			_draw_series_continuous(p_series_index, p_stacked)
@@ -258,6 +262,11 @@ class LineRenderer extends Control:
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
+
+		# Resolved once per series: every run of this series fills against the
+		# same baseline and the same color.
+		var fill_color: Color = _resolve_series_fill_color(global_series_index)
+		var baseline_y_px: float = _resolve_fill_baseline_y_px(y_axis_id)
 
 		var independent_y: PackedFloat64Array
 		if p_stacked == null:
@@ -280,7 +289,7 @@ class LineRenderer extends Control:
 			var x_value: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
 			if is_nan(x_value) or is_inf(x_value) or not _is_x_value_valid_for_scale(x_value):
 				if not bridge:
-					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
+					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
 					real_polyline_indices = PackedInt32Array()
@@ -298,7 +307,7 @@ class LineRenderer extends Control:
 
 			if is_nan(y_plotted):
 				if not bridge:
-					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
+					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
 					real_polyline_indices = PackedInt32Array()
@@ -324,7 +333,7 @@ class LineRenderer extends Control:
 			record.screen_position = screen_pos
 			_hit_records.append(record)
 
-		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
+		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px)
 
 
 	func _draw_series_categorical(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
@@ -338,6 +347,11 @@ class LineRenderer extends Control:
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
+
+		# Resolved once per series: every run of this series fills against the
+		# same baseline and the same color.
+		var fill_color: Color = _resolve_series_fill_color(global_series_index)
+		var baseline_y_px: float = _resolve_fill_baseline_y_px(y_axis_id)
 
 		var independent_y: PackedFloat64Array
 		if p_stacked == null:
@@ -362,7 +376,7 @@ class LineRenderer extends Control:
 
 			if is_nan(y_plotted):
 				if not bridge:
-					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
+					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
 					real_polyline_indices = PackedInt32Array()
@@ -387,7 +401,7 @@ class LineRenderer extends Control:
 			record.screen_position = screen_pos
 			_hit_records.append(record)
 
-		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px)
+		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px)
 
 
 	# Marks dropped samples (NaN, Inf, log-axis violations) as NAN up front
@@ -443,6 +457,12 @@ class LineRenderer extends Control:
 	# For SMOOTH_MONOTONE the run is first replaced by its Fritsch-Carlson piecewise cubic resampling.
 	# Runs of fewer than two points are silently dropped.
 	#
+	# When p_fill_color has non-zero alpha and p_baseline_y_px is finite,
+	# the area between the rendered polyline and the horizontal baseline
+	# is filled before the line is drawn. The polygon is split at every
+	# baseline crossing into same-side sub-polygons, each emitted as one
+	# draw call. The line itself is unaffected by splitting.
+	#
 	# Path selection per series (no hover):
 	#   - p_dash_px == 0: one draw_polyline_colors call.
 	#   - p_dash_px  > 0: one draw_multiline_colors call after dash precomputation.
@@ -466,7 +486,7 @@ class LineRenderer extends Control:
 	# real_polyline_indices[k] is the index in p_run where the k-th real
 	# sample landed. real_dataset_indices[k] is the dataset sample index for
 	# that real sample.
-	func _finalize_run(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_real_polyline_indices: PackedInt32Array, p_real_dataset_indices: PackedInt32Array, p_series_id: int, p_width_px: float, p_hover_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int) -> void:
+	func _finalize_run(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_real_polyline_indices: PackedInt32Array, p_real_dataset_indices: PackedInt32Array, p_series_id: int, p_width_px: float, p_hover_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int, p_fill_color: Color, p_baseline_y_px: float) -> void:
 		var polyline: PackedVector2Array = p_run
 		var polyline_colors: PackedColorArray = p_run_colors
 		var real_polyline_indices: PackedInt32Array = p_real_polyline_indices
@@ -480,6 +500,11 @@ class LineRenderer extends Control:
 			real_polyline_indices = resampled[2]
 		if polyline.size() < 2:
 			return
+
+		# Fill is drawn first so the polyline lands on top of it. A NaN
+		# baseline or zero-alpha color means no fill for this run.
+		if not is_nan(p_baseline_y_px) and p_fill_color.a > 0.0:
+			_draw_fill_to_baseline(polyline, p_fill_color, p_baseline_y_px)
 
 		var dash_px: int = max(p_dash_px, 0)
 		var slice_bounds := _resolve_hover_slice_bounds(real_polyline_indices, p_real_dataset_indices, p_series_id)
@@ -677,6 +702,133 @@ class LineRenderer extends Control:
 
 		if segments.size() >= 2:
 			draw_multiline_colors(segments, segment_colors, p_width_px)
+
+	####################################################################################################
+	# Area fill
+	####################################################################################################
+
+	# Resolves the per-series flat fill color, or fully transparent when no
+	# flat fill applies. Only TO_BASELINE produces a flat fill polygon. NONE
+	# leaves the area below the line unfilled, and STACKED is handled by the
+	# per-layer fill path rather than per-run flat fill.
+	func _resolve_series_fill_color(p_global_series_index: int) -> Color:
+		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
+			return Color(0, 0, 0, 0)
+		return _line_style.get_series_fill_color(p_global_series_index, _xy_style)
+
+
+	# Returns the screen-space Y coordinate of the TO_BASELINE baseline, or
+	# NAN when no flat baseline applies.
+	func _resolve_fill_baseline_y_px(p_y_axis_id: AxisId) -> float:
+		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
+			return NAN
+		var y_px: float = _layout.map_y_to_px(_pane_index, _line_config.fill_baseline, p_y_axis_id)
+		var screen_pos: Vector2 = _layout.map_point_to_screen(0.0, y_px)
+		return screen_pos.y
+
+
+	# Builds and draws the fill polygon between p_polyline and the horizontal
+	# line y = p_baseline_y_px in screen space. The polygon is split at every
+	# baseline crossing, producing one sub-polygon per same-side run, each
+	# emitted as a single draw_colored_polygon call.
+	#
+	# Crossing detection runs on the rendered polyline, so the synthetic
+	# vertices inserted by step interpolation and the sub-samples emitted by
+	# SMOOTH_MONOTONE are treated uniformly. A crossing point lies at the
+	# linear interpolation of the two flanking polyline vertices against
+	# the baseline. Both polyline orderings (ascending or descending screen
+	# X) are accepted because the builder never assumes a direction.
+	func _draw_fill_to_baseline(p_polyline: PackedVector2Array, p_fill_color: Color, p_baseline_y_px: float) -> void:
+		var n: int = p_polyline.size()
+		if n < 2:
+			return
+
+		# Same-side accumulator. The current sub-polygon's top edge is the
+		# vertices buffered in `top`. `side` is the sign of (y - baseline_y)
+		# for the first non-on-baseline vertex of the run, and stays 0 until
+		# one is found. On-baseline vertices are appended to `top` and do
+		# not constrain `side`.
+		var top := PackedVector2Array()
+		var side: int = 0
+
+		for i in range(n):
+			var v: Vector2 = p_polyline[i]
+			var v_side: int = _baseline_side(v.y, p_baseline_y_px)
+
+			if top.is_empty():
+				top.append(v)
+				side = v_side
+				continue
+
+			# Treat on-baseline as a degenerate crossing: the vertex sits on
+			# both half-planes, so it can extend the current run AND open a
+			# new one without a synthetic crossing.
+			if v_side == 0 or side == 0 or v_side == side:
+				top.append(v)
+				if side == 0:
+					side = v_side
+				continue
+
+			# v_side and side are non-zero and opposite: a real crossing
+			# between top[-1] and v. The crossing point closes the current
+			# sub-polygon and seeds the next one.
+			var prev: Vector2 = top[top.size() - 1]
+			var crossing: Vector2 = _baseline_crossing(prev, v, p_baseline_y_px)
+			top.append(crossing)
+			_emit_fill_subpolygon(top, p_fill_color, p_baseline_y_px)
+			top = PackedVector2Array()
+			top.append(crossing)
+			top.append(v)
+			side = v_side
+
+		_emit_fill_subpolygon(top, p_fill_color, p_baseline_y_px)
+
+
+	# Closes one sub-polygon by dropping its endpoints to the baseline and
+	# hands it to draw_colored_polygon. Runs that contain fewer than two
+	# points or that are entirely on the baseline contribute no area and
+	# are skipped.
+	func _emit_fill_subpolygon(p_top: PackedVector2Array, p_fill_color: Color, p_baseline_y_px: float) -> void:
+		var top_count: int = p_top.size()
+		if top_count < 2:
+			return
+		# A run sitting exactly on the baseline has zero area.
+		var any_off_baseline: bool = false
+		for k in range(top_count):
+			if p_top[k].y != p_baseline_y_px:
+				any_off_baseline = true
+				break
+		if not any_off_baseline:
+			return
+
+		var polygon := PackedVector2Array()
+		polygon.resize(top_count + 2)
+		# Top edge in forward order, then closing edge down to the baseline.
+		for k in range(top_count):
+			polygon[k] = p_top[k]
+		polygon[top_count] = Vector2(p_top[top_count - 1].x, p_baseline_y_px)
+		polygon[top_count + 1] = Vector2(p_top[0].x, p_baseline_y_px)
+		draw_colored_polygon(polygon, p_fill_color)
+
+
+	# Returns +1 above the baseline (smaller screen Y), -1 below, 0 on it.
+	# Screen space is Y-down so "above the baseline in data space" means
+	# "smaller Y in screen space".
+	static func _baseline_side(p_y: float, p_baseline_y: float) -> int:
+		if p_y < p_baseline_y:
+			return 1
+		if p_y > p_baseline_y:
+			return -1
+		return 0
+
+
+	# Linear interpolation along segment (p_a, p_b) at the parameter where
+	# y reaches p_baseline_y. Precondition: p_a.y and p_b.y straddle
+	# p_baseline_y with a non-zero gap, which is guaranteed by the caller.
+	static func _baseline_crossing(p_a: Vector2, p_b: Vector2, p_baseline_y: float) -> Vector2:
+		var t: float = (p_baseline_y - p_a.y) / (p_b.y - p_a.y)
+		return Vector2(p_a.x + t * (p_b.x - p_a.x), p_baseline_y)
+
 
 	####################################################################################################
 	# Smooth-monotone (Fritsch-Carlson) resampling
@@ -1046,20 +1198,11 @@ class LineRenderer extends Control:
 	####################################################################################################
 
 	func _is_x_value_valid_for_scale(p_x_value: float) -> bool:
-		var x_cfg := _layout.domain.config.x_axis
-		if x_cfg == null:
-			return true
-		if x_cfg.scale == TauAxisConfig.Scale.LOGARITHMIC and p_x_value <= 0.0:
-			return false
-		return true
+		return _layout.domain.config.x_axis.scale != TauAxisConfig.Scale.LOGARITHMIC or p_x_value > 0.0
 
 
 	func _is_y_value_valid_for_scale(p_series_id: int, p_y_value: float) -> bool:
 		var y_axis_id := _get_y_axis_id_for_series(p_series_id)
 		var pane_cfg: TauPaneConfig = _layout.domain.config.panes[_pane_index]
 		var y_cfg: TauAxisConfig = pane_cfg.get_y_axis_config(y_axis_id)
-		if y_cfg == null:
-			return true
-		if y_cfg.scale == TauAxisConfig.Scale.LOGARITHMIC and p_y_value <= 0.0:
-			return false
-		return true
+		return y_cfg.scale != TauAxisConfig.Scale.LOGARITHMIC or p_y_value > 0.0

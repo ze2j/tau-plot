@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://t5fdpmq6toqn" path="res://addons/tau-plot/tests/line/stacked/test_line_stacked_negative_fraction.gd" id="1_kstpx"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_71bbx"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="Lines" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

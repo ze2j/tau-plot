@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://gq3klvlipxkr" path="res://addons/tau-plot/tests/line/stacked/test_line_stacked_negative_none.gd" id="1_t3a0d"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_q7rrf"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="Lines" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

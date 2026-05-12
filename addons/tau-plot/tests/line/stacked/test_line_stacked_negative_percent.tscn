@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bpbp8mimvrtki" path="res://addons/tau-plot/tests/line/stacked/test_line_stacked_negative_percent.gd" id="1_os7bv"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_tcxo6"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="Lines" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -51,6 +51,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_tcxo6")
+title = "[CONTINUOUS] with stacked_negative_policy = SIGNED_SUM"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -80,4 +81,5 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_tcxo6")
+title = "[CATEGORICAL] with stacked_negative_policy = SIGNED_SUM"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

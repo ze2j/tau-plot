@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://c78fi08wv7vqd" path="res://addons/tau-plot/tests/line/line_attributes/test_line_visual_attributes_solid_color.gd" id="1_7vjol"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_lc0kd"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="Lines" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

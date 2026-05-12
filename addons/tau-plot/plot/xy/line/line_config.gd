@@ -78,6 +78,37 @@ enum InterpolationMode
 }
 @export var interpolation_mode: InterpolationMode = InterpolationMode.LINEAR
 
+## Strategy applied to fill the area between the line and a reference
+## baseline. The visual appearance of the fill is controlled by
+## [TauLineStyle].
+##
+## NONE leaves the area below the line unfilled.
+##
+## TO_BASELINE fills the area between the line and the constant value
+## [member fill_baseline]. When the curve crosses the baseline between two
+## consecutive samples, the fill is split into multiple sub-polygons at the
+## crossings, one per same-side run.
+##
+## STACKED is only meaningful when [member mode] is STACKED. Each stacked
+## layer is filled between its own curve and the top of the layer below.
+## The bottom layer is filled down to y = 0.
+##
+## This property is visual-only and does not affect layout or domain.
+enum FillMode
+{
+	NONE,           ## No area is filled.
+	TO_BASELINE,    ## Fill between the line and [member fill_baseline].
+	STACKED         ## Fill each stacked layer between its curve and the layer below.
+}
+@export var fill_mode: FillMode = FillMode.NONE
+
+## Y value used as the reference baseline when [member fill_mode] is
+## TO_BASELINE. Expressed in data units on the series y-axis. Ignored for
+## any other [member fill_mode] value.
+##
+## This property is visual-only and does not affect layout or domain.
+@export var fill_baseline: float = 0.0
+
 ## Maximum pixel distance from the cursor to a sample position for the sample
 ## to be considered a hover hit.
 ##
@@ -129,6 +160,10 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	if gap_policy != other.gap_policy:
 		return false
 	if interpolation_mode != other.interpolation_mode:
+		return false
+	if fill_mode != other.fill_mode:
+		return false
+	if fill_baseline != other.fill_baseline:
 		return false
 	if hover_max_distance_px != other.hover_max_distance_px:
 		return false

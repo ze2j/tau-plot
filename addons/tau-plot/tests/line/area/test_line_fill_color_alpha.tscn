@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://by44kyvc18a1g"]
+[gd_scene load_steps=3 format=3 uid="uid://cmwd6dq8si671"]
 
-[ext_resource type="Script" uid="uid://vi4vdovvscly" path="res://addons/tau-plot/tests/line/line_attributes/test_line_visual_attributes_dash_alpha.gd" id="1_lv2ey"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_touct"]
+[ext_resource type="Script" uid="uid://cwl6310pxi58" path="res://addons/tau-plot/tests/line/area/test_line_fill_color_alpha.gd" id="1_3uc4y"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_s8dwp"]
 
 [node name="Lines" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_lv2ey")
+script = ExtResource("1_3uc4y")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test LINE visual attributes (alpha only on dashed lines)"
+text = "Fill to baseline 10 with gray color and alpha = 0.5  for different interpolation modes"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -30,9 +30,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[LINEAR] 10 alphas"
-legend_enabled = false
+script = ExtResource("2_s8dwp")
+title = "[LINEAR] SHARED_X + CONTINUOUS"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -41,8 +40,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[LINEAR] 5 alphas"
+script = ExtResource("2_s8dwp")
+title = "[LINEAR] PER_SERIES_X + CONTINUOUS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -52,8 +51,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[LINEAR] 1 alpha"
+script = ExtResource("2_s8dwp")
+title = "[LINEAR] SHARED_X + CATEGORICAL"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -63,9 +62,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[STEP_BEFORE] 10 alphas"
-legend_enabled = false
+script = ExtResource("2_s8dwp")
+title = "[STEP_BEFORE] SHARED_X + CONTINUOUS"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -74,8 +72,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[STEP_BEFORE] 5 alphas"
+script = ExtResource("2_s8dwp")
+title = "[STEP_BEFORE] PER_SERIES_X + CONTINUOUS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -85,8 +83,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[STEP_BEFORE] 1 alpha"
+script = ExtResource("2_s8dwp")
+title = "[STEP_BEFORE] SHARED_X + CATEGORICAL"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -96,9 +94,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[STEP_MIDDLE] 10 alphas"
-legend_enabled = false
+script = ExtResource("2_s8dwp")
+title = "[STEP_MIDDLE] SHARED_X + CONTINUOUS"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
@@ -107,8 +104,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[STEP_MIDDLE] 5 alphas"
+script = ExtResource("2_s8dwp")
+title = "[STEP_MIDDLE] PER_SERIES_X + CONTINUOUS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -118,8 +115,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[STEP_MIDDLE] 1 alpha"
+script = ExtResource("2_s8dwp")
+title = "[STEP_MIDDLE] SHARED_X + CATEGORICAL"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -129,9 +126,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[STEP_AFTER] 10 alphas"
-legend_enabled = false
+script = ExtResource("2_s8dwp")
+title = "[STEP_AFTER] SHARED_X + CONTINUOUS"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot11" type="PanelContainer" parent="GridContainer"]
@@ -140,8 +136,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[STEP_AFTER] 5 alphas"
+script = ExtResource("2_s8dwp")
+title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -151,8 +147,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[STEP_AFTER] 1 alpha"
+script = ExtResource("2_s8dwp")
+title = "[STEP_AFTER] SHARED_X + CATEGORICAL"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -162,9 +158,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[SMOOTH_MONOTONE] 10 alphas"
-legend_enabled = false
+script = ExtResource("2_s8dwp")
+title = "[SMOOTH_MONOTONE] SHARED_X + CONTINUOUS"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot14" type="PanelContainer" parent="GridContainer"]
@@ -173,8 +168,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[SMOOTH_MONOTONE] 5 alphas"
+script = ExtResource("2_s8dwp")
+title = "[SMOOTH_MONOTONE] PER_SERIES_X + CONTINUOUS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -184,7 +179,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_touct")
-title = "[SMOOTH_MONOTONE] 1 alpha"
+script = ExtResource("2_s8dwp")
+title = "[SMOOTH_MONOTONE] SHARED_X + CATEGORICAL"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

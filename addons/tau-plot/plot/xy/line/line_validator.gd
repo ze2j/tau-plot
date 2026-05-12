@@ -49,6 +49,7 @@ class LineValidator extends RefCounted:
 
 		var is_shared_x := (p_dataset.get_mode() == Dataset.Mode.SHARED_X)
 		_validate_line_mode_constraints(p_pane_index, line_config, pane_cfg, p_line_overlay_bindings, is_shared_x, p_result)
+		_validate_fill_constraints(p_pane_index, line_config, pane_cfg, p_line_overlay_bindings, p_result)
 
 
 	####################################################################################################
@@ -91,3 +92,18 @@ class LineValidator extends RefCounted:
 
 			_:
 				p_result.add_error("LineValidator: pane %d: unsupported line mode %d" % [p_pane_index, p_line_config.mode])
+
+
+	static func _validate_fill_constraints(p_pane_index: int, p_line_config: TauLineConfig, p_pane_cfg: TauPaneConfig, p_line_overlay_bindings: Array[TauXYSeriesBinding], p_result: ValidationResult) -> void:
+		if p_line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
+			return
+		if p_line_config.fill_baseline > 0.0:
+			return
+		# A non-positive baseline cannot be mapped on a logarithmic scale,
+		# so the fill is rejected as soon as any line series in this pane
+		# binds to such an axis.
+		for binding in p_line_overlay_bindings:
+			var y_axis_config: TauAxisConfig = p_pane_cfg.get_y_axis_config(binding.y_axis_id)
+			if y_axis_config.scale == TauAxisConfig.Scale.LOGARITHMIC:
+				p_result.add_error("LineValidator: pane %d: fill_mode TO_BASELINE requires fill_baseline > 0 on a logarithmic y axis, got %s" % [p_pane_index, p_line_config.fill_baseline])
+				return
