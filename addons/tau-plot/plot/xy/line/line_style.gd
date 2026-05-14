@@ -12,6 +12,25 @@
 ## different value (e.g. 2.001 instead of 2.0).
 class_name TauLineStyle extends Resource
 
+## Reference frame that anchors [member fill_texture] in the pane. Picks how
+## the texture moves as the data pans and zooms.
+##
+## [b]PANE_RECT[/b]: anchored to the pane rectangle. The texture stays
+## stationary on screen.
+##
+## [b]FILL_BOUNDS[/b]: anchored to the bounding box of the filled area. The
+## texture follows the fill as it pans and stretches as it zooms.
+##
+## [b]DATA_DOMAIN[/b]: anchored to the visible data domain. The U axis
+## follows the data x direction and the V axis follows the data y direction,
+## so axis inversion flips the texture along the matching axis.
+enum FillAnchor
+{
+	PANE_RECT,
+	FILL_BOUNDS,
+	DATA_DOMAIN
+}
+
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
 #          `apply_overrides_from()`, and, if applicable, in
@@ -57,16 +76,49 @@ const DEFAULT_DASH_LENGTHS_PX: Array[int] = [0]
 ## [code]Color(0, 0, 0, 0)[/code] is therefore not a valid explicit fill
 ## color.
 ##
-## The resolved color has its alpha channel multiplied by
-## [member fill_alpha] before rasterization.
+## Overridden by [member fill_texture] when that is non-null. The resolved
+## color's alpha is scaled by [member fill_alpha].
 const DEFAULT_FILL_COLOR: Color = Color(0, 0, 0, 0)
 @export var fill_color: Color = DEFAULT_FILL_COLOR
 
-## Multiplier applied to the alpha channel of the resolved fill color,
-## regardless of whether the color came from [member fill_color] or from
-## [member TauXYStyle.series_colors]. Valid range is [code][0.0, 1.0][/code].
+## Multiplier applied to the alpha of the resolved fill, whether that fill
+## came from [member fill_color], from [member TauXYStyle.series_colors], or
+## from [member fill_texture]. Valid range is [code][0.0, 1.0][/code].
 const DEFAULT_FILL_ALPHA: float = 0.2
 @export var fill_alpha: float = DEFAULT_FILL_ALPHA
+
+## Reference frame that anchors [member fill_texture] in the pane. See
+## [enum FillAnchor] for the available frames. Ignored when
+## [member fill_texture] is [code]null[/code].
+const DEFAULT_FILL_ANCHOR: FillAnchor = FillAnchor.PANE_RECT
+@export var fill_anchor: FillAnchor = DEFAULT_FILL_ANCHOR
+
+## Texture sampled across the fill area. When non-null, it overrides
+## [member fill_color] and the per-series color. Its alpha is scaled by
+## [member fill_alpha].
+const DEFAULT_FILL_TEXTURE: Texture2D = null
+@export var fill_texture: Texture2D = DEFAULT_FILL_TEXTURE
+
+## Number of times [member fill_texture] repeats across the reference frame
+## set by [member fill_anchor]. [code]Vector2(1, 1)[/code] fits the texture
+## exactly once across the frame. [code]Vector2(10, 10)[/code] repeats it ten
+## times in each direction. Ignored when [member fill_texture] is
+## [code]null[/code].
+const DEFAULT_FILL_TEXTURE_TILING: Vector2 = Vector2(1, 1)
+@export var fill_texture_tiling: Vector2 = DEFAULT_FILL_TEXTURE_TILING
+
+## UV translation applied to [member fill_texture] after tiling. Expressed in
+## UV units where [code]1.0[/code] equals the texture's own span, so
+## [code]Vector2(0.5, 0)[/code] shifts the texture by half its tile. Ignored
+## when [member fill_texture] is [code]null[/code].
+const DEFAULT_FILL_TEXTURE_OFFSET: Vector2 = Vector2(0, 0)
+@export var fill_texture_offset: Vector2 = DEFAULT_FILL_TEXTURE_OFFSET
+
+## Rotation in degrees applied to [member fill_texture] around the center
+## of the reference frame, so a motif placed at the center rotates in place.
+## Ignored when [member fill_texture] is [code]null[/code].
+const DEFAULT_FILL_TEXTURE_ROTATION_DEG: float = 0.0
+@export var fill_texture_rotation_deg: float = DEFAULT_FILL_TEXTURE_ROTATION_DEG
 
 
 ####################################################################################################
@@ -87,10 +139,10 @@ func get_series_width_px(p_series_index: int) -> float:
 
 ## Returns the resolved hovered line width in pixels for the given series
 ## index. An empty [member hovered_line_widths_px] returns [code]0.0[/code]
-## as a "no hover emphasis" sentinel. The renderer clamps the result against
-## the per-series base width from [member line_widths_px], so the empty-array
-## case naturally falls back to the base width and never produces a thinner
-## line on hover.
+## as a "no hover emphasis" sentinel. The result is later clamped against
+## the per-series base width from [member line_widths_px] at draw time, so
+## the empty-array case falls back to the base width and never produces a
+## thinner line on hover.
 func get_series_hovered_width_px(p_series_index: int) -> float:
 	if hovered_line_widths_px.is_empty():
 		return 0.0
@@ -146,16 +198,35 @@ func get_series_fill_color(p_series_index: int, p_xy_style: TauXYStyle) -> Color
 ##   - [member fill_alpha]: [code]line_fill_alpha_percent[/code] and
 ##     [code]line_fill_alpha_percent_P[/code]. Stored as a percentage in
 ##     the theme because theme constants are integers.
+##   - [member fill_anchor]: [code]line_fill_anchor[/code] and
+##     [code]line_fill_anchor_P[/code]. Stored as the integer enum value.
+##   - [member fill_texture]: [code]line_fill_texture[/code] and
+##     [code]line_fill_texture_P[/code]. Looked up as a theme icon.
+##   - [member fill_texture_tiling]: stored as a pair of integers
+##     [code]line_fill_texture_tiling_x_percent[/code] and
+##     [code]line_fill_texture_tiling_y_percent[/code], each in hundredths
+##     of the float value (so [code]100[/code] means [code]1.0[/code]).
+##     The per-pane variants append [code]_P[/code].
+##   - [member fill_texture_offset]: stored as a pair of integers
+##     [code]line_fill_texture_offset_x_percent[/code] and
+##     [code]line_fill_texture_offset_y_percent[/code], with the same
+##     hundredths-of-float encoding. The per-pane variants append
+##     [code]_P[/code].
+##   - [member fill_texture_rotation_deg]:
+##     [code]line_fill_texture_rotation_deg[/code] and
+##     [code]line_fill_texture_rotation_deg_P[/code]. Stored as integer
+##     degrees.
 ##
-## This method writes every property unconditionally because it is called on
-## the resolved instance, not on the user-provided resource.
+## Every property is written unconditionally. Properties without a matching
+## theme entry keep their current value, so this method is safe to call on
+## an instance already populated with defaults.
 func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control == null:
 		push_error("TauLineStyle.load_from_theme(): control is null")
 		return
 
-	# line_widths_px: two-level indexed lookup.
-	# Level 1 (global): line_width_px_N
+	# line_widths_px: two-level indexed lookup. Level 1 sets values across all
+	# panes. Level 2 overrides per pane.
 	var global_widths: Array[float] = []
 	var width_index := 0
 	while true:
@@ -168,7 +239,6 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if not global_widths.is_empty():
 		line_widths_px = global_widths
 
-	# Level 2 (per-pane): line_width_px_N_P overrides series N in pane P.
 	var pane_width_index := 0
 	while true:
 		var key := "line_width_px_%d_%d" % [pane_width_index, p_pane_index]
@@ -181,8 +251,8 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		line_widths_px[pane_width_index] = max(float(p_control.get_theme_constant(key)), 0.0)
 		pane_width_index += 1
 
-	# hovered_line_widths_px: two-level indexed lookup.
-	# Level 1 (global): line_hovered_width_px_N
+	# hovered_line_widths_px: two-level indexed lookup, same pattern as
+	# line_widths_px.
 	var global_hovered: Array[float] = []
 	var hovered_index := 0
 	while true:
@@ -195,7 +265,6 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if not global_hovered.is_empty():
 		hovered_line_widths_px = global_hovered
 
-	# Level 2 (per-pane): line_hovered_width_px_N_P overrides series N in pane P.
 	var pane_hovered_index := 0
 	while true:
 		var key := "line_hovered_width_px_%d_%d" % [pane_hovered_index, p_pane_index]
@@ -206,8 +275,8 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		hovered_line_widths_px[pane_hovered_index] = max(float(p_control.get_theme_constant(key)), 0.0)
 		pane_hovered_index += 1
 
-	# dash_lengths_px: two-level indexed lookup.
-	# Level 1 (global): line_dash_px_N
+	# dash_lengths_px: two-level indexed lookup, same pattern as
+	# line_widths_px.
 	var global_dashes: Array[int] = []
 	var dash_index := 0
 	while true:
@@ -220,28 +289,28 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if not global_dashes.is_empty():
 		dash_lengths_px = global_dashes
 
-	# Level 2 (per-pane): line_dash_px_N_P overrides series N in pane P.
 	var pane_dash_index := 0
 	while true:
 		var key := "line_dash_px_%d_%d" % [pane_dash_index, p_pane_index]
 		if not p_control.has_theme_constant(key):
 			break
-		# Grow the array if the per-pane theme defines more dash entries than
-		# the global theme (or the default).
 		if pane_dash_index >= dash_lengths_px.size():
 			dash_lengths_px.resize(pane_dash_index + 1)
 		dash_lengths_px[pane_dash_index] = max(int(p_control.get_theme_constant(key)), 0)
 		pane_dash_index += 1
 
-	# fill_color: non-indexed key first, then per-pane indexed key overwrites.
+	# Scalar fill properties. Each one uses a non-indexed base key plus a
+	# per-pane key that overwrites it. Encoding details for the integer
+	# theme constants live in the function docstring.
+
+	# fill_color
 	if p_control.has_theme_color(&"line_fill_color"):
 		fill_color = p_control.get_theme_color(&"line_fill_color")
 	var indexed_fill_color_key := StringName("line_fill_color_%d" % p_pane_index)
 	if p_control.has_theme_color(indexed_fill_color_key):
 		fill_color = p_control.get_theme_color(indexed_fill_color_key)
 
-	# fill_alpha: stored as a percentage in the theme because theme constants
-	# are integers. Non-indexed key first, then per-pane indexed key overwrites.
+	# fill_alpha
 	if p_control.has_theme_constant(&"line_fill_alpha_percent"):
 		var alpha_percent := p_control.get_theme_constant(&"line_fill_alpha_percent")
 		fill_alpha = clampf(float(alpha_percent) / 100.0, 0.0, 1.0)
@@ -249,6 +318,55 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control.has_theme_constant(indexed_fill_alpha_key):
 		var alpha_percent_p := p_control.get_theme_constant(indexed_fill_alpha_key)
 		fill_alpha = clampf(float(alpha_percent_p) / 100.0, 0.0, 1.0)
+
+	# fill_anchor
+	if p_control.has_theme_constant(&"line_fill_anchor"):
+		fill_anchor = p_control.get_theme_constant(&"line_fill_anchor") as FillAnchor
+	var indexed_fill_anchor_key := StringName("line_fill_anchor_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_fill_anchor_key):
+		fill_anchor = p_control.get_theme_constant(indexed_fill_anchor_key) as FillAnchor
+
+	# fill_texture
+	if p_control.has_theme_icon(&"line_fill_texture"):
+		fill_texture = p_control.get_theme_icon(&"line_fill_texture")
+	var indexed_fill_texture_key := StringName("line_fill_texture_%d" % p_pane_index)
+	if p_control.has_theme_icon(indexed_fill_texture_key):
+		fill_texture = p_control.get_theme_icon(indexed_fill_texture_key)
+
+	# fill_texture_tiling
+	var tiling := fill_texture_tiling
+	if p_control.has_theme_constant(&"line_fill_texture_tiling_x_percent"):
+		tiling.x = float(p_control.get_theme_constant(&"line_fill_texture_tiling_x_percent")) / 100.0
+	if p_control.has_theme_constant(&"line_fill_texture_tiling_y_percent"):
+		tiling.y = float(p_control.get_theme_constant(&"line_fill_texture_tiling_y_percent")) / 100.0
+	var indexed_tiling_x_key := StringName("line_fill_texture_tiling_x_percent_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_tiling_x_key):
+		tiling.x = float(p_control.get_theme_constant(indexed_tiling_x_key)) / 100.0
+	var indexed_tiling_y_key := StringName("line_fill_texture_tiling_y_percent_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_tiling_y_key):
+		tiling.y = float(p_control.get_theme_constant(indexed_tiling_y_key)) / 100.0
+	fill_texture_tiling = tiling
+
+	# fill_texture_offset
+	var offset := fill_texture_offset
+	if p_control.has_theme_constant(&"line_fill_texture_offset_x_percent"):
+		offset.x = float(p_control.get_theme_constant(&"line_fill_texture_offset_x_percent")) / 100.0
+	if p_control.has_theme_constant(&"line_fill_texture_offset_y_percent"):
+		offset.y = float(p_control.get_theme_constant(&"line_fill_texture_offset_y_percent")) / 100.0
+	var indexed_offset_x_key := StringName("line_fill_texture_offset_x_percent_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_offset_x_key):
+		offset.x = float(p_control.get_theme_constant(indexed_offset_x_key)) / 100.0
+	var indexed_offset_y_key := StringName("line_fill_texture_offset_y_percent_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_offset_y_key):
+		offset.y = float(p_control.get_theme_constant(indexed_offset_y_key)) / 100.0
+	fill_texture_offset = offset
+
+	# fill_texture_rotation_deg
+	if p_control.has_theme_constant(&"line_fill_texture_rotation_deg"):
+		fill_texture_rotation_deg = float(p_control.get_theme_constant(&"line_fill_texture_rotation_deg"))
+	var indexed_rotation_key := StringName("line_fill_texture_rotation_deg_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_rotation_key):
+		fill_texture_rotation_deg = float(p_control.get_theme_constant(indexed_rotation_key))
 
 
 ####################################################################################################
@@ -262,15 +380,10 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 	if p_user_style == null:
 		return
 
-	# line_widths_px: element-wise comparison against the default array.
 	if _is_line_widths_overridden(p_user_style.line_widths_px):
 		line_widths_px = p_user_style.line_widths_px.duplicate()
-
-	# hovered_line_widths_px: element-wise comparison against the default array.
 	if _is_hovered_line_widths_overridden(p_user_style.hovered_line_widths_px):
 		hovered_line_widths_px = p_user_style.hovered_line_widths_px.duplicate()
-
-	# dash_lengths_px: element-wise comparison against the default array.
 	if _is_dash_lengths_overridden(p_user_style.dash_lengths_px):
 		dash_lengths_px = p_user_style.dash_lengths_px.duplicate()
 
@@ -278,6 +391,16 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 		fill_color = p_user_style.fill_color
 	if p_user_style.fill_alpha != DEFAULT_FILL_ALPHA:
 		fill_alpha = clampf(p_user_style.fill_alpha, 0.0, 1.0)
+	if p_user_style.fill_anchor != DEFAULT_FILL_ANCHOR:
+		fill_anchor = p_user_style.fill_anchor
+	if p_user_style.fill_texture != DEFAULT_FILL_TEXTURE:
+		fill_texture = p_user_style.fill_texture
+	if p_user_style.fill_texture_tiling != DEFAULT_FILL_TEXTURE_TILING:
+		fill_texture_tiling = p_user_style.fill_texture_tiling
+	if p_user_style.fill_texture_offset != DEFAULT_FILL_TEXTURE_OFFSET:
+		fill_texture_offset = p_user_style.fill_texture_offset
+	if p_user_style.fill_texture_rotation_deg != DEFAULT_FILL_TEXTURE_ROTATION_DEG:
+		fill_texture_rotation_deg = p_user_style.fill_texture_rotation_deg
 
 
 ####################################################################################################
@@ -289,18 +412,15 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 ##   2. Load theme values (non-indexed, then indexed for this pane).
 ##   3. Apply user overrides from [param p_user_style] (may be null).
 ##
-## The returned instance is a new TauLineStyle owned by the caller. It is
-## separate from [param p_user_style] which is never mutated.
+## The returned instance is a new TauLineStyle owned by the caller.
+## [param p_user_style] is never mutated.
 static func resolve(
 	p_control: Control,
 	p_pane_index: int,
 	p_user_style: TauLineStyle
 ) -> TauLineStyle:
-	# Layer 1: defaults.
 	var resolved := TauLineStyle.new()
-	# Layer 2: theme values.
 	resolved.load_from_theme(p_control, p_pane_index)
-	# Layer 3: user overrides.
 	resolved.apply_overrides_from(p_user_style)
 	return resolved
 
@@ -309,6 +429,8 @@ static func resolve(
 # Change detection
 ####################################################################################################
 
+## Deep equality between this instance and [param p_other]. Compares every
+## public property value-for-value, including the per-series arrays.
 func is_equal_to(p_other: TauLineStyle) -> bool:
 	if p_other == null:
 		return false
@@ -331,11 +453,23 @@ func is_equal_to(p_other: TauLineStyle) -> bool:
 		return false
 	if fill_alpha != p_other.fill_alpha:
 		return false
+	if fill_anchor != p_other.fill_anchor:
+		return false
+	if fill_texture != p_other.fill_texture:
+		return false
+	if fill_texture_tiling != p_other.fill_texture_tiling:
+		return false
+	if fill_texture_offset != p_other.fill_texture_offset:
+		return false
+	if fill_texture_rotation_deg != p_other.fill_texture_rotation_deg:
+		return false
 	return true
 
 
-# All TauLineStyle properties are visual-only. They control how lines are
-# drawn within a fixed domain but do not affect domain, ticks, or pane rect.
+## Returns true if a change from [param p_other] to this instance would
+## require the surrounding layout (domain, ticks, pane rect) to be
+## recomputed. Always false: TauLineStyle properties only affect how lines
+## are drawn within a fixed domain.
 func has_layout_affecting_change(p_other: TauLineStyle) -> bool:
 	return false
 
@@ -344,8 +478,9 @@ func has_layout_affecting_change(p_other: TauLineStyle) -> bool:
 # Private
 ####################################################################################################
 
-## Returns true if [param p_widths] differs from DEFAULT_LINE_WIDTHS_PX using
-## a size + element loop (safest approach for typed arrays in GDScript).
+# Element-wise inequality between p_widths and DEFAULT_LINE_WIDTHS_PX. Typed
+# arrays in GDScript do not have a reliable equality operator against module
+# constants, so the comparison runs through size and indices.
 static func _is_line_widths_overridden(p_widths: Array[float]) -> bool:
 	if p_widths.size() != DEFAULT_LINE_WIDTHS_PX.size():
 		return true
@@ -355,8 +490,7 @@ static func _is_line_widths_overridden(p_widths: Array[float]) -> bool:
 	return false
 
 
-## Returns true if [param p_widths] differs from DEFAULT_HOVERED_LINE_WIDTHS_PX
-## using a size + element loop (safest approach for typed arrays in GDScript).
+# Element-wise inequality between p_widths and DEFAULT_HOVERED_LINE_WIDTHS_PX.
 static func _is_hovered_line_widths_overridden(p_widths: Array[float]) -> bool:
 	if p_widths.size() != DEFAULT_HOVERED_LINE_WIDTHS_PX.size():
 		return true
@@ -366,8 +500,7 @@ static func _is_hovered_line_widths_overridden(p_widths: Array[float]) -> bool:
 	return false
 
 
-## Returns true if [param p_dashes] differs from DEFAULT_DASH_LENGTHS_PX using
-## a size + element loop (safest approach for typed arrays in GDScript).
+# Element-wise inequality between p_dashes and DEFAULT_DASH_LENGTHS_PX.
 static func _is_dash_lengths_overridden(p_dashes: Array[int]) -> bool:
 	if p_dashes.size() != DEFAULT_DASH_LENGTHS_PX.size():
 		return true
