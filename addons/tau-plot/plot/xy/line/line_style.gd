@@ -12,23 +12,56 @@
 ## different value (e.g. 2.001 instead of 2.0).
 class_name TauLineStyle extends Resource
 
-## Reference frame that anchors [member fill_texture] in the pane. Picks how
-## the texture moves as the data pans and zooms.
+## Sampling strategy for [member fill_texture]. Picks which parameter set
+## drives the texture transform.
 ##
-## [b]PANE_RECT[/b]: anchored to the pane rectangle. The texture stays
-## stationary on screen.
+## [b]STRETCH[/b]: the texture is sampled once across a chosen span. Best
+## for textures whose shape maps onto the fill, such as a vertical gradient
+## fading toward the baseline. See [member fill_texture_stretch_axis] and
+## [member fill_texture_stretch_span].
 ##
-## [b]FILL_BOUNDS[/b]: anchored to the bounding box of the filled area. The
-## texture follows the fill as it pans and stretches as it zooms.
-##
-## [b]DATA_DOMAIN[/b]: anchored to the visible data domain. The U axis
-## follows the data x direction and the V axis follows the data y direction,
-## so axis inversion flips the texture along the matching axis.
-enum FillAnchor
+## [b]TILE[/b]: the texture is repeated at its native pixel size across the
+## fill, with a square-pixel-correct grid that does not depend on pane shape.
+## Best for seamless motifs (dots, hatching, stippling). See
+## [member fill_texture_scale], [member fill_texture_rotation_deg], and
+## [member fill_texture_offset_px].
+enum FillTextureMode
 {
-	PANE_RECT,
-	FILL_BOUNDS,
-	DATA_DOMAIN
+	STRETCH,
+	TILE
+}
+
+## Direction along which a STRETCH texture is sampled.
+enum FillStretchAxis
+{
+	X,
+	Y
+}
+
+## What the endpoints of a STRETCH texture are anchored to.
+##
+## [b]PANE[/b]: the texture spans the whole pane in the stretch direction.
+## Endpoints stay glued to the pane edges as data updates, so the texture
+## feels like a property of the chart background. The portion that ends up
+## visible inside the fill depends on how much of the pane the polygon
+## covers.
+##
+## [b]POLYGON[/b]: the texture spans the fill polygon's axis-aligned
+## bounding box in the stretch direction. The full texture is always
+## visible inside the fill, at the cost of rescaling whenever the polygon's
+## extent changes.
+##
+## [b]BASELINE[/b]: the texture spans from the line to the opposite edge of
+## the fill polygon in the stretch direction. One endpoint is glued to the
+## line, the other to the closing edge: the horizontal [member
+## TauLineConfig.fill_baseline] for [code]TO_BASELINE[/code], or the
+## layer-below curve for [code]STACKED[/code]. Only valid with
+## [code]FillStretchAxis.Y[/code].
+enum FillStretchSpan
+{
+	PANE,
+	POLYGON,
+	BASELINE
 }
 
 ################################################################################################
@@ -87,38 +120,68 @@ const DEFAULT_FILL_COLOR: Color = Color(0, 0, 0, 0)
 const DEFAULT_FILL_ALPHA: float = 0.2
 @export var fill_alpha: float = DEFAULT_FILL_ALPHA
 
-## Reference frame that anchors [member fill_texture] in the pane. See
-## [enum FillAnchor] for the available frames. Ignored when
-## [member fill_texture] is [code]null[/code].
-const DEFAULT_FILL_ANCHOR: FillAnchor = FillAnchor.PANE_RECT
-@export var fill_anchor: FillAnchor = DEFAULT_FILL_ANCHOR
-
 ## Texture sampled across the fill area. When non-null, it overrides
 ## [member fill_color] and the per-series color. Its alpha is scaled by
 ## [member fill_alpha].
+##
+## How the texture is mapped onto the fill is controlled by
+## [member fill_texture_mode]. With the default mode [code]STRETCH[/code], a
+## newly assigned texture spans from the line down to the baseline along the
+## Y axis, which produces the area-chart gradient case without further
+## configuration.
 const DEFAULT_FILL_TEXTURE: Texture2D = null
 @export var fill_texture: Texture2D = DEFAULT_FILL_TEXTURE
 
-## Number of times [member fill_texture] repeats across the reference frame
-## set by [member fill_anchor]. [code]Vector2(1, 1)[/code] fits the texture
-## exactly once across the frame. [code]Vector2(10, 10)[/code] repeats it ten
-## times in each direction. Ignored when [member fill_texture] is
+## Sampling strategy for [member fill_texture]. See [enum FillTextureMode]
+## for the available modes. Selects which parameter set is active: the
+## STRETCH parameters or the TILE parameters. Ignored when
+## [member fill_texture] is [code]null[/code].
+const DEFAULT_FILL_TEXTURE_MODE: FillTextureMode = FillTextureMode.STRETCH
+@export var fill_texture_mode: FillTextureMode = DEFAULT_FILL_TEXTURE_MODE
+
+## Axis along which the texture is sampled in [code]STRETCH[/code] mode.
+## The non-stretch axis reads the texture at a fixed coordinate. Ignored
+## outside [code]STRETCH[/code] mode and when [member fill_texture] is
 ## [code]null[/code].
-const DEFAULT_FILL_TEXTURE_TILING: Vector2 = Vector2(1, 1)
-@export var fill_texture_tiling: Vector2 = DEFAULT_FILL_TEXTURE_TILING
+const DEFAULT_FILL_TEXTURE_STRETCH_AXIS: FillStretchAxis = FillStretchAxis.Y
+@export var fill_texture_stretch_axis: FillStretchAxis = DEFAULT_FILL_TEXTURE_STRETCH_AXIS
 
-## UV translation applied to [member fill_texture] after tiling. Expressed in
-## UV units where [code]1.0[/code] equals the texture's own span, so
-## [code]Vector2(0.5, 0)[/code] shifts the texture by half its tile. Ignored
-## when [member fill_texture] is [code]null[/code].
-const DEFAULT_FILL_TEXTURE_OFFSET: Vector2 = Vector2(0, 0)
-@export var fill_texture_offset: Vector2 = DEFAULT_FILL_TEXTURE_OFFSET
+## What the texture endpoints are anchored to in [code]STRETCH[/code] mode.
+## See [enum FillStretchSpan] for the available spans. Ignored outside
+## [code]STRETCH[/code] mode and when [member fill_texture] is
+## [code]null[/code].
+##
+## The combination [code]BASELINE[/code] + [code]FillStretchAxis.X[/code] is
+## rejected at config time, since there is no "line edge" along X.
+const DEFAULT_FILL_TEXTURE_STRETCH_SPAN: FillStretchSpan = FillStretchSpan.BASELINE
+@export var fill_texture_stretch_span: FillStretchSpan = DEFAULT_FILL_TEXTURE_STRETCH_SPAN
 
-## Rotation in degrees applied to [member fill_texture] around the center
-## of the reference frame, so a motif placed at the center rotates in place.
+## Uniform scale applied to the tile grid in [code]TILE[/code] mode.
+## [code]1.0[/code] means one tile equals the texture's native pixel size on
+## screen. [code]2.0[/code] doubles the tile size. The grid stays
+## square-pixel correct regardless of pane shape. Ignored outside
+## [code]TILE[/code] mode and when [member fill_texture] is [code]null[/code].
+const DEFAULT_FILL_TEXTURE_SCALE: float = 1.0
+@export var fill_texture_scale: float = DEFAULT_FILL_TEXTURE_SCALE
+
+## Rotation in degrees applied to the texture.
+##
+## In [code]TILE[/code] mode, rotates the tile grid around the pane center,
+## a stable point in pane coordinates that does not move as data updates.
+##
+## In [code]STRETCH[/code] mode, this property currently has no effect.
+##
 ## Ignored when [member fill_texture] is [code]null[/code].
 const DEFAULT_FILL_TEXTURE_ROTATION_DEG: float = 0.0
 @export var fill_texture_rotation_deg: float = DEFAULT_FILL_TEXTURE_ROTATION_DEG
+
+## Screen-space translation applied to the tile grid in [code]TILE[/code]
+## mode, after rotation. Expressed in pixels, so animating one component
+## moves the pattern along the corresponding screen axis regardless of
+## rotation angle or [member fill_texture_scale]. Ignored outside
+## [code]TILE[/code] mode and when [member fill_texture] is [code]null[/code].
+const DEFAULT_FILL_TEXTURE_OFFSET_PX: Vector2 = Vector2.ZERO
+@export var fill_texture_offset_px: Vector2 = DEFAULT_FILL_TEXTURE_OFFSET_PX
 
 
 ####################################################################################################
@@ -198,24 +261,31 @@ func get_series_fill_color(p_series_index: int, p_xy_style: TauXYStyle) -> Color
 ##   - [member fill_alpha]: [code]line_fill_alpha_percent[/code] and
 ##     [code]line_fill_alpha_percent_P[/code]. Stored as a percentage in
 ##     the theme because theme constants are integers.
-##   - [member fill_anchor]: [code]line_fill_anchor[/code] and
-##     [code]line_fill_anchor_P[/code]. Stored as the integer enum value.
 ##   - [member fill_texture]: [code]line_fill_texture[/code] and
 ##     [code]line_fill_texture_P[/code]. Looked up as a theme icon.
-##   - [member fill_texture_tiling]: stored as a pair of integers
-##     [code]line_fill_texture_tiling_x_percent[/code] and
-##     [code]line_fill_texture_tiling_y_percent[/code], each in hundredths
-##     of the float value (so [code]100[/code] means [code]1.0[/code]).
-##     The per-pane variants append [code]_P[/code].
-##   - [member fill_texture_offset]: stored as a pair of integers
-##     [code]line_fill_texture_offset_x_percent[/code] and
-##     [code]line_fill_texture_offset_y_percent[/code], with the same
-##     hundredths-of-float encoding. The per-pane variants append
-##     [code]_P[/code].
+##   - [member fill_texture_mode]: [code]line_fill_texture_mode[/code] and
+##     [code]line_fill_texture_mode_P[/code]. Stored as the integer enum
+##     value.
+##   - [member fill_texture_stretch_axis]:
+##     [code]line_fill_texture_stretch_axis[/code] and
+##     [code]line_fill_texture_stretch_axis_P[/code]. Stored as the integer
+##     enum value.
+##   - [member fill_texture_stretch_span]:
+##     [code]line_fill_texture_stretch_span[/code] and
+##     [code]line_fill_texture_stretch_span_P[/code]. Stored as the integer
+##     enum value.
+##   - [member fill_texture_scale]:
+##     [code]line_fill_texture_scale_percent[/code] and
+##     [code]line_fill_texture_scale_percent_P[/code]. Stored in hundredths
+##     of the float value ([code]100[/code] means [code]1.0[/code]).
 ##   - [member fill_texture_rotation_deg]:
 ##     [code]line_fill_texture_rotation_deg[/code] and
 ##     [code]line_fill_texture_rotation_deg_P[/code]. Stored as integer
 ##     degrees.
+##   - [member fill_texture_offset_px]: stored as a pair of integers
+##     [code]line_fill_texture_offset_px_x[/code] and
+##     [code]line_fill_texture_offset_px_y[/code]. The per-pane variants
+##     append [code]_P[/code].
 ##
 ## Every property is written unconditionally. Properties without a matching
 ## theme entry keep their current value, so this method is safe to call on
@@ -319,13 +389,6 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		var alpha_percent_p := p_control.get_theme_constant(indexed_fill_alpha_key)
 		fill_alpha = clampf(float(alpha_percent_p) / 100.0, 0.0, 1.0)
 
-	# fill_anchor
-	if p_control.has_theme_constant(&"line_fill_anchor"):
-		fill_anchor = p_control.get_theme_constant(&"line_fill_anchor") as FillAnchor
-	var indexed_fill_anchor_key := StringName("line_fill_anchor_%d" % p_pane_index)
-	if p_control.has_theme_constant(indexed_fill_anchor_key):
-		fill_anchor = p_control.get_theme_constant(indexed_fill_anchor_key) as FillAnchor
-
 	# fill_texture
 	if p_control.has_theme_icon(&"line_fill_texture"):
 		fill_texture = p_control.get_theme_icon(&"line_fill_texture")
@@ -333,33 +396,33 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control.has_theme_icon(indexed_fill_texture_key):
 		fill_texture = p_control.get_theme_icon(indexed_fill_texture_key)
 
-	# fill_texture_tiling
-	var tiling := fill_texture_tiling
-	if p_control.has_theme_constant(&"line_fill_texture_tiling_x_percent"):
-		tiling.x = float(p_control.get_theme_constant(&"line_fill_texture_tiling_x_percent")) / 100.0
-	if p_control.has_theme_constant(&"line_fill_texture_tiling_y_percent"):
-		tiling.y = float(p_control.get_theme_constant(&"line_fill_texture_tiling_y_percent")) / 100.0
-	var indexed_tiling_x_key := StringName("line_fill_texture_tiling_x_percent_%d" % p_pane_index)
-	if p_control.has_theme_constant(indexed_tiling_x_key):
-		tiling.x = float(p_control.get_theme_constant(indexed_tiling_x_key)) / 100.0
-	var indexed_tiling_y_key := StringName("line_fill_texture_tiling_y_percent_%d" % p_pane_index)
-	if p_control.has_theme_constant(indexed_tiling_y_key):
-		tiling.y = float(p_control.get_theme_constant(indexed_tiling_y_key)) / 100.0
-	fill_texture_tiling = tiling
+	# fill_texture_mode
+	if p_control.has_theme_constant(&"line_fill_texture_mode"):
+		fill_texture_mode = p_control.get_theme_constant(&"line_fill_texture_mode") as FillTextureMode
+	var indexed_mode_key := StringName("line_fill_texture_mode_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_mode_key):
+		fill_texture_mode = p_control.get_theme_constant(indexed_mode_key) as FillTextureMode
 
-	# fill_texture_offset
-	var offset := fill_texture_offset
-	if p_control.has_theme_constant(&"line_fill_texture_offset_x_percent"):
-		offset.x = float(p_control.get_theme_constant(&"line_fill_texture_offset_x_percent")) / 100.0
-	if p_control.has_theme_constant(&"line_fill_texture_offset_y_percent"):
-		offset.y = float(p_control.get_theme_constant(&"line_fill_texture_offset_y_percent")) / 100.0
-	var indexed_offset_x_key := StringName("line_fill_texture_offset_x_percent_%d" % p_pane_index)
-	if p_control.has_theme_constant(indexed_offset_x_key):
-		offset.x = float(p_control.get_theme_constant(indexed_offset_x_key)) / 100.0
-	var indexed_offset_y_key := StringName("line_fill_texture_offset_y_percent_%d" % p_pane_index)
-	if p_control.has_theme_constant(indexed_offset_y_key):
-		offset.y = float(p_control.get_theme_constant(indexed_offset_y_key)) / 100.0
-	fill_texture_offset = offset
+	# fill_texture_stretch_axis
+	if p_control.has_theme_constant(&"line_fill_texture_stretch_axis"):
+		fill_texture_stretch_axis = p_control.get_theme_constant(&"line_fill_texture_stretch_axis") as FillStretchAxis
+	var indexed_axis_key := StringName("line_fill_texture_stretch_axis_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_axis_key):
+		fill_texture_stretch_axis = p_control.get_theme_constant(indexed_axis_key) as FillStretchAxis
+
+	# fill_texture_stretch_span
+	if p_control.has_theme_constant(&"line_fill_texture_stretch_span"):
+		fill_texture_stretch_span = p_control.get_theme_constant(&"line_fill_texture_stretch_span") as FillStretchSpan
+	var indexed_span_key := StringName("line_fill_texture_stretch_span_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_span_key):
+		fill_texture_stretch_span = p_control.get_theme_constant(indexed_span_key) as FillStretchSpan
+
+	# fill_texture_scale
+	if p_control.has_theme_constant(&"line_fill_texture_scale_percent"):
+		fill_texture_scale = float(p_control.get_theme_constant(&"line_fill_texture_scale_percent")) / 100.0
+	var indexed_scale_key := StringName("line_fill_texture_scale_percent_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_scale_key):
+		fill_texture_scale = float(p_control.get_theme_constant(indexed_scale_key)) / 100.0
 
 	# fill_texture_rotation_deg
 	if p_control.has_theme_constant(&"line_fill_texture_rotation_deg"):
@@ -367,6 +430,20 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	var indexed_rotation_key := StringName("line_fill_texture_rotation_deg_%d" % p_pane_index)
 	if p_control.has_theme_constant(indexed_rotation_key):
 		fill_texture_rotation_deg = float(p_control.get_theme_constant(indexed_rotation_key))
+
+	# fill_texture_offset_px
+	var offset_px := fill_texture_offset_px
+	if p_control.has_theme_constant(&"line_fill_texture_offset_px_x"):
+		offset_px.x = float(p_control.get_theme_constant(&"line_fill_texture_offset_px_x"))
+	if p_control.has_theme_constant(&"line_fill_texture_offset_px_y"):
+		offset_px.y = float(p_control.get_theme_constant(&"line_fill_texture_offset_px_y"))
+	var indexed_offset_x_key := StringName("line_fill_texture_offset_px_x_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_offset_x_key):
+		offset_px.x = float(p_control.get_theme_constant(indexed_offset_x_key))
+	var indexed_offset_y_key := StringName("line_fill_texture_offset_px_y_%d" % p_pane_index)
+	if p_control.has_theme_constant(indexed_offset_y_key):
+		offset_px.y = float(p_control.get_theme_constant(indexed_offset_y_key))
+	fill_texture_offset_px = offset_px
 
 
 ####################################################################################################
@@ -391,16 +468,20 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 		fill_color = p_user_style.fill_color
 	if p_user_style.fill_alpha != DEFAULT_FILL_ALPHA:
 		fill_alpha = clampf(p_user_style.fill_alpha, 0.0, 1.0)
-	if p_user_style.fill_anchor != DEFAULT_FILL_ANCHOR:
-		fill_anchor = p_user_style.fill_anchor
 	if p_user_style.fill_texture != DEFAULT_FILL_TEXTURE:
 		fill_texture = p_user_style.fill_texture
-	if p_user_style.fill_texture_tiling != DEFAULT_FILL_TEXTURE_TILING:
-		fill_texture_tiling = p_user_style.fill_texture_tiling
-	if p_user_style.fill_texture_offset != DEFAULT_FILL_TEXTURE_OFFSET:
-		fill_texture_offset = p_user_style.fill_texture_offset
+	if p_user_style.fill_texture_mode != DEFAULT_FILL_TEXTURE_MODE:
+		fill_texture_mode = p_user_style.fill_texture_mode
+	if p_user_style.fill_texture_stretch_axis != DEFAULT_FILL_TEXTURE_STRETCH_AXIS:
+		fill_texture_stretch_axis = p_user_style.fill_texture_stretch_axis
+	if p_user_style.fill_texture_stretch_span != DEFAULT_FILL_TEXTURE_STRETCH_SPAN:
+		fill_texture_stretch_span = p_user_style.fill_texture_stretch_span
+	if p_user_style.fill_texture_scale != DEFAULT_FILL_TEXTURE_SCALE:
+		fill_texture_scale = p_user_style.fill_texture_scale
 	if p_user_style.fill_texture_rotation_deg != DEFAULT_FILL_TEXTURE_ROTATION_DEG:
 		fill_texture_rotation_deg = p_user_style.fill_texture_rotation_deg
+	if p_user_style.fill_texture_offset_px != DEFAULT_FILL_TEXTURE_OFFSET_PX:
+		fill_texture_offset_px = p_user_style.fill_texture_offset_px
 
 
 ####################################################################################################
@@ -453,15 +534,19 @@ func is_equal_to(p_other: TauLineStyle) -> bool:
 		return false
 	if fill_alpha != p_other.fill_alpha:
 		return false
-	if fill_anchor != p_other.fill_anchor:
-		return false
 	if fill_texture != p_other.fill_texture:
 		return false
-	if fill_texture_tiling != p_other.fill_texture_tiling:
+	if fill_texture_mode != p_other.fill_texture_mode:
 		return false
-	if fill_texture_offset != p_other.fill_texture_offset:
+	if fill_texture_stretch_axis != p_other.fill_texture_stretch_axis:
+		return false
+	if fill_texture_stretch_span != p_other.fill_texture_stretch_span:
+		return false
+	if fill_texture_scale != p_other.fill_texture_scale:
 		return false
 	if fill_texture_rotation_deg != p_other.fill_texture_rotation_deg:
+		return false
+	if fill_texture_offset_px != p_other.fill_texture_offset_px:
 		return false
 	return true
 

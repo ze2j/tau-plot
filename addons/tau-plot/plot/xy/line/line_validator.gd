@@ -95,6 +95,8 @@ class LineValidator extends RefCounted:
 
 
 	static func _validate_fill_constraints(p_pane_index: int, p_line_config: TauLineConfig, p_pane_cfg: TauPaneConfig, p_line_overlay_bindings: Array[TauXYSeriesBinding], p_result: ValidationResult) -> void:
+		_validate_fill_texture_stretch(p_pane_index, p_line_config, p_result)
+
 		if p_line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
 			return
 		if p_line_config.fill_baseline > 0.0:
@@ -107,3 +109,18 @@ class LineValidator extends RefCounted:
 			if y_axis_config.scale == TauAxisConfig.Scale.LOGARITHMIC:
 				p_result.add_error("LineValidator: pane %d: fill_mode TO_BASELINE requires fill_baseline > 0 on a logarithmic y axis, got %s" % [p_pane_index, p_line_config.fill_baseline])
 				return
+
+
+	# BASELINE span anchors one endpoint of the texture to the line itself,
+	# which has no analogue along X. The combination is rejected here even
+	# when fill_texture is null, so the configuration error is reported as
+	# soon as it is set.
+	static func _validate_fill_texture_stretch(p_pane_index: int, p_line_config: TauLineConfig, p_result: ValidationResult) -> void:
+		var style: TauLineStyle = p_line_config.style
+		if style.fill_texture_mode != TauLineStyle.FillTextureMode.STRETCH:
+			return
+		if style.fill_texture_stretch_span != TauLineStyle.FillStretchSpan.BASELINE:
+			return
+		if style.fill_texture_stretch_axis != TauLineStyle.FillStretchAxis.X:
+			return
+		p_result.add_error("LineValidator: pane %d: fill_texture_stretch_span BASELINE is incompatible with fill_texture_stretch_axis X" % p_pane_index)

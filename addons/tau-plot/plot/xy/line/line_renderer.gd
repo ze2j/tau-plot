@@ -107,13 +107,13 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #       colors without tinting.
 #   In both cases, the alpha of whatever color was passed to the draw call
 #   is then multiplied by TauLineStyle.fill_alpha.
-# - Each sub-polygon is emitted with a per-vertex UV array computed in the
-#   reference frame selected by TauLineStyle.fill_anchor: PANE_RECT and
-#   FILL_BOUNDS are screen-space, DATA_DOMAIN follows the data x and y
-#   directions. When a texture is set, the base UV is rotated around
-#   (0.5, 0.5) by TauLineStyle.fill_texture_rotation_deg, then scaled by
-#   TauLineStyle.fill_texture_tiling, then translated by
-#   TauLineStyle.fill_texture_offset (expressed in tile spans).
+# - Each sub-polygon is emitted with a per-vertex UV array driven by
+#   TauLineStyle.fill_texture_mode. STRETCH samples the texture once across
+#   a chosen span (pane, polygon bbox, or line-to-closing-edge), with axis
+#   inversion applied for the pane and polygon spans so U/V align with the
+#   data x/y direction. TILE samples the texture at native pixel size on
+#   screen, with a square-pixel-correct grid rotated around the pane center
+#   and translated in screen pixels, independent of pane shape.
 class LineRenderer extends Control:
 	# Number of sub-segments inserted between two consecutive samples by
 	# SMOOTH_MONOTONE. The value balances visual smoothness on a typical
@@ -723,82 +723,214 @@ class LineRenderer extends Control:
 	# Area fill
 	####################################################################################################
 
-	# Bundle of values that parameterize fill polygon UV computation and
-	# texture sampling for a single series.
+	# Bundle of values driving the per-vertex UV array computed for one
+	# textured fill polygon. Built once per series, then consumed by
+	# _build_polygon_uvs for every sub-polygon of that series.
 	#
-	# Members:
-	#   - anchor: the active reference frame.
-	#   - pane_rect: pane rectangle in screen space, used by PANE_RECT.
-	#   - x_is_horizontal, x_axis_origin_px, x_axis_extent_px,
-	#     y_axis_origin_px, y_axis_extent_px, x_flip, y_flip: pane geometry
-	#     decomposed along the data x and y directions, used by DATA_DOMAIN.
-	#   - texture: the texture sampled across the fill area.
-	#   - tiling, offset, rotation_cos, rotation_sin: texture sampling
-	#     transform. rotation_cos and rotation_sin are precomputed from the
-	#     user-facing rotation angle in degrees.
-	#   - transform_uv: true when the texture sampling transform must be
-	#     applied to the base UV. False whenever texture is null.
+	# Two parameter sets coexist, selected by mode:
+	#   - STRETCH samples the texture once across stretch_span along
+	#     stretch_axis. pane_rect, u_flip, and v_flip drive PANE and POLYGON
+	#     spans. BASELINE reads V from the polygon's top vs closing-edge
+	#     vertex layout and ignores the flip flags.
+	#   - TILE samples the texture in screen pixels around pane_center.
+	#     rotation_cos and rotation_sin hold cos/sin of -rotation_deg, so
+	#     the per-vertex math runs the standard rotation formula on the
+	#     centered screen pixel. inv_tile_size is the reciprocal of
+	#     (texture native size * scale) along each axis.
+	#
+	# texture is null for flat fills. In that case the polygon UV array is
+	# not built at all, every other field is unused, and the draw call's
+	# uv argument stays empty.
 	class _FillUVContext extends RefCounted:
-		var anchor: TauLineStyle.FillAnchor = TauLineStyle.FillAnchor.PANE_RECT
-		var pane_rect: Rect2 = Rect2()
-		var x_is_horizontal: bool = true
-		var x_axis_origin_px: float = 0.0
-		var x_axis_extent_px: float = 0.0
-		var y_axis_origin_px: float = 0.0
-		var y_axis_extent_px: float = 0.0
-		var x_flip: bool = false
-		var y_flip: bool = false
+		var mode: TauLineStyle.FillTextureMode = TauLineStyle.FillTextureMode.STRETCH
 		var texture: Texture2D = null
-		var tiling: Vector2 = Vector2(1, 1)
-		var offset: Vector2 = Vector2.ZERO
+
+		# STRETCH
+		var stretch_axis: TauLineStyle.FillStretchAxis = TauLineStyle.FillStretchAxis.Y
+		var stretch_span: TauLineStyle.FillStretchSpan = TauLineStyle.FillStretchSpan.BASELINE
+		var pane_rect: Rect2 = Rect2()
+		var u_flip: bool = false
+		var v_flip: bool = false
+
+		# TILE
+		var pane_center: Vector2 = Vector2.ZERO
 		var rotation_cos: float = 1.0
 		var rotation_sin: float = 0.0
-		var transform_uv: bool = false
+		var offset_px: Vector2 = Vector2.ZERO
+		var inv_tile_size: Vector2 = Vector2.ZERO
 
 
-	# Resolves the fill UV context for a series bound to p_y_axis_id. The
-	# x_flip and y_flip inversion flags mirror what XYLayout.map_x_to_px and
-	# XYLayout.map_y_to_px do, so that DATA_DOMAIN U=0 lands at the data x
-	# minimum and V=0 at the data y minimum regardless of axis orientation
-	# or inversion. Texture parameters are filled in only when a texture is
-	# set, since they have no effect otherwise.
+	# Resolves the fill UV context for a series bound to p_y_axis_id.
+	# Returns a context with texture = null when no texture is set, so the
+	# caller can skip UV construction entirely.
 	func _resolve_fill_uv_context(p_y_axis_id: AxisId) -> _FillUVContext:
 		var ctx := _FillUVContext.new()
-		ctx.anchor = _line_style.fill_anchor
-		ctx.pane_rect = _layout.get_pane_rect(_pane_index)
-
-		if ctx.anchor == TauLineStyle.FillAnchor.DATA_DOMAIN:
-			var x_is_horizontal: bool = _layout._x_is_horizontal
-			ctx.x_is_horizontal = x_is_horizontal
-			if x_is_horizontal:
-				ctx.x_axis_origin_px = ctx.pane_rect.position.x
-				ctx.x_axis_extent_px = ctx.pane_rect.size.x
-				ctx.y_axis_origin_px = ctx.pane_rect.position.y
-				ctx.y_axis_extent_px = ctx.pane_rect.size.y
-			else:
-				ctx.x_axis_origin_px = ctx.pane_rect.position.y
-				ctx.x_axis_extent_px = ctx.pane_rect.size.y
-				ctx.y_axis_origin_px = ctx.pane_rect.position.x
-				ctx.y_axis_extent_px = ctx.pane_rect.size.x
-
-			var x_axis_cfg: TauAxisConfig = _layout.domain.config.x_axis
-			ctx.x_flip = (not x_is_horizontal) != x_axis_cfg.inverted
-
-			var pane_domain := _layout.domain.get_pane_domain(_pane_index)
-			var y_axis_domain := pane_domain.get_y_axis_domain(p_y_axis_id)
-			var y_cfg: TauAxisConfig = y_axis_domain.config
-			ctx.y_flip = x_is_horizontal != y_cfg.inverted
-
 		ctx.texture = _line_style.fill_texture
-		if ctx.texture != null:
-			ctx.tiling = _line_style.fill_texture_tiling
-			ctx.offset = _line_style.fill_texture_offset
-			var theta: float = deg_to_rad(_line_style.fill_texture_rotation_deg)
-			ctx.rotation_cos = cos(theta)
-			ctx.rotation_sin = sin(theta)
-			ctx.transform_uv = true
+		if ctx.texture == null:
+			return ctx
+
+		ctx.mode = _line_style.fill_texture_mode
+		var pane_rect: Rect2 = _layout.get_pane_rect(_pane_index)
+
+		match ctx.mode:
+			TauLineStyle.FillTextureMode.STRETCH:
+				ctx.stretch_axis = _line_style.fill_texture_stretch_axis
+				ctx.stretch_span = _line_style.fill_texture_stretch_span
+				ctx.pane_rect = pane_rect
+				# Axis-direction flips match the data-axis convention used
+				# by XYLayout.map_x_to_px / map_y_to_px, so PANE and POLYGON
+				# UVs align with the data x/y direction regardless of pane
+				# orientation or axis inversion. BASELINE reads V from the
+				# polygon layout instead, so these flags do not apply there.
+				var x_is_horizontal: bool = _layout._x_is_horizontal
+				var x_axis_cfg: TauAxisConfig = _layout.domain.config.x_axis
+				ctx.u_flip = (not x_is_horizontal) != x_axis_cfg.inverted
+				var pane_domain := _layout.domain.get_pane_domain(_pane_index)
+				var y_axis_domain := pane_domain.get_y_axis_domain(p_y_axis_id)
+				var y_axis_cfg: TauAxisConfig = y_axis_domain.config
+				ctx.v_flip = x_is_horizontal != y_axis_cfg.inverted
+
+			TauLineStyle.FillTextureMode.TILE:
+				ctx.pane_center = pane_rect.position + pane_rect.size * 0.5
+				ctx.offset_px = _line_style.fill_texture_offset_px
+				# The screen pixel is rotated into the texture's frame,
+				# which is the inverse of rotating the tile grid on screen.
+				# Negating the user-facing angle once here keeps the
+				# per-vertex math on the standard rotation formula.
+				var theta: float = deg_to_rad(-_line_style.fill_texture_rotation_deg)
+				ctx.rotation_cos = cos(theta)
+				ctx.rotation_sin = sin(theta)
+				var tex_size: Vector2 = ctx.texture.get_size()
+				var scale: float = _line_style.fill_texture_scale
+				var tile_w: float = tex_size.x * scale
+				var tile_h: float = tex_size.y * scale
+				var inv_w: float = 1.0 / tile_w if tile_w > 0.0 else 0.0
+				var inv_h: float = 1.0 / tile_h if tile_h > 0.0 else 0.0
+				ctx.inv_tile_size = Vector2(inv_w, inv_h)
 
 		return ctx
+
+
+	# Dispatches to the active UV path. p_top_count is the number of
+	# leading vertices in p_polygon that lie on the line (the polyline run
+	# the fill was built from). The remaining vertices are the closing
+	# edge. Only the BASELINE stretch path reads p_top_count, the others
+	# treat every vertex uniformly.
+	func _build_polygon_uvs(p_polygon: PackedVector2Array, p_top_count: int, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+		match p_fill_uv_ctx.mode:
+			TauLineStyle.FillTextureMode.STRETCH:
+				match p_fill_uv_ctx.stretch_span:
+					TauLineStyle.FillStretchSpan.PANE:
+						return _build_polygon_uvs_stretch_pane(p_polygon, p_fill_uv_ctx)
+					TauLineStyle.FillStretchSpan.POLYGON:
+						return _build_polygon_uvs_stretch_polygon(p_polygon, p_fill_uv_ctx)
+					TauLineStyle.FillStretchSpan.BASELINE:
+						return _build_polygon_uvs_stretch_baseline(p_polygon, p_top_count)
+			TauLineStyle.FillTextureMode.TILE:
+				return _build_polygon_uvs_tile(p_polygon, p_fill_uv_ctx)
+		return PackedVector2Array()
+
+
+	# STRETCH + PANE. The texture spans the whole pane in the stretch
+	# direction. The non-stretch axis reads at UV coordinate 0. A degenerate
+	# pane with zero extent on the stretch axis collapses every vertex to
+	# UV 0.
+	static func _build_polygon_uvs_stretch_pane(p_polygon: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+		var count: int = p_polygon.size()
+		var uvs := PackedVector2Array()
+		uvs.resize(count)
+		var pane: Rect2 = p_fill_uv_ctx.pane_rect
+		if p_fill_uv_ctx.stretch_axis == TauLineStyle.FillStretchAxis.Y:
+			var inv_h: float = 1.0 / pane.size.y if pane.size.y > 0.0 else 0.0
+			var origin: float = pane.position.y
+			var flip: bool = p_fill_uv_ctx.v_flip
+			for k in range(count):
+				var v: float = (p_polygon[k].y - origin) * inv_h
+				if flip:
+					v = 1.0 - v
+				uvs[k] = Vector2(0.0, v)
+		else:
+			var inv_w: float = 1.0 / pane.size.x if pane.size.x > 0.0 else 0.0
+			var origin: float = pane.position.x
+			var flip: bool = p_fill_uv_ctx.u_flip
+			for k in range(count):
+				var u: float = (p_polygon[k].x - origin) * inv_w
+				if flip:
+					u = 1.0 - u
+				uvs[k] = Vector2(u, 0.0)
+		return uvs
+
+
+	# STRETCH + POLYGON. The texture spans the polygon's axis-aligned
+	# bounding box in the stretch direction. The non-stretch axis reads at
+	# UV coordinate 0. A degenerate polygon with zero extent on the stretch
+	# axis collapses every vertex to UV 0.
+	static func _build_polygon_uvs_stretch_polygon(p_polygon: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+		var count: int = p_polygon.size()
+		var uvs := PackedVector2Array()
+		uvs.resize(count)
+		var bb: Rect2 = _compute_polygon_bounds(p_polygon)
+		if p_fill_uv_ctx.stretch_axis == TauLineStyle.FillStretchAxis.Y:
+			var inv_h: float = 1.0 / bb.size.y if bb.size.y > 0.0 else 0.0
+			var origin: float = bb.position.y
+			var flip: bool = p_fill_uv_ctx.v_flip
+			for k in range(count):
+				var v: float = (p_polygon[k].y - origin) * inv_h
+				if flip:
+					v = 1.0 - v
+				uvs[k] = Vector2(0.0, v)
+		else:
+			var inv_w: float = 1.0 / bb.size.x if bb.size.x > 0.0 else 0.0
+			var origin: float = bb.position.x
+			var flip: bool = p_fill_uv_ctx.u_flip
+			for k in range(count):
+				var u: float = (p_polygon[k].x - origin) * inv_w
+				if flip:
+					u = 1.0 - u
+				uvs[k] = Vector2(u, 0.0)
+		return uvs
+
+
+	# STRETCH + BASELINE. The polygon's first p_top_count vertices sit on
+	# the line and get V = 0, the remaining vertices sit on the closing
+	# edge and get V = 1. The texture's V = 0 edge therefore always lands
+	# on the line, no axis-inversion flip needed. U is 0 for every vertex.
+	# Only valid with stretch_axis = Y, enforced by LineValidator.
+	static func _build_polygon_uvs_stretch_baseline(p_polygon: PackedVector2Array, p_top_count: int) -> PackedVector2Array:
+		var count: int = p_polygon.size()
+		var uvs := PackedVector2Array()
+		uvs.resize(count)
+		for k in range(count):
+			var v: float = 0.0 if k < p_top_count else 1.0
+			uvs[k] = Vector2(0.0, v)
+		return uvs
+
+
+	# TILE. The screen pixel is centered on the pane center, rotated into
+	# the texture's frame, translated by offset_px, then divided by
+	# (texture_size * scale) to produce the texture coordinate. The grid
+	# stays square-pixel correct because both axes share the same screen
+	# pixel units.
+	static func _build_polygon_uvs_tile(p_polygon: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+		var count: int = p_polygon.size()
+		var uvs := PackedVector2Array()
+		uvs.resize(count)
+		var cx: float = p_fill_uv_ctx.pane_center.x
+		var cy: float = p_fill_uv_ctx.pane_center.y
+		var c: float = p_fill_uv_ctx.rotation_cos
+		var s: float = p_fill_uv_ctx.rotation_sin
+		var ox: float = p_fill_uv_ctx.offset_px.x
+		var oy: float = p_fill_uv_ctx.offset_px.y
+		var inv_w: float = p_fill_uv_ctx.inv_tile_size.x
+		var inv_h: float = p_fill_uv_ctx.inv_tile_size.y
+		for k in range(count):
+			var v: Vector2 = p_polygon[k]
+			var dx: float = v.x - cx
+			var dy: float = v.y - cy
+			var rx: float = c * dx - s * dy
+			var ry: float = s * dx + c * dy
+			uvs[k] = Vector2((rx + ox) * inv_w, (ry + oy) * inv_h)
+		return uvs
 
 
 	# Returns the color passed as the modulation argument of the fill draw
@@ -914,108 +1046,13 @@ class LineRenderer extends Control:
 		polygon[top_count] = Vector2(p_top[top_count - 1].x, p_baseline_y_px)
 		polygon[top_count + 1] = Vector2(p_top[0].x, p_baseline_y_px)
 
-		var uvs: PackedVector2Array = _build_polygon_uvs(polygon, p_fill_uv_ctx)
-		if p_fill_uv_ctx.transform_uv:
-			_apply_texture_transform(uvs, p_fill_uv_ctx)
+		# UVs are only sampled when a texture is set. draw_colored_polygon
+		# ignores its uv argument otherwise, so the flat-fill path skips the
+		# per-vertex computation entirely.
+		var uvs: PackedVector2Array = PackedVector2Array()
+		if p_fill_uv_ctx.texture != null:
+			uvs = _build_polygon_uvs(polygon, top_count, p_fill_uv_ctx)
 		draw_colored_polygon(polygon, p_fill_color, uvs, p_fill_uv_ctx.texture)
-
-
-	# Rotates each UV around (0.5, 0.5), then scales by tiling, then
-	# translates by offset, in place. Rotation runs first so a motif
-	# centered in the reference frame rotates in place before tiling
-	# multiplies it.
-	static func _apply_texture_transform(p_uvs: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> void:
-		var c: float = p_fill_uv_ctx.rotation_cos
-		var s: float = p_fill_uv_ctx.rotation_sin
-		var tile: Vector2 = p_fill_uv_ctx.tiling
-		var offset: Vector2 = p_fill_uv_ctx.offset
-		for k in range(p_uvs.size()):
-			var uv: Vector2 = p_uvs[k]
-			var cu: float = uv.x - 0.5
-			var cv: float = uv.y - 0.5
-			var ru: float = c * cu - s * cv + 0.5
-			var rv: float = s * cu + c * cv + 0.5
-			p_uvs[k] = Vector2(ru * tile.x + offset.x, rv * tile.y + offset.y)
-
-
-	# Computes a per-vertex UV array for the given polygon under the active
-	# reference frame.
-	#
-	# PANE_RECT: UV [0, 1] across the pane rectangle in screen space. U=0 is
-	# the left pane edge, V=0 is the top pane edge.
-	#
-	# FILL_BOUNDS: UV [0, 1] across the polygon's bounding box in screen
-	# space.
-	#
-	# DATA_DOMAIN: UV [0, 1] aligned to the data x and y directions. Axis
-	# inversion flips U or V relative to screen space, so U=0 always sits at
-	# the data x minimum and V=0 at the data y minimum.
-	#
-	# A reference frame with zero extent in some axis returns 0.0 along that
-	# axis for every vertex.
-	func _build_polygon_uvs(p_polygon: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
-		match p_fill_uv_ctx.anchor:
-			TauLineStyle.FillAnchor.PANE_RECT:
-				return _build_polygon_uvs_pane_rect(p_polygon, p_fill_uv_ctx.pane_rect)
-			TauLineStyle.FillAnchor.FILL_BOUNDS:
-				return _build_polygon_uvs_fill_bounds(p_polygon)
-			TauLineStyle.FillAnchor.DATA_DOMAIN:
-				return _build_polygon_uvs_data_domain(p_polygon, p_fill_uv_ctx)
-		return PackedVector2Array()
-
-
-	# PANE_RECT path. See _build_polygon_uvs.
-	static func _build_polygon_uvs_pane_rect(p_polygon: PackedVector2Array, p_pane_rect: Rect2) -> PackedVector2Array:
-		var count: int = p_polygon.size()
-		var uvs := PackedVector2Array()
-		uvs.resize(count)
-		var inv_w: float = 1.0 / p_pane_rect.size.x if p_pane_rect.size.x > 0.0 else 0.0
-		var inv_h: float = 1.0 / p_pane_rect.size.y if p_pane_rect.size.y > 0.0 else 0.0
-		for k in range(count):
-			var v: Vector2 = p_polygon[k]
-			uvs[k] = Vector2((v.x - p_pane_rect.position.x) * inv_w, (v.y - p_pane_rect.position.y) * inv_h)
-		return uvs
-
-
-	# FILL_BOUNDS path. See _build_polygon_uvs.
-	static func _build_polygon_uvs_fill_bounds(p_polygon: PackedVector2Array) -> PackedVector2Array:
-		var count: int = p_polygon.size()
-		var uvs := PackedVector2Array()
-		uvs.resize(count)
-		var bb: Rect2 = _compute_polygon_bounds(p_polygon)
-		var inv_w: float = 1.0 / bb.size.x if bb.size.x > 0.0 else 0.0
-		var inv_h: float = 1.0 / bb.size.y if bb.size.y > 0.0 else 0.0
-		for k in range(count):
-			var v: Vector2 = p_polygon[k]
-			uvs[k] = Vector2((v.x - bb.position.x) * inv_w, (v.y - bb.position.y) * inv_h)
-		return uvs
-
-
-	# DATA_DOMAIN path. See _build_polygon_uvs.
-	static func _build_polygon_uvs_data_domain(p_polygon: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
-		var count: int = p_polygon.size()
-		var uvs := PackedVector2Array()
-		uvs.resize(count)
-		var x_inv: float = 1.0 / p_fill_uv_ctx.x_axis_extent_px if p_fill_uv_ctx.x_axis_extent_px > 0.0 else 0.0
-		var y_inv: float = 1.0 / p_fill_uv_ctx.y_axis_extent_px if p_fill_uv_ctx.y_axis_extent_px > 0.0 else 0.0
-		for k in range(count):
-			var vertex: Vector2 = p_polygon[k]
-			var x_axis_pos: float
-			var y_axis_pos: float
-			if p_fill_uv_ctx.x_is_horizontal:
-				x_axis_pos = vertex.x - p_fill_uv_ctx.x_axis_origin_px
-				y_axis_pos = vertex.y - p_fill_uv_ctx.y_axis_origin_px
-			else:
-				x_axis_pos = vertex.y - p_fill_uv_ctx.x_axis_origin_px
-				y_axis_pos = vertex.x - p_fill_uv_ctx.y_axis_origin_px
-			var u: float = x_axis_pos * x_inv
-			var v: float = y_axis_pos * y_inv
-			if p_fill_uv_ctx.x_flip:
-				u = 1.0 - u
-			if p_fill_uv_ctx.y_flip:
-				v = 1.0 - v
-			uvs[k] = Vector2(u, v)
-		return uvs
 
 
 	# Axis-aligned bounding box of a polygon in screen space.
