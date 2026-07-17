@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://cpswbt2gwdeki"]
+[gd_scene load_steps=3 format=3 uid="uid://d3chbshyexysk"]
 
-[ext_resource type="Script" uid="uid://buxrc2ogu8cne" path="res://addons/tau-plot/tests/line/area/test_line_fill_linear.gd" id="1_pel2m"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_fkav2"]
+[ext_resource type="Script" uid="uid://bpje0uj8iwtgv" path="res://addons/tau-plot/tests/line/fill_to_baseline_with_tiled_texture/test_line_fill_tile_scale.gd" id="1_k2sac"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_gsl48"]
 
 [node name="Lines" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_pel2m")
+script = ExtResource("1_k2sac")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Fill to baseline 10 with different interpolation modes (linear scale)"
+text = "Fill to baseline 10 with tiled texture and varying scale"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -30,8 +30,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[LINEAR] SHARED_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[LINEAR] SHARED_X + CONTINUOUS (scale = 0.3)"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -40,8 +41,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[LINEAR] PER_SERIES_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[LINEAR] PER_SERIES_X + CONTINUOUS (scale = 0.3)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -51,8 +52,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[LINEAR] SHARED_X + CATEGORICAL"
+script = ExtResource("2_gsl48")
+title = "[LINEAR] SHARED_X + CATEGORICAL (scale = 0.3)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -62,8 +63,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[STEP_BEFORE] SHARED_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[STEP_BEFORE] SHARED_X + CONTINUOUS (scale = 0.4)"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -72,8 +74,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[STEP_BEFORE] PER_SERIES_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[STEP_BEFORE] PER_SERIES_X + CONTINUOUS (scale = 0.4)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -83,8 +85,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[STEP_BEFORE] SHARED_X + CATEGORICAL"
+script = ExtResource("2_gsl48")
+title = "[STEP_BEFORE] SHARED_X + CATEGORICAL (scale = 0.4)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -94,8 +96,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[STEP_MIDDLE] SHARED_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[STEP_MIDDLE] SHARED_X + CONTINUOUS (scale = 0.5)"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
@@ -104,8 +107,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[STEP_MIDDLE] PER_SERIES_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[STEP_MIDDLE] PER_SERIES_X + CONTINUOUS (scale = 0.5)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -115,8 +118,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[STEP_MIDDLE] SHARED_X + CATEGORICAL"
+script = ExtResource("2_gsl48")
+title = "[STEP_MIDDLE] SHARED_X + CATEGORICAL (scale = 0.5)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -126,8 +129,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[STEP_AFTER] SHARED_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[STEP_AFTER] SHARED_X + CONTINUOUS (scale = 0.6)"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot11" type="PanelContainer" parent="GridContainer"]
@@ -136,8 +140,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS (scale = 0.6)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -147,8 +151,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[STEP_AFTER] SHARED_X + CATEGORICAL"
+script = ExtResource("2_gsl48")
+title = "[STEP_AFTER] SHARED_X + CATEGORICAL (scale = 0.6)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -158,8 +162,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[SMOOTH_MONOTONE] SHARED_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[SMOOTH_MONOTONE] SHARED_X + CONTINUOUS (scale = 0.7)"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot14" type="PanelContainer" parent="GridContainer"]
@@ -168,8 +173,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[SMOOTH_MONOTONE] PER_SERIES_X + CONTINUOUS"
+script = ExtResource("2_gsl48")
+title = "[SMOOTH_MONOTONE] PER_SERIES_X + CONTINUOUS (scale = 0.7)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -179,7 +184,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_fkav2")
-title = "[SMOOTH_MONOTONE] SHARED_X + CATEGORICAL"
+script = ExtResource("2_gsl48")
+title = "[SMOOTH_MONOTONE] SHARED_X + CATEGORICAL (scale = 0.7)"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

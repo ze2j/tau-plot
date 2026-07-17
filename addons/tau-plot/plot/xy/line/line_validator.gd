@@ -112,15 +112,17 @@ class LineValidator extends RefCounted:
 
 
 	# BASELINE span anchors one endpoint of the texture to the line itself,
-	# which has no analogue along X. The combination is rejected here even
-	# when fill_texture is null, so the configuration error is reported as
-	# soon as it is set.
+	# which has no analogue along X.
 	static func _validate_fill_texture_stretch(p_pane_index: int, p_line_config: TauLineConfig, p_result: ValidationResult) -> void:
 		var style: TauLineStyle = p_line_config.style
-		if style.fill_texture_mode != TauLineStyle.FillTextureMode.STRETCH:
-			return
-		if style.fill_texture_stretch_span != TauLineStyle.FillStretchSpan.BASELINE:
-			return
-		if style.fill_texture_stretch_axis != TauLineStyle.FillStretchAxis.X:
-			return
-		p_result.add_error("LineValidator: pane %d: fill_texture_stretch_span BASELINE is incompatible with fill_texture_stretch_axis X" % p_pane_index)
+		for i in range(style.fills.size()):
+			var fill: TauLineFill = style.fills[i]
+			if fill == null:
+				continue
+			if fill.texture_mode != TauLineFill.FillTextureMode.STRETCH:
+				continue
+			if fill.stretch_span != TauLineFill.FillStretchSpan.BASELINE:
+				continue
+			if fill.stretch_axis != TauLineFill.FillStretchAxis.X:
+				continue
+			p_result.add_error("LineValidator: pane %d: fills[%d]: stretch_span BASELINE is incompatible with stretch_axis X" % [p_pane_index, i])

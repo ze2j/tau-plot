@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cehtqxhmah2wa"
-path="res://.godot/imported/light_dots.png-daf225456b61e19add8bf6c50aab024c.ctex"
+uid="uid://dd16pbp645qig"
+path="res://.godot/imported/gradient.png-541117284a3cd870fae052624ecf60df.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/tau-plot/tests/assets/light_dots.png"
-dest_files=["res://.godot/imported/light_dots.png-daf225456b61e19add8bf6c50aab024c.ctex"]
+source_file="res://addons/tau-plot/tests/assets/gradient.png"
+dest_files=["res://.godot/imported/gradient.png-541117284a3cd870fae052624ecf60df.ctex"]
 
 [params]
 
-compress/mode=3
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

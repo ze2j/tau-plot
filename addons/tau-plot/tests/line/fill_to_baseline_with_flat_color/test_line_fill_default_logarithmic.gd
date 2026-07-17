@@ -25,13 +25,13 @@ func _ready() -> void:
 func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
 	var series_names := PackedStringArray(["Series A", "Series B"])
 	var x := PackedFloat64Array([10.0, 11.0, 12.0, 13.0, 14.0])
-	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 15.0, 10.0])
-	var y_b := PackedFloat64Array([50.0, 40.0, 35.0, 5.0, 20.0])
+	var y_a := PackedFloat64Array([100.0, 400.0, 2500.0, 225.0, 100.0])
+	var y_b := PackedFloat64Array([2500.0, 1600.0, 1225.0, 25.0, 400.0])
 
 	var dataset := TauPlot.Dataset.make_shared_x_continuous(series_names, x, [y_a, y_b])
 
 	p_plot.title = p_title
-	p_plot.legend_enabled = true
+	p_plot.legend_enabled = false
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
@@ -39,17 +39,14 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 
 	var y_axis := TauAxisConfig.new()
 	y_axis.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis.scale = TauAxisConfig.Scale.LINEAR
-	y_axis.tick_count_preferred = 10
+	y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
 	line_config.interpolation_mode = p_interpolation
 	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 10.
-	line_config.style.fill_color = Color(0.5, 0.5, 0.5)
-	line_config.style.fill_alpha = 0.5
+	line_config.fill_baseline = 100.
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -77,9 +74,9 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
 	var series_names := PackedStringArray(["Series A", "Series B"])
 	var x_a := PackedFloat64Array([10.0, 11.0, 12.0, 13.0, 14.0])
-	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 15.0, 10.0])
+	var y_a := PackedFloat64Array([100.0, 400.0, 2500.0, 225.0, 100.0])
 	var x_b := PackedFloat64Array([10.5, 11.5, 12.5, 13.5])
-	var y_b := PackedFloat64Array([40.0, 35.0, 5.0, 20.0])
+	var y_b := PackedFloat64Array([1600.0, 1225.0, 25.0, 400.0])
 
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
 
@@ -92,17 +89,14 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 
 	var y_axis := TauAxisConfig.new()
 	y_axis.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis.scale = TauAxisConfig.Scale.LINEAR
-	y_axis.tick_count_preferred = 10
+	y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
 	line_config.interpolation_mode = p_interpolation
 	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 10.
-	line_config.style.fill_color = Color(0.5, 0.5, 0.5)
-	line_config.style.fill_alpha = 0.5
+	line_config.fill_baseline = 100.
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -130,8 +124,8 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 func make_shared_x_categorical_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
 	var series_names := PackedStringArray(["Series A", "Series B"])
 	var x := PackedStringArray(["One", "Two", "Three", "Four", "Five"])
-	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 15.0, 10.0])
-	var y_b := PackedFloat64Array([50.0, 40.0, 35.0, 5.0, 20.0])
+	var y_a := PackedFloat64Array([100.0, 400.0, 2500.0, 225.0, 100.0])
+	var y_b := PackedFloat64Array([2500.0, 1600.0, 1225.0, 25.0, 400.0])
 
 	var dataset := TauPlot.Dataset.make_shared_x_categorical(series_names, x, [y_a, y_b])
 
@@ -144,17 +138,14 @@ func make_shared_x_categorical_plot(p_plot: TauPlot, p_title: String, p_interpol
 
 	var y_axis := TauAxisConfig.new()
 	y_axis.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis.scale = TauAxisConfig.Scale.LINEAR
-	y_axis.tick_count_preferred = 10
+	y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
 	line_config.interpolation_mode = p_interpolation
 	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 10.
-	line_config.style.fill_color = Color(0.5, 0.5, 0.5)
-	line_config.style.fill_alpha = 0.5
+	line_config.fill_baseline = 100.
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis

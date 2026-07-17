@@ -80,7 +80,7 @@ enum InterpolationMode
 
 ## Strategy applied to fill the area between the line and a reference
 ## baseline. The visual appearance of the fill is controlled by
-## [TauLineStyle].
+## [TauLineFill].
 ##
 ## NONE leaves the area below the line unfilled.
 ##

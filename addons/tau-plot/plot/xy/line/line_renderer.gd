@@ -94,21 +94,24 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   every baseline crossing into same-side sub-polygons, each emitted as
 #   one draw_colored_polygon call. The line itself is unaffected by the
 #   split and remains one draw call per contiguous run.
-# - Fill color and alpha resolution. The fill is drawn either as a flat
-#   color or as a texture, never as both:
-#     - If TauLineStyle.fill_texture is null, the fill is a flat color.
-#       The color comes from TauLineStyle.fill_color, except when it
-#       equals the sentinel Color(0, 0, 0, 0), in which case the per-series
-#       color from TauXYStyle.series_colors is used instead. The color is
-#       passed as-is to the draw call.
-#     - If TauLineStyle.fill_texture is non-null, the fill is the texture.
-#       fill_color and the per-series color are both ignored. The draw call
-#       passes white as the modulation color so the texture shows its own
-#       colors without tinting.
+# - Fill resolution is against one TauLineFill per series, resolved through
+#   TauLineStyle.get_series_fill (modulo-cycled per series, like
+#   line_widths_px). The fill is drawn either as a flat color or as a
+#   texture, never as both:
+#     - If the resolved fill's texture is null, the fill is a flat color.
+#       The color comes from TauLineFill.color, except when it equals
+#       TauLineFill.NO_COLOR, in which case the per-series color from
+#       TauXYStyle.series_colors is used instead. The color is passed as-is
+#       to the draw call.
+#     - If the resolved fill's texture is non-null, the fill is the
+#       texture. TauLineFill.color and the per-series color are both
+#       ignored for this series. The draw call passes white as the
+#       modulation color so the texture shows its own colors without
+#       tinting.
 #   In both cases, the alpha of whatever color was passed to the draw call
-#   is then multiplied by TauLineStyle.fill_alpha.
+#   is then multiplied by TauLineFill.alpha.
 # - Each sub-polygon is emitted with a per-vertex UV array driven by
-#   TauLineStyle.fill_texture_mode. STRETCH samples the texture once across
+#   TauLineFill.texture_mode. STRETCH samples the texture once across
 #   a chosen span (pane, polygon bbox, or line-to-closing-edge), with axis
 #   inversion applied for the pane and polygon spans so U/V align with the
 #   data x/y direction. TILE samples the texture at native pixel size on
@@ -181,6 +184,11 @@ class LineRenderer extends Control:
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# Required for TILE-mode fill: draw_colored_polygon honors the
+		# CanvasItem's texture_repeat setting, and the default clamps UVs
+		# outside [0, 1] to the edge, collapsing the tile grid into a
+		# single stretched copy.
+		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 		queue_redraw()
 
 
@@ -279,9 +287,10 @@ class LineRenderer extends Control:
 
 		# Resolved once per series: every run of this series fills against the
 		# same baseline and the same color, and uses the same UV reference frame.
-		var fill_color: Color = _resolve_series_fill_color(global_series_index)
+		var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
+		var fill_color: Color = _resolve_series_fill_color(global_series_index, fill)
 		var baseline_y_px: float = _resolve_fill_baseline_y_px(y_axis_id)
-		var fill_uv_ctx: _FillUVContext = _resolve_fill_uv_context(y_axis_id)
+		var fill_uv_ctx: _FillUVContext = _resolve_fill_uv_context(fill, y_axis_id)
 
 		var independent_y: PackedFloat64Array
 		if p_stacked == null:
@@ -304,7 +313,7 @@ class LineRenderer extends Control:
 			var x_value: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
 			if is_nan(x_value) or is_inf(x_value) or not _is_x_value_valid_for_scale(x_value):
 				if not bridge:
-					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px, fill_uv_ctx)
+					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
 					real_polyline_indices = PackedInt32Array()
@@ -322,7 +331,7 @@ class LineRenderer extends Control:
 
 			if is_nan(y_plotted):
 				if not bridge:
-					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px, fill_uv_ctx)
+					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
 					real_polyline_indices = PackedInt32Array()
@@ -348,7 +357,7 @@ class LineRenderer extends Control:
 			record.screen_position = screen_pos
 			_hit_records.append(record)
 
-		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px, fill_uv_ctx)
+		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
 
 
 	func _draw_series_categorical(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
@@ -365,9 +374,10 @@ class LineRenderer extends Control:
 
 		# Resolved once per series: every run of this series fills against the
 		# same baseline and the same color, and uses the same UV reference frame.
-		var fill_color: Color = _resolve_series_fill_color(global_series_index)
+		var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
+		var fill_color: Color = _resolve_series_fill_color(global_series_index, fill)
 		var baseline_y_px: float = _resolve_fill_baseline_y_px(y_axis_id)
-		var fill_uv_ctx: _FillUVContext = _resolve_fill_uv_context(y_axis_id)
+		var fill_uv_ctx: _FillUVContext = _resolve_fill_uv_context(fill, y_axis_id)
 
 		var independent_y: PackedFloat64Array
 		if p_stacked == null:
@@ -392,7 +402,7 @@ class LineRenderer extends Control:
 
 			if is_nan(y_plotted):
 				if not bridge:
-					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px, fill_uv_ctx)
+					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
 					real_polyline_indices = PackedInt32Array()
@@ -417,7 +427,7 @@ class LineRenderer extends Control:
 			record.screen_position = screen_pos
 			_hit_records.append(record)
 
-		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill_color, baseline_y_px, fill_uv_ctx)
+		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
 
 
 	# Marks dropped samples (NaN, Inf, log-axis violations) as NAN up front
@@ -502,7 +512,7 @@ class LineRenderer extends Control:
 	# real_polyline_indices[k] is the index in p_run where the k-th real
 	# sample landed. real_dataset_indices[k] is the dataset sample index for
 	# that real sample.
-	func _finalize_run(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_real_polyline_indices: PackedInt32Array, p_real_dataset_indices: PackedInt32Array, p_series_id: int, p_width_px: float, p_hover_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
+	func _finalize_run(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_real_polyline_indices: PackedInt32Array, p_real_dataset_indices: PackedInt32Array, p_series_id: int, p_width_px: float, p_hover_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
 		var polyline: PackedVector2Array = p_run
 		var polyline_colors: PackedColorArray = p_run_colors
 		var real_polyline_indices: PackedInt32Array = p_real_polyline_indices
@@ -520,7 +530,7 @@ class LineRenderer extends Control:
 		# Fill is drawn first so the polyline lands on top of it. A NaN
 		# baseline or zero-alpha color means no fill for this run.
 		if not is_nan(p_baseline_y_px) and p_fill_color.a > 0.0:
-			_draw_fill_to_baseline(polyline, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
+			_draw_fill_to_baseline(polyline, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
 
 		var dash_px: int = max(p_dash_px, 0)
 		var slice_bounds := _resolve_hover_slice_bounds(real_polyline_indices, p_real_dataset_indices, p_series_id)
@@ -742,12 +752,9 @@ class LineRenderer extends Control:
 	# not built at all, every other field is unused, and the draw call's
 	# uv argument stays empty.
 	class _FillUVContext extends RefCounted:
-		var mode: TauLineStyle.FillTextureMode = TauLineStyle.FillTextureMode.STRETCH
 		var texture: Texture2D = null
 
 		# STRETCH
-		var stretch_axis: TauLineStyle.FillStretchAxis = TauLineStyle.FillStretchAxis.Y
-		var stretch_span: TauLineStyle.FillStretchSpan = TauLineStyle.FillStretchSpan.BASELINE
 		var pane_rect: Rect2 = Rect2()
 		var u_flip: bool = false
 		var v_flip: bool = false
@@ -760,22 +767,24 @@ class LineRenderer extends Control:
 		var inv_tile_size: Vector2 = Vector2.ZERO
 
 
-	# Resolves the fill UV context for a series bound to p_y_axis_id.
-	# Returns a context with texture = null when no texture is set, so the
-	# caller can skip UV construction entirely.
-	func _resolve_fill_uv_context(p_y_axis_id: AxisId) -> _FillUVContext:
+	# Resolves the fill UV context for p_fill bound to p_y_axis_id.
+	# Returns a context with texture = null when fill_mode is not
+	# TO_BASELINE or when p_fill has no texture, so the caller can skip UV
+	# construction entirely. mode, stretch_axis, and stretch_span are not
+	# derived and are read directly from p_fill by the callers that need
+	# them.
+	func _resolve_fill_uv_context(p_fill: TauLineFill, p_y_axis_id: AxisId) -> _FillUVContext:
 		var ctx := _FillUVContext.new()
-		ctx.texture = _line_style.fill_texture
+		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
+			return ctx
+		ctx.texture = p_fill.texture
 		if ctx.texture == null:
 			return ctx
 
-		ctx.mode = _line_style.fill_texture_mode
 		var pane_rect: Rect2 = _layout.get_pane_rect(_pane_index)
 
-		match ctx.mode:
-			TauLineStyle.FillTextureMode.STRETCH:
-				ctx.stretch_axis = _line_style.fill_texture_stretch_axis
-				ctx.stretch_span = _line_style.fill_texture_stretch_span
+		match p_fill.texture_mode:
+			TauLineFill.FillTextureMode.STRETCH:
 				ctx.pane_rect = pane_rect
 				# Axis-direction flips match the data-axis convention used
 				# by XYLayout.map_x_to_px / map_y_to_px, so PANE and POLYGON
@@ -790,18 +799,18 @@ class LineRenderer extends Control:
 				var y_axis_cfg: TauAxisConfig = y_axis_domain.config
 				ctx.v_flip = x_is_horizontal != y_axis_cfg.inverted
 
-			TauLineStyle.FillTextureMode.TILE:
+			TauLineFill.FillTextureMode.TILE:
 				ctx.pane_center = pane_rect.position + pane_rect.size * 0.5
-				ctx.offset_px = _line_style.fill_texture_offset_px
+				ctx.offset_px = p_fill.tile_offset_px
 				# The screen pixel is rotated into the texture's frame,
 				# which is the inverse of rotating the tile grid on screen.
 				# Negating the user-facing angle once here keeps the
 				# per-vertex math on the standard rotation formula.
-				var theta: float = deg_to_rad(-_line_style.fill_texture_rotation_deg)
+				var theta: float = deg_to_rad(-p_fill.tile_rotation_deg)
 				ctx.rotation_cos = cos(theta)
 				ctx.rotation_sin = sin(theta)
 				var tex_size: Vector2 = ctx.texture.get_size()
-				var scale: float = _line_style.fill_texture_scale
+				var scale: float = p_fill.tile_scale
 				var tile_w: float = tex_size.x * scale
 				var tile_h: float = tex_size.y * scale
 				var inv_w: float = 1.0 / tile_w if tile_w > 0.0 else 0.0
@@ -816,17 +825,17 @@ class LineRenderer extends Control:
 	# the fill was built from). The remaining vertices are the closing
 	# edge. Only the BASELINE stretch path reads p_top_count, the others
 	# treat every vertex uniformly.
-	func _build_polygon_uvs(p_polygon: PackedVector2Array, p_top_count: int, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
-		match p_fill_uv_ctx.mode:
-			TauLineStyle.FillTextureMode.STRETCH:
-				match p_fill_uv_ctx.stretch_span:
-					TauLineStyle.FillStretchSpan.PANE:
-						return _build_polygon_uvs_stretch_pane(p_polygon, p_fill_uv_ctx)
-					TauLineStyle.FillStretchSpan.POLYGON:
-						return _build_polygon_uvs_stretch_polygon(p_polygon, p_fill_uv_ctx)
-					TauLineStyle.FillStretchSpan.BASELINE:
+	func _build_polygon_uvs(p_polygon: PackedVector2Array, p_top_count: int, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+		match p_fill.texture_mode:
+			TauLineFill.FillTextureMode.STRETCH:
+				match p_fill.stretch_span:
+					TauLineFill.FillStretchSpan.PANE:
+						return _build_polygon_uvs_stretch_pane(p_polygon, p_fill, p_fill_uv_ctx)
+					TauLineFill.FillStretchSpan.POLYGON:
+						return _build_polygon_uvs_stretch_polygon(p_polygon, p_fill, p_fill_uv_ctx)
+					TauLineFill.FillStretchSpan.BASELINE:
 						return _build_polygon_uvs_stretch_baseline(p_polygon, p_top_count)
-			TauLineStyle.FillTextureMode.TILE:
+			TauLineFill.FillTextureMode.TILE:
 				return _build_polygon_uvs_tile(p_polygon, p_fill_uv_ctx)
 		return PackedVector2Array()
 
@@ -835,12 +844,12 @@ class LineRenderer extends Control:
 	# direction. The non-stretch axis reads at UV coordinate 0. A degenerate
 	# pane with zero extent on the stretch axis collapses every vertex to
 	# UV 0.
-	static func _build_polygon_uvs_stretch_pane(p_polygon: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+	static func _build_polygon_uvs_stretch_pane(p_polygon: PackedVector2Array, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
 		var count: int = p_polygon.size()
 		var uvs := PackedVector2Array()
 		uvs.resize(count)
 		var pane: Rect2 = p_fill_uv_ctx.pane_rect
-		if p_fill_uv_ctx.stretch_axis == TauLineStyle.FillStretchAxis.Y:
+		if p_fill.stretch_axis == TauLineFill.FillStretchAxis.Y:
 			var inv_h: float = 1.0 / pane.size.y if pane.size.y > 0.0 else 0.0
 			var origin: float = pane.position.y
 			var flip: bool = p_fill_uv_ctx.v_flip
@@ -865,12 +874,12 @@ class LineRenderer extends Control:
 	# bounding box in the stretch direction. The non-stretch axis reads at
 	# UV coordinate 0. A degenerate polygon with zero extent on the stretch
 	# axis collapses every vertex to UV 0.
-	static func _build_polygon_uvs_stretch_polygon(p_polygon: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+	static func _build_polygon_uvs_stretch_polygon(p_polygon: PackedVector2Array, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
 		var count: int = p_polygon.size()
 		var uvs := PackedVector2Array()
 		uvs.resize(count)
 		var bb: Rect2 = _compute_polygon_bounds(p_polygon)
-		if p_fill_uv_ctx.stretch_axis == TauLineStyle.FillStretchAxis.Y:
+		if p_fill.stretch_axis == TauLineFill.FillStretchAxis.Y:
 			var inv_h: float = 1.0 / bb.size.y if bb.size.y > 0.0 else 0.0
 			var origin: float = bb.position.y
 			var flip: bool = p_fill_uv_ctx.v_flip
@@ -939,18 +948,23 @@ class LineRenderer extends Control:
 	#   1. fill_mode is not TO_BASELINE. No flat fill is drawn for this
 	#      series, so the return value is fully transparent black and the
 	#      draw call is skipped upstream.
-	#   2. A fill_texture is set. The fill is the texture and must not be
+	#   2. p_fill has a texture. The fill is the texture and must not be
 	#      tinted, so the modulation color is white. Its alpha carries
-	#      fill_alpha, which is the only thing that scales the texture.
-	#   3. No texture is set. The fill is a flat color and the return value
-	#      is the per-series color resolved by TauLineStyle, with fill_alpha
-	#      already applied to its alpha channel.
-	func _resolve_series_fill_color(p_global_series_index: int) -> Color:
+	#      p_fill.alpha, which is the only thing that scales the texture.
+	#   3. p_fill has no texture. The fill is a flat color: p_fill.color,
+	#      or the per-series color from TauXYStyle.series_colors when
+	#      p_fill.color is TauLineFill.NO_COLOR. p_fill.alpha is then
+	#      applied to its alpha channel.
+	func _resolve_series_fill_color(p_global_series_index: int, p_fill: TauLineFill) -> Color:
 		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
 			return Color(0, 0, 0, 0)
-		if _line_style.fill_texture != null:
-			return Color(1.0, 1.0, 1.0, _line_style.fill_alpha)
-		return _line_style.get_series_fill_color(p_global_series_index, _xy_style)
+		if p_fill.texture != null:
+			return Color(1.0, 1.0, 1.0, p_fill.alpha)
+		var color: Color = p_fill.color
+		if color == TauLineFill.NO_COLOR:
+			color = _xy_style.get_series_color(p_global_series_index)
+		color.a = clampf(color.a * p_fill.alpha, 0.0, 1.0)
+		return color
 
 
 	# Returns the screen-space Y coordinate of the TO_BASELINE baseline, or
@@ -974,7 +988,7 @@ class LineRenderer extends Control:
 	# linear interpolation of the two flanking polyline vertices against
 	# the baseline. Both polyline orderings (ascending or descending screen
 	# X) are accepted because the builder never assumes a direction.
-	func _draw_fill_to_baseline(p_polyline: PackedVector2Array, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
+	func _draw_fill_to_baseline(p_polyline: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
 		var n: int = p_polyline.size()
 		if n < 2:
 			return
@@ -1011,13 +1025,13 @@ class LineRenderer extends Control:
 			var prev: Vector2 = top[top.size() - 1]
 			var crossing: Vector2 = _baseline_crossing(prev, v, p_baseline_y_px)
 			top.append(crossing)
-			_draw_fill_subpolygon(top, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
+			_draw_fill_subpolygon(top, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
 			top = PackedVector2Array()
 			top.append(crossing)
 			top.append(v)
 			side = v_side
 
-		_draw_fill_subpolygon(top, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
+		_draw_fill_subpolygon(top, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
 
 
 	# Closes one sub-polygon by dropping its endpoints to the baseline and
@@ -1025,7 +1039,7 @@ class LineRenderer extends Control:
 	# texture, if any, are taken from p_fill_uv_ctx. Runs that contain fewer
 	# than two points or that are entirely on the baseline have zero area
 	# and are skipped.
-	func _draw_fill_subpolygon(p_top: PackedVector2Array, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
+	func _draw_fill_subpolygon(p_top: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
 		var top_count: int = p_top.size()
 		if top_count < 2:
 			return
@@ -1051,7 +1065,7 @@ class LineRenderer extends Control:
 		# per-vertex computation entirely.
 		var uvs: PackedVector2Array = PackedVector2Array()
 		if p_fill_uv_ctx.texture != null:
-			uvs = _build_polygon_uvs(polygon, top_count, p_fill_uv_ctx)
+			uvs = _build_polygon_uvs(polygon, top_count, p_fill, p_fill_uv_ctx)
 		draw_colored_polygon(polygon, p_fill_color, uvs, p_fill_uv_ctx.texture)
 
 
