@@ -27,9 +27,10 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 # - TauLineConfig.interpolation_mode controls the curve drawn between two
 #   consecutive valid samples. LINEAR draws straight segments. The step
 #   modes (STEP_BEFORE, STEP_AFTER, STEP_MIDDLE) insert synthetic
-#   intermediate points in screen space into the polyline. SMOOTH_MONOTONE
-#   replaces each segment with a fixed number of sub-samples from a
-#   Fritsch-Carlson piecewise cubic Hermite curve evaluated in screen space.
+#   intermediate points along the parameter axis into the polyline.
+#   SMOOTH_MONOTONE replaces each segment with a fixed number of sub-samples
+#   from a Fritsch-Carlson piecewise cubic Hermite curve. Both run in axis
+#   space and the finished polyline is mapped to screen space before drawing.
 #
 # Rendering path selection (per series):
 # - The active line width for a series is resolved from
@@ -349,9 +350,12 @@ class LineRenderer extends Control:
 
 			var x_px := _layout.map_x_to_px(_pane_index, x_value)
 			var y_px := _layout.map_y_to_px(_pane_index, y_plotted, y_axis_id)
+			var axis_point := Vector2(x_px, y_px)
 			var screen_pos := _layout.map_point_to_screen(x_px, y_px)
 			var sample_color := _resolve_sample_color(p_series_index, i, x_value, y_raw)
-			_append_with_interpolation(run, run_colors, screen_pos, sample_color, interpolation)
+			# The run is buffered in axis space so interpolation runs along the
+			# parameter and value axes directly. _finalize_run maps it to screen.
+			_append_with_interpolation(run, run_colors, axis_point, sample_color, interpolation)
 			# The real sample is always the last vertex appended by
 			# _append_with_interpolation, regardless of the interpolation mode.
 			real_polyline_indices.append(run.size() - 1)
@@ -420,10 +424,13 @@ class LineRenderer extends Control:
 
 			var x_px := _layout.map_x_category_center_to_px(_pane_index, cat_idx)
 			var y_px := _layout.map_y_to_px(_pane_index, y_plotted, y_axis_id)
+			var axis_point := Vector2(x_px, y_px)
 			var screen_pos := _layout.map_point_to_screen(x_px, y_px)
 			var x_value: Variant = categories[cat_idx]
 			var sample_color := _resolve_sample_color(p_series_index, cat_idx, x_value, y_raw)
-			_append_with_interpolation(run, run_colors, screen_pos, sample_color, interpolation)
+			# The run is buffered in axis space so interpolation runs along the
+			# parameter and value axes directly. _finalize_run maps it to screen.
+			_append_with_interpolation(run, run_colors, axis_point, sample_color, interpolation)
 			real_polyline_indices.append(run.size() - 1)
 			real_dataset_indices.append(cat_idx)
 
@@ -456,41 +463,53 @@ class LineRenderer extends Control:
 		return y_plotted
 
 
-	# Each appended sample (real or synthetic) gets the new sample's color.
+	# Appends p_axis_point to the run, materializing the synthetic vertices the
+	# step modes need. Works in axis space: .x is the x-axis (parameter) pixel
+	# and .y is the y-axis (value) pixel. The step riser is therefore always
+	# built along the parameter axis, so the result is correct whichever screen
+	# direction the x axis points in. The swap to screen space is deferred to
+	# _finalize_run.
+	#
+	# Each appended vertex (real or synthetic) gets the new sample's color.
 	# Combined with linear interpolation by draw_polyline_colors() between
-	# consecutive vertices, this places the color transition at the segment
+	# consecutive vertices, this places the color transition on the segment
 	# leading INTO the new sample, leaving the staircase tail solid.
-	func _append_with_interpolation(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_point: Vector2, p_color: Color, p_mode: TauLineConfig.InterpolationMode) -> void:
+	func _append_with_interpolation(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_axis_point: Vector2, p_color: Color, p_mode: TauLineConfig.InterpolationMode) -> void:
 		# SMOOTH_MONOTONE buffers raw sample points untouched: cubic resampling
 		# requires the full neighborhood of every sample to compute tangents and
 		# is therefore deferred to _finalize_run().
 		if p_run.size() == 0 or p_mode == TauLineConfig.InterpolationMode.LINEAR or p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE:
-			p_run.append(p_point)
+			p_run.append(p_axis_point)
 			p_run_colors.append(p_color)
 			return
 
-		var last_pt: Vector2 = p_run[p_run.size() - 1]
+		var last_axis_pt: Vector2 = p_run[p_run.size() - 1]
 		match p_mode:
 			TauLineConfig.InterpolationMode.STEP_BEFORE:
-				p_run.append(Vector2(last_pt.x, p_point.y))
+				# Jump the value at the previous parameter, then hold it across.
+				p_run.append(Vector2(last_axis_pt.x, p_axis_point.y))
 				p_run_colors.append(p_color)
 			TauLineConfig.InterpolationMode.STEP_AFTER:
-				p_run.append(Vector2(p_point.x, last_pt.y))
+				# Hold the previous value across the interval, jump at the new parameter.
+				p_run.append(Vector2(p_axis_point.x, last_axis_pt.y))
 				p_run_colors.append(p_color)
 			TauLineConfig.InterpolationMode.STEP_MIDDLE:
-				var mid_x: float = (last_pt.x + p_point.x) * 0.5
-				p_run.append(Vector2(mid_x, last_pt.y))
+				# Hold to the parameter midpoint, jump the value there, then hold on.
+				var mid_x_axis_px: float = (last_axis_pt.x + p_axis_point.x) * 0.5
+				p_run.append(Vector2(mid_x_axis_px, last_axis_pt.y))
 				p_run_colors.append(p_color)
-				p_run.append(Vector2(mid_x, p_point.y))
+				p_run.append(Vector2(mid_x_axis_px, p_axis_point.y))
 				p_run_colors.append(p_color)
-		p_run.append(p_point)
+		p_run.append(p_axis_point)
 		p_run_colors.append(p_color)
 
 
-	# Draw the polyline for one buffered run.
-	# For LINEAR and the step modes the buffered run is already the final polyline.
-	# For SMOOTH_MONOTONE the run is first replaced by its Fritsch-Carlson piecewise cubic resampling.
-	# Runs of fewer than two points are silently dropped.
+	# Draw the polyline for one buffered run. The run arrives in axis space.
+	# For LINEAR and the step modes it is already the final polyline. For
+	# SMOOTH_MONOTONE it is first replaced by its Fritsch-Carlson piecewise
+	# cubic resampling. The fill is built from that axis-space polyline and
+	# maps its own strip to screen space, then the line polyline is mapped to
+	# screen space and drawn. Runs of fewer than two points are silently dropped.
 	#
 	# When p_fill_color has non-zero alpha and p_baseline_y_px is finite,
 	# the area between the rendered polyline and the horizontal baseline
@@ -536,10 +555,16 @@ class LineRenderer extends Control:
 		if polyline.size() < 2:
 			return
 
-		# Fill is drawn first so the polyline lands on top of it. A NaN
-		# baseline or zero-alpha color means no fill for this run.
+		# The fill is computed in axis space, where the value lies on .y, and
+		# maps its own strip to screen space at emission. It runs first so the
+		# line lands on top of it. A NaN baseline or zero-alpha color means no
+		# fill for this run.
 		if not is_nan(p_baseline_y_px) and p_fill_color.a > 0.0:
 			_draw_fill(polyline, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
+
+		# The line is drawn in screen space. The mapping preserves vertex
+		# order, so real_polyline_indices stay valid.
+		polyline = _layout.map_points_to_screen(polyline)
 
 		var dash_px: int = max(p_dash_px, 0)
 		var slice_bounds := _resolve_hover_slice_bounds(real_polyline_indices, p_real_dataset_indices, p_series_id)
@@ -579,7 +604,7 @@ class LineRenderer extends Control:
 	# hovered sample itself when it has none).
 	#
 	# When the hovered sample has been deduplicated by SMOOTH_MONOTONE
-	# resampling (consecutive real samples sharing the same screen X), it
+	# resampling (consecutive real samples sharing the same x-axis pixel), it
 	# shares its polyline index with the surviving neighbor it was deduped
 	# against, so the slice still covers the right neighborhood.
 	func _resolve_hover_slice_bounds(p_real_polyline_indices: PackedInt32Array, p_real_dataset_indices: PackedInt32Array, p_series_id: int) -> PackedInt32Array:
@@ -743,19 +768,19 @@ class LineRenderer extends Control:
 	####################################################################################################
 
 	# Bundle of values driving the per-vertex UV array for one textured fill
-	# strip. Built once per series, then consumed by _build_strip_uvs for
-	# every run of that series.
+	# strip. Built once per series, then consumed by _build_strip_uvs_stretch
+	# and _build_strip_uvs_tile for every run of that series.
 	#
 	# Two parameter sets coexist, selected by TauLineFill.texture_mode:
 	#   - STRETCH samples the texture once across the span. half_texel gives
 	#     the clamp bounds that reproduce clamped sampling without relying on
 	#     the node's texture_repeat. range_px0 and range_px1 are the value
-	#     span's two ends mapped to screen pixels, and on_screen_x tells
-	#     which screen axis the span runs on so the builder reads the right
-	#     vertex component. baseline_px is the origin MAGNITUDE measures from.
-	#     degenerate flags a DOMAIN range that collapsed to a point on flat
-	#     data, so the builder samples the texture middle instead of dividing
-	#     by a zero span. LINE ignores every value field.
+	#     span's two ends in axis pixels, read off the span's own axis (.x for
+	#     VALUE_X, .y for VALUE_Y and MAGNITUDE). baseline_px is the origin
+	#     MAGNITUDE measures from. degenerate flags a DOMAIN range that
+	#     collapsed to a point on flat data, so the builder samples the texture
+	#     middle instead of dividing by a zero span. LINE ignores every value
+	#     field.
 	#   - TILE samples the texture in screen pixels around pane_center.
 	#     rotation_cos and rotation_sin hold cos/sin of -rotation_deg, so
 	#     the per-vertex math runs the standard rotation formula on the
@@ -772,7 +797,6 @@ class LineRenderer extends Control:
 		var half_texel: Vector2 = Vector2.ZERO
 		var range_px0: float = 0.0
 		var range_px1: float = 0.0
-		var on_screen_x: bool = false
 		var baseline_px: float = 0.0
 		var degenerate: bool = false
 
@@ -823,20 +847,17 @@ class LineRenderer extends Control:
 		return ctx
 
 
-	# Fills the STRETCH fields of p_ctx for the given span. LINE reads only
-	# the strip parity, so it stops after half_texel with no range or axis.
-	# The value spans map their resolved data range to screen pixels through
-	# map_x_to_px / map_y_to_px, which already carry axis inversion and log
-	# scale, then flag a degenerate range so the builder can fall back to the
-	# texture middle. Mapping both MAGNITUDE ends upward from the baseline
-	# keeps them symmetric on a linear scale and never asks a log axis for a
-	# value it cannot take.
+	# Fills the STRETCH fields of p_ctx for the given span. LINE reads only the
+	# strip parity, so it stops after half_texel with no range. The value spans
+	# map their resolved data range to axis pixels through map_x_to_px /
+	# map_y_to_px, which already carry axis inversion and log scale, then flag a
+	# degenerate range so the builder can fall back to the texture middle.
+	# Mapping both MAGNITUDE ends upward from the baseline keeps them symmetric
+	# on a linear scale and never asks a log axis for a value it cannot take.
 	func _resolve_stretch_uv_context(p_ctx: _FillUVContext, p_span: TauLineFill.FillStretchSpan, p_y_axis_id: AxisId) -> void:
 		p_ctx.half_texel = Vector2(0.5, 0.5) / p_ctx.texture.get_size()
 		if p_span == TauLineFill.FillStretchSpan.LINE:
 			return
-
-		p_ctx.on_screen_x = _layout._x_is_horizontal if p_span == TauLineFill.FillStretchSpan.VALUE_X else not _layout._x_is_horizontal
 
 		var value_range: Vector2 = _resolve_stretch_range(p_span, p_y_axis_id)
 		match p_span:
@@ -886,23 +907,20 @@ class LineRenderer extends Control:
 		return Vector2(0.0, d_max)
 
 
-	# Builds one UV per strip point, dispatching on the active texture mode
-	# and stretch span. p_points is the strip built by _draw_fill: even
-	# index 2k sits on the line, odd index 2k+1 on the baseline side.
+	# Builds one UV per strip point for a STRETCH fill. p_axis_points is the
+	# strip in axis space: even index 2k sits on the line, odd index 2k+1 on the
+	# baseline side.
 	#
 	# LINE reads that parity, the line at the texture top and the baseline at
-	# its bottom. The value spans read a vertex coordinate on the span's
-	# screen axis, turn it into a fraction between the two range ends, then
-	# clamp to the half-texel margin so sampling matches a clamped texture
-	# regardless of the node's texture_repeat. The vertical spans invert the
-	# fraction so the higher value reads the texture top. A degenerate value
-	# range samples the texture middle everywhere, the honest look when there
-	# is no room for a gradient.
-	func _build_strip_uvs(p_points: PackedVector2Array, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
-		if p_fill.texture_mode == TauLineFill.FillTextureMode.TILE:
-			return _build_strip_uvs_tile(p_points, p_fill_uv_ctx)
-
-		var count: int = p_points.size()
+	# its bottom. The value spans read the vertex on the span's own axis (.x for
+	# VALUE_X, .y for VALUE_Y and MAGNITUDE), turn it into a fraction between the
+	# two range ends, then clamp to the half-texel margin so sampling matches a
+	# clamped texture regardless of the node's texture_repeat. The vertical spans
+	# invert the fraction so the higher value reads the texture top. A degenerate
+	# value range samples the texture middle everywhere, the honest look when
+	# there is no room for a gradient.
+	func _build_strip_uvs_stretch(p_axis_points: PackedVector2Array, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+		var count: int = p_axis_points.size()
 		var uvs := PackedVector2Array()
 		uvs.resize(count)
 		var hy: float = p_fill_uv_ctx.half_texel.y
@@ -920,24 +938,20 @@ class LineRenderer extends Control:
 		var hx: float = p_fill_uv_ctx.half_texel.x
 		var range_px0: float = p_fill_uv_ctx.range_px0
 		var span: float = p_fill_uv_ctx.range_px1 - range_px0
-		var on_screen_x: bool = p_fill_uv_ctx.on_screen_x
 
 		match p_fill.stretch_span:
 			TauLineFill.FillStretchSpan.VALUE_X:
 				for k in range(count):
-					var m: float = p_points[k].x if on_screen_x else p_points[k].y
-					var t: float = clampf((m - range_px0) / span, hx, 1.0 - hx)
+					var t: float = clampf((p_axis_points[k].x - range_px0) / span, hx, 1.0 - hx)
 					uvs[k] = Vector2(t, 0.5)
 			TauLineFill.FillStretchSpan.VALUE_Y:
 				for k in range(count):
-					var m: float = p_points[k].x if on_screen_x else p_points[k].y
-					var t: float = clampf(1.0 - (m - range_px0) / span, hy, 1.0 - hy)
+					var t: float = clampf(1.0 - (p_axis_points[k].y - range_px0) / span, hy, 1.0 - hy)
 					uvs[k] = Vector2(0.5, t)
 			TauLineFill.FillStretchSpan.MAGNITUDE:
 				var baseline_px: float = p_fill_uv_ctx.baseline_px
 				for k in range(count):
-					var axis_coord: float = p_points[k].x if on_screen_x else p_points[k].y
-					var m: float = absf(axis_coord - baseline_px)
+					var m: float = absf(p_axis_points[k].y - baseline_px)
 					var t: float = clampf(1.0 - (m - range_px0) / span, hy, 1.0 - hy)
 					uvs[k] = Vector2(0.5, t)
 
@@ -996,21 +1010,19 @@ class LineRenderer extends Control:
 		return color
 
 
-	# Returns the fill baseline's coordinate along the y-axis screen
-	# direction, or NAN when no flat baseline applies. That direction is
-	# screen Y when the x axis is horizontal and screen X when it is
-	# vertical, the same axis the polyline vertices were mapped onto, so the
-	# strip builder compares like against like.
+	# Returns the fill baseline's coordinate on the y (value) axis, or NAN when
+	# no flat baseline applies. The fill strip is built in axis space, so this
+	# is the .y the strip builder compares its vertices against.
 	func _resolve_fill_baseline_y_px(p_y_axis_id: AxisId) -> float:
 		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
 			return NAN
 		return _layout.map_y_to_px(_pane_index, _line_config.fill_baseline, p_y_axis_id)
 
 
-	# Builds and draws the fill between p_polyline and the baseline line at
-	# p_baseline_y_px. p_baseline_y_px is a coordinate on the y-axis screen
-	# direction, so the baseline runs across the pane on the other axis:
-	# horizontal when the x axis is horizontal, vertical when it is vertical.
+	# Builds and draws the fill between p_polyline and the baseline at
+	# p_baseline_y_px. Both are in axis space, so the baseline is the value
+	# (.y) the strip drops onto and the fill runs along the parameter axis.
+	# The strip is mapped to screen space at emission inside _build_fill_strip.
 	#
 	# The LINE stretch span fades by band fraction and needs near-rectangular
 	# columns to stay accurate, so its polyline is densified first. Every other
@@ -1064,21 +1076,22 @@ class LineRenderer extends Control:
 		return clampi(ceili(p_a.distance_to(p_b) / _FILL_LINE_SLICE_PX), 1, _FILL_LINE_MAX_SLICES)
 
 
-	# Distance from p_point to the baseline along the y-axis screen direction,
-	# the axis the polyline and the baseline were both mapped onto.
+	# Distance from p_point to the baseline along the y (value) axis. The strip
+	# is built in axis space, so the value always lies on .y.
 	func _band_height(p_point: Vector2, p_baseline_y_px: float) -> float:
-		var coord: float = p_point.y if _layout._x_is_horizontal else p_point.x
-		return absf(coord - p_baseline_y_px)
+		return absf(p_point.y - p_baseline_y_px)
 
 
 	# Builds the strip of columns between p_polyline and the baseline and emits
-	# it in one canvas_item_add_triangle_array call. Each pair of neighbouring
-	# polyline vertices spans one column, a quad from the line to the baseline
-	# split into two triangles. A crossing point is inserted wherever the line
-	# crosses the baseline, so the straddling column collapses to a triangle on
-	# each side with no self crossing, and no same-side split is needed.
+	# it in one canvas_item_add_triangle_array call. p_polyline is in axis space;
+	# the strip is built there (value on .y) and mapped to screen space just
+	# before the draw call. Each pair of neighbouring polyline vertices spans one
+	# column, a quad from the line to the baseline split into two triangles. A
+	# crossing point is inserted wherever the line crosses the baseline, so the
+	# straddling column collapses to a triangle on each side with no self
+	# crossing, and no same-side split is needed.
 	#
-	# Crossing detection runs on the rendered polyline, so the synthetic
+	# Crossing detection runs on the axis-space polyline, so the synthetic
 	# vertices from step interpolation and the sub-samples from SMOOTH_MONOTONE
 	# are treated uniformly. A crossing point lies at the linear interpolation
 	# of the two flanking vertices against the baseline. Both traversal
@@ -1140,49 +1153,51 @@ class LineRenderer extends Control:
 				indices[base + 4] = 2 * k + 3
 				indices[base + 5] = 2 * k + 1
 
+		# The strip was built in axis space. Map it to screen space for the draw
+		# call. STRETCH UVs read the axis-space vertices (value on .y), while
+		# TILE UVs are a screen-pixel effect and read the mapped vertices.
+		var screen_points := _layout.map_points_to_screen(points)
+
 		# UVs and the texture RID are only supplied when a texture is set. A
 		# flat fill draws with an empty UV array and a null RID.
 		var uvs := PackedVector2Array()
 		var tex_rid := RID()
 		if p_fill_uv_ctx.texture != null:
-			uvs = _build_strip_uvs(points, p_fill, p_fill_uv_ctx)
+			if p_fill.texture_mode == TauLineFill.FillTextureMode.TILE:
+				uvs = _build_strip_uvs_tile(screen_points, p_fill_uv_ctx)
+			else:
+				uvs = _build_strip_uvs_stretch(points, p_fill, p_fill_uv_ctx)
 			tex_rid = p_fill_uv_ctx.texture.get_rid()
 
-		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors, uvs, PackedInt32Array(), PackedFloat32Array(), tex_rid)
+		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, screen_points, colors, uvs, PackedInt32Array(), PackedFloat32Array(), tex_rid)
 
 
-	# Which side of the baseline p_point sits on, measured along the y-axis
-	# screen direction. Returns 0 on the baseline and opposite non-zero signs
-	# on the two sides. Only the opposition matters to the caller, which uses
-	# it to spot a crossing, so the sign's meaning is left to the mapping.
+	# Which side of the baseline p_point sits on, measured along the y (value)
+	# axis. Returns 0 on the baseline and opposite non-zero signs on the two
+	# sides. Only the opposition matters to the caller, which uses it to spot a
+	# crossing, so the sign's meaning is left to the mapping.
 	func _baseline_side(p_point: Vector2, p_baseline: float) -> int:
-		var coord: float = p_point.y if _layout._x_is_horizontal else p_point.x
-		if coord < p_baseline:
+		if p_point.y < p_baseline:
 			return 1
-		if coord > p_baseline:
+		if p_point.y > p_baseline:
 			return -1
 		return 0
 
 
-	# Point where segment (p_a, p_b) meets the baseline, interpolated along
-	# the y-axis screen direction and left free on the other axis.
-	# Precondition: the two endpoints straddle the baseline on that direction
-	# with a non-zero gap, which is guaranteed by the caller.
+	# Point where segment (p_a, p_b) meets the baseline, interpolated along the
+	# y (value) axis and left free on the parameter axis. Precondition: the two
+	# endpoints straddle the baseline on .y with a non-zero gap, which is
+	# guaranteed by the caller.
 	func _baseline_crossing(p_a: Vector2, p_b: Vector2, p_baseline: float) -> Vector2:
-		if _layout._x_is_horizontal:
-			var ty: float = (p_baseline - p_a.y) / (p_b.y - p_a.y)
-			return Vector2(p_a.x + ty * (p_b.x - p_a.x), p_baseline)
-		var tx: float = (p_baseline - p_a.x) / (p_b.x - p_a.x)
-		return Vector2(p_baseline, p_a.y + tx * (p_b.y - p_a.y))
+		var t: float = (p_baseline - p_a.y) / (p_b.y - p_a.y)
+		return Vector2(p_a.x + t * (p_b.x - p_a.x), p_baseline)
 
 
-	# Drops p_point onto the baseline along the y-axis screen direction,
-	# keeping its position on the other axis. This is the strip's
-	# baseline-side vertex paired with the line vertex p_point.
+	# Drops p_point onto the baseline along the y (value) axis, keeping its
+	# position on the parameter axis. This is the strip's baseline-side vertex
+	# paired with the line vertex p_point.
 	func _baseline_point(p_point: Vector2, p_baseline: float) -> Vector2:
-		if _layout._x_is_horizontal:
-			return Vector2(p_point.x, p_baseline)
-		return Vector2(p_baseline, p_point.y)
+		return Vector2(p_point.x, p_baseline)
 
 
 	####################################################################################################
@@ -1192,16 +1207,16 @@ class LineRenderer extends Control:
 	# Builds the Fritsch-Carlson piecewise cubic Hermite curve through p_points
 	# and returns it sampled at _SMOOTH_SUBDIVISIONS sub-segments per input
 	# segment, paired with a colors array sampled in lock-step. Operates in
-	# screen space (the input is already in pixels), which keeps the curve
-	# visually smooth regardless of axis scale.
+	# axis space (points are pixels along the x and y axes), which keeps the
+	# curve visually smooth regardless of axis scale and orientation.
 	#
-	# The algorithm requires strictly monotonic X. The expected case is
-	# monotonically increasing screen X, but a user-inverted X axis produces
-	# monotonically decreasing screen X. Both directions are accepted: the
-	# input is processed internally on a strictly increasing X copy and the
-	# output is reversed back when needed. Consecutive points sharing the same
-	# screen X are dropped since the secant slope is undefined at h = 0. The
-	# matching color entries are dropped at the same indices.
+	# The algorithm requires a strictly monotonic parameter axis, read from the
+	# x-axis pixel in .x. The expected case is an increasing x-axis pixel, but a
+	# user-inverted x axis produces a decreasing one. Both directions are
+	# accepted: the input is processed internally on a strictly increasing copy
+	# and the output is reversed back when needed. Consecutive points sharing
+	# the same x-axis pixel are dropped since the secant slope is undefined at
+	# h = 0. The matching color entries are dropped at the same indices.
 	# Inputs that are not monotonic in either direction fall back to the raw
 	# polyline for that run and push a one-shot warning.
 	#
@@ -1219,7 +1234,7 @@ class LineRenderer extends Control:
 		var direction := _detect_monotonic_x_direction(p_points)
 		if direction == 0:
 			if not _smooth_non_monotonic_warned:
-				push_warning("LineRenderer: SMOOTH_MONOTONE received samples whose screen X is not monotonic. Falling back to a straight polyline for the affected run. Use LINEAR interpolation if your data does not have a monotonic X parameter.")
+				push_warning("LineRenderer: SMOOTH_MONOTONE received samples whose parameter axis is not monotonic. Falling back to a straight polyline for the affected run. Use LINEAR interpolation if your data does not have a monotonic X parameter.")
 				_smooth_non_monotonic_warned = true
 			var identity := PackedInt32Array()
 			identity.resize(input_count)
@@ -1264,7 +1279,7 @@ class LineRenderer extends Control:
 
 		var n := xs.size()
 		if n < 2:
-			# All inputs collapsed to a single screen X. Nothing to draw.
+			# All inputs collapsed to a single x-axis pixel. Nothing to draw.
 			var empty_map := PackedInt32Array()
 			empty_map.resize(input_count)
 			return [PackedVector2Array(), PackedColorArray(), empty_map]
@@ -1350,10 +1365,10 @@ class LineRenderer extends Control:
 		return [out, out_colors, input_to_output]
 
 
-	# Returns +1 if screen X is strictly monotonically increasing across the
-	# whole run, -1 if strictly decreasing, 0 if neither (some pair has equal
-	# X) or the run has fewer than 2 points. Equal consecutive X is allowed
-	# only as a single-point run (n < 2 case).
+	# Returns +1 if the x-axis pixel is strictly monotonically increasing across
+	# the whole run, -1 if strictly decreasing, 0 if neither (some pair has
+	# equal x-axis pixel) or the run has fewer than 2 points. An equal
+	# consecutive pair is allowed only as a single-point run (n < 2 case).
 	func _detect_monotonic_x_direction(p_points: PackedVector2Array) -> int:
 		var n := p_points.size()
 		if n < 2:

@@ -412,6 +412,21 @@ class XYLayout extends RefCounted:
 			return Vector2(p_x_axis_px, p_y_axis_px)
 		return Vector2(p_y_axis_px, p_x_axis_px)
 
+	## Converts a whole polyline from axis space to screen space. Each input
+	## vertex carries the x-axis pixel in [member Vector2.x] and the y-axis
+	## pixel in [member Vector2.y], the same layout [method map_point_to_screen]
+	## expects. Vertex order and count are preserved, so indices into the input
+	## stay valid for the returned array.
+	func map_points_to_screen(p_axis_points: PackedVector2Array) -> PackedVector2Array:
+		if _x_is_horizontal:
+			return p_axis_points
+		var screen_points := PackedVector2Array()
+		screen_points.resize(p_axis_points.size())
+		for i in range(p_axis_points.size()):
+			var p := p_axis_points[i]
+			screen_points[i] = Vector2(p.y, p.x)
+		return screen_points
+
 	func map_screen_to_point(p_screen_coords: Vector2) -> Vector2:
 		if _x_is_horizontal:
 			return Vector2(p_screen_coords.x, p_screen_coords.y)
