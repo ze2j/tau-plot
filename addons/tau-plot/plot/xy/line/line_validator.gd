@@ -97,6 +97,9 @@ class LineValidator extends RefCounted:
 	static func _validate_fill_constraints(p_pane_index: int, p_line_config: TauLineConfig, p_pane_cfg: TauPaneConfig, p_x_axis_cfg: TauAxisConfig, p_line_overlay_bindings: Array[TauXYSeriesBinding], p_result: ValidationResult) -> void:
 		_validate_custom_stretch_range(p_pane_index, p_line_config, p_x_axis_cfg, p_result)
 
+		if p_line_config.fill_mode == TauLineConfig.FillMode.STACKED:
+			_validate_stacked_fill(p_pane_index, p_line_config, p_result)
+
 		if p_line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
 			return
 		if p_line_config.fill_baseline > 0.0:
@@ -109,6 +112,24 @@ class LineValidator extends RefCounted:
 			if y_axis_config.scale == TauAxisConfig.Scale.LOGARITHMIC:
 				p_result.add_error("LineValidator: pane %d: fill_mode TO_BASELINE requires fill_baseline > 0 on a logarithmic y axis, got %s" % [p_pane_index, p_line_config.fill_baseline])
 				return
+
+
+	static func _validate_stacked_fill(p_pane_index: int, p_line_config: TauLineConfig, p_result: ValidationResult) -> void:
+		if p_line_config.mode != TauLineConfig.LineMode.STACKED:
+			p_result.add_error("LineValidator: pane %d: fill_mode STACKED requires mode STACKED" % p_pane_index)
+
+		var style: TauLineStyle = p_line_config.style
+		for i in range(style.fills.size()):
+			var fill: TauLineFill = style.fills[i]
+			if fill == null:
+				continue
+			if fill.texture == null:
+				continue
+			if fill.texture_mode != TauLineFill.FillTextureMode.STRETCH:
+				continue
+			if fill.stretch_span != TauLineFill.FillStretchSpan.MAGNITUDE:
+				continue
+			p_result.add_error("LineValidator: pane %d: fills[%d]: MAGNITUDE stretch_span is not supported under fill_mode STACKED, the band has no baseline to measure from" % [p_pane_index, i])
 
 
 	# Only a STRETCH fill with a non-LINE span reads the CUSTOM window, so a

@@ -14,7 +14,7 @@ script = ExtResource("1_t3a0d")
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test stacked bars negative policy with normalization = NONE"
+text = "Test stacked lines negative policy with normalization = NONE"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]

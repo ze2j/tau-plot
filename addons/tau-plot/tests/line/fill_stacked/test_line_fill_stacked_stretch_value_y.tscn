@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://sifkw67vbj2h"]
+[gd_scene load_steps=3 format=3 uid="uid://1tw035gyh11h"]
 
-[ext_resource type="Script" uid="uid://bpbp8mimvrtki" path="res://addons/tau-plot/tests/line/stacked/test_line_stacked_negative_percent.gd" id="1_os7bv"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_tcxo6"]
+[ext_resource type="Script" uid="uid://ssppyx78aash" path="res://addons/tau-plot/tests/line/fill_stacked/test_line_fill_stacked_stretch_value_y.gd" id="1_f2mp0"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_tusn7"]
 
 [node name="Lines" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_os7bv")
+script = ExtResource("1_f2mp0")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test stacked lines negative policy with normalization = PERCENT"
+text = "Test stacked lines filled with stretched texture and VALUE_Y span"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -30,7 +30,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_tcxo6")
+script = ExtResource("2_tusn7")
 title = "[CONTINUOUS] with stacked_negative_policy = SKIP_NEGATIVES"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -40,7 +40,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_tcxo6")
+script = ExtResource("2_tusn7")
 title = "[CONTINUOUS] with stacked_negative_policy = DIVERGING"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -50,7 +50,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_tcxo6")
+script = ExtResource("2_tusn7")
 title = "[CONTINUOUS] with stacked_negative_policy = SIGNED_SUM"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -60,7 +60,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_tcxo6")
+script = ExtResource("2_tusn7")
 title = "[CATEGORICAL] with stacked_negative_policy = SKIP_NEGATIVES"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -70,7 +70,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_tcxo6")
+script = ExtResource("2_tusn7")
 title = "[CATEGORICAL] with stacked_negative_policy = DIVERGING"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -80,6 +80,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_tcxo6")
+script = ExtResource("2_tusn7")
 title = "[CATEGORICAL] with stacked_negative_policy = SIGNED_SUM"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

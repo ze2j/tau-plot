@@ -88,14 +88,21 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   LineHitRecord.y_raw_value carries the original dataset value.
 #
 # Area fill:
-# - When TauLineConfig.fill_mode is TO_BASELINE, the area between the line
-#   and the constant TauLineConfig.fill_baseline is filled before the line
-#   is drawn. The fill is built from the rendered polyline (after
-#   interpolation has materialized any synthetic vertices) as a strip of
-#   columns, one quad per pair of neighbouring vertices, with a crossing
-#   point inserted wherever the line crosses the baseline. The whole strip
-#   is emitted in one canvas_item_add_triangle_array call. The line itself
-#   is one draw call per contiguous run.
+# - The fill is a strip of columns between two index-aligned axis-space
+#   edges, an upper edge and a lower edge sharing one x per vertex. TO_BASELINE
+#   and STACKED differ only in the lower edge:
+#     - TO_BASELINE fills between the line and the constant
+#       TauLineConfig.fill_baseline. The lower edge is that flat level dropped
+#       under every upper vertex.
+#     - STACKED fills the band between this layer's painted top and the top of
+#       the layer below (StackedSeriesValues.get_y_baseline), so a stacked line
+#       overlay reads as a stacked area chart. Requires LineMode.STACKED.
+#   The strip is built from the rendered edges (after interpolation has
+#   materialized any synthetic vertices), one quad per pair of neighbouring
+#   columns, with a crossing point inserted wherever the band flips sign so the
+#   straddling column closes cleanly. The whole strip is emitted in one
+#   canvas_item_add_triangle_array call. The line itself is one draw call per
+#   contiguous run.
 # - Fill resolution is against one TauLineFill per series, resolved through
 #   TauLineStyle.get_series_fill (modulo-cycled per series, like
 #   line_widths_px). The fill is drawn either as a flat color or as a
@@ -268,7 +275,8 @@ class LineRenderer extends Control:
 			_draw_series(series_index, stacked_values)
 
 
-	# Run emission rules, applied by both variants:
+	# Routes a series to the x layout that resolves its parameter axis, then the
+	# shared run loop applies the emission rules for both:
 	#   - A valid sample is appended to the current run.
 	#   - An invalid sample (NaN/Inf X or Y, value forbidden by the active
 	#     axis scale, or dropped by the negative policy in STACKED mode)
@@ -286,14 +294,74 @@ class LineRenderer extends Control:
 	func _draw_series_continuous(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
-		var width_px: float = _line_style.get_series_width_px(global_series_index)
-		if width_px <= 0.0:
+		if _line_style.get_series_width_px(global_series_index) <= 0.0:
 			return
+
+		# Precompute the x plan for the shared run loop. A sample whose x is NaN,
+		# Inf, or forbidden by the axis scale gets a NAN x pixel, which the loop
+		# reads as a run break. Every other sample maps its x to an axis pixel.
+		# The value stored alongside is the raw float, handed to color resolution
+		# and hit records unchanged.
+		var is_shared_x := _dataset.get_mode() == Dataset.Mode.SHARED_X
+		var sample_count := _dataset.get_series_sample_count(series_id)
+		var x_px := PackedFloat64Array()
+		x_px.resize(sample_count)
+		var x_values: Array = []
+		x_values.resize(sample_count)
+		for i in range(sample_count):
+			var xv: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
+			x_values[i] = xv
+			if is_nan(xv) or is_inf(xv) or not _is_x_value_valid_for_scale(xv):
+				x_px[i] = NAN
+			else:
+				x_px[i] = _layout.map_x_to_px(_pane_index, xv)
+
+		_draw_series_runs(p_series_index, p_stacked, x_px, x_values)
+
+
+	func _draw_series_categorical(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
+		var series_id := _get_line_series_id(p_series_index)
+		var global_series_index := _get_global_series_index(p_series_index)
+		if _line_style.get_series_width_px(global_series_index) <= 0.0:
+			return
+
+		# Precompute the x plan for the shared run loop. Category centers are
+		# always valid, so no x pixel is ever NAN and a run only breaks on an
+		# invalid y. The value stored alongside is the category itself.
+		var categories := _layout.domain.x_categories
+		var sample_count := _dataset.get_series_sample_count(series_id)
+		var x_px := PackedFloat64Array()
+		x_px.resize(sample_count)
+		var x_values: Array = []
+		x_values.resize(sample_count)
+		for cat_idx in range(sample_count):
+			x_px[cat_idx] = _layout.map_x_category_center_to_px(_pane_index, cat_idx)
+			x_values[cat_idx] = categories[cat_idx]
+
+		_draw_series_runs(p_series_index, p_stacked, x_px, x_values)
+
+
+	# Builds and finalizes every run of one series from a precomputed x plan,
+	# shared by the continuous and categorical layouts so the run-break and
+	# emission rules live in one place. p_x_px carries the axis-space x pixel per
+	# sample, NAN where the sample's x breaks the run. p_x_values carries the
+	# value handed to color resolution and hit records, a float for a continuous
+	# x and a category for a categorical one. The y plan (scale validity,
+	# stacking, normalization) is resolved here per sample.
+	func _draw_series_runs(p_series_index: int, p_stacked: StackedSeriesValues, p_x_px: PackedFloat64Array, p_x_values: Array) -> void:
+		var series_id := _get_line_series_id(p_series_index)
+		var global_series_index := _get_global_series_index(p_series_index)
+		var width_px: float = _line_style.get_series_width_px(global_series_index)
 		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
 		var hover_width_px: float = max(_line_style.get_series_hovered_width_px(global_series_index), width_px)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
+
+		# STACKED fill needs a per-vertex lower edge, the painted top of the layer
+		# below. It requires stacked mode, so p_stacked is non-null whenever this
+		# is set. TO_BASELINE and NONE leave the lower run empty and unused.
+		var stacked_fill: bool = _line_config.fill_mode == TauLineConfig.FillMode.STACKED
 
 		# Resolved once per series: every run of this series fills against the
 		# same baseline and the same color, and uses the same UV reference frame.
@@ -308,6 +376,9 @@ class LineRenderer extends Control:
 
 		var run := PackedVector2Array()
 		var run_colors := PackedColorArray()
+		# Lower fill edge for STACKED, buffered in lockstep with the upper run so
+		# both share one x per index. Stays empty for TO_BASELINE and NONE.
+		var run_baseline := PackedVector2Array()
 		# Parallel arrays describing the real samples appended to the current
 		# run. real_polyline_indices[k] is the index into `run` where the k-th
 		# real sample of this run landed before any post-processing
@@ -316,46 +387,47 @@ class LineRenderer extends Control:
 		var real_polyline_indices := PackedInt32Array()
 		var real_dataset_indices := PackedInt32Array()
 
-		var is_shared_x := _dataset.get_mode() == Dataset.Mode.SHARED_X
-		var sample_count := _dataset.get_series_sample_count(series_id)
-
+		var sample_count := p_x_px.size()
 		for i in range(sample_count):
-			var x_value: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
-			if is_nan(x_value) or is_inf(x_value) or not _is_x_value_valid_for_scale(x_value):
+			var x_px: float = p_x_px[i]
+			# The y plan is only read for an x-valid sample, so an invalid x
+			# never pays for a stacked lookup it would discard.
+			var y_plotted: float = NAN
+			var y_raw: float = NAN
+			if not is_nan(x_px):
+				if p_stacked != null:
+					y_plotted = p_stacked.get_y_plotted(p_series_index, i)
+					y_raw = p_stacked.get_y_raw(p_series_index, i)
+				else:
+					y_plotted = independent_y[i]
+					y_raw = y_plotted
+
+			# A sample breaks the run when its x is invalid (NAN x pixel) or its
+			# plotted y is NaN. SKIP finalizes and starts a fresh run, BRIDGE
+			# drops the sample and keeps appending into the same run.
+			if is_nan(x_px) or is_nan(y_plotted):
 				if not bridge:
-					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
+					_finalize_run(run, run_colors, run_baseline, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
 					run = PackedVector2Array()
 					run_colors = PackedColorArray()
+					run_baseline = PackedVector2Array()
 					real_polyline_indices = PackedInt32Array()
 					real_dataset_indices = PackedInt32Array()
 				continue
 
-			var y_plotted: float
-			var y_raw: float
-			if p_stacked != null:
-				y_plotted = p_stacked.get_y_plotted(p_series_index, i)
-				y_raw = p_stacked.get_y_raw(p_series_index, i)
-			else:
-				y_plotted = independent_y[i]
-				y_raw = y_plotted
-
-			if is_nan(y_plotted):
-				if not bridge:
-					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
-					run = PackedVector2Array()
-					run_colors = PackedColorArray()
-					real_polyline_indices = PackedInt32Array()
-					real_dataset_indices = PackedInt32Array()
-				continue
-
-			var x_px := _layout.map_x_to_px(_pane_index, x_value)
 			var y_px := _layout.map_y_to_px(_pane_index, y_plotted, y_axis_id)
 			var axis_point := Vector2(x_px, y_px)
 			var screen_pos := _layout.map_point_to_screen(x_px, y_px)
+			var x_value: Variant = p_x_values[i]
 			var sample_color := _resolve_sample_color(p_series_index, i, x_value, y_raw)
 			# The run is buffered in axis space so interpolation runs along the
 			# parameter and value axes directly. _finalize_run maps it to screen.
 			_append_with_interpolation(run, run_colors, axis_point, sample_color, interpolation)
+			# Lower edge in lockstep: same x, dropped to the layer below's top. The
+			# shared step-riser logic keeps it index-aligned with the upper run.
+			if stacked_fill:
+				var baseline_axis_point := Vector2(x_px, _layout.map_y_to_px(_pane_index, p_stacked.get_y_baseline(p_series_index, i), y_axis_id))
+				_append_lower_with_interpolation(run_baseline, baseline_axis_point, interpolation)
 			# The real sample is always the last vertex appended by
 			# _append_with_interpolation, regardless of the interpolation mode.
 			real_polyline_indices.append(run.size() - 1)
@@ -370,80 +442,7 @@ class LineRenderer extends Control:
 			record.screen_position = screen_pos
 			_hit_records.append(record)
 
-		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
-
-
-	func _draw_series_categorical(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
-		var series_id := _get_line_series_id(p_series_index)
-		var global_series_index := _get_global_series_index(p_series_index)
-		var width_px: float = _line_style.get_series_width_px(global_series_index)
-		if width_px <= 0.0:
-			return
-		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
-		var hover_width_px: float = max(_line_style.get_series_hovered_width_px(global_series_index), width_px)
-		var y_axis_id := _get_y_axis_id_for_series(series_id)
-		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
-		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
-
-		# Resolved once per series: every run of this series fills against the
-		# same baseline and the same color, and uses the same UV reference frame.
-		var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
-		var fill_color: Color = _resolve_series_fill_color(global_series_index, fill)
-		var baseline_y_px: float = _resolve_fill_baseline_y_px(y_axis_id)
-		var fill_uv_ctx: _FillUVContext = _resolve_fill_uv_context(fill, y_axis_id)
-
-		var independent_y: PackedFloat64Array
-		if p_stacked == null:
-			independent_y = _build_independent_y_row(series_id)
-
-		var categories := _layout.domain.x_categories
-		var run := PackedVector2Array()
-		var run_colors := PackedColorArray()
-		var real_polyline_indices := PackedInt32Array()
-		var real_dataset_indices := PackedInt32Array()
-		var sample_count := _dataset.get_series_sample_count(series_id)
-
-		for cat_idx in range(sample_count):
-			var y_plotted: float
-			var y_raw: float
-			if p_stacked != null:
-				y_plotted = p_stacked.get_y_plotted(p_series_index, cat_idx)
-				y_raw = p_stacked.get_y_raw(p_series_index, cat_idx)
-			else:
-				y_plotted = independent_y[cat_idx]
-				y_raw = y_plotted
-
-			if is_nan(y_plotted):
-				if not bridge:
-					_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
-					run = PackedVector2Array()
-					run_colors = PackedColorArray()
-					real_polyline_indices = PackedInt32Array()
-					real_dataset_indices = PackedInt32Array()
-				continue
-
-			var x_px := _layout.map_x_category_center_to_px(_pane_index, cat_idx)
-			var y_px := _layout.map_y_to_px(_pane_index, y_plotted, y_axis_id)
-			var axis_point := Vector2(x_px, y_px)
-			var screen_pos := _layout.map_point_to_screen(x_px, y_px)
-			var x_value: Variant = categories[cat_idx]
-			var sample_color := _resolve_sample_color(p_series_index, cat_idx, x_value, y_raw)
-			# The run is buffered in axis space so interpolation runs along the
-			# parameter and value axes directly. _finalize_run maps it to screen.
-			_append_with_interpolation(run, run_colors, axis_point, sample_color, interpolation)
-			real_polyline_indices.append(run.size() - 1)
-			real_dataset_indices.append(cat_idx)
-
-			var record := LineHitRecord.new()
-			record.series_id = series_id
-			record.sample_index = cat_idx
-			record.x_value = x_value
-			record.y_plotted_value = y_plotted
-			record.y_raw_value = y_raw
-			record.screen_position = screen_pos
-			_hit_records.append(record)
-
-		_finalize_run(run, run_colors, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
+		_finalize_run(run, run_colors, run_baseline, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
 
 
 	# Marks dropped samples (NaN, Inf, log-axis violations) as NAN up front
@@ -504,6 +503,29 @@ class LineRenderer extends Control:
 		p_run_colors.append(p_color)
 
 
+	# Colorless counterpart of _append_with_interpolation for the STACKED lower
+	# edge. It mirrors the step-riser logic on the same shared x, so the lower
+	# edge lands the same synthetic vertices at the same indices as the upper
+	# run. The fill strip colors every vertex uniformly, so the lower edge needs
+	# no parallel color array.
+	func _append_lower_with_interpolation(p_run: PackedVector2Array, p_axis_point: Vector2, p_mode: TauLineConfig.InterpolationMode) -> void:
+		if p_run.size() == 0 or p_mode == TauLineConfig.InterpolationMode.LINEAR or p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE:
+			p_run.append(p_axis_point)
+			return
+
+		var last_axis_pt: Vector2 = p_run[p_run.size() - 1]
+		match p_mode:
+			TauLineConfig.InterpolationMode.STEP_BEFORE:
+				p_run.append(Vector2(last_axis_pt.x, p_axis_point.y))
+			TauLineConfig.InterpolationMode.STEP_AFTER:
+				p_run.append(Vector2(p_axis_point.x, last_axis_pt.y))
+			TauLineConfig.InterpolationMode.STEP_MIDDLE:
+				var mid_x_axis_px: float = (last_axis_pt.x + p_axis_point.x) * 0.5
+				p_run.append(Vector2(mid_x_axis_px, last_axis_pt.y))
+				p_run.append(Vector2(mid_x_axis_px, p_axis_point.y))
+		p_run.append(p_axis_point)
+
+
 	# Draw the polyline for one buffered run. The run arrives in axis space.
 	# For LINEAR and the step modes it is already the final polyline. For
 	# SMOOTH_MONOTONE it is first replaced by its Fritsch-Carlson piecewise
@@ -511,11 +533,11 @@ class LineRenderer extends Control:
 	# maps its own strip to screen space, then the line polyline is mapped to
 	# screen space and drawn. Runs of fewer than two points are silently dropped.
 	#
-	# When p_fill_color has non-zero alpha and p_baseline_y_px is finite,
-	# the area between the rendered polyline and the horizontal baseline
-	# is filled before the line is drawn. The polygon is split at every
-	# baseline crossing into same-side sub-polygons, each emitted as one
-	# draw call. The line itself is unaffected by splitting.
+	# When p_fill_color has non-zero alpha and a lower edge resolves, the band
+	# between the rendered polyline and that lower edge is filled before the line
+	# is drawn. The lower edge is the flat baseline for TO_BASELINE and the
+	# buffered p_run_baseline (the layer below's top) for STACKED, resampled with
+	# the upper edge so the two stay index-aligned. The line itself is unaffected.
 	#
 	# Path selection per series (no hover):
 	#   - p_dash_px == 0: one draw_polyline_colors call.
@@ -535,12 +557,16 @@ class LineRenderer extends Control:
 	# from the polyline start, so the dash pattern stays continuous through
 	# the slices.
 	#
+	# p_run_baseline is the buffered lower fill edge for a STACKED run, aligned
+	# with p_run one x per index. It is empty for TO_BASELINE and NONE, where the
+	# lower edge is synthesized or no fill is drawn.
+	#
 	# p_real_polyline_indices and p_real_dataset_indices are parallel arrays
 	# whose length equals the number of real samples appended to this run.
 	# real_polyline_indices[k] is the index in p_run where the k-th real
 	# sample landed. real_dataset_indices[k] is the dataset sample index for
 	# that real sample.
-	func _finalize_run(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_real_polyline_indices: PackedInt32Array, p_real_dataset_indices: PackedInt32Array, p_series_id: int, p_width_px: float, p_hover_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
+	func _finalize_run(p_run: PackedVector2Array, p_run_colors: PackedColorArray, p_run_baseline: PackedVector2Array, p_real_polyline_indices: PackedInt32Array, p_real_dataset_indices: PackedInt32Array, p_series_id: int, p_width_px: float, p_hover_width_px: float, p_mode: TauLineConfig.InterpolationMode, p_dash_px: int, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
 		var polyline: PackedVector2Array = p_run
 		var polyline_colors: PackedColorArray = p_run_colors
 		var real_polyline_indices: PackedInt32Array = p_real_polyline_indices
@@ -557,10 +583,13 @@ class LineRenderer extends Control:
 
 		# The fill is computed in axis space, where the value lies on .y, and
 		# maps its own strip to screen space at emission. It runs first so the
-		# line lands on top of it. A NaN baseline or zero-alpha color means no
-		# fill for this run.
-		if not is_nan(p_baseline_y_px) and p_fill_color.a > 0.0:
-			_draw_fill(polyline, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
+		# line lands on top of it. A zero-alpha color or an empty lower edge means
+		# no fill for this run. The strip builder pairs the upper polyline against
+		# the resolved lower edge, both index-aligned.
+		if p_fill_color.a > 0.0:
+			var lower_edge := _resolve_fill_lower_edge(polyline, p_run_baseline, p_baseline_y_px, p_mode)
+			if not lower_edge.is_empty():
+				_draw_fill(polyline, lower_edge, p_fill, p_fill_color, p_fill_uv_ctx)
 
 		# The line is drawn in screen space. The mapping preserves vertex
 		# order, so real_polyline_indices stay valid.
@@ -809,13 +838,16 @@ class LineRenderer extends Control:
 
 
 	# Resolves the fill UV context for p_fill bound to p_y_axis_id. Returns a
-	# context with texture = null when fill_mode is not TO_BASELINE or when
-	# p_fill has no texture, so the caller skips UV construction entirely.
+	# context with texture = null when fill_mode is NONE or when p_fill has no
+	# texture, so the caller skips UV construction entirely. The value spans read
+	# the vertex on their own axis, so they apply unchanged to the band edges of
+	# a STACKED fill. MAGNITUDE never reaches here under STACKED: the validator
+	# rejects a MAGNITUDE textured STRETCH fill when the band fill is active.
 	# texture_mode and stretch_span are read directly from p_fill by the
 	# strip UV builder and are not stored on the context.
 	func _resolve_fill_uv_context(p_fill: TauLineFill, p_y_axis_id: AxisId) -> _FillUVContext:
 		var ctx := _FillUVContext.new()
-		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
+		if _line_config.fill_mode == TauLineConfig.FillMode.NONE:
 			return ctx
 		ctx.texture = p_fill.texture
 		if ctx.texture == null:
@@ -986,11 +1018,12 @@ class LineRenderer extends Control:
 
 
 	# Returns the color passed as the modulation argument of the fill draw
-	# call for one series. Three cases:
+	# call for one series. TO_BASELINE and STACKED resolve a color the same way,
+	# since both paint the same strip. Three cases:
 	#
-	#   1. fill_mode is not TO_BASELINE. No flat fill is drawn for this
-	#      series, so the return value is fully transparent black and the
-	#      draw call is skipped upstream.
+	#   1. fill_mode is NONE. No fill is drawn for this series, so the return
+	#      value is fully transparent black and the draw call is skipped
+	#      upstream.
 	#   2. p_fill has a texture. The fill is the texture and must not be
 	#      tinted, so the modulation color is white. Its alpha carries
 	#      p_fill.alpha, which is the only thing that scales the texture.
@@ -999,7 +1032,7 @@ class LineRenderer extends Control:
 	#      p_fill.color is TauLineFill.NO_COLOR. p_fill.alpha is then
 	#      applied to its alpha channel.
 	func _resolve_series_fill_color(p_global_series_index: int, p_fill: TauLineFill) -> Color:
-		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
+		if _line_config.fill_mode == TauLineConfig.FillMode.NONE:
 			return Color(0, 0, 0, 0)
 		if p_fill.texture != null:
 			return Color(1.0, 1.0, 1.0, p_fill.alpha)
@@ -1019,23 +1052,72 @@ class LineRenderer extends Control:
 		return _layout.map_y_to_px(_pane_index, _line_config.fill_baseline, p_y_axis_id)
 
 
-	# Builds and draws the fill between p_polyline and the baseline at
-	# p_baseline_y_px. Both are in axis space, so the baseline is the value
-	# (.y) the strip drops onto and the fill runs along the parameter axis.
-	# The strip is mapped to screen space at emission inside _build_fill_strip.
+	# Synthesizes the flat lower edge for a TO_BASELINE fill from the final upper
+	# polyline. Each lower vertex shares its upper vertex's .x and drops to the
+	# constant baseline, so the two edges are index-aligned by construction and
+	# the strip builder pairs them without a constant special case.
+	func _synthesize_flat_lower_edge(p_upper: PackedVector2Array, p_baseline_y_px: float) -> PackedVector2Array:
+		var lower := PackedVector2Array()
+		var n: int = p_upper.size()
+		lower.resize(n)
+		for i in range(n):
+			lower[i] = Vector2(p_upper[i].x, p_baseline_y_px)
+		return lower
+
+
+	# Resolves the lower fill edge index-aligned with p_upper for the active fill
+	# mode, or an empty array when no fill applies to this run. TO_BASELINE drops
+	# the constant baseline under every upper vertex. STACKED finalizes the
+	# buffered lower run the same way the upper run was finalized, so both edges
+	# stay index-aligned. NONE and a non-finite TO_BASELINE baseline return empty.
+	func _resolve_fill_lower_edge(p_upper: PackedVector2Array, p_run_baseline: PackedVector2Array, p_baseline_y_px: float, p_mode: TauLineConfig.InterpolationMode) -> PackedVector2Array:
+		match _line_config.fill_mode:
+			TauLineConfig.FillMode.TO_BASELINE:
+				if is_nan(p_baseline_y_px):
+					return PackedVector2Array()
+				return _synthesize_flat_lower_edge(p_upper, p_baseline_y_px)
+			TauLineConfig.FillMode.STACKED:
+				return _finalize_lower_run(p_run_baseline, p_mode)
+		return PackedVector2Array()
+
+
+	# Materializes the final STACKED lower edge from its buffered run. LINEAR and
+	# step runs are already final. SMOOTH_MONOTONE resamples with the same routine
+	# as the upper run: the two runs share their x sequence, so the resampler
+	# makes identical flat-x dedup and subdivision choices and the outputs stay
+	# index-aligned. The fill strip colors every vertex uniformly, so a throwaway
+	# color array sized to the run feeds the resampler.
+	func _finalize_lower_run(p_run_baseline: PackedVector2Array, p_mode: TauLineConfig.InterpolationMode) -> PackedVector2Array:
+		if p_mode == TauLineConfig.InterpolationMode.SMOOTH_MONOTONE and p_run_baseline.size() > 2:
+			var throwaway_colors := PackedColorArray()
+			throwaway_colors.resize(p_run_baseline.size())
+			var resampled := _resample_smooth_monotone(p_run_baseline, throwaway_colors)
+			return resampled[0]
+		return p_run_baseline
+
+
+	# Builds and draws the fill between the upper and lower edges. Both are in
+	# axis space and index-aligned, sharing one .x per vertex, so a column is a
+	# quad between paired vertices running along the parameter axis. The strip is
+	# mapped to screen space at emission inside _build_fill_strip. The lower edge
+	# is the synthesized flat baseline for TO_BASELINE and the layer below's top
+	# for STACKED; both reach here as an index-aligned polyline.
 	#
 	# The LINE stretch span fades by band fraction and needs near-rectangular
-	# columns to stay accurate, so its polyline is densified first. Every other
+	# columns to stay accurate, so both edges are densified first. Every other
 	# span is affine-exact at the original resolution and skips densification.
-	func _draw_fill(p_polyline: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
-		if p_polyline.size() < 2:
+	func _draw_fill(p_upper: PackedVector2Array, p_lower: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_fill_uv_ctx: _FillUVContext) -> void:
+		if p_upper.size() < 2:
 			return
 
-		var fill_polyline: PackedVector2Array = p_polyline
+		var upper: PackedVector2Array = p_upper
+		var lower: PackedVector2Array = p_lower
 		if _fill_needs_subdivision(p_fill):
-			fill_polyline = _densify_fill_polyline(p_polyline, p_baseline_y_px)
+			var dense := _densify_fill_edges(p_upper, p_lower)
+			upper = dense[0]
+			lower = dense[1]
 
-		_build_fill_strip(fill_polyline, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
+		_build_fill_strip(upper, lower, p_fill, p_fill_color, p_fill_uv_ctx)
 
 
 	# True for a textured LINE stretch span, the only fill whose fade is
@@ -1047,83 +1129,96 @@ class LineRenderer extends Control:
 			and p_fill.stretch_span == TauLineFill.FillStretchSpan.LINE
 
 
-	# Splits each polyline segment into collinear sub-segments so a wedge
-	# column becomes a run of near-rectangular ones. The line itself is drawn
+	# Splits each column into collinear sub-columns so a wedge becomes a run of
+	# near-rectangular ones. Both edges are cut with the same interpolation
+	# factor so the paired vertices stay index-aligned. The line itself is drawn
 	# from the original polyline, so this touches only the fill geometry.
-	func _densify_fill_polyline(p_polyline: PackedVector2Array, p_baseline_y_px: float) -> PackedVector2Array:
-		var n: int = p_polyline.size()
-		var dense := PackedVector2Array()
-		dense.append(p_polyline[0])
+	func _densify_fill_edges(p_upper: PackedVector2Array, p_lower: PackedVector2Array) -> Array[PackedVector2Array]:
+		var n: int = p_upper.size()
+		var dense_upper := PackedVector2Array()
+		var dense_lower := PackedVector2Array()
+		dense_upper.append(p_upper[0])
+		dense_lower.append(p_lower[0])
 		for i in range(1, n):
-			var a: Vector2 = p_polyline[i - 1]
-			var b: Vector2 = p_polyline[i]
-			var slices: int = _fill_segment_slices(a, b, p_baseline_y_px)
+			var ua: Vector2 = p_upper[i - 1]
+			var ub: Vector2 = p_upper[i]
+			var la: Vector2 = p_lower[i - 1]
+			var lb: Vector2 = p_lower[i]
+			var slices: int = _fill_segment_slices(ua, ub, la, lb)
 			for s in range(1, slices):
-				dense.append(a.lerp(b, float(s) / slices))
-			dense.append(b)
-		return dense
+				var f: float = float(s) / slices
+				dense_upper.append(ua.lerp(ub, f))
+				dense_lower.append(la.lerp(lb, f))
+			dense_upper.append(ub)
+			dense_lower.append(lb)
+		return [dense_upper, dense_lower]
 
 
-	# Number of fill sub-segments for the segment (p_a, p_b). A segment of
-	# constant band height fades exactly and stays whole. A wedge is cut into
-	# strips about _FILL_LINE_SLICE_PX wide, capped by _FILL_LINE_MAX_SLICES.
-	func _fill_segment_slices(p_a: Vector2, p_b: Vector2, p_baseline_y_px: float) -> int:
-		var h0: float = _band_height(p_a, p_baseline_y_px)
-		var h1: float = _band_height(p_b, p_baseline_y_px)
+	# Number of fill sub-columns for the column between the two paired edge
+	# points. A column of constant band height fades exactly and stays whole. A
+	# wedge is cut into strips about _FILL_LINE_SLICE_PX wide, capped by
+	# _FILL_LINE_MAX_SLICES. Slice count is measured along the upper edge.
+	func _fill_segment_slices(p_upper0: Vector2, p_upper1: Vector2, p_lower0: Vector2, p_lower1: Vector2) -> int:
+		var h0: float = _band_height(p_upper0, p_lower0)
+		var h1: float = _band_height(p_upper1, p_lower1)
 		var hi: float = maxf(h0, h1)
 		if hi == 0.0 or (hi - minf(h0, h1)) / hi < _FILL_LINE_WEDGE_EPS:
 			return 1
-		return clampi(ceili(p_a.distance_to(p_b) / _FILL_LINE_SLICE_PX), 1, _FILL_LINE_MAX_SLICES)
+		return clampi(ceili(p_upper0.distance_to(p_upper1) / _FILL_LINE_SLICE_PX), 1, _FILL_LINE_MAX_SLICES)
 
 
-	# Distance from p_point to the baseline along the y (value) axis. The strip
-	# is built in axis space, so the value always lies on .y.
-	func _band_height(p_point: Vector2, p_baseline_y_px: float) -> float:
-		return absf(p_point.y - p_baseline_y_px)
+	# Band height at one column, the gap between the paired upper and lower edge
+	# points along the y (value) axis. The strip is built in axis space, so the
+	# value always lies on .y.
+	func _band_height(p_upper: Vector2, p_lower: Vector2) -> float:
+		return absf(p_upper.y - p_lower.y)
 
 
-	# Builds the strip of columns between p_polyline and the baseline and emits
-	# it in one canvas_item_add_triangle_array call. p_polyline is in axis space;
-	# the strip is built there (value on .y) and mapped to screen space just
-	# before the draw call. Each pair of neighbouring polyline vertices spans one
-	# column, a quad from the line to the baseline split into two triangles. A
-	# crossing point is inserted wherever the line crosses the baseline, so the
-	# straddling column collapses to a triangle on each side with no self
-	# crossing, and no same-side split is needed.
+	# Builds the strip of columns between the upper and lower edges and emits it
+	# in one canvas_item_add_triangle_array call. Both edges are in axis space
+	# and index-aligned, sharing one .x per vertex; the strip is built there
+	# (value on .y) and mapped to screen space just before the draw call. Each
+	# pair of neighbouring vertices spans one column, a quad between the two
+	# edges split into two triangles. A crossing point is inserted wherever the
+	# band flips sign, that is where the edges meet, so the straddling column
+	# collapses to a triangle on each side with no self crossing, and no
+	# same-side split is needed.
 	#
-	# Crossing detection runs on the axis-space polyline, so the synthetic
-	# vertices from step interpolation and the sub-samples from SMOOTH_MONOTONE
-	# are treated uniformly. A crossing point lies at the linear interpolation
-	# of the two flanking vertices against the baseline. Both traversal
-	# directions are accepted because the builder never assumes one.
-	func _build_fill_strip(p_polyline: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
-		var n: int = p_polyline.size()
+	# Crossing detection runs on the axis-space edges, so the synthetic vertices
+	# from step interpolation and the sub-samples from SMOOTH_MONOTONE are
+	# treated uniformly. The same crossing point lands on both edges, so the
+	# column there closes cleanly. Both traversal directions are accepted
+	# because the builder never assumes one.
+	func _build_fill_strip(p_upper: PackedVector2Array, p_lower: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_fill_uv_ctx: _FillUVContext) -> void:
+		var n: int = p_upper.size()
 		if n < 2:
 			return
 
-		# Insert a crossing point between every pair of neighbouring vertices
-		# on opposite sides of the baseline. This keeps each column single
-		# sided, so the strip needs no same-side splitting.
+		# Insert a crossing point between every pair of neighbouring columns
+		# whose band flips sign. The same point lands on both edges, so each
+		# column stays single sided and the strip needs no same-side splitting.
 		var top := PackedVector2Array()
-		top.append(p_polyline[0])
+		var bottom := PackedVector2Array()
+		top.append(p_upper[0])
+		bottom.append(p_lower[0])
 		for i in range(1, n):
-			var prev: Vector2 = p_polyline[i - 1]
-			var v: Vector2 = p_polyline[i]
-			var prev_side: int = _baseline_side(prev, p_baseline_y_px)
-			var v_side: int = _baseline_side(v, p_baseline_y_px)
+			var prev_side: int = _band_side(p_upper[i - 1], p_lower[i - 1])
+			var v_side: int = _band_side(p_upper[i], p_lower[i])
 			if prev_side != 0 and v_side != 0 and prev_side != v_side:
-				top.append(_baseline_crossing(prev, v, p_baseline_y_px))
-			top.append(v)
+				var cross: Vector2 = _band_crossing(p_upper[i - 1], p_lower[i - 1], p_upper[i], p_lower[i])
+				top.append(cross)
+				bottom.append(cross)
+			top.append(p_upper[i])
+			bottom.append(p_lower[i])
 
-		# Even vertex 2k sits on the line, odd vertex 2k+1 drops it to the
-		# baseline. The UV builder relies on this parity to tell the two
-		# strip edges apart.
+		# Even vertex 2k rides the upper edge, odd vertex 2k+1 the lower edge.
+		# The UV builder relies on this parity to tell the two strip edges apart.
 		var m: int = top.size()
 		var points := PackedVector2Array()
 		points.resize(2 * m)
 		for k in range(m):
 			points[2 * k] = top[k]
-			points[2 * k + 1] = _baseline_point(top[k], p_baseline_y_px)
+			points[2 * k + 1] = bottom[k]
 
 		var colors := PackedColorArray()
 		colors.resize(2 * m)
@@ -1136,9 +1231,9 @@ class LineRenderer extends Control:
 			# Split each column from its shorter side so the taller wedge keeps
 			# its whole line edge on the texture's line end. A rising and a
 			# falling wedge then read the same LINE fade, and a column that
-			# meets the baseline collapses to a single triangle without
-			# dropping the line edge.
-			if _band_height(top[k], p_baseline_y_px) <= _band_height(top[k + 1], p_baseline_y_px):
+			# closes collapses to a single triangle without dropping the line
+			# edge.
+			if _band_height(top[k], bottom[k]) <= _band_height(top[k + 1], bottom[k + 1]):
 				indices[base] = 2 * k
 				indices[base + 1] = 2 * k + 2
 				indices[base + 2] = 2 * k + 3
@@ -1172,32 +1267,28 @@ class LineRenderer extends Control:
 		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, screen_points, colors, uvs, PackedInt32Array(), PackedFloat32Array(), tex_rid)
 
 
-	# Which side of the baseline p_point sits on, measured along the y (value)
-	# axis. Returns 0 on the baseline and opposite non-zero signs on the two
-	# sides. Only the opposition matters to the caller, which uses it to spot a
-	# crossing, so the sign's meaning is left to the mapping.
-	func _baseline_side(p_point: Vector2, p_baseline: float) -> int:
-		if p_point.y < p_baseline:
+	# Sign of the band at one column, sign(upper.y - lower.y) along the y (value)
+	# axis. Returns 0 where the two edges meet and opposite non-zero signs on the
+	# two sides. Only the opposition matters to the caller, which uses it to spot
+	# a band sign flip, so the sign's meaning is left to the mapping.
+	func _band_side(p_upper: Vector2, p_lower: Vector2) -> int:
+		if p_upper.y > p_lower.y:
 			return 1
-		if p_point.y > p_baseline:
+		if p_upper.y < p_lower.y:
 			return -1
 		return 0
 
 
-	# Point where segment (p_a, p_b) meets the baseline, interpolated along the
-	# y (value) axis and left free on the parameter axis. Precondition: the two
-	# endpoints straddle the baseline on .y with a non-zero gap, which is
-	# guaranteed by the caller.
-	func _baseline_crossing(p_a: Vector2, p_b: Vector2, p_baseline: float) -> Vector2:
-		var t: float = (p_baseline - p_a.y) / (p_b.y - p_a.y)
-		return Vector2(p_a.x + t * (p_b.x - p_a.x), p_baseline)
-
-
-	# Drops p_point onto the baseline along the y (value) axis, keeping its
-	# position on the parameter axis. This is the strip's baseline-side vertex
-	# paired with the line vertex p_point.
-	func _baseline_point(p_point: Vector2, p_baseline: float) -> Vector2:
-		return Vector2(p_point.x, p_baseline)
+	# Point where the band closes between two neighbouring columns, that is where
+	# the upper and lower edges meet. With band d = upper.y - lower.y the meeting
+	# sits at t = d0 / (d0 - d1). The point is taken on the lower edge so a flat
+	# baseline reproduces exactly. Precondition: the two columns straddle the
+	# meeting with a non-zero band on each side, guaranteed by the caller.
+	func _band_crossing(p_upper0: Vector2, p_lower0: Vector2, p_upper1: Vector2, p_lower1: Vector2) -> Vector2:
+		var d0: float = p_upper0.y - p_lower0.y
+		var d1: float = p_upper1.y - p_lower1.y
+		var t: float = d0 / (d0 - d1)
+		return p_lower0.lerp(p_lower1, t)
 
 
 	####################################################################################################

@@ -65,7 +65,8 @@ enum FillStretchSpan
 	## point the same distance below share a color, and the baseline itself
 	## always takes the low end of the range. The color grows stronger as the
 	## line moves further from the baseline, above or below. Example: a
-	## deviation fill, matching above and below.
+	## deviation fill, matching above and below. Not available when
+	## [member TauLineConfig.fill_mode] is STACKED.
 	MAGNITUDE
 }
 

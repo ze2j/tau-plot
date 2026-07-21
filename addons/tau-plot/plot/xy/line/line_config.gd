@@ -84,9 +84,16 @@ enum InterpolationMode
 ## This property is visual-only and does not affect layout or domain.
 enum FillMode
 {
-	NONE,           ## Leave the area unfilled.
-	TO_BASELINE,    ## Fill between the line and the constant level [member fill_baseline].
-	STACKED         ## Not implemented yet, draws nothing.
+	## Leave the area unfilled.
+	NONE,
+
+	## Fill between the line and the constant level [member fill_baseline].
+	TO_BASELINE,
+
+	## Fill the band between each layer's top and the top of the layer directly
+	## below, so a stacked line overlay reads as a stacked area chart. Requires
+	## [member mode] STACKED.
+	STACKED
 }
 @export var fill_mode: FillMode = FillMode.NONE
 
