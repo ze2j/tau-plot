@@ -78,36 +78,54 @@ enum InterpolationMode
 }
 @export var interpolation_mode: InterpolationMode = InterpolationMode.LINEAR
 
-## Strategy applied to fill the area between the line and a reference
-## baseline. The visual appearance of the fill is controlled by
-## [TauLineFill].
-##
-## NONE leaves the area below the line unfilled.
-##
-## TO_BASELINE fills the area between the line and the constant value
-## [member fill_baseline]. When the curve crosses the baseline between two
-## consecutive samples, the fill is split into multiple sub-polygons at the
-## crossings, one per same-side run.
-##
-## STACKED is only meaningful when [member mode] is STACKED. Each stacked
-## layer is filled between its own curve and the top of the layer below.
-## The bottom layer is filled down to y = 0.
+## Which area around the line is filled. The look of the fill, its color and
+## texture, lives in [TauLineFill].
 ##
 ## This property is visual-only and does not affect layout or domain.
 enum FillMode
 {
-	NONE,           ## No area is filled.
-	TO_BASELINE,    ## Fill between the line and [member fill_baseline].
-	STACKED         ## Fill each stacked layer between its curve and the layer below.
+	NONE,           ## Leave the area unfilled.
+	TO_BASELINE,    ## Fill between the line and the constant level [member fill_baseline].
+	STACKED         ## Not implemented yet, draws nothing.
 }
 @export var fill_mode: FillMode = FillMode.NONE
 
-## Y value used as the reference baseline when [member fill_mode] is
-## TO_BASELINE. Expressed in data units on the series y-axis. Ignored for
-## any other [member fill_mode] value.
+## Reference y level for the TO_BASELINE fill, in data units on the series
+## y-axis. The fill is drawn between the line and this level. Ignored by other
+## [member fill_mode] values.
+##
+## The MAGNITUDE stretch span measures its distance from this level. See
+## [enum TauLineFill.FillStretchSpan].
 ##
 ## This property is visual-only and does not affect layout or domain.
 @export var fill_baseline: float = 0.0
+
+## Where a value stretch span reads its low and high ends. See
+## [member TauLineFill.stretch_span].
+##
+## This property is visual-only and does not affect layout or domain.
+enum StretchRangePolicy
+{
+	DOMAIN,   ## Span the whole series, from its lowest value to its highest.
+	CUSTOM    ## Use the fixed window set in [member stretch_range].
+}
+@export var stretch_range_policy: StretchRangePolicy = StretchRangePolicy.DOMAIN
+
+## Fixed low and high window for a stretch fill, read only when
+## [member stretch_range_policy] is CUSTOM. [code].x[/code] is the low end and
+## [code].y[/code] the high end, and swapping them reverses the gradient.
+##
+## What each end means follows the span that reads it:
+## - VALUE_Y: a value on the series y axis.
+## - VALUE_X: a value on the x axis. Not available on a categorical x axis,
+##   use DOMAIN there.
+## - MAGNITUDE: a distance from [member fill_baseline], so keep both at or
+##   above zero.
+##
+## The LINE span never reads this window. See [member TauLineFill.stretch_span].
+##
+## This property is visual-only and does not affect layout or domain.
+@export var stretch_range: Vector2 = Vector2.ZERO
 
 ## Maximum pixel distance from the cursor to a sample position for the sample
 ## to be considered a hover hit.
@@ -164,6 +182,10 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	if fill_mode != other.fill_mode:
 		return false
 	if fill_baseline != other.fill_baseline:
+		return false
+	if stretch_range_policy != other.stretch_range_policy:
+		return false
+	if stretch_range != other.stretch_range:
 		return false
 	if hover_max_distance_px != other.hover_max_distance_px:
 		return false

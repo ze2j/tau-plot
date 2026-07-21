@@ -51,14 +51,14 @@ const DEFAULT_DASH_LENGTHS_PX: Array[int] = [0]
 @export var dash_lengths_px: Array[int] = [0]
 
 ## Per-series cycle of [TauLineFill], indexed cyclically by series index
-## using modulo. An empty array is treated as all series at [TauLineFill]'s
-## built-in defaults.
+## using modulo. An empty array, or a null entry, leaves the matching series
+## at [TauLineFill]'s built-in defaults.
 const DEFAULT_FILLS: Array[TauLineFill] = []
 @export var fills: Array[TauLineFill] = []
 
-# Shared instance returned by get_series_fill() when fills is empty, so the
-# renderer does not allocate one per series per frame. Read-only: callers
-# must not mutate it.
+# Shared instance returned by get_series_fill() when fills is empty or the
+# series entry is null, so the renderer does not allocate one per series per
+# frame. Read-only: callers must not mutate it.
 #
 # Built on first access rather than here. A static initializer runs while
 # line_style.gd is being loaded, at which point TauLineFill is not
@@ -109,11 +109,16 @@ func get_series_dash_px(p_series_index: int) -> int:
 ## An empty [member fills] returns a shared instance at [TauLineFill]'s
 ## built-in defaults. The returned resource must be treated as read-only.
 func get_series_fill(p_series_index: int) -> TauLineFill:
-	if fills.is_empty():
-		if _SHARED_DEFAULT_FILL == null:
-			_SHARED_DEFAULT_FILL = TauLineFill.new()
-		return _SHARED_DEFAULT_FILL
-	return fills[p_series_index % fills.size()]
+	if not fills.is_empty():
+		var fill: TauLineFill = fills[p_series_index % fills.size()]
+		if fill != null:
+			return fill
+
+	# An empty list or a null entry both mean this series takes the built-in
+	# defaults.
+	if _SHARED_DEFAULT_FILL == null:
+		_SHARED_DEFAULT_FILL = TauLineFill.new()
+	return _SHARED_DEFAULT_FILL
 
 
 ####################################################################################################
@@ -140,11 +145,9 @@ func get_series_fill(p_series_index: int) -> TauLineFill:
 ##     constant, percent integer, [code]100[/code] means [code]1.0[/code])
 ##   - texture:           [code]line_fill_texture[/code] (theme icon)
 ##   - texture_mode:      [code]line_fill_texture_mode[/code] (theme
-##     constant, integer enum value)
-##   - stretch_axis:      [code]line_fill_texture_stretch_axis[/code]
-##     (theme constant, integer enum value)
-##   - stretch_span:      [code]line_fill_texture_stretch_span[/code]
-##     (theme constant, integer enum value)
+##     constant, an integer [enum TauLineFill.FillTextureMode] value)
+##   - stretch_span:      [code]line_fill_texture_stretch_span[/code] (theme
+##     constant, an integer [enum TauLineFill.FillStretchSpan] value)
 ##   - tile_scale:        [code]line_fill_texture_scale_percent[/code]
 ##     (theme constant, percent integer, [code]100[/code] means
 ##     [code]1.0[/code])
@@ -317,25 +320,6 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		_ensure_fills_min_size(pane_mode_index + 1)
 		fills[pane_mode_index].texture_mode = p_control.get_theme_constant(key) as TauLineFill.FillTextureMode
 		pane_mode_index += 1
-
-	# stretch_axis
-	var axis_index := 0
-	while true:
-		var key := StringName("line_fill_texture_stretch_axis_%d" % axis_index)
-		if not p_control.has_theme_constant(key):
-			break
-		_ensure_fills_min_size(axis_index + 1)
-		fills[axis_index].stretch_axis = p_control.get_theme_constant(key) as TauLineFill.FillStretchAxis
-		axis_index += 1
-
-	var pane_axis_index := 0
-	while true:
-		var key := StringName("line_fill_texture_stretch_axis_%d_%d" % [pane_axis_index, p_pane_index])
-		if not p_control.has_theme_constant(key):
-			break
-		_ensure_fills_min_size(pane_axis_index + 1)
-		fills[pane_axis_index].stretch_axis = p_control.get_theme_constant(key) as TauLineFill.FillStretchAxis
-		pane_axis_index += 1
 
 	# stretch_span
 	var span_index := 0
@@ -510,7 +494,13 @@ func is_equal_to(p_other: TauLineStyle) -> bool:
 	if fills.size() != p_other.fills.size():
 		return false
 	for i in range(fills.size()):
-		if not fills[i].is_equal_to(p_other.fills[i]):
+		var fill: TauLineFill = fills[i]
+		var other_fill: TauLineFill = p_other.fills[i]
+		if fill == null:
+			if other_fill != null:
+				return false
+			continue
+		if not fill.is_equal_to(other_fill):
 			return false
 	return true
 

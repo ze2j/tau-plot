@@ -89,11 +89,12 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 # Area fill:
 # - When TauLineConfig.fill_mode is TO_BASELINE, the area between the line
 #   and the constant TauLineConfig.fill_baseline is filled before the line
-#   is drawn. The polygon is built from the rendered polyline (after
-#   interpolation has materialized any synthetic vertices) and is split at
-#   every baseline crossing into same-side sub-polygons, each emitted as
-#   one draw_colored_polygon call. The line itself is unaffected by the
-#   split and remains one draw call per contiguous run.
+#   is drawn. The fill is built from the rendered polyline (after
+#   interpolation has materialized any synthetic vertices) as a strip of
+#   columns, one quad per pair of neighbouring vertices, with a crossing
+#   point inserted wherever the line crosses the baseline. The whole strip
+#   is emitted in one canvas_item_add_triangle_array call. The line itself
+#   is one draw call per contiguous run.
 # - Fill resolution is against one TauLineFill per series, resolved through
 #   TauLineStyle.get_series_fill (modulo-cycled per series, like
 #   line_widths_px). The fill is drawn either as a flat color or as a
@@ -110,18 +111,27 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #       tinting.
 #   In both cases, the alpha of whatever color was passed to the draw call
 #   is then multiplied by TauLineFill.alpha.
-# - Each sub-polygon is emitted with a per-vertex UV array driven by
-#   TauLineFill.texture_mode. STRETCH samples the texture once across
-#   a chosen span (pane, polygon bbox, or line-to-closing-edge), with axis
-#   inversion applied for the pane and polygon spans so U/V align with the
-#   data x/y direction. TILE samples the texture at native pixel size on
-#   screen, with a square-pixel-correct grid rotated around the pane center
-#   and translated in screen pixels, independent of pane shape.
+# - The strip carries a per-vertex UV array driven by
+#   TauLineFill.texture_mode. STRETCH samples the texture once across a
+#   chosen span. TILE samples the texture at native pixel size on screen,
+#   with a square-pixel-correct grid rotated around the pane center and
+#   translated in screen pixels, independent of pane shape.
 class LineRenderer extends Control:
 	# Number of sub-segments inserted between two consecutive samples by
 	# SMOOTH_MONOTONE. The value balances visual smoothness on a typical
 	# screen against the per-segment cost paid by draw_polyline_colors().
 	const _SMOOTH_SUBDIVISIONS: int = 16
+
+	# Fill subdivision for the LINE stretch span. A wedge column fades by band
+	# fraction, which is nonlinear, so a single affine quad leaves an error
+	# sliver at the thin end. Slicing the segment into strips about
+	# _FILL_LINE_SLICE_PX wide keeps that sliver small. _FILL_LINE_MAX_SLICES
+	# bounds the triangle count on a long steep segment, and a segment whose
+	# band height changes by less than _FILL_LINE_WEDGE_EPS reads as
+	# rectangular and fades exactly at one slice.
+	const _FILL_LINE_SLICE_PX: float = 6.0
+	const _FILL_LINE_MAX_SLICES: int = 16
+	const _FILL_LINE_WEDGE_EPS: float = 0.05
 
 	var _layout: XYLayout = null
 	var _dataset: Dataset = null
@@ -184,10 +194,9 @@ class LineRenderer extends Control:
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# Required for TILE-mode fill: draw_colored_polygon honors the
-		# CanvasItem's texture_repeat setting, and the default clamps UVs
-		# outside [0, 1] to the edge, collapsing the tile grid into a
-		# single stretched copy.
+		# TILE-mode fill tiles the texture by sampling UVs outside [0, 1],
+		# which needs texture repeat enabled on the canvas item. The default
+		# clamp would fold the whole tile grid into a single stretched copy.
 		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 		queue_redraw()
 
@@ -530,7 +539,7 @@ class LineRenderer extends Control:
 		# Fill is drawn first so the polyline lands on top of it. A NaN
 		# baseline or zero-alpha color means no fill for this run.
 		if not is_nan(p_baseline_y_px) and p_fill_color.a > 0.0:
-			_draw_fill_to_baseline(polyline, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
+			_draw_fill(polyline, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
 
 		var dash_px: int = max(p_dash_px, 0)
 		var slice_bounds := _resolve_hover_slice_bounds(real_polyline_indices, p_real_dataset_indices, p_series_id)
@@ -733,31 +742,39 @@ class LineRenderer extends Control:
 	# Area fill
 	####################################################################################################
 
-	# Bundle of values driving the per-vertex UV array computed for one
-	# textured fill polygon. Built once per series, then consumed by
-	# _build_polygon_uvs for every sub-polygon of that series.
+	# Bundle of values driving the per-vertex UV array for one textured fill
+	# strip. Built once per series, then consumed by _build_strip_uvs for
+	# every run of that series.
 	#
-	# Two parameter sets coexist, selected by mode:
-	#   - STRETCH samples the texture once across stretch_span along
-	#     stretch_axis. pane_rect, u_flip, and v_flip drive PANE and POLYGON
-	#     spans. BASELINE reads V from the polygon's top vs closing-edge
-	#     vertex layout and ignores the flip flags.
+	# Two parameter sets coexist, selected by TauLineFill.texture_mode:
+	#   - STRETCH samples the texture once across the span. half_texel gives
+	#     the clamp bounds that reproduce clamped sampling without relying on
+	#     the node's texture_repeat. range_px0 and range_px1 are the value
+	#     span's two ends mapped to screen pixels, and on_screen_x tells
+	#     which screen axis the span runs on so the builder reads the right
+	#     vertex component. baseline_px is the origin MAGNITUDE measures from.
+	#     degenerate flags a DOMAIN range that collapsed to a point on flat
+	#     data, so the builder samples the texture middle instead of dividing
+	#     by a zero span. LINE ignores every value field.
 	#   - TILE samples the texture in screen pixels around pane_center.
 	#     rotation_cos and rotation_sin hold cos/sin of -rotation_deg, so
 	#     the per-vertex math runs the standard rotation formula on the
 	#     centered screen pixel. inv_tile_size is the reciprocal of
 	#     (texture native size * scale) along each axis.
 	#
-	# texture is null for flat fills. In that case the polygon UV array is
-	# not built at all, every other field is unused, and the draw call's
-	# uv argument stays empty.
+	# texture is null for flat fills. In that case no UV array is built,
+	# every other field is unused, and the draw call's uv argument stays
+	# empty.
 	class _FillUVContext extends RefCounted:
 		var texture: Texture2D = null
 
 		# STRETCH
-		var pane_rect: Rect2 = Rect2()
-		var u_flip: bool = false
-		var v_flip: bool = false
+		var half_texel: Vector2 = Vector2.ZERO
+		var range_px0: float = 0.0
+		var range_px1: float = 0.0
+		var on_screen_x: bool = false
+		var baseline_px: float = 0.0
+		var degenerate: bool = false
 
 		# TILE
 		var pane_center: Vector2 = Vector2.ZERO
@@ -767,12 +784,11 @@ class LineRenderer extends Control:
 		var inv_tile_size: Vector2 = Vector2.ZERO
 
 
-	# Resolves the fill UV context for p_fill bound to p_y_axis_id.
-	# Returns a context with texture = null when fill_mode is not
-	# TO_BASELINE or when p_fill has no texture, so the caller can skip UV
-	# construction entirely. mode, stretch_axis, and stretch_span are not
-	# derived and are read directly from p_fill by the callers that need
-	# them.
+	# Resolves the fill UV context for p_fill bound to p_y_axis_id. Returns a
+	# context with texture = null when fill_mode is not TO_BASELINE or when
+	# p_fill has no texture, so the caller skips UV construction entirely.
+	# texture_mode and stretch_span are read directly from p_fill by the
+	# strip UV builder and are not stored on the context.
 	func _resolve_fill_uv_context(p_fill: TauLineFill, p_y_axis_id: AxisId) -> _FillUVContext:
 		var ctx := _FillUVContext.new()
 		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
@@ -781,25 +797,12 @@ class LineRenderer extends Control:
 		if ctx.texture == null:
 			return ctx
 
-		var pane_rect: Rect2 = _layout.get_pane_rect(_pane_index)
-
 		match p_fill.texture_mode:
 			TauLineFill.FillTextureMode.STRETCH:
-				ctx.pane_rect = pane_rect
-				# Axis-direction flips match the data-axis convention used
-				# by XYLayout.map_x_to_px / map_y_to_px, so PANE and POLYGON
-				# UVs align with the data x/y direction regardless of pane
-				# orientation or axis inversion. BASELINE reads V from the
-				# polygon layout instead, so these flags do not apply there.
-				var x_is_horizontal: bool = _layout._x_is_horizontal
-				var x_axis_cfg: TauAxisConfig = _layout.domain.config.x_axis
-				ctx.u_flip = (not x_is_horizontal) != x_axis_cfg.inverted
-				var pane_domain := _layout.domain.get_pane_domain(_pane_index)
-				var y_axis_domain := pane_domain.get_y_axis_domain(p_y_axis_id)
-				var y_axis_cfg: TauAxisConfig = y_axis_domain.config
-				ctx.v_flip = x_is_horizontal != y_axis_cfg.inverted
+				_resolve_stretch_uv_context(ctx, p_fill.stretch_span, p_y_axis_id)
 
 			TauLineFill.FillTextureMode.TILE:
+				var pane_rect: Rect2 = _layout.get_pane_rect(_pane_index)
 				ctx.pane_center = pane_rect.position + pane_rect.size * 0.5
 				ctx.offset_px = p_fill.tile_offset_px
 				# The screen pixel is rotated into the texture's frame,
@@ -820,98 +823,124 @@ class LineRenderer extends Control:
 		return ctx
 
 
-	# Dispatches to the active UV path. p_top_count is the number of
-	# leading vertices in p_polygon that lie on the line (the polyline run
-	# the fill was built from). The remaining vertices are the closing
-	# edge. Only the BASELINE stretch path reads p_top_count, the others
-	# treat every vertex uniformly.
-	func _build_polygon_uvs(p_polygon: PackedVector2Array, p_top_count: int, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
-		match p_fill.texture_mode:
-			TauLineFill.FillTextureMode.STRETCH:
-				match p_fill.stretch_span:
-					TauLineFill.FillStretchSpan.PANE:
-						return _build_polygon_uvs_stretch_pane(p_polygon, p_fill, p_fill_uv_ctx)
-					TauLineFill.FillStretchSpan.POLYGON:
-						return _build_polygon_uvs_stretch_polygon(p_polygon, p_fill, p_fill_uv_ctx)
-					TauLineFill.FillStretchSpan.BASELINE:
-						return _build_polygon_uvs_stretch_baseline(p_polygon, p_top_count)
-			TauLineFill.FillTextureMode.TILE:
-				return _build_polygon_uvs_tile(p_polygon, p_fill_uv_ctx)
-		return PackedVector2Array()
+	# Fills the STRETCH fields of p_ctx for the given span. LINE reads only
+	# the strip parity, so it stops after half_texel with no range or axis.
+	# The value spans map their resolved data range to screen pixels through
+	# map_x_to_px / map_y_to_px, which already carry axis inversion and log
+	# scale, then flag a degenerate range so the builder can fall back to the
+	# texture middle. Mapping both MAGNITUDE ends upward from the baseline
+	# keeps them symmetric on a linear scale and never asks a log axis for a
+	# value it cannot take.
+	func _resolve_stretch_uv_context(p_ctx: _FillUVContext, p_span: TauLineFill.FillStretchSpan, p_y_axis_id: AxisId) -> void:
+		p_ctx.half_texel = Vector2(0.5, 0.5) / p_ctx.texture.get_size()
+		if p_span == TauLineFill.FillStretchSpan.LINE:
+			return
+
+		p_ctx.on_screen_x = _layout._x_is_horizontal if p_span == TauLineFill.FillStretchSpan.VALUE_X else not _layout._x_is_horizontal
+
+		var value_range: Vector2 = _resolve_stretch_range(p_span, p_y_axis_id)
+		match p_span:
+			TauLineFill.FillStretchSpan.VALUE_X:
+				if _get_x_axis_config().type == TauAxisConfig.Type.CATEGORICAL:
+					p_ctx.range_px0 = _layout.map_x_category_center_to_px(_pane_index, 0)
+					p_ctx.range_px1 = _layout.map_x_category_center_to_px(_pane_index, _layout.domain.x_categories.size() - 1)
+				else:
+					p_ctx.range_px0 = _layout.map_x_to_px(_pane_index, value_range.x)
+					p_ctx.range_px1 = _layout.map_x_to_px(_pane_index, value_range.y)
+			TauLineFill.FillStretchSpan.VALUE_Y:
+				p_ctx.range_px0 = _layout.map_y_to_px(_pane_index, value_range.x, p_y_axis_id)
+				p_ctx.range_px1 = _layout.map_y_to_px(_pane_index, value_range.y, p_y_axis_id)
+			TauLineFill.FillStretchSpan.MAGNITUDE:
+				var baseline: float = _line_config.fill_baseline
+				p_ctx.baseline_px = _layout.map_y_to_px(_pane_index, baseline, p_y_axis_id)
+				p_ctx.range_px0 = absf(_layout.map_y_to_px(_pane_index, baseline + value_range.x, p_y_axis_id) - p_ctx.baseline_px)
+				p_ctx.range_px1 = absf(_layout.map_y_to_px(_pane_index, baseline + value_range.y, p_y_axis_id) - p_ctx.baseline_px)
+
+		# Exact equality, so a near flat range stays a steep gradient. Only a
+		# DOMAIN range on flat data reaches here, CUSTOM degenerate is
+		# rejected by LineValidator.
+		p_ctx.degenerate = p_ctx.range_px0 == p_ctx.range_px1
 
 
-	# STRETCH + PANE. The texture spans the whole pane in the stretch
-	# direction. The non-stretch axis reads at UV coordinate 0. A degenerate
-	# pane with zero extent on the stretch axis collapses every vertex to
-	# UV 0.
-	static func _build_polygon_uvs_stretch_pane(p_polygon: PackedVector2Array, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
-		var count: int = p_polygon.size()
+	# Resolves the value window for a value span in data units. CUSTOM returns
+	# stretch_range as authored. DOMAIN spans the raw data bounds before
+	# padding, so the texture ends land on the data extremes the user drew and
+	# not in the padding beyond them. MAGNITUDE measures distance from
+	# fill_baseline, so its window runs from the baseline to the farthest
+	# point.
+	func _resolve_stretch_range(p_span: TauLineFill.FillStretchSpan, p_y_axis_id: AxisId) -> Vector2:
+		if _line_config.stretch_range_policy == TauLineConfig.StretchRangePolicy.CUSTOM:
+			return _line_config.stretch_range
+
+		if p_span == TauLineFill.FillStretchSpan.VALUE_X:
+			var x_domain := _layout.domain.x_axis_domain
+			return Vector2(x_domain.data_min, x_domain.data_max)
+
+		var y_domain := _layout.domain.get_pane_domain(_pane_index).get_y_axis_domain(p_y_axis_id)
+		if p_span == TauLineFill.FillStretchSpan.VALUE_Y:
+			return Vector2(y_domain.data_min, y_domain.data_max)
+
+		# MAGNITUDE
+		var baseline: float = _line_config.fill_baseline
+		var d_max: float = maxf(absf(y_domain.data_min - baseline), absf(y_domain.data_max - baseline))
+		return Vector2(0.0, d_max)
+
+
+	# Builds one UV per strip point, dispatching on the active texture mode
+	# and stretch span. p_points is the strip built by _draw_fill: even
+	# index 2k sits on the line, odd index 2k+1 on the baseline side.
+	#
+	# LINE reads that parity, the line at the texture top and the baseline at
+	# its bottom. The value spans read a vertex coordinate on the span's
+	# screen axis, turn it into a fraction between the two range ends, then
+	# clamp to the half-texel margin so sampling matches a clamped texture
+	# regardless of the node's texture_repeat. The vertical spans invert the
+	# fraction so the higher value reads the texture top. A degenerate value
+	# range samples the texture middle everywhere, the honest look when there
+	# is no room for a gradient.
+	func _build_strip_uvs(p_points: PackedVector2Array, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+		if p_fill.texture_mode == TauLineFill.FillTextureMode.TILE:
+			return _build_strip_uvs_tile(p_points, p_fill_uv_ctx)
+
+		var count: int = p_points.size()
 		var uvs := PackedVector2Array()
 		uvs.resize(count)
-		var pane: Rect2 = p_fill_uv_ctx.pane_rect
-		if p_fill.stretch_axis == TauLineFill.FillStretchAxis.Y:
-			var inv_h: float = 1.0 / pane.size.y if pane.size.y > 0.0 else 0.0
-			var origin: float = pane.position.y
-			var flip: bool = p_fill_uv_ctx.v_flip
-			for k in range(count):
-				var v: float = (p_polygon[k].y - origin) * inv_h
-				if flip:
-					v = 1.0 - v
-				uvs[k] = Vector2(0.0, v)
-		else:
-			var inv_w: float = 1.0 / pane.size.x if pane.size.x > 0.0 else 0.0
-			var origin: float = pane.position.x
-			var flip: bool = p_fill_uv_ctx.u_flip
-			for k in range(count):
-				var u: float = (p_polygon[k].x - origin) * inv_w
-				if flip:
-					u = 1.0 - u
-				uvs[k] = Vector2(u, 0.0)
-		return uvs
+		var hy: float = p_fill_uv_ctx.half_texel.y
 
-
-	# STRETCH + POLYGON. The texture spans the polygon's axis-aligned
-	# bounding box in the stretch direction. The non-stretch axis reads at
-	# UV coordinate 0. A degenerate polygon with zero extent on the stretch
-	# axis collapses every vertex to UV 0.
-	static func _build_polygon_uvs_stretch_polygon(p_polygon: PackedVector2Array, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
-		var count: int = p_polygon.size()
-		var uvs := PackedVector2Array()
-		uvs.resize(count)
-		var bb: Rect2 = _compute_polygon_bounds(p_polygon)
-		if p_fill.stretch_axis == TauLineFill.FillStretchAxis.Y:
-			var inv_h: float = 1.0 / bb.size.y if bb.size.y > 0.0 else 0.0
-			var origin: float = bb.position.y
-			var flip: bool = p_fill_uv_ctx.v_flip
+		if p_fill.stretch_span == TauLineFill.FillStretchSpan.LINE:
 			for k in range(count):
-				var v: float = (p_polygon[k].y - origin) * inv_h
-				if flip:
-					v = 1.0 - v
-				uvs[k] = Vector2(0.0, v)
-		else:
-			var inv_w: float = 1.0 / bb.size.x if bb.size.x > 0.0 else 0.0
-			var origin: float = bb.position.x
-			var flip: bool = p_fill_uv_ctx.u_flip
-			for k in range(count):
-				var u: float = (p_polygon[k].x - origin) * inv_w
-				if flip:
-					u = 1.0 - u
-				uvs[k] = Vector2(u, 0.0)
-		return uvs
+				var t: float = hy if k % 2 == 0 else 1.0 - hy
+				uvs[k] = Vector2(0.5, t)
+			return uvs
 
+		if p_fill_uv_ctx.degenerate:
+			uvs.fill(Vector2(0.5, 0.5))
+			return uvs
 
-	# STRETCH + BASELINE. The polygon's first p_top_count vertices sit on
-	# the line and get V = 0, the remaining vertices sit on the closing
-	# edge and get V = 1. The texture's V = 0 edge therefore always lands
-	# on the line, no axis-inversion flip needed. U is 0 for every vertex.
-	# Only valid with stretch_axis = Y, enforced by LineValidator.
-	static func _build_polygon_uvs_stretch_baseline(p_polygon: PackedVector2Array, p_top_count: int) -> PackedVector2Array:
-		var count: int = p_polygon.size()
-		var uvs := PackedVector2Array()
-		uvs.resize(count)
-		for k in range(count):
-			var v: float = 0.0 if k < p_top_count else 1.0
-			uvs[k] = Vector2(0.0, v)
+		var hx: float = p_fill_uv_ctx.half_texel.x
+		var range_px0: float = p_fill_uv_ctx.range_px0
+		var span: float = p_fill_uv_ctx.range_px1 - range_px0
+		var on_screen_x: bool = p_fill_uv_ctx.on_screen_x
+
+		match p_fill.stretch_span:
+			TauLineFill.FillStretchSpan.VALUE_X:
+				for k in range(count):
+					var m: float = p_points[k].x if on_screen_x else p_points[k].y
+					var t: float = clampf((m - range_px0) / span, hx, 1.0 - hx)
+					uvs[k] = Vector2(t, 0.5)
+			TauLineFill.FillStretchSpan.VALUE_Y:
+				for k in range(count):
+					var m: float = p_points[k].x if on_screen_x else p_points[k].y
+					var t: float = clampf(1.0 - (m - range_px0) / span, hy, 1.0 - hy)
+					uvs[k] = Vector2(0.5, t)
+			TauLineFill.FillStretchSpan.MAGNITUDE:
+				var baseline_px: float = p_fill_uv_ctx.baseline_px
+				for k in range(count):
+					var axis_coord: float = p_points[k].x if on_screen_x else p_points[k].y
+					var m: float = absf(axis_coord - baseline_px)
+					var t: float = clampf(1.0 - (m - range_px0) / span, hy, 1.0 - hy)
+					uvs[k] = Vector2(0.5, t)
+
 		return uvs
 
 
@@ -920,8 +949,8 @@ class LineRenderer extends Control:
 	# (texture_size * scale) to produce the texture coordinate. The grid
 	# stays square-pixel correct because both axes share the same screen
 	# pixel units.
-	static func _build_polygon_uvs_tile(p_polygon: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
-		var count: int = p_polygon.size()
+	static func _build_strip_uvs_tile(p_points: PackedVector2Array, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
+		var count: int = p_points.size()
 		var uvs := PackedVector2Array()
 		uvs.resize(count)
 		var cx: float = p_fill_uv_ctx.pane_center.x
@@ -933,7 +962,7 @@ class LineRenderer extends Control:
 		var inv_w: float = p_fill_uv_ctx.inv_tile_size.x
 		var inv_h: float = p_fill_uv_ctx.inv_tile_size.y
 		for k in range(count):
-			var v: Vector2 = p_polygon[k]
+			var v: Vector2 = p_points[k]
 			var dx: float = v.x - cx
 			var dy: float = v.y - cy
 			var rx: float = c * dx - s * dy
@@ -967,145 +996,193 @@ class LineRenderer extends Control:
 		return color
 
 
-	# Returns the screen-space Y coordinate of the TO_BASELINE baseline, or
-	# NAN when no flat baseline applies.
+	# Returns the fill baseline's coordinate along the y-axis screen
+	# direction, or NAN when no flat baseline applies. That direction is
+	# screen Y when the x axis is horizontal and screen X when it is
+	# vertical, the same axis the polyline vertices were mapped onto, so the
+	# strip builder compares like against like.
 	func _resolve_fill_baseline_y_px(p_y_axis_id: AxisId) -> float:
 		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
 			return NAN
-		var y_px: float = _layout.map_y_to_px(_pane_index, _line_config.fill_baseline, p_y_axis_id)
-		var screen_pos: Vector2 = _layout.map_point_to_screen(0.0, y_px)
-		return screen_pos.y
+		return _layout.map_y_to_px(_pane_index, _line_config.fill_baseline, p_y_axis_id)
 
 
-	# Builds and draws the fill polygon between p_polyline and the horizontal
-	# line y = p_baseline_y_px in screen space. The polygon is split at every
-	# baseline crossing, producing one sub-polygon per same-side run, each
-	# emitted as a single draw_colored_polygon call.
+	# Builds and draws the fill between p_polyline and the baseline line at
+	# p_baseline_y_px. p_baseline_y_px is a coordinate on the y-axis screen
+	# direction, so the baseline runs across the pane on the other axis:
+	# horizontal when the x axis is horizontal, vertical when it is vertical.
+	#
+	# The LINE stretch span fades by band fraction and needs near-rectangular
+	# columns to stay accurate, so its polyline is densified first. Every other
+	# span is affine-exact at the original resolution and skips densification.
+	func _draw_fill(p_polyline: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
+		if p_polyline.size() < 2:
+			return
+
+		var fill_polyline: PackedVector2Array = p_polyline
+		if _fill_needs_subdivision(p_fill):
+			fill_polyline = _densify_fill_polyline(p_polyline, p_baseline_y_px)
+
+		_build_fill_strip(fill_polyline, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
+
+
+	# True for a textured LINE stretch span, the only fill whose fade is
+	# nonlinear across a column. The value spans map to one screen axis and
+	# TILE maps affinely, so they render exactly without densification.
+	func _fill_needs_subdivision(p_fill: TauLineFill) -> bool:
+		return p_fill.texture != null \
+			and p_fill.texture_mode == TauLineFill.FillTextureMode.STRETCH \
+			and p_fill.stretch_span == TauLineFill.FillStretchSpan.LINE
+
+
+	# Splits each polyline segment into collinear sub-segments so a wedge
+	# column becomes a run of near-rectangular ones. The line itself is drawn
+	# from the original polyline, so this touches only the fill geometry.
+	func _densify_fill_polyline(p_polyline: PackedVector2Array, p_baseline_y_px: float) -> PackedVector2Array:
+		var n: int = p_polyline.size()
+		var dense := PackedVector2Array()
+		dense.append(p_polyline[0])
+		for i in range(1, n):
+			var a: Vector2 = p_polyline[i - 1]
+			var b: Vector2 = p_polyline[i]
+			var slices: int = _fill_segment_slices(a, b, p_baseline_y_px)
+			for s in range(1, slices):
+				dense.append(a.lerp(b, float(s) / slices))
+			dense.append(b)
+		return dense
+
+
+	# Number of fill sub-segments for the segment (p_a, p_b). A segment of
+	# constant band height fades exactly and stays whole. A wedge is cut into
+	# strips about _FILL_LINE_SLICE_PX wide, capped by _FILL_LINE_MAX_SLICES.
+	func _fill_segment_slices(p_a: Vector2, p_b: Vector2, p_baseline_y_px: float) -> int:
+		var h0: float = _band_height(p_a, p_baseline_y_px)
+		var h1: float = _band_height(p_b, p_baseline_y_px)
+		var hi: float = maxf(h0, h1)
+		if hi == 0.0 or (hi - minf(h0, h1)) / hi < _FILL_LINE_WEDGE_EPS:
+			return 1
+		return clampi(ceili(p_a.distance_to(p_b) / _FILL_LINE_SLICE_PX), 1, _FILL_LINE_MAX_SLICES)
+
+
+	# Distance from p_point to the baseline along the y-axis screen direction,
+	# the axis the polyline and the baseline were both mapped onto.
+	func _band_height(p_point: Vector2, p_baseline_y_px: float) -> float:
+		var coord: float = p_point.y if _layout._x_is_horizontal else p_point.x
+		return absf(coord - p_baseline_y_px)
+
+
+	# Builds the strip of columns between p_polyline and the baseline and emits
+	# it in one canvas_item_add_triangle_array call. Each pair of neighbouring
+	# polyline vertices spans one column, a quad from the line to the baseline
+	# split into two triangles. A crossing point is inserted wherever the line
+	# crosses the baseline, so the straddling column collapses to a triangle on
+	# each side with no self crossing, and no same-side split is needed.
 	#
 	# Crossing detection runs on the rendered polyline, so the synthetic
-	# vertices inserted by step interpolation and the sub-samples emitted by
-	# SMOOTH_MONOTONE are treated uniformly. A crossing point lies at the
-	# linear interpolation of the two flanking polyline vertices against
-	# the baseline. Both polyline orderings (ascending or descending screen
-	# X) are accepted because the builder never assumes a direction.
-	func _draw_fill_to_baseline(p_polyline: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
+	# vertices from step interpolation and the sub-samples from SMOOTH_MONOTONE
+	# are treated uniformly. A crossing point lies at the linear interpolation
+	# of the two flanking vertices against the baseline. Both traversal
+	# directions are accepted because the builder never assumes one.
+	func _build_fill_strip(p_polyline: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
 		var n: int = p_polyline.size()
 		if n < 2:
 			return
 
-		# Same-side accumulator. The current sub-polygon's top edge is the
-		# vertices buffered in `top`. `side` is the sign of (y - baseline_y)
-		# for the first non-on-baseline vertex of the run, and stays 0 until
-		# one is found. On-baseline vertices are appended to `top` and do
-		# not constrain `side`.
+		# Insert a crossing point between every pair of neighbouring vertices
+		# on opposite sides of the baseline. This keeps each column single
+		# sided, so the strip needs no same-side splitting.
 		var top := PackedVector2Array()
-		var side: int = 0
-
-		for i in range(n):
+		top.append(p_polyline[0])
+		for i in range(1, n):
+			var prev: Vector2 = p_polyline[i - 1]
 			var v: Vector2 = p_polyline[i]
-			var v_side: int = _baseline_side(v.y, p_baseline_y_px)
-
-			if top.is_empty():
-				top.append(v)
-				side = v_side
-				continue
-
-			# Treat on-baseline as a degenerate crossing: the vertex sits on
-			# both half-planes, so it can extend the current run AND open a
-			# new one without a synthetic crossing.
-			if v_side == 0 or side == 0 or v_side == side:
-				top.append(v)
-				if side == 0:
-					side = v_side
-				continue
-
-			# v_side and side are non-zero and opposite: a real crossing
-			# between top[-1] and v. The crossing point closes the current
-			# sub-polygon and seeds the next one.
-			var prev: Vector2 = top[top.size() - 1]
-			var crossing: Vector2 = _baseline_crossing(prev, v, p_baseline_y_px)
-			top.append(crossing)
-			_draw_fill_subpolygon(top, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
-			top = PackedVector2Array()
-			top.append(crossing)
+			var prev_side: int = _baseline_side(prev, p_baseline_y_px)
+			var v_side: int = _baseline_side(v, p_baseline_y_px)
+			if prev_side != 0 and v_side != 0 and prev_side != v_side:
+				top.append(_baseline_crossing(prev, v, p_baseline_y_px))
 			top.append(v)
-			side = v_side
 
-		_draw_fill_subpolygon(top, p_fill, p_fill_color, p_baseline_y_px, p_fill_uv_ctx)
+		# Even vertex 2k sits on the line, odd vertex 2k+1 drops it to the
+		# baseline. The UV builder relies on this parity to tell the two
+		# strip edges apart.
+		var m: int = top.size()
+		var points := PackedVector2Array()
+		points.resize(2 * m)
+		for k in range(m):
+			points[2 * k] = top[k]
+			points[2 * k + 1] = _baseline_point(top[k], p_baseline_y_px)
 
+		var colors := PackedColorArray()
+		colors.resize(2 * m)
+		colors.fill(p_fill_color)
 
-	# Closes one sub-polygon by dropping its endpoints to the baseline and
-	# draws it as a single colored polygon. The per-vertex UV array and the
-	# texture, if any, are taken from p_fill_uv_ctx. Runs that contain fewer
-	# than two points or that are entirely on the baseline have zero area
-	# and are skipped.
-	func _draw_fill_subpolygon(p_top: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_baseline_y_px: float, p_fill_uv_ctx: _FillUVContext) -> void:
-		var top_count: int = p_top.size()
-		if top_count < 2:
-			return
-		# A run sitting exactly on the baseline has zero area.
-		var any_off_baseline: bool = false
-		for k in range(top_count):
-			if p_top[k].y != p_baseline_y_px:
-				any_off_baseline = true
-				break
-		if not any_off_baseline:
-			return
+		var indices := PackedInt32Array()
+		indices.resize(6 * (m - 1))
+		for k in range(m - 1):
+			var base: int = 6 * k
+			# Split each column from its shorter side so the taller wedge keeps
+			# its whole line edge on the texture's line end. A rising and a
+			# falling wedge then read the same LINE fade, and a column that
+			# meets the baseline collapses to a single triangle without
+			# dropping the line edge.
+			if _band_height(top[k], p_baseline_y_px) <= _band_height(top[k + 1], p_baseline_y_px):
+				indices[base] = 2 * k
+				indices[base + 1] = 2 * k + 2
+				indices[base + 2] = 2 * k + 3
+				indices[base + 3] = 2 * k
+				indices[base + 4] = 2 * k + 3
+				indices[base + 5] = 2 * k + 1
+			else:
+				indices[base] = 2 * k
+				indices[base + 1] = 2 * k + 2
+				indices[base + 2] = 2 * k + 1
+				indices[base + 3] = 2 * k + 2
+				indices[base + 4] = 2 * k + 3
+				indices[base + 5] = 2 * k + 1
 
-		var polygon := PackedVector2Array()
-		polygon.resize(top_count + 2)
-		# Top edge in forward order, then closing edge down to the baseline.
-		for k in range(top_count):
-			polygon[k] = p_top[k]
-		polygon[top_count] = Vector2(p_top[top_count - 1].x, p_baseline_y_px)
-		polygon[top_count + 1] = Vector2(p_top[0].x, p_baseline_y_px)
-
-		# UVs are only sampled when a texture is set. draw_colored_polygon
-		# ignores its uv argument otherwise, so the flat-fill path skips the
-		# per-vertex computation entirely.
-		var uvs: PackedVector2Array = PackedVector2Array()
+		# UVs and the texture RID are only supplied when a texture is set. A
+		# flat fill draws with an empty UV array and a null RID.
+		var uvs := PackedVector2Array()
+		var tex_rid := RID()
 		if p_fill_uv_ctx.texture != null:
-			uvs = _build_polygon_uvs(polygon, top_count, p_fill, p_fill_uv_ctx)
-		draw_colored_polygon(polygon, p_fill_color, uvs, p_fill_uv_ctx.texture)
+			uvs = _build_strip_uvs(points, p_fill, p_fill_uv_ctx)
+			tex_rid = p_fill_uv_ctx.texture.get_rid()
+
+		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors, uvs, PackedInt32Array(), PackedFloat32Array(), tex_rid)
 
 
-	# Axis-aligned bounding box of a polygon in screen space.
-	static func _compute_polygon_bounds(p_polygon: PackedVector2Array) -> Rect2:
-		var first: Vector2 = p_polygon[0]
-		var min_x: float = first.x
-		var max_x: float = first.x
-		var min_y: float = first.y
-		var max_y: float = first.y
-		for k in range(1, p_polygon.size()):
-			var v: Vector2 = p_polygon[k]
-			if v.x < min_x:
-				min_x = v.x
-			elif v.x > max_x:
-				max_x = v.x
-			if v.y < min_y:
-				min_y = v.y
-			elif v.y > max_y:
-				max_y = v.y
-		return Rect2(min_x, min_y, max_x - min_x, max_y - min_y)
-
-
-	# Returns +1 above the baseline (smaller screen Y), -1 below, 0 on it.
-	# Screen space is Y-down so "above the baseline in data space" means
-	# "smaller Y in screen space".
-	static func _baseline_side(p_y: float, p_baseline_y: float) -> int:
-		if p_y < p_baseline_y:
+	# Which side of the baseline p_point sits on, measured along the y-axis
+	# screen direction. Returns 0 on the baseline and opposite non-zero signs
+	# on the two sides. Only the opposition matters to the caller, which uses
+	# it to spot a crossing, so the sign's meaning is left to the mapping.
+	func _baseline_side(p_point: Vector2, p_baseline: float) -> int:
+		var coord: float = p_point.y if _layout._x_is_horizontal else p_point.x
+		if coord < p_baseline:
 			return 1
-		if p_y > p_baseline_y:
+		if coord > p_baseline:
 			return -1
 		return 0
 
 
-	# Linear interpolation along segment (p_a, p_b) at the parameter where
-	# y reaches p_baseline_y. Precondition: p_a.y and p_b.y straddle
-	# p_baseline_y with a non-zero gap, which is guaranteed by the caller.
-	static func _baseline_crossing(p_a: Vector2, p_b: Vector2, p_baseline_y: float) -> Vector2:
-		var t: float = (p_baseline_y - p_a.y) / (p_b.y - p_a.y)
-		return Vector2(p_a.x + t * (p_b.x - p_a.x), p_baseline_y)
+	# Point where segment (p_a, p_b) meets the baseline, interpolated along
+	# the y-axis screen direction and left free on the other axis.
+	# Precondition: the two endpoints straddle the baseline on that direction
+	# with a non-zero gap, which is guaranteed by the caller.
+	func _baseline_crossing(p_a: Vector2, p_b: Vector2, p_baseline: float) -> Vector2:
+		if _layout._x_is_horizontal:
+			var ty: float = (p_baseline - p_a.y) / (p_b.y - p_a.y)
+			return Vector2(p_a.x + ty * (p_b.x - p_a.x), p_baseline)
+		var tx: float = (p_baseline - p_a.x) / (p_b.x - p_a.x)
+		return Vector2(p_baseline, p_a.y + tx * (p_b.y - p_a.y))
+
+
+	# Drops p_point onto the baseline along the y-axis screen direction,
+	# keeping its position on the other axis. This is the strip's
+	# baseline-side vertex paired with the line vertex p_point.
+	func _baseline_point(p_point: Vector2, p_baseline: float) -> Vector2:
+		if _layout._x_is_horizontal:
+			return Vector2(p_point.x, p_baseline)
+		return Vector2(p_baseline, p_point.y)
 
 
 	####################################################################################################

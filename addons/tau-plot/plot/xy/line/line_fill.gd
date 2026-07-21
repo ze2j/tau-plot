@@ -1,56 +1,72 @@
-## Visual parameters for one series' line-chart fill.
+## Look of one series' line-chart fill: its color, its transparency, and an
+## optional [member texture]. Which area gets filled is set separately by
+## [member TauLineConfig.fill_mode].
+##
+## Common setups:
+## - Area-chart gradient, the default: assign a [member texture] and leave
+## everything else. It fades from the line down to the baseline.
+## - Value band: [member texture_mode] STRETCH, [member stretch_span]
+## VALUE_Y, spanning the series data or a fixed
+## [member TauLineConfig.stretch_range].
+## - Recency fade on a live chart: [member stretch_span] VALUE_X.
+## - Repeating motif like dots or hatching: [member texture_mode] TILE.
+## - Scrolling pattern: animate [member tile_offset_px].
 class_name TauLineFill extends Resource
 
-## Sampling strategy for [member texture]. Picks which parameter set
-## drives the texture transform.
-##
-## [b]STRETCH[/b]: the texture is sampled once across a chosen span. Best
-## for textures whose shape maps onto the fill, such as a vertical gradient
-## fading toward the baseline. See [member stretch_axis] and
-## [member stretch_span].
-##
-## [b]TILE[/b]: the texture is repeated at its native pixel size across the
-## fill, with a square-pixel-correct grid that does not depend on pane shape.
-## Best for seamless motifs (dots, hatching, stippling). See
-## [member tile_scale], [member tile_rotation_deg], and
-## [member tile_offset_px].
+## How [member texture] is painted across the fill.
 enum FillTextureMode
 {
-	STRETCH,
-	TILE
+	STRETCH,   ## Fit the texture across the fill once, so it reads as a single gradient or band. What it maps to is set by [member stretch_span].
+	TILE       ## Repeat the texture at its native pixel size, for a seamless motif like dots or hatching.
 }
 
-## Direction along which a STRETCH texture is sampled.
-enum FillStretchAxis
-{
-	X,
-	Y
-}
-
-## What the endpoints of a STRETCH texture are anchored to.
+## Chooses which measured value picks a stretched texture's color. The texture
+## is read as a color scale between its two edges. At every point of the fill,
+## the span measures one value, and that value chooses a color along the scale.
+## Each span measures a different thing, so the same texture can read as an area
+## fade, a value band, or a deviation map.
 ##
-## [b]PANE[/b]: the texture spans the whole pane in the stretch direction.
-## Endpoints stay glued to the pane edges as data updates, so the texture
-## feels like a property of the chart background. The portion that ends up
-## visible inside the fill depends on how much of the pane the polygon
-## covers.
+## The low end of the measured range maps to one texture edge, the high end to
+## the other.
 ##
-## [b]POLYGON[/b]: the texture spans the fill polygon's axis-aligned
-## bounding box in the stretch direction. The full texture is always
-## visible inside the fill, at the cost of rescaling whenever the polygon's
-## extent changes.
+## VALUE_Y, VALUE_X and MAGNITUDE read their low and high ends from a value
+## window: the series data by default, or a fixed
+## [member TauLineConfig.stretch_range]. See
+## [member TauLineConfig.stretch_range_policy]. LINE needs no window, it always
+## runs from the line to the baseline.
 ##
-## [b]BASELINE[/b]: the texture spans from the line to the opposite edge of
-## the fill polygon in the stretch direction. One endpoint is glued to the
-## line, the other to the closing edge: the horizontal [member
-## TauLineConfig.fill_baseline] for [code]TO_BASELINE[/code], or the
-## layer-below curve for [code]STACKED[/code]. Only valid with
-## [code]FillStretchAxis.Y[/code].
+## Only a thin strip of the texture is read: the middle column for the vertical
+## spans (VALUE_Y and MAGNITUDE), the middle row for VALUE_X. A gradient can
+## therefore be authored a single pixel wide.
 enum FillStretchSpan
 {
-	PANE,
-	POLYGON,
-	BASELINE
+	## Where the point sits inside the fill band, from the line to the
+	## baseline, as a fraction. It looks only at the band, never at the data
+	## values, so the colors stay the same when the chart is zoomed or
+	## scrolled. Example: an area fade, opaque at the line and clear at the
+	## baseline.
+	LINE,
+
+	## The y value of the point. The color follows the height: two points at
+	## the same height always share a color, and points higher or lower get
+	## different colors. The range covers the data (or
+	## [member TauLineConfig.stretch_range]), so a color stays tied to its
+	## value even when the chart is zoomed. Example: a heat band, warm tints
+	## on high values and cool tints on low.
+	VALUE_Y,
+
+	## The x value of the point. Same idea as VALUE_Y, but measured along the
+	## x axis instead of the height. Example: a live chart that dims its
+	## oldest samples and keeps the leading edge bright.
+	VALUE_X,
+
+	## The distance from [member TauLineConfig.fill_baseline], no matter which
+	## side the point is on. Unlike VALUE_Y, a point above the baseline and a
+	## point the same distance below share a color, and the baseline itself
+	## always takes the low end of the range. The color grows stronger as the
+	## line moves further from the baseline, above or below. Example: a
+	## deviation fill, matching above and below.
+	MAGNITUDE
 }
 
 ################################################################################################
@@ -79,41 +95,25 @@ const DEFAULT_ALPHA: float = 0.5
 ## from [member texture]. Valid range is [code][0.0, 1.0][/code].
 @export var alpha: float = DEFAULT_ALPHA
 
-## Texture sampled across the fill area. When non-null, overrides
-## [member color] and the per-series color. The texture's alpha is scaled
-## by [member alpha].
+## Texture painted over the fill area. When set, it takes the place of
+## [member color] and the per-series color. Its own alpha is scaled by
+## [member alpha].
 ##
-## How the texture is mapped onto the fill is controlled by [member
-## texture_mode]. With the default mode [code]STRETCH[/code], a newly
-## assigned texture spans from the line down to the baseline along the Y
-## axis, which produces the area-chart gradient case without further
-## configuration.
+## [member texture_mode] decides how it is painted. Out of the box, a freshly
+## assigned texture fades from the line to the baseline, the ready-made
+## area-chart gradient, with nothing else to set.
 @export var texture: Texture2D = null
 
 const DEFAULT_TEXTURE_MODE: FillTextureMode = FillTextureMode.STRETCH
-## Sampling strategy for [member texture]. See [enum FillTextureMode] for
-## the available modes. Selects which parameter set is active: the STRETCH
-## parameters or the TILE parameters. Ignored when [member texture] is
-## [code]null[/code].
+## How [member texture] is painted, stretched once or tiled. See
+## [enum FillTextureMode]. Ignored when [member texture] is [code]null[/code].
 @export var texture_mode: FillTextureMode = DEFAULT_TEXTURE_MODE
 
-
-const DEFAULT_STRETCH_AXIS: FillStretchAxis = FillStretchAxis.Y
-## Axis along which the texture is sampled in [code]STRETCH[/code] mode.
-## The non-stretch axis reads the texture at a fixed coordinate. Ignored
-## outside [code]STRETCH[/code] mode and when [member texture] is
-## [code]null[/code].
-@export var stretch_axis: FillStretchAxis = DEFAULT_STRETCH_AXIS
-
-const DEFAULT_STRETCH_SPAN: FillStretchSpan = FillStretchSpan.BASELINE
-## What the texture endpoints are anchored to in [code]STRETCH[/code] mode.
-## See [enum FillStretchSpan] for the available spans. Ignored outside
-## [code]STRETCH[/code] mode and when [member texture] is [code]null[/code].
-##
-## The combination [code]BASELINE[/code] + [code]FillStretchAxis.X[/code] is
-## rejected at config time, since there is no "line edge" along X.
+const DEFAULT_STRETCH_SPAN: FillStretchSpan = FillStretchSpan.LINE
+## In STRETCH mode, what the texture's color stands for. See
+## [enum FillStretchSpan]. Ignored outside STRETCH mode and when
+## [member texture] is [code]null[/code].
 @export var stretch_span: FillStretchSpan = DEFAULT_STRETCH_SPAN
-
 
 const DEFAULT_TILE_SCALE: float = 1.0
 ## Uniform scale applied to the tile grid in [code]TILE[/code] mode.
@@ -124,14 +124,9 @@ const DEFAULT_TILE_SCALE: float = 1.0
 @export var tile_scale: float = DEFAULT_TILE_SCALE
 
 const DEFAULT_TILE_ROTATION_DEG: float = 0.0
-## Rotation in degrees applied to the texture.
-##
-## In [code]TILE[/code] mode, rotates the tile grid around the pane center,
-## a stable point in pane coordinates that does not move as data updates.
-##
-## In [code]STRETCH[/code] mode, this property currently has no effect.
-##
-## Ignored when [member texture] is [code]null[/code].
+## Rotation in degrees of the tile grid in TILE mode, turned around the pane
+## center so it stays put as data updates. Ignored outside TILE mode and when
+## [member texture] is [code]null[/code].
 @export var tile_rotation_deg: float = DEFAULT_TILE_ROTATION_DEG
 
 const DEFAULT_TILE_OFFSET_PX: Vector2 = Vector2.ZERO
@@ -162,8 +157,6 @@ func apply_overrides_from(p_user_fill: TauLineFill) -> void:
 		texture = p_user_fill.texture
 	if p_user_fill.texture_mode != DEFAULT_TEXTURE_MODE:
 		texture_mode = p_user_fill.texture_mode
-	if p_user_fill.stretch_axis != DEFAULT_STRETCH_AXIS:
-		stretch_axis = p_user_fill.stretch_axis
 	if p_user_fill.stretch_span != DEFAULT_STRETCH_SPAN:
 		stretch_span = p_user_fill.stretch_span
 	if p_user_fill.tile_scale != DEFAULT_TILE_SCALE:
@@ -189,8 +182,6 @@ func is_equal_to(p_other: TauLineFill) -> bool:
 	if texture != p_other.texture:
 		return false
 	if texture_mode != p_other.texture_mode:
-		return false
-	if stretch_axis != p_other.stretch_axis:
 		return false
 	if stretch_span != p_other.stretch_span:
 		return false

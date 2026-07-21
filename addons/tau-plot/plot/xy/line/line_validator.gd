@@ -49,7 +49,7 @@ class LineValidator extends RefCounted:
 
 		var is_shared_x := (p_dataset.get_mode() == Dataset.Mode.SHARED_X)
 		_validate_line_mode_constraints(p_pane_index, line_config, pane_cfg, p_line_overlay_bindings, is_shared_x, p_result)
-		_validate_fill_constraints(p_pane_index, line_config, pane_cfg, p_line_overlay_bindings, p_result)
+		_validate_fill_constraints(p_pane_index, line_config, pane_cfg, p_domain_cfg.x_axis, p_line_overlay_bindings, p_result)
 
 
 	####################################################################################################
@@ -94,8 +94,8 @@ class LineValidator extends RefCounted:
 				p_result.add_error("LineValidator: pane %d: unsupported line mode %d" % [p_pane_index, p_line_config.mode])
 
 
-	static func _validate_fill_constraints(p_pane_index: int, p_line_config: TauLineConfig, p_pane_cfg: TauPaneConfig, p_line_overlay_bindings: Array[TauXYSeriesBinding], p_result: ValidationResult) -> void:
-		_validate_fill_texture_stretch(p_pane_index, p_line_config, p_result)
+	static func _validate_fill_constraints(p_pane_index: int, p_line_config: TauLineConfig, p_pane_cfg: TauPaneConfig, p_x_axis_cfg: TauAxisConfig, p_line_overlay_bindings: Array[TauXYSeriesBinding], p_result: ValidationResult) -> void:
+		_validate_custom_stretch_range(p_pane_index, p_line_config, p_x_axis_cfg, p_result)
 
 		if p_line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
 			return
@@ -111,9 +111,24 @@ class LineValidator extends RefCounted:
 				return
 
 
-	# BASELINE span anchors one endpoint of the texture to the line itself,
-	# which has no analogue along X.
-	static func _validate_fill_texture_stretch(p_pane_index: int, p_line_config: TauLineConfig, p_result: ValidationResult) -> void:
+	# Only a STRETCH fill with a non-LINE span reads the CUSTOM window, so a
+	# null entry (built-in default, a LINE span) never counts. This single pass
+	# flags the misconfigurations of that window:
+	#   - no fill reads it, so CUSTOM has no effect and DOMAIN was meant.
+	#   - zero width, so a reader has no gradient to draw. DOMAIN can collapse
+	#     the same way on flat data, but that is a runtime shape caught too
+	#     late here.
+	#   - VALUE_X on a categorical x axis, whose samples sit at category
+	#     centers with no continuous x to place the ends on. DOMAIN spans those
+	#     centers instead.
+	static func _validate_custom_stretch_range(p_pane_index: int, p_line_config: TauLineConfig, p_x_axis_cfg: TauAxisConfig, p_result: ValidationResult) -> void:
+		if p_line_config.stretch_range_policy != TauLineConfig.StretchRangePolicy.CUSTOM:
+			return
+
+		var is_zero_width := p_line_config.stretch_range.x == p_line_config.stretch_range.y
+		var is_categorical_x := p_x_axis_cfg.type == TauAxisConfig.Type.CATEGORICAL
+
+		var has_reader := false
 		var style: TauLineStyle = p_line_config.style
 		for i in range(style.fills.size()):
 			var fill: TauLineFill = style.fills[i]
@@ -121,8 +136,16 @@ class LineValidator extends RefCounted:
 				continue
 			if fill.texture_mode != TauLineFill.FillTextureMode.STRETCH:
 				continue
-			if fill.stretch_span != TauLineFill.FillStretchSpan.BASELINE:
+			if fill.stretch_span == TauLineFill.FillStretchSpan.LINE:
 				continue
-			if fill.stretch_axis != TauLineFill.FillStretchAxis.X:
-				continue
-			p_result.add_error("LineValidator: pane %d: fills[%d]: stretch_span BASELINE is incompatible with stretch_axis X" % [p_pane_index, i])
+
+			has_reader = true
+
+			if is_zero_width:
+				p_result.add_error("LineValidator: pane %d: fills[%d]: CUSTOM stretch_range is zero width (stretch_range.x == stretch_range.y), no gradient to draw" % [p_pane_index, i])
+
+			if is_categorical_x and fill.stretch_span == TauLineFill.FillStretchSpan.VALUE_X:
+				p_result.add_error("LineValidator: pane %d: fills[%d]: CUSTOM stretch_range is not supported on a categorical x axis with VALUE_X span, use DOMAIN policy" % [p_pane_index, i])
+
+		if not has_reader:
+			p_result.add_error("LineValidator: pane %d: CUSTOM stretch_range_policy is set but no fill reads it, use DOMAIN or give a fill a VALUE_X, VALUE_Y or MAGNITUDE span" % p_pane_index)

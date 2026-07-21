@@ -22,16 +22,15 @@ func _ready() -> void:
 # Helpers
 ####################################################################################################
 
-const GRADIENT_TEXTURE := preload("res://addons/tau-plot/tests/assets/gradient.png")
+const GRADIENT_TEXTURE := preload("res://addons/tau-plot/tests/assets/green_to_red_v.png")
 
 
 func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
-	var series_names := PackedStringArray(["Series A", "Series B"])
-	var x := PackedFloat64Array([10.0, 11.0, 12.0, 13.0, 14.0])
-	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 15.0, 10.0])
-	var y_b := PackedFloat64Array([50.0, 40.0, 35.0, 5.0, 20.0])
+	var series_names := PackedStringArray(["Series B"])
+	var x := PackedFloat64Array([10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0])
+	var y := PackedFloat64Array([30, 50, 30, 10, 30, 50, 30])
 
-	var dataset := TauPlot.Dataset.make_shared_x_continuous(series_names, x, [y_a, y_b])
+	var dataset := TauPlot.Dataset.make_shared_x_continuous(series_names, x, [y])
 
 	p_plot.title = p_title
 	p_plot.legend_enabled = false
@@ -46,23 +45,19 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 	y_axis.tick_count_preferred = 10
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
-	var fill_a := TauLineFill.new()
-	fill_a.color = Color(0.0, 0.1, 0.7)
-	fill_a.alpha = 0.3
-
-	var fill_b := TauLineFill.new()
-	fill_b.texture_mode = TauLineFill.FillTextureMode.STRETCH
-	fill_b.texture = GRADIENT_TEXTURE
-	fill_b.alpha = 0.5
-	fill_b.stretch_axis = TauLineFill.FillStretchAxis.Y
-	fill_b.stretch_span = TauLineFill.FillStretchSpan.POLYGON
+	var fill := TauLineFill.new()
+	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
+	fill.texture = GRADIENT_TEXTURE
+	fill.alpha = 0.5
+	fill.stretch_span = TauLineFill.FillStretchSpan.VALUE_Y
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
 	line_config.interpolation_mode = p_interpolation
 	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 10.
-	line_config.style.fills = [fill_a, fill_b]
+	line_config.fill_baseline = 30.
+	line_config.stretch_range_policy = TauLineConfig.StretchRangePolicy.DOMAIN
+	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -72,29 +67,22 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 	config.x_axis = x_axis
 	config.panes = [pane]
 
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
-	sb_a.y_axis_id = TauPlot.AxisId.LEFT
+	var sb := TauXYSeriesBinding.new()
+	sb.series_id = dataset.get_series_id_by_index(0)
+	sb.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
+	sb.y_axis_id = TauPlot.AxisId.LEFT
 
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
-	sb_b.y_axis_id = TauPlot.AxisId.LEFT
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
+	var bindings: Array[TauXYSeriesBinding] = [sb]
 
 	p_plot.plot_xy(dataset, config, bindings)
 
 
 func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
-	var series_names := PackedStringArray(["Series A", "Series B"])
-	var x_a := PackedFloat64Array([10.0, 11.0, 12.0, 13.0, 14.0])
-	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 15.0, 10.0])
-	var x_b := PackedFloat64Array([10.5, 11.5, 12.5, 13.5])
-	var y_b := PackedFloat64Array([40.0, 35.0, 5.0, 20.0])
+	var series_names := PackedStringArray(["Series B"])
+	var x := PackedFloat64Array([10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5])
+	var y := PackedFloat64Array([30, 50, 30, 10, 30, 50, 30])
 
-	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
+	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x], [y])
 
 	p_plot.title = p_title
 	p_plot.legend_enabled = false
@@ -109,23 +97,19 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 	y_axis.tick_count_preferred = 10
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
-	var fill_a := TauLineFill.new()
-	fill_a.color = Color(0.0, 0.1, 0.7)
-	fill_a.alpha = 0.3
-
-	var fill_b := TauLineFill.new()
-	fill_b.texture_mode = TauLineFill.FillTextureMode.STRETCH
-	fill_b.texture = GRADIENT_TEXTURE
-	fill_b.alpha = 0.5
-	fill_b.stretch_axis = TauLineFill.FillStretchAxis.Y
-	fill_b.stretch_span = TauLineFill.FillStretchSpan.POLYGON
+	var fill := TauLineFill.new()
+	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
+	fill.texture = GRADIENT_TEXTURE
+	fill.alpha = 0.5
+	fill.stretch_span = TauLineFill.FillStretchSpan.VALUE_Y
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
 	line_config.interpolation_mode = p_interpolation
 	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 10.
-	line_config.style.fills = [fill_a, fill_b]
+	line_config.fill_baseline = 30.
+	line_config.stretch_range_policy = TauLineConfig.StretchRangePolicy.DOMAIN
+	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -135,28 +119,22 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 	config.x_axis = x_axis
 	config.panes = [pane]
 
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
-	sb_a.y_axis_id = TauPlot.AxisId.LEFT
+	var sb := TauXYSeriesBinding.new()
+	sb.series_id = dataset.get_series_id_by_index(0)
+	sb.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
+	sb.y_axis_id = TauPlot.AxisId.LEFT
 
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
-	sb_b.y_axis_id = TauPlot.AxisId.LEFT
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
+	var bindings: Array[TauXYSeriesBinding] = [sb]
 
 	p_plot.plot_xy(dataset, config, bindings)
 
 
 func make_shared_x_categorical_plot(p_plot: TauPlot, p_title: String, p_interpolation: TauLineConfig.InterpolationMode) -> void:
-	var series_names := PackedStringArray(["Series A", "Series B"])
-	var x := PackedStringArray(["One", "Two", "Three", "Four", "Five"])
-	var y_a := PackedFloat64Array([10.0, 20.0, 50.0, 15.0, 10.0])
-	var y_b := PackedFloat64Array([50.0, 40.0, 35.0, 5.0, 20.0])
+	var series_names := PackedStringArray(["Series B"])
+	var x := PackedStringArray(["One", "Two", "Three", "Four", "Five", "six", "seven"])
+	var y := PackedFloat64Array([30, 50, 30, 10, 30, 50, 30])
 
-	var dataset := TauPlot.Dataset.make_shared_x_categorical(series_names, x, [y_a, y_b])
+	var dataset := TauPlot.Dataset.make_shared_x_categorical(series_names, x, [y])
 
 	p_plot.title = p_title
 	p_plot.legend_enabled = false
@@ -171,23 +149,19 @@ func make_shared_x_categorical_plot(p_plot: TauPlot, p_title: String, p_interpol
 	y_axis.tick_count_preferred = 10
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
-	var fill_a := TauLineFill.new()
-	fill_a.color = Color(0.0, 0.1, 0.7)
-	fill_a.alpha = 0.3
-
-	var fill_b := TauLineFill.new()
-	fill_b.texture_mode = TauLineFill.FillTextureMode.STRETCH
-	fill_b.texture = GRADIENT_TEXTURE
-	fill_b.alpha = 0.5
-	fill_b.stretch_axis = TauLineFill.FillStretchAxis.Y
-	fill_b.stretch_span = TauLineFill.FillStretchSpan.POLYGON
+	var fill := TauLineFill.new()
+	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
+	fill.texture = GRADIENT_TEXTURE
+	fill.alpha = 0.5
+	fill.stretch_span = TauLineFill.FillStretchSpan.VALUE_Y
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
 	line_config.interpolation_mode = p_interpolation
 	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 10.
-	line_config.style.fills = [fill_a, fill_b]
+	line_config.fill_baseline = 30.
+	line_config.stretch_range_policy = TauLineConfig.StretchRangePolicy.DOMAIN
+	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -197,17 +171,12 @@ func make_shared_x_categorical_plot(p_plot: TauPlot, p_title: String, p_interpol
 	config.x_axis = x_axis
 	config.panes = [pane]
 
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
-	sb_a.y_axis_id = TauPlot.AxisId.LEFT
+	var sb := TauXYSeriesBinding.new()
+	sb.series_id = dataset.get_series_id_by_index(0)
+	sb.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
+	sb.y_axis_id = TauPlot.AxisId.LEFT
 
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
-	sb_b.y_axis_id = TauPlot.AxisId.LEFT
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
+	var bindings: Array[TauXYSeriesBinding] = [sb]
 
 	p_plot.plot_xy(dataset, config, bindings)
 

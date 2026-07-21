@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dd16pbp645qig"
-path="res://.godot/imported/gradient.png-541117284a3cd870fae052624ecf60df.ctex"
+uid="uid://c1ri3wrh3juax"
+path="res://.godot/imported/red_fade_v.png-4d549519ed0baae8a3079dab05c17f2c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/tau-plot/tests/assets/gradient.png"
-dest_files=["res://.godot/imported/gradient.png-541117284a3cd870fae052624ecf60df.ctex"]
+source_file="res://addons/tau-plot/tests/assets/red_fade_v.png"
+dest_files=["res://.godot/imported/red_fade_v.png-4d549519ed0baae8a3079dab05c17f2c.ctex"]
 
 [params]
 
