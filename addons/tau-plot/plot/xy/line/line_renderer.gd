@@ -440,6 +440,7 @@ class LineRenderer extends Control:
 
 			var record := LineHitRecord.new()
 			record.series_id = series_id
+			record.series_index = global_series_index
 			record.sample_index = i
 			record.x_value = x_value
 			record.y_plotted_value = y_plotted

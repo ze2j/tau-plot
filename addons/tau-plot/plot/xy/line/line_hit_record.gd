@@ -5,6 +5,10 @@ class LineHitRecord extends RefCounted:
 	## Dataset series id.
 	var series_id: int
 
+	## Dataset-global series index the record was painted with. Frozen at draw
+	## time so it keeps describing the painted geometry after a reindex.
+	var series_index: int
+
 	## Sample index within the series.
 	var sample_index: int
 

@@ -54,12 +54,11 @@ class LineHitTester extends OverlayHitTester:
 	## Brute-force linear scan. Returns the closest record within its series'
 	## hover pixel gate, or null.
 	func hit_test_nearest(p_local_pos: Vector2) -> SampleHit:
-		var gates: Dictionary = {}
 		var best_record: LineHitRecord = null
 		var best_dist_sq: float = INF
 
 		for record: LineHitRecord in _line_renderer.get_hit_records():
-			var max_dist: float = _resolve_hover_distance_px(record.series_id, gates)
+			var max_dist: float = float(_line_config.get_series_hover_distance(record.series_index))
 			var dx: float = p_local_pos.x - record.screen_position.x
 			var dy: float = p_local_pos.y - record.screen_position.y
 			var dist_sq: float = dx * dx + dy * dy
@@ -78,12 +77,11 @@ class LineHitTester extends OverlayHitTester:
 
 	func collect_hits_at_category(p_category_index: int, p_x_value: String, p_local_pos: Vector2) -> Array[SampleHit]:
 		var hits: Array[SampleHit] = []
-		var gates: Dictionary = {}
 
 		for record: LineHitRecord in _line_renderer.get_hit_records():
 			if record.sample_index != p_category_index:
 				continue
-			var max_dist: float = _resolve_hover_distance_px(record.series_id, gates)
+			var max_dist: float = float(_line_config.get_series_hover_distance(record.series_index))
 			var dx: float = p_local_pos.x - record.screen_position.x
 			var dy: float = p_local_pos.y - record.screen_position.y
 			var dist: float = sqrt(dx * dx + dy * dy)
@@ -98,13 +96,12 @@ class LineHitTester extends OverlayHitTester:
 
 
 	func collect_hits_at_continuous_x(p_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
-		var gates: Dictionary = {}
 		var x_is_horizontal: bool = _layout._x_is_horizontal
 		var target_x_px: float = _layout.map_x_to_px(_pane_index, p_x_value)
 		var hits: Array[SampleHit] = []
 
 		for record: LineHitRecord in _line_renderer.get_hit_records():
-			var max_dist_x: float = _resolve_hover_distance_px(record.series_id, gates)
+			var max_dist_x: float = float(_line_config.get_series_hover_distance(record.series_index))
 			var sample_x_px: float = record.screen_position.x if x_is_horizontal else record.screen_position.y
 			var x_dist: float = absf(sample_x_px - target_x_px)
 			if x_dist > max_dist_x:
@@ -151,18 +148,6 @@ class LineHitTester extends OverlayHitTester:
 	####################################################################
 	# Private
 	####################################################################
-
-	# Resolves the hover pixel gate of the series owning a record, memoized in
-	# p_gates so the series index lookup runs once per series per hit test
-	# instead of once per record.
-	func _resolve_hover_distance_px(p_series_id: int, p_gates: Dictionary) -> float:
-		if p_gates.has(p_series_id):
-			return p_gates[p_series_id]
-		var series_index: int = _dataset.get_series_index_by_id(p_series_id)
-		var gate: float = float(_line_config.get_series_hover_distance(series_index))
-		p_gates[p_series_id] = gate
-		return gate
-
 
 	func _build_hit(p_record: LineHitRecord, p_distance: float, p_contains: bool) -> SampleHit:
 		var hit := SampleHit.new()
