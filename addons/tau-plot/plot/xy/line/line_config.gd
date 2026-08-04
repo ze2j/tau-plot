@@ -20,36 +20,6 @@ enum LineMode
 }
 @export var mode: LineMode = LineMode.INDEPENDENT
 
-const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
-@export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
-
-const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
-
-## How negative values are handled in STACKED mode.
-## SIGNED_SUM (default) folds negative values into the cumulative as a downward
-## dip, the streamgraph behavior. DIVERGING splits each X into an upper stack
-## of positive values and a lower stack of negative values, both anchored at
-## zero. SKIP_NEGATIVES drops negative samples entirely from the stack.
-@export var stacked_negative_policy: StackedNegativePolicy = StackedNegativePolicy.SIGNED_SUM
-
-## Strategy applied when the curve encounters a sample with a NaN or infinite
-## X or Y value (or a value forbidden by the active axis scale, such as a
-## non-positive value on a logarithmic axis).
-##
-## SKIP breaks the polyline at the invalid sample. The runs on each side of
-## the gap are drawn as independent contiguous polylines.
-##
-## BRIDGE drops the invalid sample from the sequence and connects the valid
-## sample before it directly to the valid sample after it, so the polyline
-## stays continuous across the gap.
-##
-## This property is visual-only and does not affect layout or domain.
-enum GapPolicy
-{
-	SKIP,    ## Break the polyline at invalid samples.
-	BRIDGE   ## Drop invalid samples and connect the surrounding valid samples.
-}
-@export var gap_policy: GapPolicy = GapPolicy.SKIP
 
 ## How consecutive samples are interpolated.
 ##
@@ -66,8 +36,6 @@ enum GapPolicy
 ## using Fritsch-Carlson tangent selection. The curve is C1 continuous,
 ## interpolates every sample exactly, and preserves local monotonicity, so
 ## no overshoot or local extrema are introduced between samples.
-##
-## This property is visual-only and does not affect layout or domain.
 enum InterpolationMode
 {
 	LINEAR,            ## Straight segment between consecutive samples.
@@ -76,66 +44,67 @@ enum InterpolationMode
 	STEP_MIDDLE,       ## Horizontal, vertical jump at the pixel midpoint, horizontal.
 	SMOOTH_MONOTONE    ## Fritsch-Carlson monotone piecewise cubic Hermite curve.
 }
-@export var interpolation_mode: InterpolationMode = InterpolationMode.LINEAR
 
-## Which area around the line is filled. The look of the fill, its color and
-## texture, lives in [TauLineFill].
+const DEFAULT_INTERPOLATION_MODES: Array[InterpolationMode] = [InterpolationMode.LINEAR]
+## Per-series cycle of interpolation modes. Each entry sets the mode for one
+## series, with the array indexed cyclically by series index using modulo:
+## series [code]i[/code] reads entry
+## [code]i % interpolation_modes.size()[/code]. An empty array is treated as
+## all series drawn LINEAR.
+##
+## Mixing modes within one overlay is the point: a raw stepped series can sit
+## under a smoothed trend.
 ##
 ## This property is visual-only and does not affect layout or domain.
-enum FillMode
+@export var interpolation_modes: Array[InterpolationMode] = [InterpolationMode.LINEAR]
+
+
+## Strategy applied when the curve encounters a sample with a NaN or infinite
+## X or Y value (or a value forbidden by the active axis scale, such as a
+## non-positive value on a logarithmic axis).
+##
+## SKIP breaks the polyline at the invalid sample. The runs on each side of
+## the gap are drawn as independent contiguous polylines.
+##
+## BRIDGE drops the invalid sample from the sequence and connects the valid
+## sample before it directly to the valid sample after it, so the polyline
+## stays continuous across the gap.
+enum GapPolicy
 {
-	## Leave the area unfilled.
-	NONE,
-
-	## Fill between the line and the constant level [member fill_baseline].
-	TO_BASELINE,
-
-	## Fill the band between each layer's top and the top of the layer directly
-	## below, so a stacked line overlay reads as a stacked area chart. Requires
-	## [member mode] STACKED.
-	STACKED
+	SKIP,    ## Break the polyline at invalid samples.
+	BRIDGE   ## Drop invalid samples and connect the surrounding valid samples.
 }
-@export var fill_mode: FillMode = FillMode.NONE
 
-## Reference y level for the TO_BASELINE fill, in data units on the series
-## y-axis. The fill is drawn between the line and this level. Ignored by other
-## [member fill_mode] values.
-##
-## The MAGNITUDE stretch span measures its distance from this level. See
-## [enum TauLineFill.FillStretchSpan].
+const DEFAULT_GAP_POLICIES: Array[GapPolicy] = [GapPolicy.SKIP]
+## Per-series cycle of gap policies. Each entry sets the policy for one
+## series, with the array indexed cyclically by series index using modulo:
+## series [code]i[/code] reads entry [code]i % gap_policies.size()[/code]. An
+## empty array is treated as all series using SKIP.
 ##
 ## This property is visual-only and does not affect layout or domain.
-@export var fill_baseline: float = 0.0
+@export var gap_policies: Array[GapPolicy] = [GapPolicy.SKIP]
 
-## Where a value stretch span reads its low and high ends. See
-## [member TauLineFill.stretch_span].
-##
-## This property is visual-only and does not affect layout or domain.
-enum StretchRangePolicy
-{
-	DOMAIN,   ## Span the whole series, from its lowest value to its highest.
-	CUSTOM    ## Use the fixed window set in [member stretch_range].
-}
-@export var stretch_range_policy: StretchRangePolicy = StretchRangePolicy.DOMAIN
 
-## Fixed low and high window for a stretch fill, read only when
-## [member stretch_range_policy] is CUSTOM. [code].x[/code] is the low end and
-## [code].y[/code] the high end, and swapping them reverses the gradient.
-##
-## What each end means follows the span that reads it:
-## - VALUE_Y: a value on the series y axis.
-## - VALUE_X: a value on the x axis. Not available on a categorical x axis,
-##   use DOMAIN there.
-## - MAGNITUDE: a distance from [member fill_baseline], so keep both at or
-##   above zero.
-##
-## The LINE span never reads this window. See [member TauLineFill.stretch_span].
-##
-## This property is visual-only and does not affect layout or domain.
-@export var stretch_range: Vector2 = Vector2.ZERO
+const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+@export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
 
-## Maximum pixel distance from the cursor to a sample position for the sample
-## to be considered a hover hit.
+const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
+
+## How negative values are handled in STACKED mode.
+## SIGNED_SUM (default) folds negative values into the cumulative as a downward
+## dip, the streamgraph behavior. DIVERGING splits each X into an upper stack
+## of positive values and a lower stack of negative values, both anchored at
+## zero. SKIP_NEGATIVES drops negative samples entirely from the stack.
+@export var stacked_negative_policy: StackedNegativePolicy = StackedNegativePolicy.SIGNED_SUM
+
+
+const DEFAULT_HOVER_MAX_DISTANCES_PX: Array[int] = [10]
+## Per-series cycle of maximum pixel distances from the cursor to a sample
+## position for that sample to be considered a hover hit. Each entry sets the
+## distance for one series, with the array indexed cyclically by series index
+## using modulo: series [code]i[/code] reads entry
+## [code]i % hover_max_distances_px.size()[/code]. An empty array is treated
+## as all series gated at [code]10[/code] pixels.
 ##
 ## In NEAREST mode, this is a 2D Euclidean distance gate. Samples farther
 ## than this value from the cursor are excluded entirely.
@@ -144,7 +113,7 @@ enum StretchRangePolicy
 ## screen position differs from the target x by more than this value are
 ## excluded. The same threshold sets [member SampleHit.contains_pointer]
 ## on included hits.
-@export var hover_max_distance_px: int = 10
+@export var hover_max_distances_px: Array[int] = [10]
 
 
 ####################################################################################################
@@ -168,6 +137,28 @@ func _init() -> void:
 	overlay_type = PaneOverlayType.LINE
 
 
+## Returns the resolved gap policy for the given series index.
+func get_series_gap_policy(p_series_index: int) -> GapPolicy:
+	if gap_policies.is_empty():
+		return DEFAULT_GAP_POLICIES[0]
+	return gap_policies[p_series_index % gap_policies.size()]
+
+
+## Returns the resolved interpolation mode for the given series index.
+func get_series_interpolation(p_series_index: int) -> InterpolationMode:
+	if interpolation_modes.is_empty():
+		return DEFAULT_INTERPOLATION_MODES[0]
+	return interpolation_modes[p_series_index % interpolation_modes.size()]
+
+
+## Returns the resolved hover pixel gate for the given series index. The
+## result is clamped to be non-negative.
+func get_series_hover_distance(p_series_index: int) -> int:
+	if hover_max_distances_px.is_empty():
+		return DEFAULT_HOVER_MAX_DISTANCES_PX[0]
+	return max(hover_max_distances_px[p_series_index % hover_max_distances_px.size()], 0)
+
+
 func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauLineConfig
 	if other == null:
@@ -182,19 +173,11 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 		return false
 	if stacked_negative_policy != other.stacked_negative_policy:
 		return false
-	if gap_policy != other.gap_policy:
+	if not _arrays_equal(gap_policies, other.gap_policies):
 		return false
-	if interpolation_mode != other.interpolation_mode:
+	if not _arrays_equal(interpolation_modes, other.interpolation_modes):
 		return false
-	if fill_mode != other.fill_mode:
-		return false
-	if fill_baseline != other.fill_baseline:
-		return false
-	if stretch_range_policy != other.stretch_range_policy:
-		return false
-	if stretch_range != other.stretch_range:
-		return false
-	if hover_max_distance_px != other.hover_max_distance_px:
+	if not _arrays_equal(hover_max_distances_px, other.hover_max_distances_px):
 		return false
 
 	return true
@@ -205,8 +188,8 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 #
 # mode, stacked_normalization, and stacked_negative_policy affect the domain:
 # stacking changes Y bounds, normalization pins the range, and the negative
-# policy decides whether the lower half-axis exists. Hover distance is a pure
-# hit-test parameter with no layout effect.
+# policy decides whether the lower half-axis exists. Hover distances are pure
+# hit-test parameters with no layout effect.
 func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauLineConfig
 	if other == null:
@@ -225,3 +208,19 @@ func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 		return true
 
 	return false
+
+
+####################################################################################################
+# Private
+####################################################################################################
+
+# Element-wise equality between two per-series cycles. Typed arrays in
+# GDScript have no reliable equality operator, so the comparison runs through
+# size and indices.
+static func _arrays_equal(p_a: Array, p_b: Array) -> bool:
+	if p_a.size() != p_b.size():
+		return false
+	for i in range(p_a.size()):
+		if p_a[i] != p_b[i]:
+			return false
+	return true

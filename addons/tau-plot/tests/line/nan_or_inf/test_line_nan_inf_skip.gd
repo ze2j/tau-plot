@@ -35,10 +35,13 @@ func _setup_test_1() -> void:
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.include_zero_in_domain = true
 
+	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 0.
+
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 0.
+	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.style.fills = [fill]
 
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis
@@ -88,10 +91,13 @@ func _setup_test_2() -> void:
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.include_zero_in_domain = true
 
+	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 0.
+
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 0.
+	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -140,10 +146,13 @@ func _setup_test_3() -> void:
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.include_zero_in_domain = true
 
+	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 0.
+
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 0.
+	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.style.fills = [fill]
 
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis
@@ -193,10 +202,13 @@ func _setup_test_4() -> void:
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.include_zero_in_domain = true
 
+	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 0.
+
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 0.
+	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -245,10 +257,13 @@ func _setup_test_5() -> void:
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.include_zero_in_domain = true
 
+	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 0.
+
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 0.
+	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.style.fills = [fill]
 
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis
@@ -298,10 +313,13 @@ func _setup_test_6() -> void:
 	y_axis.scale = TauAxisConfig.Scale.LINEAR
 	y_axis.include_zero_in_domain = true
 
+	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 0.
+
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 0.
+	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -350,10 +368,13 @@ func _setup_test_7() -> void:
 	y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 	y_axis.include_zero_in_domain = false
 
+	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 1.
+
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 1.
+	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.style.fills = [fill]
 
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis
@@ -403,10 +424,13 @@ func _setup_test_8() -> void:
 	y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
 	y_axis.include_zero_in_domain = false
 
+	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 1.
+
 	var line_config := TauLineConfig.new()
-	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 1.
+	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis

@@ -44,18 +44,20 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var fill_a := TauLineFill.new()
+	fill_a.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill_a.fill_baseline = 10.
 	fill_a.color = Color(0.2, 0.2, 0.6)
 	fill_a.alpha = 0.3
 
 	var fill_b := TauLineFill.new()
+	fill_b.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill_b.fill_baseline = 20.
 	fill_b.color = Color(0.8, 0.1, 0.4)
 	fill_b.alpha = 0.3
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
-	line_config.interpolation_mode = p_interpolation
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 10.
+	line_config.interpolation_modes = [p_interpolation]
 	line_config.style.fills = [fill_a, fill_b]
 
 	var pane := TauPaneConfig.new()
@@ -104,18 +106,20 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var fill_a := TauLineFill.new()
+	fill_a.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill_a.fill_baseline = 10.
 	fill_a.color = Color(0.2, 0.2, 0.6)
 	fill_a.alpha = 0.3
 
 	var fill_b := TauLineFill.new()
+	fill_b.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill_b.fill_baseline = 20.
 	fill_b.color = Color(0.8, 0.1, 0.4)
 	fill_b.alpha = 0.3
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
-	line_config.interpolation_mode = p_interpolation
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 10.
+	line_config.interpolation_modes = [p_interpolation]
 	line_config.style.fills = [fill_a, fill_b]
 
 	var pane := TauPaneConfig.new()
@@ -163,18 +167,20 @@ func make_shared_x_categorical_plot(p_plot: TauPlot, p_title: String, p_interpol
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var fill_a := TauLineFill.new()
+	fill_a.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill_a.fill_baseline = 10.
 	fill_a.color = Color(0.2, 0.2, 0.6)
 	fill_a.alpha = 0.3
 
 	var fill_b := TauLineFill.new()
+	fill_b.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill_b.fill_baseline = 20.
 	fill_b.color = Color(0.8, 0.1, 0.4)
 	fill_b.alpha = 0.3
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
-	line_config.interpolation_mode = p_interpolation
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 10.
+	line_config.interpolation_modes = [p_interpolation]
 	line_config.style.fills = [fill_a, fill_b]
 
 	var pane := TauPaneConfig.new()

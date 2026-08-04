@@ -38,14 +38,17 @@ func _setup_test_1() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill_a := TauLineFill.new()
+	fill_a.fill_mode = TauLineFill.FillMode.STACKED
 	fill_a.color = Color(0.2, 0.2, 0.6)
 	fill_a.alpha = 0.3
 
 	var fill_b := TauLineFill.new()
+	fill_b.fill_mode = TauLineFill.FillMode.STACKED
 	fill_b.color = Color(0.8, 0.1, 0.4)
 	fill_b.alpha = 0.3
 
 	var fill_c := TauLineFill.new()
+	fill_c.fill_mode = TauLineFill.FillMode.STACKED
 	fill_c.color = Color(0.1, 0.6, 0.4)
 	fill_c.alpha = 0.3
 
@@ -54,7 +57,6 @@ func _setup_test_1() -> void:
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.SKIP_NEGATIVES
 	#line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill_a, fill_b, fill_c]
 
 	var pane := TauPaneConfig.new()
@@ -113,14 +115,17 @@ func _setup_test_2() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill_a := TauLineFill.new()
+	fill_a.fill_mode = TauLineFill.FillMode.STACKED
 	fill_a.color = Color(0.2, 0.2, 0.6)
 	fill_a.alpha = 0.3
 
 	var fill_b := TauLineFill.new()
+	fill_b.fill_mode = TauLineFill.FillMode.STACKED
 	fill_b.color = Color(0.8, 0.1, 0.4)
 	fill_b.alpha = 0.3
 
 	var fill_c := TauLineFill.new()
+	fill_c.fill_mode = TauLineFill.FillMode.STACKED
 	fill_c.color = Color(0.1, 0.6, 0.4)
 	fill_c.alpha = 0.3
 
@@ -128,7 +133,6 @@ func _setup_test_2() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.DIVERGING
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill_a, fill_b, fill_c]
 
 	var pane := TauPaneConfig.new()
@@ -187,14 +191,17 @@ func _setup_test_3() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill_a := TauLineFill.new()
+	fill_a.fill_mode = TauLineFill.FillMode.STACKED
 	fill_a.color = Color(0.2, 0.2, 0.6)
 	fill_a.alpha = 0.3
 
 	var fill_b := TauLineFill.new()
+	fill_b.fill_mode = TauLineFill.FillMode.STACKED
 	fill_b.color = Color(0.8, 0.1, 0.4)
 	fill_b.alpha = 0.3
 
 	var fill_c := TauLineFill.new()
+	fill_c.fill_mode = TauLineFill.FillMode.STACKED
 	fill_c.color = Color(0.1, 0.6, 0.4)
 	fill_c.alpha = 0.3
 
@@ -202,7 +209,6 @@ func _setup_test_3() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.SIGNED_SUM
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill_a, fill_b, fill_c]
 
 	var pane := TauPaneConfig.new()
@@ -256,14 +262,17 @@ func _setup_test_4() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill_a := TauLineFill.new()
+	fill_a.fill_mode = TauLineFill.FillMode.STACKED
 	fill_a.color = Color(0.2, 0.2, 0.6)
 	fill_a.alpha = 0.3
 
 	var fill_b := TauLineFill.new()
+	fill_b.fill_mode = TauLineFill.FillMode.STACKED
 	fill_b.color = Color(0.8, 0.1, 0.4)
 	fill_b.alpha = 0.3
 
 	var fill_c := TauLineFill.new()
+	fill_c.fill_mode = TauLineFill.FillMode.STACKED
 	fill_c.color = Color(0.1, 0.6, 0.4)
 	fill_c.alpha = 0.3
 
@@ -271,7 +280,6 @@ func _setup_test_4() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.SKIP_NEGATIVES
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill_a, fill_b, fill_c]
 
 	var pane := TauPaneConfig.new()
@@ -326,14 +334,17 @@ func _setup_test_5() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill_a := TauLineFill.new()
+	fill_a.fill_mode = TauLineFill.FillMode.STACKED
 	fill_a.color = Color(0.2, 0.2, 0.6)
 	fill_a.alpha = 0.3
 
 	var fill_b := TauLineFill.new()
+	fill_b.fill_mode = TauLineFill.FillMode.STACKED
 	fill_b.color = Color(0.8, 0.1, 0.4)
 	fill_b.alpha = 0.3
 
 	var fill_c := TauLineFill.new()
+	fill_c.fill_mode = TauLineFill.FillMode.STACKED
 	fill_c.color = Color(0.1, 0.6, 0.4)
 	fill_c.alpha = 0.3
 
@@ -341,7 +352,6 @@ func _setup_test_5() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.DIVERGING
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill_a, fill_b, fill_c]
 
 	var pane := TauPaneConfig.new()
@@ -396,14 +406,17 @@ func _setup_test_6() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill_a := TauLineFill.new()
+	fill_a.fill_mode = TauLineFill.FillMode.STACKED
 	fill_a.color = Color(0.2, 0.2, 0.6)
 	fill_a.alpha = 0.3
 
 	var fill_b := TauLineFill.new()
+	fill_b.fill_mode = TauLineFill.FillMode.STACKED
 	fill_b.color = Color(0.8, 0.1, 0.4)
 	fill_b.alpha = 0.3
 
 	var fill_c := TauLineFill.new()
+	fill_c.fill_mode = TauLineFill.FillMode.STACKED
 	fill_c.color = Color(0.1, 0.6, 0.4)
 	fill_c.alpha = 0.3
 
@@ -411,7 +424,6 @@ func _setup_test_6() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.SIGNED_SUM
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill_a, fill_b, fill_c]
 
 	var pane := TauPaneConfig.new()

@@ -46,18 +46,18 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var fill := TauLineFill.new()
-	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 30.
 	fill.texture = GRADIENT_TEXTURE
 	fill.alpha = 0.5
+	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
 	fill.stretch_span = TauLineFill.FillStretchSpan.VALUE_X
+	fill.stretch_range_policy = TauLineFill.StretchRangePolicy.CUSTOM
+	fill.stretch_range = Vector2(12., 14.)
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
-	line_config.interpolation_mode = p_interpolation
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 30.
-	line_config.stretch_range_policy = TauLineConfig.StretchRangePolicy.CUSTOM
-	line_config.stretch_range = Vector2(12., 14.)
+	line_config.interpolation_modes = [p_interpolation]
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
@@ -99,18 +99,18 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 	y_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	var fill := TauLineFill.new()
-	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
+	fill.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	fill.fill_baseline = 30.
 	fill.texture = GRADIENT_TEXTURE
 	fill.alpha = 0.5
+	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
 	fill.stretch_span = TauLineFill.FillStretchSpan.VALUE_X
+	fill.stretch_range_policy = TauLineFill.StretchRangePolicy.CUSTOM
+	fill.stretch_range = Vector2(11.5, 13.5)
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
-	line_config.interpolation_mode = p_interpolation
-	line_config.fill_mode = TauLineConfig.FillMode.TO_BASELINE
-	line_config.fill_baseline = 30.
-	line_config.stretch_range_policy = TauLineConfig.StretchRangePolicy.CUSTOM
-	line_config.stretch_range = Vector2(11.5, 13.5)
+	line_config.interpolation_modes = [p_interpolation]
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()

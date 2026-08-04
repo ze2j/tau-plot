@@ -18,14 +18,17 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 # draw calls when the hovered sample lies inside the run.
 #
 # Runtime behavior:
-# - NaN and Inf X or Y values are treated according to TauLineConfig.gap_policy.
+# - NaN and Inf X or Y values are treated according to the per-series gap
+#   policy from TauLineConfig.get_series_gap_policy(global_series_index).
 # - Logarithmic Y scales: y <= 0 is treated as invalid.
 # - Logarithmic X scales: x <= 0 is treated as invalid.
 # - GapPolicy.SKIP breaks the polyline at every invalid sample.
 # - GapPolicy.BRIDGE drops invalid samples and keeps the polyline contiguous,
 #   so the surrounding valid samples are connected directly.
-# - TauLineConfig.interpolation_mode controls the curve drawn between two
-#   consecutive valid samples. LINEAR draws straight segments. The step
+# - The per-series interpolation mode from
+#   TauLineConfig.get_series_interpolation(global_series_index) controls the
+#   curve drawn between two consecutive valid samples. LINEAR draws straight
+#   segments. The step
 #   modes (STEP_BEFORE, STEP_AFTER, STEP_MIDDLE) insert synthetic
 #   intermediate points along the parameter axis into the polyline.
 #   SMOOTH_MONOTONE replaces each segment with a fixed number of sub-samples
@@ -92,7 +95,7 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   edges, an upper edge and a lower edge sharing one x per vertex. TO_BASELINE
 #   and STACKED differ only in the lower edge:
 #     - TO_BASELINE fills between the line and the constant
-#       TauLineConfig.fill_baseline. The lower edge is that flat level dropped
+#       TauLineFill.fill_baseline. The lower edge is that flat level dropped
 #       under every upper vertex.
 #     - STACKED fills the band between this layer's painted top and the top of
 #       the layer below (StackedSeriesValues.get_y_baseline), so a stacked line
@@ -105,8 +108,10 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   contiguous run.
 # - Fill resolution is against one TauLineFill per series, resolved through
 #   TauLineStyle.get_series_fill (modulo-cycled per series, like
-#   line_widths_px). The fill is drawn either as a flat color or as a
-#   texture, never as both:
+#   line_widths_px). That resource carries the whole fill for the series, its
+#   fill_mode included, so two series in the same overlay can fill to
+#   different baselines or not fill at all. The fill is drawn either as a flat
+#   color or as a texture, never as both:
 #     - If the resolved fill's texture is null, the fill is a flat color.
 #       The color comes from TauLineFill.color, except when it equals
 #       TauLineFill.NO_COLOR, in which case the per-series color from
@@ -355,20 +360,20 @@ class LineRenderer extends Control:
 		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
 		var hover_width_px: float = max(_line_style.get_series_hovered_width_px(global_series_index), width_px)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
-		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
-		var interpolation: TauLineConfig.InterpolationMode = _line_config.interpolation_mode
-
-		# STACKED fill needs a per-vertex lower edge, the painted top of the layer
-		# below. It requires stacked mode, so p_stacked is non-null whenever this
-		# is set. TO_BASELINE and NONE leave the lower run empty and unused.
-		var stacked_fill: bool = _line_config.fill_mode == TauLineConfig.FillMode.STACKED
+		var bridge: bool = _line_config.get_series_gap_policy(global_series_index) == TauLineConfig.GapPolicy.BRIDGE
+		var interpolation: TauLineConfig.InterpolationMode = _line_config.get_series_interpolation(global_series_index)
 
 		# Resolved once per series: every run of this series fills against the
 		# same baseline and the same color, and uses the same UV reference frame.
 		var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
 		var fill_color: Color = _resolve_series_fill_color(global_series_index, fill)
-		var baseline_y_px: float = _resolve_fill_baseline_y_px(y_axis_id)
+		var baseline_y_px: float = _resolve_fill_baseline_y_px(fill, y_axis_id)
 		var fill_uv_ctx: _FillUVContext = _resolve_fill_uv_context(fill, y_axis_id)
+
+		# STACKED fill needs a per-vertex lower edge, the painted top of the layer
+		# below. It requires stacked mode, so p_stacked is non-null whenever this
+		# is set. TO_BASELINE and NONE leave the lower run empty and unused.
+		var stacked_fill: bool = fill.fill_mode == TauLineFill.FillMode.STACKED
 
 		var independent_y: PackedFloat64Array
 		if p_stacked == null:
@@ -587,7 +592,7 @@ class LineRenderer extends Control:
 		# no fill for this run. The strip builder pairs the upper polyline against
 		# the resolved lower edge, both index-aligned.
 		if p_fill_color.a > 0.0:
-			var lower_edge := _resolve_fill_lower_edge(polyline, p_run_baseline, p_baseline_y_px, p_mode)
+			var lower_edge := _resolve_fill_lower_edge(polyline, p_run_baseline, p_baseline_y_px, p_mode, p_fill)
 			if not lower_edge.is_empty():
 				_draw_fill(polyline, lower_edge, p_fill, p_fill_color, p_fill_uv_ctx)
 
@@ -838,16 +843,16 @@ class LineRenderer extends Control:
 
 
 	# Resolves the fill UV context for p_fill bound to p_y_axis_id. Returns a
-	# context with texture = null when fill_mode is NONE or when p_fill has no
-	# texture, so the caller skips UV construction entirely. The value spans read
-	# the vertex on their own axis, so they apply unchanged to the band edges of
-	# a STACKED fill. MAGNITUDE never reaches here under STACKED: the validator
-	# rejects a MAGNITUDE textured STRETCH fill when the band fill is active.
-	# texture_mode and stretch_span are read directly from p_fill by the
+	# context with texture = null when p_fill's mode is NONE or when p_fill has
+	# no texture, so the caller skips UV construction entirely. The value spans
+	# read the vertex on their own axis, so they apply unchanged to the band
+	# edges of a STACKED fill. MAGNITUDE never reaches here under STACKED: the
+	# validator rejects a MAGNITUDE textured STRETCH fill when the band fill is
+	# active. texture_mode and stretch_span are read directly from p_fill by the
 	# strip UV builder and are not stored on the context.
 	func _resolve_fill_uv_context(p_fill: TauLineFill, p_y_axis_id: AxisId) -> _FillUVContext:
 		var ctx := _FillUVContext.new()
-		if _line_config.fill_mode == TauLineConfig.FillMode.NONE:
+		if p_fill.fill_mode == TauLineFill.FillMode.NONE:
 			return ctx
 		ctx.texture = p_fill.texture
 		if ctx.texture == null:
@@ -855,7 +860,7 @@ class LineRenderer extends Control:
 
 		match p_fill.texture_mode:
 			TauLineFill.FillTextureMode.STRETCH:
-				_resolve_stretch_uv_context(ctx, p_fill.stretch_span, p_y_axis_id)
+				_resolve_stretch_uv_context(ctx, p_fill, p_y_axis_id)
 
 			TauLineFill.FillTextureMode.TILE:
 				var pane_rect: Rect2 = _layout.get_pane_rect(_pane_index)
@@ -886,13 +891,14 @@ class LineRenderer extends Control:
 	# degenerate range so the builder can fall back to the texture middle.
 	# Mapping both MAGNITUDE ends upward from the baseline keeps them symmetric
 	# on a linear scale and never asks a log axis for a value it cannot take.
-	func _resolve_stretch_uv_context(p_ctx: _FillUVContext, p_span: TauLineFill.FillStretchSpan, p_y_axis_id: AxisId) -> void:
+	func _resolve_stretch_uv_context(p_ctx: _FillUVContext, p_fill: TauLineFill, p_y_axis_id: AxisId) -> void:
 		p_ctx.half_texel = Vector2(0.5, 0.5) / p_ctx.texture.get_size()
-		if p_span == TauLineFill.FillStretchSpan.LINE:
+		var span: TauLineFill.FillStretchSpan = p_fill.stretch_span
+		if span == TauLineFill.FillStretchSpan.LINE:
 			return
 
-		var value_range: Vector2 = _resolve_stretch_range(p_span, p_y_axis_id)
-		match p_span:
+		var value_range: Vector2 = _resolve_stretch_range(p_fill, p_y_axis_id)
+		match span:
 			TauLineFill.FillStretchSpan.VALUE_X:
 				if _get_x_axis_config().type == TauAxisConfig.Type.CATEGORICAL:
 					p_ctx.range_px0 = _layout.map_x_category_center_to_px(_pane_index, 0)
@@ -904,7 +910,7 @@ class LineRenderer extends Control:
 				p_ctx.range_px0 = _layout.map_y_to_px(_pane_index, value_range.x, p_y_axis_id)
 				p_ctx.range_px1 = _layout.map_y_to_px(_pane_index, value_range.y, p_y_axis_id)
 			TauLineFill.FillStretchSpan.MAGNITUDE:
-				var baseline: float = _line_config.fill_baseline
+				var baseline: float = p_fill.fill_baseline
 				p_ctx.baseline_px = _layout.map_y_to_px(_pane_index, baseline, p_y_axis_id)
 				p_ctx.range_px0 = absf(_layout.map_y_to_px(_pane_index, baseline + value_range.x, p_y_axis_id) - p_ctx.baseline_px)
 				p_ctx.range_px1 = absf(_layout.map_y_to_px(_pane_index, baseline + value_range.y, p_y_axis_id) - p_ctx.baseline_px)
@@ -916,25 +922,25 @@ class LineRenderer extends Control:
 
 
 	# Resolves the value window for a value span in data units. CUSTOM returns
-	# stretch_range as authored. DOMAIN spans the raw data bounds before
+	# p_fill.stretch_range as authored. DOMAIN spans the raw data bounds before
 	# padding, so the texture ends land on the data extremes the user drew and
 	# not in the padding beyond them. MAGNITUDE measures distance from
-	# fill_baseline, so its window runs from the baseline to the farthest
+	# p_fill.fill_baseline, so its window runs from the baseline to the farthest
 	# point.
-	func _resolve_stretch_range(p_span: TauLineFill.FillStretchSpan, p_y_axis_id: AxisId) -> Vector2:
-		if _line_config.stretch_range_policy == TauLineConfig.StretchRangePolicy.CUSTOM:
-			return _line_config.stretch_range
+	func _resolve_stretch_range(p_fill: TauLineFill, p_y_axis_id: AxisId) -> Vector2:
+		if p_fill.stretch_range_policy == TauLineFill.StretchRangePolicy.CUSTOM:
+			return p_fill.stretch_range
 
-		if p_span == TauLineFill.FillStretchSpan.VALUE_X:
+		if p_fill.stretch_span == TauLineFill.FillStretchSpan.VALUE_X:
 			var x_domain := _layout.domain.x_axis_domain
 			return Vector2(x_domain.data_min, x_domain.data_max)
 
 		var y_domain := _layout.domain.get_pane_domain(_pane_index).get_y_axis_domain(p_y_axis_id)
-		if p_span == TauLineFill.FillStretchSpan.VALUE_Y:
+		if p_fill.stretch_span == TauLineFill.FillStretchSpan.VALUE_Y:
 			return Vector2(y_domain.data_min, y_domain.data_max)
 
 		# MAGNITUDE
-		var baseline: float = _line_config.fill_baseline
+		var baseline: float = p_fill.fill_baseline
 		var d_max: float = maxf(absf(y_domain.data_min - baseline), absf(y_domain.data_max - baseline))
 		return Vector2(0.0, d_max)
 
@@ -1021,8 +1027,8 @@ class LineRenderer extends Control:
 	# call for one series. TO_BASELINE and STACKED resolve a color the same way,
 	# since both paint the same strip. Three cases:
 	#
-	#   1. fill_mode is NONE. No fill is drawn for this series, so the return
-	#      value is fully transparent black and the draw call is skipped
+	#   1. p_fill's mode is NONE. No fill is drawn for this series, so the
+	#      return value is fully transparent black and the draw call is skipped
 	#      upstream.
 	#   2. p_fill has a texture. The fill is the texture and must not be
 	#      tinted, so the modulation color is white. Its alpha carries
@@ -1032,7 +1038,7 @@ class LineRenderer extends Control:
 	#      p_fill.color is TauLineFill.NO_COLOR. p_fill.alpha is then
 	#      applied to its alpha channel.
 	func _resolve_series_fill_color(p_global_series_index: int, p_fill: TauLineFill) -> Color:
-		if _line_config.fill_mode == TauLineConfig.FillMode.NONE:
+		if p_fill.fill_mode == TauLineFill.FillMode.NONE:
 			return Color(0, 0, 0, 0)
 		if p_fill.texture != null:
 			return Color(1.0, 1.0, 1.0, p_fill.alpha)
@@ -1046,10 +1052,10 @@ class LineRenderer extends Control:
 	# Returns the fill baseline's coordinate on the y (value) axis, or NAN when
 	# no flat baseline applies. The fill strip is built in axis space, so this
 	# is the .y the strip builder compares its vertices against.
-	func _resolve_fill_baseline_y_px(p_y_axis_id: AxisId) -> float:
-		if _line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
+	func _resolve_fill_baseline_y_px(p_fill: TauLineFill, p_y_axis_id: AxisId) -> float:
+		if p_fill.fill_mode != TauLineFill.FillMode.TO_BASELINE:
 			return NAN
-		return _layout.map_y_to_px(_pane_index, _line_config.fill_baseline, p_y_axis_id)
+		return _layout.map_y_to_px(_pane_index, p_fill.fill_baseline, p_y_axis_id)
 
 
 	# Synthesizes the flat lower edge for a TO_BASELINE fill from the final upper
@@ -1065,18 +1071,18 @@ class LineRenderer extends Control:
 		return lower
 
 
-	# Resolves the lower fill edge index-aligned with p_upper for the active fill
-	# mode, or an empty array when no fill applies to this run. TO_BASELINE drops
+	# Resolves the lower fill edge index-aligned with p_upper for p_fill's mode,
+	# or an empty array when no fill applies to this run. TO_BASELINE drops
 	# the constant baseline under every upper vertex. STACKED finalizes the
 	# buffered lower run the same way the upper run was finalized, so both edges
 	# stay index-aligned. NONE and a non-finite TO_BASELINE baseline return empty.
-	func _resolve_fill_lower_edge(p_upper: PackedVector2Array, p_run_baseline: PackedVector2Array, p_baseline_y_px: float, p_mode: TauLineConfig.InterpolationMode) -> PackedVector2Array:
-		match _line_config.fill_mode:
-			TauLineConfig.FillMode.TO_BASELINE:
+	func _resolve_fill_lower_edge(p_upper: PackedVector2Array, p_run_baseline: PackedVector2Array, p_baseline_y_px: float, p_mode: TauLineConfig.InterpolationMode, p_fill: TauLineFill) -> PackedVector2Array:
+		match p_fill.fill_mode:
+			TauLineFill.FillMode.TO_BASELINE:
 				if is_nan(p_baseline_y_px):
 					return PackedVector2Array()
 				return _synthesize_flat_lower_edge(p_upper, p_baseline_y_px)
-			TauLineConfig.FillMode.STACKED:
+			TauLineFill.FillMode.STACKED:
 				return _finalize_lower_run(p_run_baseline, p_mode)
 		return PackedVector2Array()
 

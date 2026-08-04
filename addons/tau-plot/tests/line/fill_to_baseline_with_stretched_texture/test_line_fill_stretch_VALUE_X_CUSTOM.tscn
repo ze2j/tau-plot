@@ -31,7 +31,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[LINEAR] SHARED_X + CONTINUOUS"
+title = "[LINEAR] SHARED_X + CONTINUOUS + stretch_range = [12, 14]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -42,7 +42,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[LINEAR] PER_SERIES_X + CONTINUOUS"
+title = "[LINEAR] PER_SERIES_X + CONTINUOUS + stretch_range = [11.5, 13.5]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -63,7 +63,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[STEP_BEFORE] SHARED_X + CONTINUOUS"
+title = "[STEP_BEFORE] SHARED_X + CONTINUOUS + stretch_range = [12, 14]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -74,7 +74,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[STEP_BEFORE] PER_SERIES_X + CONTINUOUS"
+title = "[STEP_BEFORE] PER_SERIES_X + CONTINUOUS + stretch_range = [11.5, 13.5]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -95,7 +95,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[STEP_MIDDLE] SHARED_X + CONTINUOUS"
+title = "[STEP_MIDDLE] SHARED_X + CONTINUOUS + stretch_range = [12, 14]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -106,7 +106,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[STEP_MIDDLE] PER_SERIES_X + CONTINUOUS"
+title = "[STEP_MIDDLE] PER_SERIES_X + CONTINUOUS + stretch_range = [11.5, 13.5]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -127,7 +127,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[STEP_AFTER] SHARED_X + CONTINUOUS"
+title = "[STEP_AFTER] SHARED_X + CONTINUOUS + stretch_range = [12, 14]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -138,7 +138,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS"
+title = "[STEP_AFTER] PER_SERIES_X + CONTINUOUS + stretch_range = [11.5, 13.5]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -159,7 +159,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[SMOOTH_MONOTONE] SHARED_X + CONTINUOUS"
+title = "[SMOOTH_MONOTONE] SHARED_X + CONTINUOUS + stretch_range = [12, 14]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -170,7 +170,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_y6gyk")
-title = "[SMOOTH_MONOTONE] PER_SERIES_X + CONTINUOUS"
+title = "[SMOOTH_MONOTONE] PER_SERIES_X + CONTINUOUS + stretch_range = [11.5, 13.5]"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 

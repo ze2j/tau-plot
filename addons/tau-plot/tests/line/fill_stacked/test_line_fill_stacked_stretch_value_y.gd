@@ -40,6 +40,7 @@ func _setup_test_1() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.STACKED
 	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
 	fill.texture = GRADIENT_TEXTURE
 	fill.alpha = 0.5
@@ -50,7 +51,6 @@ func _setup_test_1() -> void:
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.SKIP_NEGATIVES
 	#line_config.gap_policy = TauLineConfig.GapPolicy.BRIDGE
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
@@ -109,6 +109,7 @@ func _setup_test_2() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.STACKED
 	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
 	fill.texture = GRADIENT_TEXTURE
 	fill.alpha = 0.5
@@ -118,7 +119,6 @@ func _setup_test_2() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.DIVERGING
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
@@ -177,6 +177,7 @@ func _setup_test_3() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.STACKED
 	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
 	fill.texture = GRADIENT_TEXTURE
 	fill.alpha = 0.5
@@ -186,7 +187,6 @@ func _setup_test_3() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.SIGNED_SUM
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
@@ -240,6 +240,7 @@ func _setup_test_4() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.STACKED
 	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
 	fill.texture = GRADIENT_TEXTURE
 	fill.alpha = 0.5
@@ -249,7 +250,6 @@ func _setup_test_4() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.SKIP_NEGATIVES
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
@@ -304,6 +304,7 @@ func _setup_test_5() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.STACKED
 	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
 	fill.texture = GRADIENT_TEXTURE
 	fill.alpha = 0.5
@@ -313,7 +314,6 @@ func _setup_test_5() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.DIVERGING
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
@@ -368,6 +368,7 @@ func _setup_test_6() -> void:
 	y_axis.tick_count_preferred = 10
 
 	var fill := TauLineFill.new()
+	fill.fill_mode = TauLineFill.FillMode.STACKED
 	fill.texture_mode = TauLineFill.FillTextureMode.STRETCH
 	fill.texture = GRADIENT_TEXTURE
 	fill.alpha = 0.5
@@ -377,7 +378,6 @@ func _setup_test_6() -> void:
 	line_config.mode = TauLineConfig.LineMode.STACKED
 	line_config.stacked_normalization = TauLineConfig.StackedNormalization.NONE
 	line_config.stacked_negative_policy = TauLineConfig.StackedNegativePolicy.SIGNED_SUM
-	line_config.fill_mode = TauLineConfig.FillMode.STACKED
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()

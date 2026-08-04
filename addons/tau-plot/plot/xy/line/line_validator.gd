@@ -94,79 +94,81 @@ class LineValidator extends RefCounted:
 				p_result.add_error("LineValidator: pane %d: unsupported line mode %d" % [p_pane_index, p_line_config.mode])
 
 
+	# Fill validation is per entry of TauLineStyle.fills, since each entry
+	# carries the whole fill for the series it cycles onto. A null entry takes
+	# the built-in defaults, which are always valid.
 	static func _validate_fill_constraints(p_pane_index: int, p_line_config: TauLineConfig, p_pane_cfg: TauPaneConfig, p_x_axis_cfg: TauAxisConfig, p_line_overlay_bindings: Array[TauXYSeriesBinding], p_result: ValidationResult) -> void:
-		_validate_custom_stretch_range(p_pane_index, p_line_config, p_x_axis_cfg, p_result)
+		var has_logarithmic_y := _has_logarithmic_y_axis(p_pane_cfg, p_line_overlay_bindings)
+		var fills: Array[TauLineFill] = p_line_config.style.fills
+		for i in range(fills.size()):
+			var fill: TauLineFill = fills[i]
+			if fill == null:
+				continue
 
-		if p_line_config.fill_mode == TauLineConfig.FillMode.STACKED:
-			_validate_stacked_fill(p_pane_index, p_line_config, p_result)
+			_validate_custom_stretch_range(p_pane_index, i, fill, p_x_axis_cfg, p_result)
 
-		if p_line_config.fill_mode != TauLineConfig.FillMode.TO_BASELINE:
-			return
-		if p_line_config.fill_baseline > 0.0:
-			return
-		# A non-positive baseline cannot be mapped on a logarithmic scale,
-		# so the fill is rejected as soon as any line series in this pane
-		# binds to such an axis.
+			match fill.fill_mode:
+				TauLineFill.FillMode.TO_BASELINE:
+					_validate_baseline_fill(p_pane_index, i, fill, has_logarithmic_y, p_result)
+				TauLineFill.FillMode.STACKED:
+					_validate_stacked_fill(p_pane_index, i, fill, p_line_config.mode, p_result)
+
+
+	static func _has_logarithmic_y_axis(p_pane_cfg: TauPaneConfig, p_line_overlay_bindings: Array[TauXYSeriesBinding]) -> bool:
 		for binding in p_line_overlay_bindings:
 			var y_axis_config: TauAxisConfig = p_pane_cfg.get_y_axis_config(binding.y_axis_id)
 			if y_axis_config.scale == TauAxisConfig.Scale.LOGARITHMIC:
-				p_result.add_error("LineValidator: pane %d: fill_mode TO_BASELINE requires fill_baseline > 0 on a logarithmic y axis, got %s" % [p_pane_index, p_line_config.fill_baseline])
-				return
+				return true
+		return false
 
 
-	static func _validate_stacked_fill(p_pane_index: int, p_line_config: TauLineConfig, p_result: ValidationResult) -> void:
-		if p_line_config.mode != TauLineConfig.LineMode.STACKED:
-			p_result.add_error("LineValidator: pane %d: fill_mode STACKED requires mode STACKED" % p_pane_index)
-
-		var style: TauLineStyle = p_line_config.style
-		for i in range(style.fills.size()):
-			var fill: TauLineFill = style.fills[i]
-			if fill == null:
-				continue
-			if fill.texture == null:
-				continue
-			if fill.texture_mode != TauLineFill.FillTextureMode.STRETCH:
-				continue
-			if fill.stretch_span != TauLineFill.FillStretchSpan.MAGNITUDE:
-				continue
-			p_result.add_error("LineValidator: pane %d: fills[%d]: MAGNITUDE stretch_span is not supported under fill_mode STACKED, the band has no baseline to measure from" % [p_pane_index, i])
+	# A non-positive baseline cannot be mapped on a logarithmic scale, so the
+	# fill is rejected as soon as any line series in this pane binds to such an
+	# axis. The fills array cycles onto series, so the offending pairing cannot
+	# be narrowed down to a single series here.
+	static func _validate_baseline_fill(p_pane_index: int, p_fill_index: int, p_fill: TauLineFill, p_has_logarithmic_y: bool, p_result: ValidationResult) -> void:
+		if not p_has_logarithmic_y:
+			return
+		if p_fill.fill_baseline > 0.0:
+			return
+		p_result.add_error("LineValidator: pane %d: fills[%d]: TO_BASELINE fill_mode requires fill_baseline > 0 on a logarithmic y axis, got %s" % [p_pane_index, p_fill_index, p_fill.fill_baseline])
 
 
-	# Only a STRETCH fill with a non-LINE span reads the CUSTOM window, so a
-	# null entry (built-in default, a LINE span) never counts. This single pass
-	# flags the misconfigurations of that window:
-	#   - no fill reads it, so CUSTOM has no effect and DOMAIN was meant.
-	#   - zero width, so a reader has no gradient to draw. DOMAIN can collapse
+	# The band is drawn between a layer and the one below, so it only exists
+	# when the overlay itself stacks, and it has no baseline for MAGNITUDE to
+	# measure from.
+	static func _validate_stacked_fill(p_pane_index: int, p_fill_index: int, p_fill: TauLineFill, p_line_mode: TauLineConfig.LineMode, p_result: ValidationResult) -> void:
+		if p_line_mode != TauLineConfig.LineMode.STACKED:
+			p_result.add_error("LineValidator: pane %d: fills[%d]: STACKED fill_mode requires mode STACKED" % [p_pane_index, p_fill_index])
+
+		if p_fill.texture == null:
+			return
+		if p_fill.texture_mode != TauLineFill.FillTextureMode.STRETCH:
+			return
+		if p_fill.stretch_span != TauLineFill.FillStretchSpan.MAGNITUDE:
+			return
+		p_result.add_error("LineValidator: pane %d: fills[%d]: MAGNITUDE stretch_span is not supported under STACKED fill_mode, the band has no baseline to measure from" % [p_pane_index, p_fill_index])
+
+
+	# Only a STRETCH fill with a non-LINE span reads the CUSTOM window. This
+	# single pass flags the misconfigurations of that window:
+	#   - the fill never reads it, so CUSTOM has no effect and DOMAIN was meant.
+	#   - zero width, so the reader has no gradient to draw. DOMAIN can collapse
 	#     the same way on flat data, but that is a runtime shape caught too
 	#     late here.
 	#   - VALUE_X on a categorical x axis, whose samples sit at category
 	#     centers with no continuous x to place the ends on. DOMAIN spans those
 	#     centers instead.
-	static func _validate_custom_stretch_range(p_pane_index: int, p_line_config: TauLineConfig, p_x_axis_cfg: TauAxisConfig, p_result: ValidationResult) -> void:
-		if p_line_config.stretch_range_policy != TauLineConfig.StretchRangePolicy.CUSTOM:
+	static func _validate_custom_stretch_range(p_pane_index: int, p_fill_index: int, p_fill: TauLineFill, p_x_axis_cfg: TauAxisConfig, p_result: ValidationResult) -> void:
+		if p_fill.stretch_range_policy != TauLineFill.StretchRangePolicy.CUSTOM:
 			return
 
-		var is_zero_width := p_line_config.stretch_range.x == p_line_config.stretch_range.y
-		var is_categorical_x := p_x_axis_cfg.type == TauAxisConfig.Type.CATEGORICAL
+		if p_fill.texture_mode != TauLineFill.FillTextureMode.STRETCH or p_fill.stretch_span == TauLineFill.FillStretchSpan.LINE:
+			p_result.add_error("LineValidator: pane %d: fills[%d]: CUSTOM stretch_range_policy is set but this fill never reads it, use DOMAIN or give the fill a VALUE_X, VALUE_Y or MAGNITUDE span" % [p_pane_index, p_fill_index])
+			return
 
-		var has_reader := false
-		var style: TauLineStyle = p_line_config.style
-		for i in range(style.fills.size()):
-			var fill: TauLineFill = style.fills[i]
-			if fill == null:
-				continue
-			if fill.texture_mode != TauLineFill.FillTextureMode.STRETCH:
-				continue
-			if fill.stretch_span == TauLineFill.FillStretchSpan.LINE:
-				continue
+		if p_fill.stretch_range.x == p_fill.stretch_range.y:
+			p_result.add_error("LineValidator: pane %d: fills[%d]: CUSTOM stretch_range is zero width (stretch_range.x == stretch_range.y), no gradient to draw" % [p_pane_index, p_fill_index])
 
-			has_reader = true
-
-			if is_zero_width:
-				p_result.add_error("LineValidator: pane %d: fills[%d]: CUSTOM stretch_range is zero width (stretch_range.x == stretch_range.y), no gradient to draw" % [p_pane_index, i])
-
-			if is_categorical_x and fill.stretch_span == TauLineFill.FillStretchSpan.VALUE_X:
-				p_result.add_error("LineValidator: pane %d: fills[%d]: CUSTOM stretch_range is not supported on a categorical x axis with VALUE_X span, use DOMAIN policy" % [p_pane_index, i])
-
-		if not has_reader:
-			p_result.add_error("LineValidator: pane %d: CUSTOM stretch_range_policy is set but no fill reads it, use DOMAIN or give a fill a VALUE_X, VALUE_Y or MAGNITUDE span" % p_pane_index)
+		if p_x_axis_cfg.type == TauAxisConfig.Type.CATEGORICAL and p_fill.stretch_span == TauLineFill.FillStretchSpan.VALUE_X:
+			p_result.add_error("LineValidator: pane %d: fills[%d]: CUSTOM stretch_range is not supported on a categorical x axis with VALUE_X span, use DOMAIN policy" % [p_pane_index, p_fill_index])

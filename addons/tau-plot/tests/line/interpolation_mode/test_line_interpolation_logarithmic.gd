@@ -40,7 +40,7 @@ func make_shared_x_continuous_plot(p_plot: TauPlot, p_title: String, p_interpola
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
-	line_config.interpolation_mode = p_interpolation
+	line_config.interpolation_modes = [p_interpolation]
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -83,7 +83,7 @@ func make_per_series_x_continuous_plot(p_plot: TauPlot, p_title: String, p_inter
 
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
-	line_config.interpolation_mode = p_interpolation
+	line_config.interpolation_modes = [p_interpolation]
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
