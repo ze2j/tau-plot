@@ -129,6 +129,9 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   chosen span. TILE samples the texture at native pixel size on screen,
 #   with a square-pixel-correct grid rotated around the pane center and
 #   translated in screen pixels, independent of pane shape.
+# - A fill mixes themed fields with user fields, so the constraints between
+#   them are checked here rather than by validation, once per resolved style
+#   and never per draw. A fill that breaks one still draws, degraded.
 class LineRenderer extends Control:
 	# Number of sub-segments inserted between two consecutive samples by
 	# SMOOTH_MONOTONE. The value balances visual smoothness on a typical
@@ -224,9 +227,11 @@ class LineRenderer extends Control:
 		return _line_config
 
 
-	## Sets the resolved [TauLineStyle] used for subsequent draws.
+	## Sets the resolved [TauLineStyle] used for subsequent draws, and reports
+	## the fill settings that cannot be drawn as configured.
 	func set_resolved_line_style(p_style: TauLineStyle) -> void:
 		_line_style = p_style
+		_report_fill_issues()
 
 
 	## Sets the resolved [TauXYStyle] used for subsequent draws.
@@ -371,9 +376,10 @@ class LineRenderer extends Control:
 		var fill_uv_ctx: _FillUVContext = _resolve_fill_uv_context(fill, y_axis_id)
 
 		# STACKED fill needs a per-vertex lower edge, the painted top of the layer
-		# below. It requires stacked mode, so p_stacked is non-null whenever this
-		# is set. TO_BASELINE and NONE leave the lower run empty and unused.
-		var stacked_fill: bool = fill.fill_mode == TauLineFill.FillMode.STACKED
+		# below, which exists only in stacked mode. The mismatch is reported at
+		# resolve time and the fill is dropped here. TO_BASELINE and NONE leave the
+		# lower run empty and unused.
+		var stacked_fill: bool = fill.fill_mode == TauLineFill.FillMode.STACKED and p_stacked != null
 
 		var independent_y: PackedFloat64Array
 		if p_stacked == null:
@@ -798,6 +804,90 @@ class LineRenderer extends Control:
 		if segments.size() >= 2:
 			draw_multiline_colors(segments, segment_colors, p_width_px)
 
+
+	####################################################################################################
+	# Resolved fill checks
+	####################################################################################################
+
+	# Reports the fill settings that cannot be drawn as configured. Each rule
+	# reads fields the theme writes next to fields only the user writes, so it
+	# is decidable on the resolved cycle and nowhere earlier. Every message
+	# names the pane, the series and the position in the cycle the fill was
+	# read from.
+	func _report_fill_issues() -> void:
+		# An empty cycle leaves every series on the built-in defaults, which
+		# paint nothing.
+		if _line_style.fills.is_empty():
+			return
+
+		for i in range(_get_line_series_count()):
+			var series_id := _get_line_series_id(i)
+			var global_series_index := _get_global_series_index(i)
+			var cycle_index: int = global_series_index % _line_style.fills.size()
+			var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
+
+			_report_stretch_range_issues(series_id, cycle_index, fill)
+
+			match fill.fill_mode:
+				TauLineFill.FillMode.TO_BASELINE:
+					_report_baseline_issues(series_id, cycle_index, fill)
+				TauLineFill.FillMode.STACKED:
+					_report_stacked_fill_issues(series_id, cycle_index, fill)
+
+
+	func _fill_issue_prefix(p_series_id: int, p_cycle_index: int) -> String:
+		return "LineRenderer: pane %d: series %d: fills[%d]" % [_pane_index, p_series_id, p_cycle_index]
+
+
+	# Only a STRETCH fill with a non-LINE span reads the CUSTOM window. This
+	# single pass flags the misconfigurations of that window:
+	#   - the fill never reads it, so CUSTOM has no effect and DOMAIN was meant.
+	#     Harmless, the fill draws as authored.
+	#   - zero width, so the reader has no gradient to draw and falls back to
+	#     the texture middle. DOMAIN can collapse the same way on flat data,
+	#     but that is a data shape, not a setting.
+	#   - VALUE_X on a categorical x axis, whose samples sit at category
+	#     centers with no continuous x to place the ends on. DOMAIN spans those
+	#     centers instead.
+	func _report_stretch_range_issues(p_series_id: int, p_cycle_index: int, p_fill: TauLineFill) -> void:
+		if p_fill.stretch_range_policy != TauLineFill.StretchRangePolicy.CUSTOM:
+			return
+
+		if p_fill.texture_mode != TauLineFill.FillTextureMode.STRETCH or p_fill.stretch_span == TauLineFill.FillStretchSpan.LINE:
+			push_warning("%s: CUSTOM stretch_range_policy is set but this fill never reads it, use DOMAIN or give the fill a VALUE_X, VALUE_Y or MAGNITUDE span" % _fill_issue_prefix(p_series_id, p_cycle_index))
+			return
+
+		if p_fill.stretch_range.x == p_fill.stretch_range.y:
+			push_error("%s: CUSTOM stretch_range is zero width (stretch_range.x == stretch_range.y), no gradient to draw" % _fill_issue_prefix(p_series_id, p_cycle_index))
+
+		if _get_x_axis_config().type == TauAxisConfig.Type.CATEGORICAL and p_fill.stretch_span == TauLineFill.FillStretchSpan.VALUE_X:
+			push_error("%s: CUSTOM stretch_range is not supported on a categorical x axis with VALUE_X span, use DOMAIN policy" % _fill_issue_prefix(p_series_id, p_cycle_index))
+
+
+	# The baseline is mapped like a data value on the series y axis, so a
+	# logarithmic scale cannot take it at or below zero.
+	func _report_baseline_issues(p_series_id: int, p_cycle_index: int, p_fill: TauLineFill) -> void:
+		if _is_y_value_valid_for_scale(p_series_id, p_fill.fill_baseline):
+			return
+		push_error("%s: TO_BASELINE fill_mode requires fill_baseline > 0 on a logarithmic y axis, got %s" % [_fill_issue_prefix(p_series_id, p_cycle_index), p_fill.fill_baseline])
+
+
+	# The band is drawn between a layer and the one below, so it only exists
+	# when the overlay itself stacks, and it has no baseline for MAGNITUDE to
+	# measure from.
+	func _report_stacked_fill_issues(p_series_id: int, p_cycle_index: int, p_fill: TauLineFill) -> void:
+		if _line_config.mode != TauLineConfig.LineMode.STACKED:
+			push_error("%s: STACKED fill_mode requires mode STACKED, the fill is dropped" % _fill_issue_prefix(p_series_id, p_cycle_index))
+
+		if p_fill.texture == null:
+			return
+		if p_fill.texture_mode != TauLineFill.FillTextureMode.STRETCH:
+			return
+		if p_fill.stretch_span != TauLineFill.FillStretchSpan.MAGNITUDE:
+			return
+		push_error("%s: MAGNITUDE stretch_span is not supported under STACKED fill_mode, the band has no baseline to measure from" % _fill_issue_prefix(p_series_id, p_cycle_index))
+
+
 	####################################################################################################
 	# Area fill
 	####################################################################################################
@@ -847,10 +937,11 @@ class LineRenderer extends Control:
 	# context with texture = null when p_fill's mode is NONE or when p_fill has
 	# no texture, so the caller skips UV construction entirely. The value spans
 	# read the vertex on their own axis, so they apply unchanged to the band
-	# edges of a STACKED fill. MAGNITUDE never reaches here under STACKED: the
-	# validator rejects a MAGNITUDE textured STRETCH fill when the band fill is
-	# active. texture_mode and stretch_span are read directly from p_fill by the
-	# strip UV builder and are not stored on the context.
+	# edges of a STACKED fill. MAGNITUDE is the exception: it measures from
+	# fill_baseline, which the band does not sit on, so the pairing is reported
+	# at resolve time and the colors it produces mean nothing. texture_mode and
+	# stretch_span are read directly from p_fill by the strip UV builder and are
+	# not stored on the context.
 	func _resolve_fill_uv_context(p_fill: TauLineFill, p_y_axis_id: AxisId) -> _FillUVContext:
 		var ctx := _FillUVContext.new()
 		if p_fill.fill_mode == TauLineFill.FillMode.NONE:
@@ -916,9 +1007,9 @@ class LineRenderer extends Control:
 				p_ctx.range_px0 = absf(_layout.map_y_to_px(_pane_index, baseline + value_range.x, p_y_axis_id) - p_ctx.baseline_px)
 				p_ctx.range_px1 = absf(_layout.map_y_to_px(_pane_index, baseline + value_range.y, p_y_axis_id) - p_ctx.baseline_px)
 
-		# Exact equality, so a near flat range stays a steep gradient. Only a
-		# DOMAIN range on flat data reaches here, CUSTOM degenerate is
-		# rejected by LineValidator.
+		# Exact equality, so a near flat range stays a steep gradient. A DOMAIN
+		# range on flat data and a zero width CUSTOM window both land here and
+		# sample the texture middle.
 		p_ctx.degenerate = p_ctx.range_px0 == p_ctx.range_px1
 
 
