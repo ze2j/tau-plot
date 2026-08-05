@@ -45,7 +45,6 @@ enum InterpolationMode
 	SMOOTH_MONOTONE    ## Fritsch-Carlson monotone piecewise cubic Hermite curve.
 }
 
-const DEFAULT_INTERPOLATION_MODES: Array[InterpolationMode] = [InterpolationMode.LINEAR]
 ## Per-series cycle of interpolation modes. Each entry sets the mode for one
 ## series, with the array indexed cyclically by series index using modulo:
 ## series [code]i[/code] reads entry
@@ -75,7 +74,6 @@ enum GapPolicy
 	BRIDGE   ## Drop invalid samples and connect the surrounding valid samples.
 }
 
-const DEFAULT_GAP_POLICIES: Array[GapPolicy] = [GapPolicy.SKIP]
 ## Per-series cycle of gap policies. Each entry sets the policy for one
 ## series, with the array indexed cyclically by series index using modulo:
 ## series [code]i[/code] reads entry [code]i % gap_policies.size()[/code]. An
@@ -98,7 +96,6 @@ const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_neg
 @export var stacked_negative_policy: StackedNegativePolicy = StackedNegativePolicy.SIGNED_SUM
 
 
-const DEFAULT_HOVER_MAX_DISTANCES_PX: Array[int] = [10]
 ## Per-series cycle of maximum pixel distances from the cursor to a sample
 ## position for that sample to be considered a hover hit. Each entry sets the
 ## distance for one series, with the array indexed cyclically by series index
@@ -140,14 +137,14 @@ func _init() -> void:
 ## Returns the resolved gap policy for the given series index.
 func get_series_gap_policy(p_series_index: int) -> GapPolicy:
 	if gap_policies.is_empty():
-		return DEFAULT_GAP_POLICIES[0]
+		return GapPolicy.SKIP
 	return gap_policies[p_series_index % gap_policies.size()]
 
 
 ## Returns the resolved interpolation mode for the given series index.
 func get_series_interpolation(p_series_index: int) -> InterpolationMode:
 	if interpolation_modes.is_empty():
-		return DEFAULT_INTERPOLATION_MODES[0]
+		return InterpolationMode.LINEAR
 	return interpolation_modes[p_series_index % interpolation_modes.size()]
 
 
@@ -155,7 +152,7 @@ func get_series_interpolation(p_series_index: int) -> InterpolationMode:
 ## result is clamped to be non-negative.
 func get_series_hover_distance(p_series_index: int) -> int:
 	if hover_max_distances_px.is_empty():
-		return DEFAULT_HOVER_MAX_DISTANCES_PX[0]
+		return 10
 	return max(hover_max_distances_px[p_series_index % hover_max_distances_px.size()], 0)
 
 

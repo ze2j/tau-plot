@@ -30,7 +30,6 @@ class_name TauLineStyle extends Resource
 ## series index using modulo: series [code]i[/code] reads entry
 ## [code]i % line_widths_px.size()[/code]. An empty array is treated as all
 ## series rendered at [code]2.0[/code] pixels.
-const DEFAULT_LINE_WIDTHS_PX: Array[float] = [2.0]
 @export var line_widths_px: Array[float] = [2.0]:
 	set(value):
 		line_widths_px = value
@@ -47,7 +46,6 @@ const DEFAULT_LINE_WIDTHS_PX: Array[float] = [2.0]
 ## At draw time, the resolved per-series hovered width is clamped to be at
 ## least the resolved per-series base width from [member line_widths_px], so
 ## a thicker series never becomes thinner on hover.
-const DEFAULT_HOVERED_LINE_WIDTHS_PX: Array[float] = [3.0]
 @export var hovered_line_widths_px: Array[float] = [3.0]:
 	set(value):
 		hovered_line_widths_px = value
@@ -60,7 +58,6 @@ const DEFAULT_HOVERED_LINE_WIDTHS_PX: Array[float] = [3.0]
 ## produces a solid line for that series. Any positive entry switches that
 ## series to dashed rendering with alternating on-off segments of that pixel
 ## length. An empty array is treated as all series solid.
-const DEFAULT_DASH_LENGTHS_PX: Array[int] = [0]
 @export var dash_lengths_px: Array[int] = [0]:
 	set(value):
 		dash_lengths_px = value
@@ -74,7 +71,6 @@ const DEFAULT_DASH_LENGTHS_PX: Array[int] = [0]
 ## and each resolved entry keeps every themed field the matching
 ## [TauLineFill] leaves unset. Leave the array empty to take the themed cycle
 ## as is, or use a null entry to leave one position to the theme.
-const DEFAULT_FILLS: Array[TauLineFill] = []
 @export var fills: Array[TauLineFill] = []:
 	set(value):
 		fills = value
@@ -103,12 +99,11 @@ static var _SHARED_DEFAULT_FILL: TauLineFill = null
 
 ## Returns the resolved line width in pixels for the given series index.
 ##
-## An empty [member line_widths_px] returns the default
-## [constant DEFAULT_LINE_WIDTHS_PX] entry. The result is clamped to be
-## non-negative.
+## An empty [member line_widths_px] returns [code]2.0[/code]. The result is
+## clamped to be non-negative.
 func get_series_width_px(p_series_index: int) -> float:
 	if line_widths_px.is_empty():
-		return DEFAULT_LINE_WIDTHS_PX[0]
+		return 2.0
 	var entry: float = line_widths_px[p_series_index % line_widths_px.size()]
 	return max(entry, 0.0)
 

@@ -25,62 +25,52 @@ class_name TauLegendStyle extends Resource
 ################################################################################################
 
 
-const DEFAULT_FONT: Font = null
-@export var font: Font = DEFAULT_FONT:
+@export var font: Font = null:
 	set(value):
 		font = value
 		_overridden[&"font"] = true
 
-const DEFAULT_FONT_SIZE: int = 14
-@export var font_size: int = DEFAULT_FONT_SIZE:
+@export var font_size: int = 14:
 	set(value):
 		font_size = value
 		_overridden[&"font_size"] = true
 
-const DEFAULT_FONT_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
-@export var font_color: Color = DEFAULT_FONT_COLOR:
+@export var font_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		font_color = value
 		_overridden[&"font_color"] = true
 
-const DEFAULT_KEY_SIZE_PX: int = 12
-@export var key_size_px: int = DEFAULT_KEY_SIZE_PX:
+@export var key_size_px: int = 12:
 	set(value):
 		key_size_px = value
 		_overridden[&"key_size_px"] = true
 
-const DEFAULT_KEY_GAP_PX: int = 2
-@export var key_gap_px: int = DEFAULT_KEY_GAP_PX:
+@export var key_gap_px: int = 2:
 	set(value):
 		key_gap_px = value
 		_overridden[&"key_gap_px"] = true
 
-const DEFAULT_KEY_LABEL_GAP_PX: int = 6
-@export var key_label_gap_px: int = DEFAULT_KEY_LABEL_GAP_PX:
+@export var key_label_gap_px: int = 6:
 	set(value):
 		key_label_gap_px = value
 		_overridden[&"key_label_gap_px"] = true
 
-const DEFAULT_ITEM_GAP_PX: int = 8
-@export var item_gap_px: int = DEFAULT_ITEM_GAP_PX:
+@export var item_gap_px: int = 8:
 	set(value):
 		item_gap_px = value
 		_overridden[&"item_gap_px"] = true
 
-const DEFAULT_BACKGROUND: StyleBox = null
-@export var background: StyleBox = DEFAULT_BACKGROUND:
+@export var background: StyleBox = null:
 	set(value):
 		background = value
 		_overridden[&"background"] = true
 
-const DEFAULT_MARGIN_PX: int = 8
-@export var margin_px: int = DEFAULT_MARGIN_PX:
+@export var margin_px: int = 8:
 	set(value):
 		margin_px = value
 		_overridden[&"margin_px"] = true
 
-const DEFAULT_MAX_SIZE_PX: int = 0  # 0 means no constraint
-@export var max_size_px: int = DEFAULT_MAX_SIZE_PX:
+@export var max_size_px: int = 0:  # 0 means no constraint
 	set(value):
 		max_size_px = value
 		_overridden[&"max_size_px"] = true

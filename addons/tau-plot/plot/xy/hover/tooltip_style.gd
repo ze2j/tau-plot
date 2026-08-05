@@ -39,37 +39,32 @@ class_name TauTooltipStyle extends Resource
 		font = value
 		_overridden[&"font"] = true
 
-const DEFAULT_FONT_SIZE: int = 14
 ## Tooltip text font size.
-@export var font_size: int = DEFAULT_FONT_SIZE:
+@export var font_size: int = 14:
 	set(value):
 		font_size = value
 		_overridden[&"font_size"] = true
 
-const DEFAULT_FONT_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
 ## Tooltip text color.
-@export var font_color: Color = DEFAULT_FONT_COLOR:
+@export var font_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		font_color = value
 		_overridden[&"font_color"] = true
 
-const DEFAULT_PADDING_PX: int = 8
 ## Padding inside the tooltip popup (px).
-@export var padding_px: int = DEFAULT_PADDING_PX:
+@export var padding_px: int = 8:
 	set(value):
 		padding_px = value
 		_overridden[&"padding_px"] = true
 
-const DEFAULT_OFFSET_PX: Vector2i = Vector2i(12, -12)
 ## Offset from the anchor point (data point or cursor) in pixels.
-@export var offset_px: Vector2i = DEFAULT_OFFSET_PX:
+@export var offset_px: Vector2i = Vector2i(12, -12):
 	set(value):
 		offset_px = value
 		_overridden[&"offset_px"] = true
 
-const DEFAULT_MAX_WIDTH_PX: int = 300
 ## Maximum tooltip width before text wraps (px). 0 = no limit.
-@export var max_width_px: int = DEFAULT_MAX_WIDTH_PX:
+@export var max_width_px: int = 300:
 	set(value):
 		max_width_px = value
 		_overridden[&"max_width_px"] = true

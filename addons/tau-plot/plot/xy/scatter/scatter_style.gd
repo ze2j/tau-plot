@@ -37,54 +37,39 @@ enum MarkerShape
 #          `has_layout_affecting_change()`.
 ################################################################################################
 
-const DEFAULT_MARKER_SIZE_PX: float = 12.0
-@export var marker_size_px: float = DEFAULT_MARKER_SIZE_PX:
+@export var marker_size_px: float = 12.0:
 	set(value):
 		marker_size_px = value
 		_overridden[&"marker_size_px"] = true
 
-const DEFAULT_OUTLINE_WIDTH_PX: float = 1.0
-@export var outline_width_px: float = DEFAULT_OUTLINE_WIDTH_PX:
+@export var outline_width_px: float = 1.0:
 	set(value):
 		outline_width_px = value
 		_overridden[&"outline_width_px"] = true
 
-const DEFAULT_OUTLINE_COLOR: Color = Color(0, 0, 0, 1)
-@export var outline_color: Color = DEFAULT_OUTLINE_COLOR:
+@export var outline_color: Color = Color(0, 0, 0, 1):
 	set(value):
 		outline_color = value
 		_overridden[&"outline_color"] = true
 
-const DEFAULT_HOVERED_MARKER_SIZE_PX: float = 16.0
 ## Marker size when hovered (px).
-@export var hovered_marker_size_px: float = DEFAULT_HOVERED_MARKER_SIZE_PX:
+@export var hovered_marker_size_px: float = 16.0:
 	set(value):
 		hovered_marker_size_px = value
 		_overridden[&"hovered_marker_size_px"] = true
 
-const DEFAULT_HOVERED_OUTLINE_WIDTH_PX: float = 2.0
 ## Outline width when hovered (px).
-@export var hovered_outline_width_px: float = DEFAULT_HOVERED_OUTLINE_WIDTH_PX:
+@export var hovered_outline_width_px: float = 2.0:
 	set(value):
 		hovered_outline_width_px = value
 		_overridden[&"hovered_outline_width_px"] = true
 
-const DEFAULT_HOVERED_OUTLINE_COLOR: Color = Color(1, 1, 1, 1)
 ## Outline color when hovered.
-@export var hovered_outline_color: Color = DEFAULT_HOVERED_OUTLINE_COLOR:
+@export var hovered_outline_color: Color = Color(1, 1, 1, 1):
 	set(value):
 		hovered_outline_color = value
 		_overridden[&"hovered_outline_color"] = true
 
-const DEFAULT_MARKER_SHAPES: Array[MarkerShape] = [
-	MarkerShape.CIRCLE,
-	MarkerShape.SQUARE,
-	MarkerShape.TRIANGLE_UP,
-	MarkerShape.TRIANGLE_DOWN,
-	MarkerShape.DIAMOND,
-	MarkerShape.CROSS,
-	MarkerShape.PLUS,
-]
 @export var marker_shapes: Array[MarkerShape] = [
 	MarkerShape.CIRCLE,
 	MarkerShape.SQUARE,

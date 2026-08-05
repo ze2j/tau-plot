@@ -27,26 +27,22 @@ class_name TauXYStyle extends Resource
 #          `has_layout_affecting_change()`.
 ################################################################################################
 
-const DEFAULT_AXIS_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
-@export var axis_color: Color = DEFAULT_AXIS_COLOR:
+@export var axis_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		axis_color = value
 		_overridden[&"axis_color"] = true
 
-const DEFAULT_LABEL_FONT: Font = null
-@export var label_font: Font = DEFAULT_LABEL_FONT:
+@export var label_font: Font = null:
 	set(value):
 		label_font = value
 		_overridden[&"label_font"] = true
 
-const DEFAULT_LABEL_FONT_SIZE: int = 16
-@export var label_font_size: int = DEFAULT_LABEL_FONT_SIZE:
+@export var label_font_size: int = 16:
 	set(value):
 		label_font_size = value
 		_overridden[&"label_font_size"] = true
 
-const DEFAULT_LABEL_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
-@export var label_color: Color = DEFAULT_LABEL_COLOR:
+@export var label_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		label_color = value
 		_overridden[&"label_color"] = true
@@ -57,26 +53,22 @@ const DEFAULT_LABEL_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
 ## axis is placed on a horizontal or vertical edge.
 ## - length: how far the tick protrudes from the axis line (perpendicular to it).
 ## - thickness: stroke width of the tick mark (passed to draw_line).
-const DEFAULT_X_MAJOR_TICK_LENGTH_PX: int = 4
-@export var x_major_tick_length_px: int = DEFAULT_X_MAJOR_TICK_LENGTH_PX:
+@export var x_major_tick_length_px: int = 4:
 	set(value):
 		x_major_tick_length_px = value
 		_overridden[&"x_major_tick_length_px"] = true
 
-const DEFAULT_X_MAJOR_TICK_THICKNESS_PX: int = 1
-@export var x_major_tick_thickness_px: int = DEFAULT_X_MAJOR_TICK_THICKNESS_PX:
+@export var x_major_tick_thickness_px: int = 1:
 	set(value):
 		x_major_tick_thickness_px = value
 		_overridden[&"x_major_tick_thickness_px"] = true
 
-const DEFAULT_Y_MAJOR_TICK_LENGTH_PX: int = 4
-@export var y_major_tick_length_px: int = DEFAULT_Y_MAJOR_TICK_LENGTH_PX:
+@export var y_major_tick_length_px: int = 4:
 	set(value):
 		y_major_tick_length_px = value
 		_overridden[&"y_major_tick_length_px"] = true
 
-const DEFAULT_Y_MAJOR_TICK_THICKNESS_PX: int = 1
-@export var y_major_tick_thickness_px: int = DEFAULT_Y_MAJOR_TICK_THICKNESS_PX:
+@export var y_major_tick_thickness_px: int = 1:
 	set(value):
 		y_major_tick_thickness_px = value
 		_overridden[&"y_major_tick_thickness_px"] = true
@@ -84,77 +76,57 @@ const DEFAULT_Y_MAJOR_TICK_THICKNESS_PX: int = 1
 ## Minor tick dimensions. The length is derived from the major tick length by
 ## multiplying it with minor_tick_length_ratio (shared across both axes).
 ## Thickness is independent per axis.
-const DEFAULT_MINOR_TICK_LENGTH_RATIO: float = 0.5
-@export var minor_tick_length_ratio: float = DEFAULT_MINOR_TICK_LENGTH_RATIO:
+@export var minor_tick_length_ratio: float = 0.5:
 	set(value):
 		minor_tick_length_ratio = value
 		_overridden[&"minor_tick_length_ratio"] = true
 
-const DEFAULT_X_MINOR_TICK_THICKNESS_PX: int = 1
-@export var x_minor_tick_thickness_px: int = DEFAULT_X_MINOR_TICK_THICKNESS_PX:
+@export var x_minor_tick_thickness_px: int = 1:
 	set(value):
 		x_minor_tick_thickness_px = value
 		_overridden[&"x_minor_tick_thickness_px"] = true
 
-const DEFAULT_Y_MINOR_TICK_THICKNESS_PX: int = 1
-@export var y_minor_tick_thickness_px: int = DEFAULT_Y_MINOR_TICK_THICKNESS_PX:
+@export var y_minor_tick_thickness_px: int = 1:
 	set(value):
 		y_minor_tick_thickness_px = value
 		_overridden[&"y_minor_tick_thickness_px"] = true
 
-const DEFAULT_X_TICK_X_LABEL_GAP_PX: int = 4
-@export var x_tick_x_label_gap_px: int = DEFAULT_X_TICK_X_LABEL_GAP_PX:
+@export var x_tick_x_label_gap_px: int = 4:
 	set(value):
 		x_tick_x_label_gap_px = value
 		_overridden[&"x_tick_x_label_gap_px"] = true
 
-const DEFAULT_Y_TICK_Y_LABEL_GAP_PX: int = 4
-@export var y_tick_y_label_gap_px: int = DEFAULT_Y_TICK_Y_LABEL_GAP_PX:
+@export var y_tick_y_label_gap_px: int = 4:
 	set(value):
 		y_tick_y_label_gap_px = value
 		_overridden[&"y_tick_y_label_gap_px"] = true
 
-const DEFAULT_PADDING_LEFT_PX: int = 4
-@export var padding_left_px: int = DEFAULT_PADDING_LEFT_PX:
+@export var padding_left_px: int = 4:
 	set(value):
 		padding_left_px = value
 		_overridden[&"padding_left_px"] = true
 
-const DEFAULT_PADDING_RIGHT_PX: int = 4
-@export var padding_right_px: int = DEFAULT_PADDING_RIGHT_PX:
+@export var padding_right_px: int = 4:
 	set(value):
 		padding_right_px = value
 		_overridden[&"padding_right_px"] = true
 
-const DEFAULT_PADDING_TOP_PX: int = 4
-@export var padding_top_px: int = DEFAULT_PADDING_TOP_PX:
+@export var padding_top_px: int = 4:
 	set(value):
 		padding_top_px = value
 		_overridden[&"padding_top_px"] = true
 
-const DEFAULT_PADDING_BOTTOM_PX: int = 4
-@export var padding_bottom_px: int = DEFAULT_PADDING_BOTTOM_PX:
+@export var padding_bottom_px: int = 4:
 	set(value):
 		padding_bottom_px = value
 		_overridden[&"padding_bottom_px"] = true
 
-const DEFAULT_PANE_GAP_PX: int = 4
-@export var pane_gap_px: int = DEFAULT_PANE_GAP_PX:
+@export var pane_gap_px: int = 4:
 	set(value):
 		pane_gap_px = value
 		_overridden[&"pane_gap_px"] = true
 
 ## Plot-wide series color palette.
-const DEFAULT_SERIES_COLORS: Array[Color] = [
-	Color(0.306, 0.475, 0.655),
-	Color(0.882, 0.341, 0.349),
-	Color(0.349, 0.631, 0.31),
-	Color(0.949, 0.557, 0.169),
-	Color(0.729, 0.69, 0.675),
-	Color(0.5, 0.416, 0.955),
-	Color(0.612, 0.459, 0.373),
-	Color(0.929, 0.888, 0.282),
-]
 @export var series_colors: Array[Color] = [
 	Color(0.306, 0.475, 0.655),
 	Color(0.882, 0.341, 0.349),
@@ -170,8 +142,7 @@ const DEFAULT_SERIES_COLORS: Array[Color] = [
 		_overridden[&"series_colors"] = true
 
 ## Plot-wide series alpha (0.0-1.0).
-const DEFAULT_SERIES_ALPHA: float = 1.0
-@export var series_alpha: float = DEFAULT_SERIES_ALPHA:
+@export var series_alpha: float = 1.0:
 	set(value):
 		series_alpha = value
 		_overridden[&"series_alpha"] = true

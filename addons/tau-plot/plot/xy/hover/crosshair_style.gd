@@ -14,23 +14,20 @@ class_name TauCrosshairStyle extends Resource
 #          `apply_overrides_from()`.
 ################################################################################################
 
-const DEFAULT_COLOR: Color = Color(1.0, 1.0, 1.0, 0.4)
 ## Crosshair line color.
-@export var color: Color = DEFAULT_COLOR:
+@export var color: Color = Color(1.0, 1.0, 1.0, 0.4):
 	set(value):
 		color = value
 		_overridden[&"color"] = true
 
-const DEFAULT_THICKNESS_PX: int = 1
 ## Crosshair line thickness (px).
-@export var thickness_px: int = DEFAULT_THICKNESS_PX:
+@export var thickness_px: int = 1:
 	set(value):
 		thickness_px = value
 		_overridden[&"thickness_px"] = true
 
-const DEFAULT_DASH_PX: int = 4
 ## Crosshair dash length. 0 = solid line.
-@export var dash_px: int = DEFAULT_DASH_PX:
+@export var dash_px: int = 4:
 	set(value):
 		dash_px = value
 		_overridden[&"dash_px"] = true

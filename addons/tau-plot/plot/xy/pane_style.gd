@@ -29,20 +29,17 @@ class_name TauPaneStyle extends Resource
 # X axis major grid lines
 ####################################################################################################
 
-const DEFAULT_X_MAJOR_GRIDLINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.15)
-@export var x_major_grid_line_color: Color = DEFAULT_X_MAJOR_GRIDLINE_COLOR:
+@export var x_major_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.15):
 	set(value):
 		x_major_grid_line_color = value
 		_overridden[&"x_major_grid_line_color"] = true
 
-const DEFAULT_X_MAJOR_GRIDLINE_THICKNESS_PX: int = 1
-@export var x_major_grid_line_thickness_px: int = DEFAULT_X_MAJOR_GRIDLINE_THICKNESS_PX:
+@export var x_major_grid_line_thickness_px: int = 1:
 	set(value):
 		x_major_grid_line_thickness_px = value
 		_overridden[&"x_major_grid_line_thickness_px"] = true
 
-const DEFAULT_X_MAJOR_GRIDLINE_DASH_PX: int = 0
-@export var x_major_grid_line_dash_px: int = DEFAULT_X_MAJOR_GRIDLINE_DASH_PX:
+@export var x_major_grid_line_dash_px: int = 0:
 	set(value):
 		x_major_grid_line_dash_px = value
 		_overridden[&"x_major_grid_line_dash_px"] = true
@@ -52,20 +49,17 @@ const DEFAULT_X_MAJOR_GRIDLINE_DASH_PX: int = 0
 # X axis minor grid lines
 ####################################################################################################
 
-const DEFAULT_X_MINOR_GRIDLINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.08)
-@export var x_minor_grid_line_color: Color = DEFAULT_X_MINOR_GRIDLINE_COLOR:
+@export var x_minor_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.08):
 	set(value):
 		x_minor_grid_line_color = value
 		_overridden[&"x_minor_grid_line_color"] = true
 
-const DEFAULT_X_MINOR_GRIDLINE_THICKNESS_PX: int = 1
-@export var x_minor_grid_line_thickness_px: int = DEFAULT_X_MINOR_GRIDLINE_THICKNESS_PX:
+@export var x_minor_grid_line_thickness_px: int = 1:
 	set(value):
 		x_minor_grid_line_thickness_px = value
 		_overridden[&"x_minor_grid_line_thickness_px"] = true
 
-const DEFAULT_X_MINOR_GRIDLINE_DASH_PX: int = 0
-@export var x_minor_grid_line_dash_px: int = DEFAULT_X_MINOR_GRIDLINE_DASH_PX:
+@export var x_minor_grid_line_dash_px: int = 0:
 	set(value):
 		x_minor_grid_line_dash_px = value
 		_overridden[&"x_minor_grid_line_dash_px"] = true
@@ -75,20 +69,17 @@ const DEFAULT_X_MINOR_GRIDLINE_DASH_PX: int = 0
 # Y axis major grid lines
 ####################################################################################################
 
-const DEFAULT_Y_MAJOR_GRIDLINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.15)
-@export var y_major_grid_line_color: Color = DEFAULT_Y_MAJOR_GRIDLINE_COLOR:
+@export var y_major_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.15):
 	set(value):
 		y_major_grid_line_color = value
 		_overridden[&"y_major_grid_line_color"] = true
 
-const DEFAULT_Y_MAJOR_GRIDLINE_THICKNESS_PX: int = 1
-@export var y_major_grid_line_thickness_px: int = DEFAULT_Y_MAJOR_GRIDLINE_THICKNESS_PX:
+@export var y_major_grid_line_thickness_px: int = 1:
 	set(value):
 		y_major_grid_line_thickness_px = value
 		_overridden[&"y_major_grid_line_thickness_px"] = true
 
-const DEFAULT_Y_MAJOR_GRIDLINE_DASH_PX: int = 0
-@export var y_major_grid_line_dash_px: int = DEFAULT_Y_MAJOR_GRIDLINE_DASH_PX:
+@export var y_major_grid_line_dash_px: int = 0:
 	set(value):
 		y_major_grid_line_dash_px = value
 		_overridden[&"y_major_grid_line_dash_px"] = true
@@ -98,20 +89,17 @@ const DEFAULT_Y_MAJOR_GRIDLINE_DASH_PX: int = 0
 # Y axis minor grid lines
 ####################################################################################################
 
-const DEFAULT_Y_MINOR_GRIDLINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.08)
-@export var y_minor_grid_line_color: Color = DEFAULT_Y_MINOR_GRIDLINE_COLOR:
+@export var y_minor_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.08):
 	set(value):
 		y_minor_grid_line_color = value
 		_overridden[&"y_minor_grid_line_color"] = true
 
-const DEFAULT_Y_MINOR_GRIDLINE_THICKNESS_PX: int = 1
-@export var y_minor_grid_line_thickness_px: int = DEFAULT_Y_MINOR_GRIDLINE_THICKNESS_PX:
+@export var y_minor_grid_line_thickness_px: int = 1:
 	set(value):
 		y_minor_grid_line_thickness_px = value
 		_overridden[&"y_minor_grid_line_thickness_px"] = true
 
-const DEFAULT_Y_MINOR_GRIDLINE_DASH_PX: int = 0
-@export var y_minor_grid_line_dash_px: int = DEFAULT_Y_MINOR_GRIDLINE_DASH_PX:
+@export var y_minor_grid_line_dash_px: int = 0:
 	set(value):
 		y_minor_grid_line_dash_px = value
 		_overridden[&"y_minor_grid_line_dash_px"] = true

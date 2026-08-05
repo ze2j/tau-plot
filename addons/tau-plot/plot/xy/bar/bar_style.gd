@@ -24,14 +24,12 @@ class_name TauBarStyle extends Resource
 #          `has_layout_affecting_change()`.
 ################################################################################################
 
-const DEFAULT_BAR_WIDTH_PX: int = 64
-@export var bar_width_px: int = DEFAULT_BAR_WIDTH_PX:
+@export var bar_width_px: int = 64:
 	set(value):
 		bar_width_px = value
 		_overridden[&"bar_width_px"] = true
 
-const DEFAULT_BAR_INTRAGROUP_GAP_PX: int = 0
-@export var bar_intragroup_gap_px: int = DEFAULT_BAR_INTRAGROUP_GAP_PX:
+@export var bar_intragroup_gap_px: int = 0:
 	set(value):
 		bar_intragroup_gap_px = value
 		_overridden[&"bar_intragroup_gap_px"] = true

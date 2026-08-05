@@ -41,23 +41,21 @@ enum FillMode
 	## the overlay to stack its series.
 	STACKED
 }
-const DEFAULT_FILL_MODE: FillMode = FillMode.NONE
 ## Which area around this series' line is painted. NONE, the default, leaves
 ## the series unfilled.
-@export var fill_mode: FillMode = DEFAULT_FILL_MODE:
+@export var fill_mode: FillMode = FillMode.NONE:
 	set(value):
 		fill_mode = value
 		_overridden[&"fill_mode"] = true
 
 
-const DEFAULT_FILL_BASELINE: float = 0.0
 ## Reference y level for a TO_BASELINE fill, in data units on the series
 ## y-axis. The fill is drawn between the line and this level. Ignored by the
 ## other [member fill_mode] values.
 ##
 ## The MAGNITUDE stretch span measures its distance from this level. See
 ## [enum FillStretchSpan].
-@export var fill_baseline: float = DEFAULT_FILL_BASELINE:
+@export var fill_baseline: float = 0.0:
 	set(value):
 		fill_baseline = value
 		_overridden[&"fill_baseline"] = true
@@ -70,15 +68,13 @@ enum StretchRangePolicy
 	DOMAIN,   ## Span the whole series, from its lowest value to its highest.
 	CUSTOM    ## Use the fixed window set in [member stretch_range].
 }
-const DEFAULT_STRETCH_RANGE_POLICY: StretchRangePolicy = StretchRangePolicy.DOMAIN
 ## Where a value stretch span reads its low and high ends. See
 ## [enum StretchRangePolicy].
-@export var stretch_range_policy: StretchRangePolicy = DEFAULT_STRETCH_RANGE_POLICY:
+@export var stretch_range_policy: StretchRangePolicy = StretchRangePolicy.DOMAIN:
 	set(value):
 		stretch_range_policy = value
 		_overridden[&"stretch_range_policy"] = true
 
-const DEFAULT_STRETCH_RANGE: Vector2 = Vector2.ZERO
 ## Fixed low and high window for a stretch fill, read only when
 ## [member stretch_range_policy] is CUSTOM. [code].x[/code] is the low end and
 ## [code].y[/code] the high end, and swapping them reverses the gradient.
@@ -91,7 +87,7 @@ const DEFAULT_STRETCH_RANGE: Vector2 = Vector2.ZERO
 ##   above zero.
 ##
 ## The LINE span never reads this window. See [member stretch_span].
-@export var stretch_range: Vector2 = DEFAULT_STRETCH_RANGE:
+@export var stretch_range: Vector2 = Vector2.ZERO:
 	set(value):
 		stretch_range = value
 		_overridden[&"stretch_range"] = true
@@ -101,24 +97,22 @@ const DEFAULT_STRETCH_RANGE: Vector2 = Vector2.ZERO
 ## color supplied by [member TauXYStyle.series_colors]". As a consequence,
 ## [code]Color(0, 0, 0, 0)[/code] is not a valid explicit fill color.
 const NO_COLOR: Color = Color(0, 0, 0, 0)
-const DEFAULT_COLOR: Color = NO_COLOR
 ## Flat fill color applied to the area defined by [member fill_mode]. The
 ## sentinel [constant NO_COLOR] means "derive from the per-series color
 ## supplied by [member TauXYStyle.series_colors]".
 ##
 ## Overridden by [member texture] when it is non-null. The resolved color's
 ## alpha is scaled by [member alpha].
-@export var color: Color = DEFAULT_COLOR:
+@export var color: Color = NO_COLOR:
 	set(value):
 		color = value
 		_overridden[&"color"] = true
 
 
-const DEFAULT_ALPHA: float = 0.5
 ## Multiplier applied to the alpha of the resolved fill, whether that fill
 ## came from [member color], from [member TauXYStyle.series_colors], or
 ## from [member texture]. Valid range is [code][0.0, 1.0][/code].
-@export var alpha: float = DEFAULT_ALPHA:
+@export var alpha: float = 0.5:
 	set(value):
 		alpha = value
 		_overridden[&"alpha"] = true
@@ -143,10 +137,9 @@ enum FillTextureMode
 	STRETCH,   ## Fit the texture across the fill once, so it reads as a single gradient or band. What it maps to is set by [member stretch_span].
 	TILE       ## Repeat the texture at its native pixel size, for a seamless motif like dots or hatching.
 }
-const DEFAULT_TEXTURE_MODE: FillTextureMode = FillTextureMode.STRETCH
 ## How [member texture] is painted, stretched once or tiled. See
 ## [enum FillTextureMode]. Ignored when [member texture] is [code]null[/code].
-@export var texture_mode: FillTextureMode = DEFAULT_TEXTURE_MODE:
+@export var texture_mode: FillTextureMode = FillTextureMode.STRETCH:
 	set(value):
 		texture_mode = value
 		_overridden[&"texture_mode"] = true
@@ -200,45 +193,41 @@ enum FillStretchSpan
 	## STACKED.
 	MAGNITUDE
 }
-const DEFAULT_STRETCH_SPAN: FillStretchSpan = FillStretchSpan.LINE
 ## In STRETCH mode, what the texture's color stands for. See
 ## [enum FillStretchSpan]. Ignored outside STRETCH mode and when
 ## [member texture] is [code]null[/code].
-@export var stretch_span: FillStretchSpan = DEFAULT_STRETCH_SPAN:
+@export var stretch_span: FillStretchSpan = FillStretchSpan.LINE:
 	set(value):
 		stretch_span = value
 		_overridden[&"stretch_span"] = true
 
 
-const DEFAULT_TILE_SCALE: float = 1.0
 ## Uniform scale applied to the tile grid in [code]TILE[/code] mode.
 ## [code]1.0[/code] means one tile equals the texture's native pixel size on
 ## screen. [code]2.0[/code] doubles the tile size. The grid stays
 ## square-pixel correct regardless of pane shape. Ignored outside
 ## [code]TILE[/code] mode and when [member texture] is [code]null[/code].
-@export var tile_scale: float = DEFAULT_TILE_SCALE:
+@export var tile_scale: float = 1.0:
 	set(value):
 		tile_scale = value
 		_overridden[&"tile_scale"] = true
 
 
-const DEFAULT_TILE_ROTATION_DEG: float = 0.0
 ## Rotation in degrees of the tile grid in TILE mode, turned around the pane
 ## center so it stays put as data updates. Ignored outside TILE mode and when
 ## [member texture] is [code]null[/code].
-@export var tile_rotation_deg: float = DEFAULT_TILE_ROTATION_DEG:
+@export var tile_rotation_deg: float = 0.0:
 	set(value):
 		tile_rotation_deg = value
 		_overridden[&"tile_rotation_deg"] = true
 
 
-const DEFAULT_TILE_OFFSET_PX: Vector2 = Vector2.ZERO
 ## Screen-space translation applied to the tile grid in [code]TILE[/code]
 ## mode, after rotation. Expressed in pixels, so animating one component
 ## moves the pattern along the corresponding screen axis regardless of
 ## rotation angle or [member tile_scale]. Ignored outside [code]TILE[/code]
 ## mode and when [member texture] is [code]null[/code].
-@export var tile_offset_px: Vector2 = DEFAULT_TILE_OFFSET_PX:
+@export var tile_offset_px: Vector2 = Vector2.ZERO:
 	set(value):
 		tile_offset_px = value
 		_overridden[&"tile_offset_px"] = true
