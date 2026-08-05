@@ -170,6 +170,8 @@ func get_series_fill(p_series_index: int) -> TauLineFill:
 ## [member fills] uses the same two-level indexing, applied independently
 ## per [TauLineFill] field, so a theme may define more entries for one
 ## field than another:
+##   - fill_mode:        [code]line_fill_mode[/code] (theme constant, an
+##     integer [enum TauLineFill.FillMode] value)
 ##   - color:            [code]line_fill_color[/code] (theme color)
 ##   - alpha:            [code]line_fill_alpha_percent[/code] (theme
 ##     constant, percent integer, [code]100[/code] means [code]1.0[/code])
@@ -273,6 +275,25 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	# single scalar or array. Each field scans its series index
 	# independently, growing `fills` as needed, so a theme may define more
 	# entries for one field than another.
+
+	# fill_mode
+	var fill_mode_index := 0
+	while true:
+		var key := StringName("line_fill_mode_%d" % fill_mode_index)
+		if not p_control.has_theme_constant(key):
+			break
+		_ensure_fills_min_size(fill_mode_index + 1)
+		fills[fill_mode_index].fill_mode = p_control.get_theme_constant(key) as TauLineFill.FillMode
+		fill_mode_index += 1
+
+	var pane_fill_mode_index := 0
+	while true:
+		var key := StringName("line_fill_mode_%d_%d" % [pane_fill_mode_index, p_pane_index])
+		if not p_control.has_theme_constant(key):
+			break
+		_ensure_fills_min_size(pane_fill_mode_index + 1)
+		fills[pane_fill_mode_index].fill_mode = p_control.get_theme_constant(key) as TauLineFill.FillMode
+		pane_fill_mode_index += 1
 
 	# color
 	var color_index := 0
