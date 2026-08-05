@@ -415,11 +415,8 @@ func is_equal_to(p_other: TauXYStyle) -> bool:
 		return false
 	if series_alpha != p_other.series_alpha:
 		return false
-	if series_colors.size() != p_other.series_colors.size():
+	if series_colors != p_other.series_colors:
 		return false
-	for i in range(series_colors.size()):
-		if series_colors[i] != p_other.series_colors[i]:
-			return false
 	return true
 
 

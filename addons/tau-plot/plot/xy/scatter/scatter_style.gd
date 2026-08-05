@@ -298,11 +298,8 @@ func is_equal_to(p_other: TauScatterStyle) -> bool:
 		return false
 	if hovered_outline_color != p_other.hovered_outline_color:
 		return false
-	if marker_shapes.size() != p_other.marker_shapes.size():
+	if marker_shapes != p_other.marker_shapes:
 		return false
-	for i in range(marker_shapes.size()):
-		if marker_shapes[i] != p_other.marker_shapes[i]:
-			return false
 	return true
 
 

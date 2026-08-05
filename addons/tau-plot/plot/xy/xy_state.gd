@@ -218,12 +218,7 @@ class XYState extends RefCounted:
 
 
 	func have_pane_view_rects_changed(p_rects: Array[Rect2]) -> bool:
-		if p_rects.size() != pane_view_rects.size():
-			return true
-		for i in range(p_rects.size()):
-			if p_rects[i] != pane_view_rects[i]:
-				return true
-		return false
+		return p_rects != pane_view_rects
 
 
 	func save_pane_view_rects(p_rects: Array[Rect2]) -> void:

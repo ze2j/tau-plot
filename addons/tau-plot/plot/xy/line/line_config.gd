@@ -173,11 +173,11 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 		return false
 	if stacked_negative_policy != other.stacked_negative_policy:
 		return false
-	if not _arrays_equal(gap_policies, other.gap_policies):
+	if gap_policies != other.gap_policies:
 		return false
-	if not _arrays_equal(interpolation_modes, other.interpolation_modes):
+	if interpolation_modes != other.interpolation_modes:
 		return false
-	if not _arrays_equal(hover_max_distances_px, other.hover_max_distances_px):
+	if hover_max_distances_px != other.hover_max_distances_px:
 		return false
 
 	return true
@@ -208,19 +208,3 @@ func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 		return true
 
 	return false
-
-
-####################################################################################################
-# Private
-####################################################################################################
-
-# Element-wise equality between two per-series cycles. Typed arrays in
-# GDScript have no reliable equality operator, so the comparison runs through
-# size and indices.
-static func _arrays_equal(p_a: Array, p_b: Array) -> bool:
-	if p_a.size() != p_b.size():
-		return false
-	for i in range(p_a.size()):
-		if p_a[i] != p_b[i]:
-			return false
-	return true

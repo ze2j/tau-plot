@@ -563,21 +563,14 @@ func is_equal_to(p_other: TauLineStyle) -> bool:
 		return false
 	if _overridden != p_other._overridden:
 		return false
-	if line_widths_px.size() != p_other.line_widths_px.size():
+	if line_widths_px != p_other.line_widths_px:
 		return false
-	for i in range(line_widths_px.size()):
-		if line_widths_px[i] != p_other.line_widths_px[i]:
-			return false
-	if hovered_line_widths_px.size() != p_other.hovered_line_widths_px.size():
+	if hovered_line_widths_px != p_other.hovered_line_widths_px:
 		return false
-	for i in range(hovered_line_widths_px.size()):
-		if hovered_line_widths_px[i] != p_other.hovered_line_widths_px[i]:
-			return false
-	if dash_lengths_px.size() != p_other.dash_lengths_px.size():
+	if dash_lengths_px != p_other.dash_lengths_px:
 		return false
-	for i in range(dash_lengths_px.size()):
-		if dash_lengths_px[i] != p_other.dash_lengths_px[i]:
-			return false
+	# Array equality compares object entries by identity, so the fill cycle is
+	# compared entry by entry to reach the field values and the override flags.
 	if fills.size() != p_other.fills.size():
 		return false
 	for i in range(fills.size()):
