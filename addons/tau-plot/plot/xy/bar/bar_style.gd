@@ -10,6 +10,9 @@
 ## Properties left untouched fall back to the Godot theme. If the theme does
 ## not define them either, the built-in defaults apply.
 ##
+## Assign a new [StyleBox] rather than mutating the one already assigned. An
+## in-place change is not detected.
+##
 ## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
 ## default is not written to the saved resource, so it reads as untouched on
 ## load and the theme still wins. Assign it from code instead.

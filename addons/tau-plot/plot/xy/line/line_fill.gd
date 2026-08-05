@@ -14,6 +14,9 @@
 ##
 ## A field counts as set as soon as it is assigned, whatever the value.
 ##
+## Assign a new [Texture2D] rather than mutating the one already assigned. An
+## in-place change is not detected.
+##
 ## [b]Limitation:[/b] a field set from the inspector to exactly its built-in
 ## default is not written to the saved resource, so it reads as untouched on
 ## load. Assign it from code instead.
@@ -293,9 +296,27 @@ func apply_overrides_from(p_user_fill: TauLineFill) -> void:
 # Change detection
 ####################################################################################################
 
-## Deep equality between this instance and [param p_other].
+## Returns a copy of this fill carrying the field values and the override
+## flags. The flags are copied explicitly because
+## [method Resource.duplicate] only copies stored properties.
+func make_snapshot() -> TauLineFill:
+	var copy := duplicate() as TauLineFill
+	copy._copy_overrides_from(self)
+	return copy
+
+
+# Writing a typed collection into another instance through a property is
+# rejected at runtime, so the copy is made from inside the target.
+func _copy_overrides_from(p_source: TauLineFill) -> void:
+	_overridden = p_source._overridden.duplicate()
+
+
+## Deep equality between this instance and [param p_other]. Compares every
+## field value-for-value, plus the set of overridden field names.
 func is_equal_to(p_other: TauLineFill) -> bool:
 	if p_other == null:
+		return false
+	if _overridden != p_other._overridden:
 		return false
 	if fill_mode != p_other.fill_mode:
 		return false

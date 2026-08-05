@@ -512,6 +512,7 @@ static func resolve(
 func make_snapshot() -> TauLineStyle:
 	var copy := duplicate() as TauLineStyle
 	copy._copy_overrides_from(self)
+	copy._copy_fills_from(self)
 	return copy
 
 
@@ -519,6 +520,18 @@ func make_snapshot() -> TauLineStyle:
 # rejected at runtime, so the copy is made from inside the target.
 func _copy_overrides_from(p_source: TauLineStyle) -> void:
 	_overridden = p_source._overridden.duplicate()
+
+
+# duplicate() gives the copy its own array but keeps the source's TauLineFill
+# instances in it, so a fill mutated in place would be compared against itself.
+# The entries are rebuilt one by one. Null entries are part of the contract and
+# stay null. The texture stays shared, since it is a user asset compared by
+# identity.
+func _copy_fills_from(p_source: TauLineStyle) -> void:
+	fills.resize(p_source.fills.size())
+	for i in range(fills.size()):
+		var source_fill: TauLineFill = p_source.fills[i]
+		fills[i] = null if source_fill == null else source_fill.make_snapshot()
 
 
 ## Deep equality between this instance and [param p_other]. Compares every

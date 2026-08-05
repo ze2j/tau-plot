@@ -6,6 +6,9 @@
 ## overrides) as TauBarStyle, TauScatterStyle, TauPaneStyle. A property counts
 ## as set as soon as it is assigned, whatever the value.
 ##
+## Assign a new [StyleBox] or [Font] rather than mutating the one already
+## assigned. An in-place change is not detected.
+##
 ## Theme type variation: TauTooltip
 class_name TauTooltipStyle extends Resource
 
