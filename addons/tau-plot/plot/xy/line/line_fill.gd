@@ -1,3 +1,5 @@
+@tool
+
 ## One series' line-chart fill: which area is filled, and how that area looks.
 ##
 ## Common setups:
@@ -9,6 +11,12 @@
 ## - Recency fade on a live chart: [member stretch_span] VALUE_X.
 ## - Repeating motif like dots or hatching: [member texture_mode] TILE.
 ## - Scrolling pattern: animate [member tile_offset_px].
+##
+## A field counts as set as soon as it is assigned, whatever the value.
+##
+## [b]Limitation:[/b] a field set from the inspector to exactly its built-in
+## default is not written to the saved resource, so it reads as untouched on
+## load. Assign it from code instead.
 class_name TauLineFill extends Resource
 
 ################################################################################################
@@ -33,7 +41,10 @@ enum FillMode
 const DEFAULT_FILL_MODE: FillMode = FillMode.NONE
 ## Which area around this series' line is painted. NONE, the default, leaves
 ## the series unfilled.
-@export var fill_mode: FillMode = DEFAULT_FILL_MODE
+@export var fill_mode: FillMode = DEFAULT_FILL_MODE:
+	set(value):
+		fill_mode = value
+		_overridden[&"fill_mode"] = true
 
 
 const DEFAULT_FILL_BASELINE: float = 0.0
@@ -43,7 +54,10 @@ const DEFAULT_FILL_BASELINE: float = 0.0
 ##
 ## The MAGNITUDE stretch span measures its distance from this level. See
 ## [enum FillStretchSpan].
-@export var fill_baseline: float = DEFAULT_FILL_BASELINE
+@export var fill_baseline: float = DEFAULT_FILL_BASELINE:
+	set(value):
+		fill_baseline = value
+		_overridden[&"fill_baseline"] = true
 
 
 ## Where a value stretch span reads its low and high ends. See
@@ -56,7 +70,10 @@ enum StretchRangePolicy
 const DEFAULT_STRETCH_RANGE_POLICY: StretchRangePolicy = StretchRangePolicy.DOMAIN
 ## Where a value stretch span reads its low and high ends. See
 ## [enum StretchRangePolicy].
-@export var stretch_range_policy: StretchRangePolicy = DEFAULT_STRETCH_RANGE_POLICY
+@export var stretch_range_policy: StretchRangePolicy = DEFAULT_STRETCH_RANGE_POLICY:
+	set(value):
+		stretch_range_policy = value
+		_overridden[&"stretch_range_policy"] = true
 
 const DEFAULT_STRETCH_RANGE: Vector2 = Vector2.ZERO
 ## Fixed low and high window for a stretch fill, read only when
@@ -71,7 +88,10 @@ const DEFAULT_STRETCH_RANGE: Vector2 = Vector2.ZERO
 ##   above zero.
 ##
 ## The LINE span never reads this window. See [member stretch_span].
-@export var stretch_range: Vector2 = DEFAULT_STRETCH_RANGE
+@export var stretch_range: Vector2 = DEFAULT_STRETCH_RANGE:
+	set(value):
+		stretch_range = value
+		_overridden[&"stretch_range"] = true
 
 
 ## Sentinel value for [member color] meaning "derive from the per-series
@@ -85,14 +105,20 @@ const DEFAULT_COLOR: Color = NO_COLOR
 ##
 ## Overridden by [member texture] when it is non-null. The resolved color's
 ## alpha is scaled by [member alpha].
-@export var color: Color = DEFAULT_COLOR
+@export var color: Color = DEFAULT_COLOR:
+	set(value):
+		color = value
+		_overridden[&"color"] = true
 
 
 const DEFAULT_ALPHA: float = 0.5
 ## Multiplier applied to the alpha of the resolved fill, whether that fill
 ## came from [member color], from [member TauXYStyle.series_colors], or
 ## from [member texture]. Valid range is [code][0.0, 1.0][/code].
-@export var alpha: float = DEFAULT_ALPHA
+@export var alpha: float = DEFAULT_ALPHA:
+	set(value):
+		alpha = value
+		_overridden[&"alpha"] = true
 
 
 ## Texture painted over the fill area. When set, it takes the place of
@@ -102,7 +128,10 @@ const DEFAULT_ALPHA: float = 0.5
 ## [member texture_mode] decides how it is painted. Out of the box, a freshly
 ## assigned texture fades from the line to the baseline, the ready-made
 ## area-chart gradient, with nothing else to set.
-@export var texture: Texture2D = null
+@export var texture: Texture2D = null:
+	set(value):
+		texture = value
+		_overridden[&"texture"] = true
 
 
 ## How [member texture] is painted across the fill.
@@ -114,7 +143,10 @@ enum FillTextureMode
 const DEFAULT_TEXTURE_MODE: FillTextureMode = FillTextureMode.STRETCH
 ## How [member texture] is painted, stretched once or tiled. See
 ## [enum FillTextureMode]. Ignored when [member texture] is [code]null[/code].
-@export var texture_mode: FillTextureMode = DEFAULT_TEXTURE_MODE
+@export var texture_mode: FillTextureMode = DEFAULT_TEXTURE_MODE:
+	set(value):
+		texture_mode = value
+		_overridden[&"texture_mode"] = true
 
 
 ## Chooses which measured value picks a stretched texture's color. The texture
@@ -169,7 +201,10 @@ const DEFAULT_STRETCH_SPAN: FillStretchSpan = FillStretchSpan.LINE
 ## In STRETCH mode, what the texture's color stands for. See
 ## [enum FillStretchSpan]. Ignored outside STRETCH mode and when
 ## [member texture] is [code]null[/code].
-@export var stretch_span: FillStretchSpan = DEFAULT_STRETCH_SPAN
+@export var stretch_span: FillStretchSpan = DEFAULT_STRETCH_SPAN:
+	set(value):
+		stretch_span = value
+		_overridden[&"stretch_span"] = true
 
 
 const DEFAULT_TILE_SCALE: float = 1.0
@@ -178,14 +213,20 @@ const DEFAULT_TILE_SCALE: float = 1.0
 ## screen. [code]2.0[/code] doubles the tile size. The grid stays
 ## square-pixel correct regardless of pane shape. Ignored outside
 ## [code]TILE[/code] mode and when [member texture] is [code]null[/code].
-@export var tile_scale: float = DEFAULT_TILE_SCALE
+@export var tile_scale: float = DEFAULT_TILE_SCALE:
+	set(value):
+		tile_scale = value
+		_overridden[&"tile_scale"] = true
 
 
 const DEFAULT_TILE_ROTATION_DEG: float = 0.0
 ## Rotation in degrees of the tile grid in TILE mode, turned around the pane
 ## center so it stays put as data updates. Ignored outside TILE mode and when
 ## [member texture] is [code]null[/code].
-@export var tile_rotation_deg: float = DEFAULT_TILE_ROTATION_DEG
+@export var tile_rotation_deg: float = DEFAULT_TILE_ROTATION_DEG:
+	set(value):
+		tile_rotation_deg = value
+		_overridden[&"tile_rotation_deg"] = true
 
 
 const DEFAULT_TILE_OFFSET_PX: Vector2 = Vector2.ZERO
@@ -194,43 +235,57 @@ const DEFAULT_TILE_OFFSET_PX: Vector2 = Vector2.ZERO
 ## moves the pattern along the corresponding screen axis regardless of
 ## rotation angle or [member tile_scale]. Ignored outside [code]TILE[/code]
 ## mode and when [member texture] is [code]null[/code].
-@export var tile_offset_px: Vector2 = DEFAULT_TILE_OFFSET_PX
+@export var tile_offset_px: Vector2 = DEFAULT_TILE_OFFSET_PX:
+	set(value):
+		tile_offset_px = value
+		_overridden[&"tile_offset_px"] = true
+
+
+# Exported property names assigned at least once, whatever the value. Member
+# initializers bypass the setters, so a fresh instance starts empty.
+var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
 # Cascade: user overrides
 ####################################################################################################
 
-## Applies [param p_user_fill] on top of this instance, field by field,
-## wherever the user value differs from the built-in default. A no-op when
-## [param p_user_fill] is [code]null[/code].
+## Returns [code]true[/code] when [param p_property] has been assigned on this
+## resource, whatever the assigned value.
+func is_overridden(p_property: StringName) -> bool:
+	return _overridden.has(p_property)
+
+
+## Applies the overridden fields of [param p_user_fill] on top of this
+## instance, field by field. A no-op when [param p_user_fill] is
+## [code]null[/code].
 func apply_overrides_from(p_user_fill: TauLineFill) -> void:
 	if p_user_fill == null:
 		return
 
-	if p_user_fill.fill_mode != DEFAULT_FILL_MODE:
+	if p_user_fill.is_overridden(&"fill_mode"):
 		fill_mode = p_user_fill.fill_mode
-	if p_user_fill.fill_baseline != DEFAULT_FILL_BASELINE:
+	if p_user_fill.is_overridden(&"fill_baseline"):
 		fill_baseline = p_user_fill.fill_baseline
-	if p_user_fill.stretch_range_policy != DEFAULT_STRETCH_RANGE_POLICY:
+	if p_user_fill.is_overridden(&"stretch_range_policy"):
 		stretch_range_policy = p_user_fill.stretch_range_policy
-	if p_user_fill.stretch_range != DEFAULT_STRETCH_RANGE:
+	if p_user_fill.is_overridden(&"stretch_range"):
 		stretch_range = p_user_fill.stretch_range
-	if p_user_fill.color != DEFAULT_COLOR:
+	if p_user_fill.is_overridden(&"color"):
 		color = p_user_fill.color
-	if p_user_fill.alpha != DEFAULT_ALPHA:
+	if p_user_fill.is_overridden(&"alpha"):
 		alpha = clampf(p_user_fill.alpha, 0.0, 1.0)
-	if p_user_fill.texture != null:
+	if p_user_fill.is_overridden(&"texture"):
 		texture = p_user_fill.texture
-	if p_user_fill.texture_mode != DEFAULT_TEXTURE_MODE:
+	if p_user_fill.is_overridden(&"texture_mode"):
 		texture_mode = p_user_fill.texture_mode
-	if p_user_fill.stretch_span != DEFAULT_STRETCH_SPAN:
+	if p_user_fill.is_overridden(&"stretch_span"):
 		stretch_span = p_user_fill.stretch_span
-	if p_user_fill.tile_scale != DEFAULT_TILE_SCALE:
+	if p_user_fill.is_overridden(&"tile_scale"):
 		tile_scale = p_user_fill.tile_scale
-	if p_user_fill.tile_rotation_deg != DEFAULT_TILE_ROTATION_DEG:
+	if p_user_fill.is_overridden(&"tile_rotation_deg"):
 		tile_rotation_deg = p_user_fill.tile_rotation_deg
-	if p_user_fill.tile_offset_px != DEFAULT_TILE_OFFSET_PX:
+	if p_user_fill.is_overridden(&"tile_offset_px"):
 		tile_offset_px = p_user_fill.tile_offset_px
 
 

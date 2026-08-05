@@ -1,15 +1,21 @@
+@tool
+
 ## Contains theme-driven visual and sizing parameters for scatter markers.
 ##
 ## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults.
+## over the theme and the built-in defaults. A property counts as set as soon
+## as it is assigned, whatever the value, so assigning a built-in default from
+## code still beats the theme.
 ##
 ## Properties left untouched fall back to the Godot theme. If the theme does
 ## not define them either, the built-in defaults apply.
 ##
-## [b]Limitation:[/b] because "untouched" means "still equal to the built-in
-## default", setting a property to exactly its default value has no visible
-## effect. To force the default value to win over a theme, use an imperceptibly
-## different value (e.g. 12.001 instead of 12.0).
+## For array properties, assign a new array to mark the property as set.
+## Mutating the existing array in place does not.
+##
+## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
+## default is not written to the saved resource, so it reads as untouched on
+## load and the theme still wins. Assign it from code instead.
 class_name TauScatterStyle extends Resource
 
 enum MarkerShape
@@ -32,25 +38,43 @@ enum MarkerShape
 ################################################################################################
 
 const DEFAULT_MARKER_SIZE_PX: float = 12.0
-@export var marker_size_px: float = DEFAULT_MARKER_SIZE_PX
+@export var marker_size_px: float = DEFAULT_MARKER_SIZE_PX:
+	set(value):
+		marker_size_px = value
+		_overridden[&"marker_size_px"] = true
 
 const DEFAULT_OUTLINE_WIDTH_PX: float = 1.0
-@export var outline_width_px: float = DEFAULT_OUTLINE_WIDTH_PX
+@export var outline_width_px: float = DEFAULT_OUTLINE_WIDTH_PX:
+	set(value):
+		outline_width_px = value
+		_overridden[&"outline_width_px"] = true
 
 const DEFAULT_OUTLINE_COLOR: Color = Color(0, 0, 0, 1)
-@export var outline_color: Color = DEFAULT_OUTLINE_COLOR
+@export var outline_color: Color = DEFAULT_OUTLINE_COLOR:
+	set(value):
+		outline_color = value
+		_overridden[&"outline_color"] = true
 
 const DEFAULT_HOVERED_MARKER_SIZE_PX: float = 16.0
 ## Marker size when hovered (px).
-@export var hovered_marker_size_px: float = DEFAULT_HOVERED_MARKER_SIZE_PX
+@export var hovered_marker_size_px: float = DEFAULT_HOVERED_MARKER_SIZE_PX:
+	set(value):
+		hovered_marker_size_px = value
+		_overridden[&"hovered_marker_size_px"] = true
 
 const DEFAULT_HOVERED_OUTLINE_WIDTH_PX: float = 2.0
 ## Outline width when hovered (px).
-@export var hovered_outline_width_px: float = DEFAULT_HOVERED_OUTLINE_WIDTH_PX
+@export var hovered_outline_width_px: float = DEFAULT_HOVERED_OUTLINE_WIDTH_PX:
+	set(value):
+		hovered_outline_width_px = value
+		_overridden[&"hovered_outline_width_px"] = true
 
 const DEFAULT_HOVERED_OUTLINE_COLOR: Color = Color(1, 1, 1, 1)
 ## Outline color when hovered.
-@export var hovered_outline_color: Color = DEFAULT_HOVERED_OUTLINE_COLOR
+@export var hovered_outline_color: Color = DEFAULT_HOVERED_OUTLINE_COLOR:
+	set(value):
+		hovered_outline_color = value
+		_overridden[&"hovered_outline_color"] = true
 
 const DEFAULT_MARKER_SHAPES: Array[MarkerShape] = [
 	MarkerShape.CIRCLE,
@@ -69,7 +93,16 @@ const DEFAULT_MARKER_SHAPES: Array[MarkerShape] = [
 	MarkerShape.DIAMOND,
 	MarkerShape.CROSS,
 	MarkerShape.PLUS,
-]
+]:
+	set(value):
+		marker_shapes = value
+		_overridden[&"marker_shapes"] = true
+
+
+# Exported property names assigned at least once, whatever the value. Member
+# initializers bypass the setters, so a fresh instance starts empty.
+var _overridden: Dictionary[StringName, bool] = {}
+
 
 ####################################################################################################
 # Helpers
@@ -176,28 +209,31 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
+## Returns [code]true[/code] when [param p_property] has been assigned on this
+## resource, whatever the assigned value.
+func is_overridden(p_property: StringName) -> bool:
+	return _overridden.has(p_property)
+
+
 ## Applies overridden properties from [param p_user_style] onto this resolved
-## instance. A property is considered overridden when its value on the user
-## resource differs from the matching DEFAULT_* constant.
+## instance.
 func apply_overrides_from(p_user_style: TauScatterStyle) -> void:
 	if p_user_style == null:
 		return
 
-	if p_user_style.marker_size_px != DEFAULT_MARKER_SIZE_PX:
+	if p_user_style.is_overridden(&"marker_size_px"):
 		marker_size_px = p_user_style.marker_size_px
-	if p_user_style.outline_width_px != DEFAULT_OUTLINE_WIDTH_PX:
+	if p_user_style.is_overridden(&"outline_width_px"):
 		outline_width_px = p_user_style.outline_width_px
-	if p_user_style.outline_color != DEFAULT_OUTLINE_COLOR:
+	if p_user_style.is_overridden(&"outline_color"):
 		outline_color = p_user_style.outline_color
-	if p_user_style.hovered_marker_size_px != DEFAULT_HOVERED_MARKER_SIZE_PX:
+	if p_user_style.is_overridden(&"hovered_marker_size_px"):
 		hovered_marker_size_px = p_user_style.hovered_marker_size_px
-	if p_user_style.hovered_outline_width_px != DEFAULT_HOVERED_OUTLINE_WIDTH_PX:
+	if p_user_style.is_overridden(&"hovered_outline_width_px"):
 		hovered_outline_width_px = p_user_style.hovered_outline_width_px
-	if p_user_style.hovered_outline_color != DEFAULT_HOVERED_OUTLINE_COLOR:
+	if p_user_style.is_overridden(&"hovered_outline_color"):
 		hovered_outline_color = p_user_style.hovered_outline_color
-
-	# marker_shapes: element-wise comparison against the default array.
-	if _is_marker_shapes_overridden(p_user_style.marker_shapes):
+	if p_user_style.is_overridden(&"marker_shapes"):
 		marker_shapes = p_user_style.marker_shapes.duplicate()
 
 
@@ -230,8 +266,25 @@ static func resolve(
 # Change detection
 ####################################################################################################
 
+## Returns a copy of this resource carrying the property values and the
+## override flags. The flags are copied explicitly because
+## [method Resource.duplicate] only copies stored properties.
+func make_snapshot() -> TauScatterStyle:
+	var copy := duplicate() as TauScatterStyle
+	copy._copy_overrides_from(self)
+	return copy
+
+
+# Writing a typed collection into another instance through a property is
+# rejected at runtime, so the copy is made from inside the target.
+func _copy_overrides_from(p_source: TauScatterStyle) -> void:
+	_overridden = p_source._overridden.duplicate()
+
+
 func is_equal_to(p_other: TauScatterStyle) -> bool:
 	if p_other == null:
+		return false
+	if _overridden != p_other._overridden:
 		return false
 	if marker_size_px != p_other.marker_size_px:
 		return false
@@ -256,19 +309,4 @@ func is_equal_to(p_other: TauScatterStyle) -> bool:
 # All TauScatterStyle properties are visual-only. They control how markers are
 # drawn within a fixed domain but do not affect domain, ticks, or pane rect.
 func has_layout_affecting_change(p_other: TauScatterStyle) -> bool:
-	return false
-
-
-####################################################################################################
-# Private
-####################################################################################################
-
-## Returns true if [param p_shapes] differs from DEFAULT_MARKER_SHAPES using
-## a size + element loop (safest approach for typed arrays in GDScript).
-static func _is_marker_shapes_overridden(p_shapes: Array[MarkerShape]) -> bool:
-	if p_shapes.size() != DEFAULT_MARKER_SHAPES.size():
-		return true
-	for i in range(p_shapes.size()):
-		if p_shapes[i] != DEFAULT_MARKER_SHAPES[i]:
-			return true
 	return false

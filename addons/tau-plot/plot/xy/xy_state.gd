@@ -372,7 +372,7 @@ class XYState extends RefCounted:
 		if p_style == null:
 			xy_style_snapshot = null
 			return
-		xy_style_snapshot = p_style.duplicate()
+		xy_style_snapshot = p_style.make_snapshot()
 
 
 	func save_xy_style_ref(p_style_ref: TauXYStyle) -> void:
@@ -400,7 +400,7 @@ class XYState extends RefCounted:
 	func save_bar_style_for_pane(p_pane_index: int, p_style: TauBarStyle) -> void:
 		if p_pane_index < 0 or p_pane_index >= bar_style_per_pane.size():
 			return
-		bar_style_per_pane[p_pane_index] = p_style.duplicate() if p_style != null else null
+		bar_style_per_pane[p_pane_index] = p_style.make_snapshot() if p_style != null else null
 
 
 	func save_bar_style_ref_for_pane(p_pane_index: int, p_style_ref: TauBarStyle) -> void:
@@ -418,7 +418,7 @@ class XYState extends RefCounted:
 	func save_scatter_style_for_pane(p_pane_index: int, p_style: TauScatterStyle) -> void:
 		if p_pane_index < 0 or p_pane_index >= scatter_style_per_pane.size():
 			return
-		scatter_style_per_pane[p_pane_index] = p_style.duplicate() if p_style != null else null
+		scatter_style_per_pane[p_pane_index] = p_style.make_snapshot() if p_style != null else null
 
 
 	func save_scatter_style_ref_for_pane(p_pane_index: int, p_style_ref: TauScatterStyle) -> void:
@@ -436,7 +436,7 @@ class XYState extends RefCounted:
 	func save_line_style_for_pane(p_pane_index: int, p_style: TauLineStyle) -> void:
 		if p_pane_index < 0 or p_pane_index >= line_style_per_pane.size():
 			return
-		line_style_per_pane[p_pane_index] = p_style.duplicate() if p_style != null else null
+		line_style_per_pane[p_pane_index] = p_style.make_snapshot() if p_style != null else null
 
 
 	func save_line_style_ref_for_pane(p_pane_index: int, p_style_ref: TauLineStyle) -> void:
@@ -454,7 +454,7 @@ class XYState extends RefCounted:
 	func save_pane_style_for_pane(p_pane_index: int, p_style: TauPaneStyle) -> void:
 		if p_pane_index < 0 or p_pane_index >= pane_style_per_pane.size():
 			return
-		pane_style_per_pane[p_pane_index] = p_style.duplicate() if p_style != null else null
+		pane_style_per_pane[p_pane_index] = p_style.make_snapshot() if p_style != null else null
 
 
 	func save_pane_style_ref_for_pane(p_pane_index: int, p_style_ref: TauPaneStyle) -> void:
@@ -473,7 +473,7 @@ class XYState extends RefCounted:
 		if p_style == null:
 			legend_style_snapshot = null
 			return
-		legend_style_snapshot = p_style.duplicate()
+		legend_style_snapshot = p_style.make_snapshot()
 
 
 	func save_legend_style_ref(p_style_ref: TauLegendStyle) -> void:

@@ -1,7 +1,11 @@
+@tool
+
 ## Visual style for a single pane.
 ##
 ## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults.
+## over the theme and the built-in defaults. A property counts as set as soon
+## as it is assigned, whatever the value, so assigning a built-in default from
+## code still beats the theme.
 ##
 ## Properties left untouched fall back to the Godot theme. If the theme does
 ## not define them either, the built-in defaults apply.
@@ -9,10 +13,9 @@
 ## Multiple panes can share the same TauPaneStyle. Every pane that references it
 ## will pick up the changes.
 ##
-## [b]Limitation:[/b] because "untouched" means "still equal to the built-in
-## default", setting a property to exactly its default value has no visible
-## effect. To force the default value to win over a theme, use an imperceptibly
-## different value (e.g. alpha 0.1501 instead of 0.15).
+## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
+## default is not written to the saved resource, so it reads as untouched on
+## load and the theme still wins. Assign it from code instead.
 class_name TauPaneStyle extends Resource
 
 ################################################################################################
@@ -27,13 +30,22 @@ class_name TauPaneStyle extends Resource
 ####################################################################################################
 
 const DEFAULT_X_MAJOR_GRIDLINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.15)
-@export var x_major_grid_line_color: Color = DEFAULT_X_MAJOR_GRIDLINE_COLOR
+@export var x_major_grid_line_color: Color = DEFAULT_X_MAJOR_GRIDLINE_COLOR:
+	set(value):
+		x_major_grid_line_color = value
+		_overridden[&"x_major_grid_line_color"] = true
 
 const DEFAULT_X_MAJOR_GRIDLINE_THICKNESS_PX: int = 1
-@export var x_major_grid_line_thickness_px: int = DEFAULT_X_MAJOR_GRIDLINE_THICKNESS_PX
+@export var x_major_grid_line_thickness_px: int = DEFAULT_X_MAJOR_GRIDLINE_THICKNESS_PX:
+	set(value):
+		x_major_grid_line_thickness_px = value
+		_overridden[&"x_major_grid_line_thickness_px"] = true
 
 const DEFAULT_X_MAJOR_GRIDLINE_DASH_PX: int = 0
-@export var x_major_grid_line_dash_px: int = DEFAULT_X_MAJOR_GRIDLINE_DASH_PX
+@export var x_major_grid_line_dash_px: int = DEFAULT_X_MAJOR_GRIDLINE_DASH_PX:
+	set(value):
+		x_major_grid_line_dash_px = value
+		_overridden[&"x_major_grid_line_dash_px"] = true
 
 
 ####################################################################################################
@@ -41,13 +53,22 @@ const DEFAULT_X_MAJOR_GRIDLINE_DASH_PX: int = 0
 ####################################################################################################
 
 const DEFAULT_X_MINOR_GRIDLINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.08)
-@export var x_minor_grid_line_color: Color = DEFAULT_X_MINOR_GRIDLINE_COLOR
+@export var x_minor_grid_line_color: Color = DEFAULT_X_MINOR_GRIDLINE_COLOR:
+	set(value):
+		x_minor_grid_line_color = value
+		_overridden[&"x_minor_grid_line_color"] = true
 
 const DEFAULT_X_MINOR_GRIDLINE_THICKNESS_PX: int = 1
-@export var x_minor_grid_line_thickness_px: int = DEFAULT_X_MINOR_GRIDLINE_THICKNESS_PX
+@export var x_minor_grid_line_thickness_px: int = DEFAULT_X_MINOR_GRIDLINE_THICKNESS_PX:
+	set(value):
+		x_minor_grid_line_thickness_px = value
+		_overridden[&"x_minor_grid_line_thickness_px"] = true
 
 const DEFAULT_X_MINOR_GRIDLINE_DASH_PX: int = 0
-@export var x_minor_grid_line_dash_px: int = DEFAULT_X_MINOR_GRIDLINE_DASH_PX
+@export var x_minor_grid_line_dash_px: int = DEFAULT_X_MINOR_GRIDLINE_DASH_PX:
+	set(value):
+		x_minor_grid_line_dash_px = value
+		_overridden[&"x_minor_grid_line_dash_px"] = true
 
 
 ####################################################################################################
@@ -55,13 +76,22 @@ const DEFAULT_X_MINOR_GRIDLINE_DASH_PX: int = 0
 ####################################################################################################
 
 const DEFAULT_Y_MAJOR_GRIDLINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.15)
-@export var y_major_grid_line_color: Color = DEFAULT_Y_MAJOR_GRIDLINE_COLOR
+@export var y_major_grid_line_color: Color = DEFAULT_Y_MAJOR_GRIDLINE_COLOR:
+	set(value):
+		y_major_grid_line_color = value
+		_overridden[&"y_major_grid_line_color"] = true
 
 const DEFAULT_Y_MAJOR_GRIDLINE_THICKNESS_PX: int = 1
-@export var y_major_grid_line_thickness_px: int = DEFAULT_Y_MAJOR_GRIDLINE_THICKNESS_PX
+@export var y_major_grid_line_thickness_px: int = DEFAULT_Y_MAJOR_GRIDLINE_THICKNESS_PX:
+	set(value):
+		y_major_grid_line_thickness_px = value
+		_overridden[&"y_major_grid_line_thickness_px"] = true
 
 const DEFAULT_Y_MAJOR_GRIDLINE_DASH_PX: int = 0
-@export var y_major_grid_line_dash_px: int = DEFAULT_Y_MAJOR_GRIDLINE_DASH_PX
+@export var y_major_grid_line_dash_px: int = DEFAULT_Y_MAJOR_GRIDLINE_DASH_PX:
+	set(value):
+		y_major_grid_line_dash_px = value
+		_overridden[&"y_major_grid_line_dash_px"] = true
 
 
 ####################################################################################################
@@ -69,13 +99,27 @@ const DEFAULT_Y_MAJOR_GRIDLINE_DASH_PX: int = 0
 ####################################################################################################
 
 const DEFAULT_Y_MINOR_GRIDLINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.08)
-@export var y_minor_grid_line_color: Color = DEFAULT_Y_MINOR_GRIDLINE_COLOR
+@export var y_minor_grid_line_color: Color = DEFAULT_Y_MINOR_GRIDLINE_COLOR:
+	set(value):
+		y_minor_grid_line_color = value
+		_overridden[&"y_minor_grid_line_color"] = true
 
 const DEFAULT_Y_MINOR_GRIDLINE_THICKNESS_PX: int = 1
-@export var y_minor_grid_line_thickness_px: int = DEFAULT_Y_MINOR_GRIDLINE_THICKNESS_PX
+@export var y_minor_grid_line_thickness_px: int = DEFAULT_Y_MINOR_GRIDLINE_THICKNESS_PX:
+	set(value):
+		y_minor_grid_line_thickness_px = value
+		_overridden[&"y_minor_grid_line_thickness_px"] = true
 
 const DEFAULT_Y_MINOR_GRIDLINE_DASH_PX: int = 0
-@export var y_minor_grid_line_dash_px: int = DEFAULT_Y_MINOR_GRIDLINE_DASH_PX
+@export var y_minor_grid_line_dash_px: int = DEFAULT_Y_MINOR_GRIDLINE_DASH_PX:
+	set(value):
+		y_minor_grid_line_dash_px = value
+		_overridden[&"y_minor_grid_line_dash_px"] = true
+
+
+# Exported property names assigned at least once, whatever the value. Member
+# initializers bypass the setters, so a fresh instance starts empty.
+var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -149,39 +193,44 @@ func _load_constant_from_theme(
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
+## Returns [code]true[/code] when [param p_property] has been assigned on this
+## resource, whatever the assigned value.
+func is_overridden(p_property: StringName) -> bool:
+	return _overridden.has(p_property)
+
+
 ## Applies overridden properties from [param p_user_style] onto this resolved
-## instance. A property is considered overridden when its value on the user
-## resource differs from the matching DEFAULT_* constant.
+## instance.
 func apply_overrides_from(p_user_style: TauPaneStyle) -> void:
 	if p_user_style == null:
 		return
 
-	if p_user_style.x_major_grid_line_color != DEFAULT_X_MAJOR_GRIDLINE_COLOR:
+	if p_user_style.is_overridden(&"x_major_grid_line_color"):
 		x_major_grid_line_color = p_user_style.x_major_grid_line_color
-	if p_user_style.x_major_grid_line_thickness_px != DEFAULT_X_MAJOR_GRIDLINE_THICKNESS_PX:
+	if p_user_style.is_overridden(&"x_major_grid_line_thickness_px"):
 		x_major_grid_line_thickness_px = p_user_style.x_major_grid_line_thickness_px
-	if p_user_style.x_major_grid_line_dash_px != DEFAULT_X_MAJOR_GRIDLINE_DASH_PX:
+	if p_user_style.is_overridden(&"x_major_grid_line_dash_px"):
 		x_major_grid_line_dash_px = p_user_style.x_major_grid_line_dash_px
 
-	if p_user_style.x_minor_grid_line_color != DEFAULT_X_MINOR_GRIDLINE_COLOR:
+	if p_user_style.is_overridden(&"x_minor_grid_line_color"):
 		x_minor_grid_line_color = p_user_style.x_minor_grid_line_color
-	if p_user_style.x_minor_grid_line_thickness_px != DEFAULT_X_MINOR_GRIDLINE_THICKNESS_PX:
+	if p_user_style.is_overridden(&"x_minor_grid_line_thickness_px"):
 		x_minor_grid_line_thickness_px = p_user_style.x_minor_grid_line_thickness_px
-	if p_user_style.x_minor_grid_line_dash_px != DEFAULT_X_MINOR_GRIDLINE_DASH_PX:
+	if p_user_style.is_overridden(&"x_minor_grid_line_dash_px"):
 		x_minor_grid_line_dash_px = p_user_style.x_minor_grid_line_dash_px
 
-	if p_user_style.y_major_grid_line_color != DEFAULT_Y_MAJOR_GRIDLINE_COLOR:
+	if p_user_style.is_overridden(&"y_major_grid_line_color"):
 		y_major_grid_line_color = p_user_style.y_major_grid_line_color
-	if p_user_style.y_major_grid_line_thickness_px != DEFAULT_Y_MAJOR_GRIDLINE_THICKNESS_PX:
+	if p_user_style.is_overridden(&"y_major_grid_line_thickness_px"):
 		y_major_grid_line_thickness_px = p_user_style.y_major_grid_line_thickness_px
-	if p_user_style.y_major_grid_line_dash_px != DEFAULT_Y_MAJOR_GRIDLINE_DASH_PX:
+	if p_user_style.is_overridden(&"y_major_grid_line_dash_px"):
 		y_major_grid_line_dash_px = p_user_style.y_major_grid_line_dash_px
 
-	if p_user_style.y_minor_grid_line_color != DEFAULT_Y_MINOR_GRIDLINE_COLOR:
+	if p_user_style.is_overridden(&"y_minor_grid_line_color"):
 		y_minor_grid_line_color = p_user_style.y_minor_grid_line_color
-	if p_user_style.y_minor_grid_line_thickness_px != DEFAULT_Y_MINOR_GRIDLINE_THICKNESS_PX:
+	if p_user_style.is_overridden(&"y_minor_grid_line_thickness_px"):
 		y_minor_grid_line_thickness_px = p_user_style.y_minor_grid_line_thickness_px
-	if p_user_style.y_minor_grid_line_dash_px != DEFAULT_Y_MINOR_GRIDLINE_DASH_PX:
+	if p_user_style.is_overridden(&"y_minor_grid_line_dash_px"):
 		y_minor_grid_line_dash_px = p_user_style.y_minor_grid_line_dash_px
 
 
@@ -214,8 +263,25 @@ static func resolve(
 # Change detection
 ####################################################################################################
 
+## Returns a copy of this resource carrying the property values and the
+## override flags. The flags are copied explicitly because
+## [method Resource.duplicate] only copies stored properties.
+func make_snapshot() -> TauPaneStyle:
+	var copy := duplicate() as TauPaneStyle
+	copy._copy_overrides_from(self)
+	return copy
+
+
+# Writing a typed collection into another instance through a property is
+# rejected at runtime, so the copy is made from inside the target.
+func _copy_overrides_from(p_source: TauPaneStyle) -> void:
+	_overridden = p_source._overridden.duplicate()
+
+
 func is_equal_to(p_other: TauPaneStyle) -> bool:
 	if p_other == null:
+		return false
+	if _overridden != p_other._overridden:
 		return false
 	if x_major_grid_line_color != p_other.x_major_grid_line_color:
 		return false

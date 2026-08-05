@@ -1,7 +1,10 @@
+@tool
+
 ## Visual styling for crosshair guide lines drawn at the hovered position.
 ##
 ## Resolved through the same three-layer cascade (defaults, theme, user
-## overrides) as TauBarStyle, TauScatterStyle, TauPaneStyle.
+## overrides) as TauBarStyle, TauScatterStyle, TauPaneStyle. A property counts
+## as set as soon as it is assigned, whatever the value.
 ##
 ## Theme type variation: TauCrosshair
 class_name TauCrosshairStyle extends Resource
@@ -13,15 +16,29 @@ class_name TauCrosshairStyle extends Resource
 
 const DEFAULT_COLOR: Color = Color(1.0, 1.0, 1.0, 0.4)
 ## Crosshair line color.
-@export var color: Color = DEFAULT_COLOR
+@export var color: Color = DEFAULT_COLOR:
+	set(value):
+		color = value
+		_overridden[&"color"] = true
 
 const DEFAULT_THICKNESS_PX: int = 1
 ## Crosshair line thickness (px).
-@export var thickness_px: int = DEFAULT_THICKNESS_PX
+@export var thickness_px: int = DEFAULT_THICKNESS_PX:
+	set(value):
+		thickness_px = value
+		_overridden[&"thickness_px"] = true
 
 const DEFAULT_DASH_PX: int = 4
 ## Crosshair dash length. 0 = solid line.
-@export var dash_px: int = DEFAULT_DASH_PX
+@export var dash_px: int = DEFAULT_DASH_PX:
+	set(value):
+		dash_px = value
+		_overridden[&"dash_px"] = true
+
+
+# Exported property names assigned at least once, whatever the value. Member
+# initializers bypass the setters, so a fresh instance starts empty.
+var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -47,15 +64,21 @@ func load_from_theme(p_control: Control) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
+## Returns [code]true[/code] when [param p_property] has been assigned on this
+## resource, whatever the assigned value.
+func is_overridden(p_property: StringName) -> bool:
+	return _overridden.has(p_property)
+
+
 func apply_overrides_from(p_user_style: TauCrosshairStyle) -> void:
 	if p_user_style == null:
 		return
 
-	if p_user_style.color != DEFAULT_COLOR:
+	if p_user_style.is_overridden(&"color"):
 		color = p_user_style.color
-	if p_user_style.thickness_px != DEFAULT_THICKNESS_PX:
+	if p_user_style.is_overridden(&"thickness_px"):
 		thickness_px = p_user_style.thickness_px
-	if p_user_style.dash_px != DEFAULT_DASH_PX:
+	if p_user_style.is_overridden(&"dash_px"):
 		dash_px = p_user_style.dash_px
 
 

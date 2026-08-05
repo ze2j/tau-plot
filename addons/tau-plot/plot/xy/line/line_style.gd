@@ -1,15 +1,22 @@
+@tool
+
 ## Contains theme-driven visual parameters for line overlays.
 ##
 ## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults.
+## over the theme and the built-in defaults. A property counts as set as soon
+## as it is assigned, whatever the value, so assigning a built-in default from
+## code still beats the theme.
 ##
 ## Properties left untouched fall back to the Godot theme. If the theme does
 ## not define them either, the built-in defaults apply.
 ##
-## [b]Limitation:[/b] because "untouched" means "still equal to the built-in
-## default", setting a property to exactly its default value has no visible
-## effect. To force the default value to win over a theme, use an imperceptibly
-## different value (e.g. 2.001 instead of 2.0).
+## For the per-series arrays other than [member fills], assign a new array to
+## mark the property as set. Mutating the existing array in place does not.
+## [member fills] needs no marking: it merges with the theme entry by entry.
+##
+## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
+## default is not written to the saved resource, so it reads as untouched on
+## load and the theme still wins. Assign it from code instead.
 class_name TauLineStyle extends Resource
 
 ################################################################################################
@@ -24,7 +31,10 @@ class_name TauLineStyle extends Resource
 ## [code]i % line_widths_px.size()[/code]. An empty array is treated as all
 ## series rendered at [code]2.0[/code] pixels.
 const DEFAULT_LINE_WIDTHS_PX: Array[float] = [2.0]
-@export var line_widths_px: Array[float] = [2.0]
+@export var line_widths_px: Array[float] = [2.0]:
+	set(value):
+		line_widths_px = value
+		_overridden[&"line_widths_px"] = true
 
 ## Per-series cycle of line widths in pixels for the two segments adjacent to
 ## the hovered sample. Each entry sets the hovered width for one series, with
@@ -38,7 +48,10 @@ const DEFAULT_LINE_WIDTHS_PX: Array[float] = [2.0]
 ## least the resolved per-series base width from [member line_widths_px], so
 ## a thicker series never becomes thinner on hover.
 const DEFAULT_HOVERED_LINE_WIDTHS_PX: Array[float] = [3.0]
-@export var hovered_line_widths_px: Array[float] = [3.0]
+@export var hovered_line_widths_px: Array[float] = [3.0]:
+	set(value):
+		hovered_line_widths_px = value
+		_overridden[&"hovered_line_widths_px"] = true
 
 ## Per-series dash length cycle, in pixels. Each entry sets the dash length
 ## for one series, with the array indexed cyclically by series index using
@@ -48,13 +61,30 @@ const DEFAULT_HOVERED_LINE_WIDTHS_PX: Array[float] = [3.0]
 ## series to dashed rendering with alternating on-off segments of that pixel
 ## length. An empty array is treated as all series solid.
 const DEFAULT_DASH_LENGTHS_PX: Array[int] = [0]
-@export var dash_lengths_px: Array[int] = [0]
+@export var dash_lengths_px: Array[int] = [0]:
+	set(value):
+		dash_lengths_px = value
+		_overridden[&"dash_lengths_px"] = true
 
 ## Per-series cycle of [TauLineFill], indexed cyclically by series index
-## using modulo. An empty array, or a null entry, leaves the matching series
-## at [TauLineFill]'s built-in defaults.
+## using modulo.
+##
+## This property merges with the theme instead of replacing it. The resolved
+## cycle is as long as the longer of the two cycles, both are read cyclically,
+## and each resolved entry keeps every themed field the matching
+## [TauLineFill] leaves unset. Leave the array empty to take the themed cycle
+## as is, or use a null entry to leave one position to the theme.
 const DEFAULT_FILLS: Array[TauLineFill] = []
-@export var fills: Array[TauLineFill] = []
+@export var fills: Array[TauLineFill] = []:
+	set(value):
+		fills = value
+		_overridden[&"fills"] = true
+
+
+# Exported property names assigned at least once, whatever the value. Member
+# initializers bypass the setters, so a fresh instance starts empty.
+var _overridden: Dictionary[StringName, bool] = {}
+
 
 # Shared instance returned by get_series_fill() when fills is empty or the
 # series entry is null, so the renderer does not allocate one per series per
@@ -428,21 +458,26 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
+## Returns [code]true[/code] when [param p_property] has been assigned on this
+## resource, whatever the assigned value.
+func is_overridden(p_property: StringName) -> bool:
+	return _overridden.has(p_property)
+
+
 ## Applies overridden properties from [param p_user_style] onto this resolved
-## instance. A property is considered overridden when its value on the user
-## resource differs from the matching DEFAULT_* constant.
+## instance. [member fills] merges per entry and per field, every other
+## property replaces.
 func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 	if p_user_style == null:
 		return
 
-	if _is_line_widths_overridden(p_user_style.line_widths_px):
+	if p_user_style.is_overridden(&"line_widths_px"):
 		line_widths_px = p_user_style.line_widths_px.duplicate()
-	if _is_hovered_line_widths_overridden(p_user_style.hovered_line_widths_px):
+	if p_user_style.is_overridden(&"hovered_line_widths_px"):
 		hovered_line_widths_px = p_user_style.hovered_line_widths_px.duplicate()
-	if _is_dash_lengths_overridden(p_user_style.dash_lengths_px):
+	if p_user_style.is_overridden(&"dash_lengths_px"):
 		dash_lengths_px = p_user_style.dash_lengths_px.duplicate()
-	if _is_fills_overridden(p_user_style.fills):
-		fills = p_user_style.fills.duplicate()
+	fills = _merge_fills(p_user_style.fills)
 
 
 ####################################################################################################
@@ -471,10 +506,28 @@ static func resolve(
 # Change detection
 ####################################################################################################
 
+## Returns a copy of this resource carrying the property values and the
+## override flags. The flags are copied explicitly because
+## [method Resource.duplicate] only copies stored properties.
+func make_snapshot() -> TauLineStyle:
+	var copy := duplicate() as TauLineStyle
+	copy._copy_overrides_from(self)
+	return copy
+
+
+# Writing a typed collection into another instance through a property is
+# rejected at runtime, so the copy is made from inside the target.
+func _copy_overrides_from(p_source: TauLineStyle) -> void:
+	_overridden = p_source._overridden.duplicate()
+
+
 ## Deep equality between this instance and [param p_other]. Compares every
-## public property value-for-value, including the per-series arrays.
+## public property value-for-value, including the per-series arrays, plus the
+## set of overridden property names.
 func is_equal_to(p_other: TauLineStyle) -> bool:
 	if p_other == null:
+		return false
+	if _overridden != p_other._overridden:
 		return false
 	if line_widths_px.size() != p_other.line_widths_px.size():
 		return false
@@ -517,50 +570,35 @@ func has_layout_affecting_change(p_other: TauLineStyle) -> bool:
 # Private
 ####################################################################################################
 
-# Element-wise inequality between p_widths and DEFAULT_LINE_WIDTHS_PX. Typed
-# arrays in GDScript do not have a reliable equality operator against module
-# constants, so the comparison runs through size and indices.
-static func _is_line_widths_overridden(p_widths: Array[float]) -> bool:
-	if p_widths.size() != DEFAULT_LINE_WIDTHS_PX.size():
-		return true
-	for i in range(p_widths.size()):
-		if p_widths[i] != DEFAULT_LINE_WIDTHS_PX[i]:
-			return true
-	return false
-
-
-# Element-wise inequality between p_widths and DEFAULT_HOVERED_LINE_WIDTHS_PX.
-static func _is_hovered_line_widths_overridden(p_widths: Array[float]) -> bool:
-	if p_widths.size() != DEFAULT_HOVERED_LINE_WIDTHS_PX.size():
-		return true
-	for i in range(p_widths.size()):
-		if p_widths[i] != DEFAULT_HOVERED_LINE_WIDTHS_PX[i]:
-			return true
-	return false
-
-
-# Element-wise inequality between p_dashes and DEFAULT_DASH_LENGTHS_PX.
-static func _is_dash_lengths_overridden(p_dashes: Array[int]) -> bool:
-	if p_dashes.size() != DEFAULT_DASH_LENGTHS_PX.size():
-		return true
-	for i in range(p_dashes.size()):
-		if p_dashes[i] != DEFAULT_DASH_LENGTHS_PX[i]:
-			return true
-	return false
-
-
-# Element-wise inequality between p_fills and DEFAULT_FILLS.
-static func _is_fills_overridden(p_fills: Array[TauLineFill]) -> bool:
-	if p_fills.size() != DEFAULT_FILLS.size():
-		return true
-	for i in range(p_fills.size()):
-		if not p_fills[i].is_equal_to(DEFAULT_FILLS[i]):
-			return true
-	return false
-
-
 # Grows `fills` to at least p_min_size entries, filling any new slots with
 # default-constructed TauLineFill instances.
 func _ensure_fills_min_size(p_min_size: int) -> void:
 	while fills.size() < p_min_size:
 		fills.append(TauLineFill.new())
+
+
+# Merges the themed cycle already in `fills` with p_user_fills into the
+# resolved cycle. Both sides are read modulo their own size over a resolved
+# length of max(sizes), so neither is a sparse patch table and the shorter one
+# repeats.
+#
+# Every entry is built fresh. A themed entry lands at several resolved
+# positions when the cycles differ in length, and each of them may merge a
+# different user entry on top, so they cannot share one instance. Building
+# fresh also keeps the resolved style from sharing a TauLineFill with the
+# user's resource.
+func _merge_fills(p_user_fills: Array[TauLineFill]) -> Array[TauLineFill]:
+	var themed_count := fills.size()
+	var user_count := p_user_fills.size()
+	var merged: Array[TauLineFill] = []
+	merged.resize(maxi(themed_count, user_count))
+	for i in range(merged.size()):
+		var entry: TauLineFill
+		if themed_count == 0:
+			entry = TauLineFill.new()
+		else:
+			entry = fills[i % themed_count].duplicate() as TauLineFill
+		if user_count > 0:
+			entry.apply_overrides_from(p_user_fills[i % user_count])
+		merged[i] = entry
+	return merged

@@ -1,15 +1,18 @@
+@tool
+
 ## Contains theme-driven visual and spacing parameters for the bars.
 ##
 ## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults.
+## over the theme and the built-in defaults. A property counts as set as soon
+## as it is assigned, whatever the value, so assigning a built-in default from
+## code still beats the theme.
 ##
 ## Properties left untouched fall back to the Godot theme. If the theme does
 ## not define them either, the built-in defaults apply.
 ##
-## [b]Limitation:[/b] because "untouched" means "still equal to the built-in
-## default", setting a property to exactly its default value has no visible
-## effect. To force the default value to win over a theme, use an imperceptibly
-## different value (e.g. 65 instead of 64).
+## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
+## default is not written to the saved resource, so it reads as untouched on
+## load and the theme still wins. Assign it from code instead.
 class_name TauBarStyle extends Resource
 
 ################################################################################################
@@ -19,17 +22,34 @@ class_name TauBarStyle extends Resource
 ################################################################################################
 
 const DEFAULT_BAR_WIDTH_PX: int = 64
-@export var bar_width_px: int = DEFAULT_BAR_WIDTH_PX
+@export var bar_width_px: int = DEFAULT_BAR_WIDTH_PX:
+	set(value):
+		bar_width_px = value
+		_overridden[&"bar_width_px"] = true
 
 const DEFAULT_BAR_INTRAGROUP_GAP_PX: int = 0
-@export var bar_intragroup_gap_px: int = DEFAULT_BAR_INTRAGROUP_GAP_PX
+@export var bar_intragroup_gap_px: int = DEFAULT_BAR_INTRAGROUP_GAP_PX:
+	set(value):
+		bar_intragroup_gap_px = value
+		_overridden[&"bar_intragroup_gap_px"] = true
 
-@export var style_box: StyleBox = null
+@export var style_box: StyleBox = null:
+	set(value):
+		style_box = value
+		_overridden[&"style_box"] = true
 
 ## StyleBox used for the hovered bar. When null, the renderer uses the normal
 ## style_box (no shape change on hover). The fill color is still determined by
 ## the color pipeline and the hover_highlight_callback.
-@export var hovered_style_box: StyleBox = null
+@export var hovered_style_box: StyleBox = null:
+	set(value):
+		hovered_style_box = value
+		_overridden[&"hovered_style_box"] = true
+
+
+# Exported property names assigned at least once, whatever the value. Member
+# initializers bypass the setters, so a fresh instance starts empty.
+var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -121,20 +141,25 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
+## Returns [code]true[/code] when [param p_property] has been assigned on this
+## resource, whatever the assigned value.
+func is_overridden(p_property: StringName) -> bool:
+	return _overridden.has(p_property)
+
+
 ## Applies overridden properties from [param p_user_style] onto this resolved
-## instance. A property is considered overridden when its value on the user
-## resource differs from the matching DEFAULT_* constant.
+## instance.
 func apply_overrides_from(p_user_style: TauBarStyle) -> void:
 	if p_user_style == null:
 		return
 
-	if p_user_style.bar_width_px != DEFAULT_BAR_WIDTH_PX:
+	if p_user_style.is_overridden(&"bar_width_px"):
 		bar_width_px = p_user_style.bar_width_px
-	if p_user_style.bar_intragroup_gap_px != DEFAULT_BAR_INTRAGROUP_GAP_PX:
+	if p_user_style.is_overridden(&"bar_intragroup_gap_px"):
 		bar_intragroup_gap_px = p_user_style.bar_intragroup_gap_px
-	if p_user_style.style_box != null:
+	if p_user_style.is_overridden(&"style_box"):
 		style_box = p_user_style.style_box
-	if p_user_style.hovered_style_box != null:
+	if p_user_style.is_overridden(&"hovered_style_box"):
 		hovered_style_box = p_user_style.hovered_style_box
 
 
@@ -169,8 +194,25 @@ static func resolve(
 # Change detection
 ####################################################################################################
 
+## Returns a copy of this resource carrying the property values and the
+## override flags. The flags are copied explicitly because
+## [method Resource.duplicate] only copies stored properties.
+func make_snapshot() -> TauBarStyle:
+	var copy := duplicate() as TauBarStyle
+	copy._copy_overrides_from(self)
+	return copy
+
+
+# Writing a typed collection into another instance through a property is
+# rejected at runtime, so the copy is made from inside the target.
+func _copy_overrides_from(p_source: TauBarStyle) -> void:
+	_overridden = p_source._overridden.duplicate()
+
+
 func is_equal_to(p_other: TauBarStyle) -> bool:
 	if p_other == null:
+		return false
+	if _overridden != p_other._overridden:
 		return false
 	if bar_width_px != p_other.bar_width_px:
 		return false

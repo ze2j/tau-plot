@@ -1,7 +1,10 @@
+@tool
+
 ## Visual styling for the hover tooltip popup.
 ##
 ## Resolved through the same three-layer cascade (defaults, theme, user
-## overrides) as TauBarStyle, TauScatterStyle, TauPaneStyle.
+## overrides) as TauBarStyle, TauScatterStyle, TauPaneStyle. A property counts
+## as set as soon as it is assigned, whatever the value.
 ##
 ## Theme type variation: TauTooltip
 class_name TauTooltipStyle extends Resource
@@ -13,36 +16,65 @@ class_name TauTooltipStyle extends Resource
 
 ## Background for the transient (non-pinned) tooltip.
 ## Can be StyleBoxFlat or StyleBoxTexture.
-@export var style_box: StyleBox = null
+@export var style_box: StyleBox = null:
+	set(value):
+		style_box = value
+		_overridden[&"style_box"] = true
 
 ## Background for the pinned tooltip. Allows a visual distinction
 ## between pinned and transient tooltips (for example a slightly more
 ## opaque background or a different border).
 ## When null, falls back to the normal style_box.
-@export var pinned_style_box: StyleBox = null
+@export var pinned_style_box: StyleBox = null:
+	set(value):
+		pinned_style_box = value
+		_overridden[&"pinned_style_box"] = true
 
 ## Tooltip text font. Falls back to TauXYStyle.label_font if null.
-@export var font: Font = null
+@export var font: Font = null:
+	set(value):
+		font = value
+		_overridden[&"font"] = true
 
 const DEFAULT_FONT_SIZE: int = 14
 ## Tooltip text font size.
-@export var font_size: int = DEFAULT_FONT_SIZE
+@export var font_size: int = DEFAULT_FONT_SIZE:
+	set(value):
+		font_size = value
+		_overridden[&"font_size"] = true
 
 const DEFAULT_FONT_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
 ## Tooltip text color.
-@export var font_color: Color = DEFAULT_FONT_COLOR
+@export var font_color: Color = DEFAULT_FONT_COLOR:
+	set(value):
+		font_color = value
+		_overridden[&"font_color"] = true
 
 const DEFAULT_PADDING_PX: int = 8
 ## Padding inside the tooltip popup (px).
-@export var padding_px: int = DEFAULT_PADDING_PX
+@export var padding_px: int = DEFAULT_PADDING_PX:
+	set(value):
+		padding_px = value
+		_overridden[&"padding_px"] = true
 
 const DEFAULT_OFFSET_PX: Vector2i = Vector2i(12, -12)
 ## Offset from the anchor point (data point or cursor) in pixels.
-@export var offset_px: Vector2i = DEFAULT_OFFSET_PX
+@export var offset_px: Vector2i = DEFAULT_OFFSET_PX:
+	set(value):
+		offset_px = value
+		_overridden[&"offset_px"] = true
 
 const DEFAULT_MAX_WIDTH_PX: int = 300
 ## Maximum tooltip width before text wraps (px). 0 = no limit.
-@export var max_width_px: int = DEFAULT_MAX_WIDTH_PX
+@export var max_width_px: int = DEFAULT_MAX_WIDTH_PX:
+	set(value):
+		max_width_px = value
+		_overridden[&"max_width_px"] = true
+
+
+# Exported property names assigned at least once, whatever the value. Member
+# initializers bypass the setters, so a fresh instance starts empty.
+var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -101,11 +133,12 @@ func load_from_theme(p_control: Control) -> void:
 	if p_control.has_theme_constant(&"tooltip_padding"):
 		padding_px = max(p_control.get_theme_constant(&"tooltip_padding"), 0)
 
+	var offset := offset_px
 	if p_control.has_theme_constant(&"tooltip_offset_x"):
-		offset_px.x = p_control.get_theme_constant(&"tooltip_offset_x")
-
+		offset.x = p_control.get_theme_constant(&"tooltip_offset_x")
 	if p_control.has_theme_constant(&"tooltip_offset_y"):
-		offset_px.y = p_control.get_theme_constant(&"tooltip_offset_y")
+		offset.y = p_control.get_theme_constant(&"tooltip_offset_y")
+	offset_px = offset
 
 	if p_control.has_theme_constant(&"tooltip_max_width"):
 		max_width_px = max(p_control.get_theme_constant(&"tooltip_max_width"), 0)
@@ -115,25 +148,31 @@ func load_from_theme(p_control: Control) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
+## Returns [code]true[/code] when [param p_property] has been assigned on this
+## resource, whatever the assigned value.
+func is_overridden(p_property: StringName) -> bool:
+	return _overridden.has(p_property)
+
+
 func apply_overrides_from(p_user_style: TauTooltipStyle) -> void:
 	if p_user_style == null:
 		return
 
-	if p_user_style.style_box != null:
+	if p_user_style.is_overridden(&"style_box"):
 		style_box = p_user_style.style_box
-	if p_user_style.pinned_style_box != null:
+	if p_user_style.is_overridden(&"pinned_style_box"):
 		pinned_style_box = p_user_style.pinned_style_box
-	if p_user_style.font != null:
+	if p_user_style.is_overridden(&"font"):
 		font = p_user_style.font
-	if p_user_style.font_size != DEFAULT_FONT_SIZE:
+	if p_user_style.is_overridden(&"font_size"):
 		font_size = p_user_style.font_size
-	if p_user_style.font_color != DEFAULT_FONT_COLOR:
+	if p_user_style.is_overridden(&"font_color"):
 		font_color = p_user_style.font_color
-	if p_user_style.padding_px != DEFAULT_PADDING_PX:
+	if p_user_style.is_overridden(&"padding_px"):
 		padding_px = p_user_style.padding_px
-	if p_user_style.offset_px != DEFAULT_OFFSET_PX:
+	if p_user_style.is_overridden(&"offset_px"):
 		offset_px = p_user_style.offset_px
-	if p_user_style.max_width_px != DEFAULT_MAX_WIDTH_PX:
+	if p_user_style.is_overridden(&"max_width_px"):
 		max_width_px = p_user_style.max_width_px
 
 

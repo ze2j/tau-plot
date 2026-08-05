@@ -1,15 +1,18 @@
+@tool
+
 ## Visual style for the legend.
 ##
 ## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults.
+## over the theme and the built-in defaults. A property counts as set as soon
+## as it is assigned, whatever the value, so assigning a built-in default from
+## code still beats the theme.
 ##
 ## Properties left untouched fall back to the Godot theme. If the theme does
 ## not define them either, the built-in defaults apply.
 ##
-## [b]Limitation:[/b] because "untouched" means "still equal to the built-in
-## default", setting a property to exactly its default value has no visible
-## effect. To force the default value to win over a theme, use an imperceptibly
-## different value (e.g. 15 instead of 14).
+## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
+## default is not written to the saved resource, so it reads as untouched on
+## load and the theme still wins. Assign it from code instead.
 class_name TauLegendStyle extends Resource
 
 ################################################################################################
@@ -20,34 +23,69 @@ class_name TauLegendStyle extends Resource
 
 
 const DEFAULT_FONT: Font = null
-@export var font: Font = DEFAULT_FONT
+@export var font: Font = DEFAULT_FONT:
+	set(value):
+		font = value
+		_overridden[&"font"] = true
 
 const DEFAULT_FONT_SIZE: int = 14
-@export var font_size: int = DEFAULT_FONT_SIZE
+@export var font_size: int = DEFAULT_FONT_SIZE:
+	set(value):
+		font_size = value
+		_overridden[&"font_size"] = true
 
 const DEFAULT_FONT_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
-@export var font_color: Color = DEFAULT_FONT_COLOR
+@export var font_color: Color = DEFAULT_FONT_COLOR:
+	set(value):
+		font_color = value
+		_overridden[&"font_color"] = true
 
 const DEFAULT_KEY_SIZE_PX: int = 12
-@export var key_size_px: int = DEFAULT_KEY_SIZE_PX
+@export var key_size_px: int = DEFAULT_KEY_SIZE_PX:
+	set(value):
+		key_size_px = value
+		_overridden[&"key_size_px"] = true
 
 const DEFAULT_KEY_GAP_PX: int = 2
-@export var key_gap_px: int = DEFAULT_KEY_GAP_PX
+@export var key_gap_px: int = DEFAULT_KEY_GAP_PX:
+	set(value):
+		key_gap_px = value
+		_overridden[&"key_gap_px"] = true
 
 const DEFAULT_KEY_LABEL_GAP_PX: int = 6
-@export var key_label_gap_px: int = DEFAULT_KEY_LABEL_GAP_PX
+@export var key_label_gap_px: int = DEFAULT_KEY_LABEL_GAP_PX:
+	set(value):
+		key_label_gap_px = value
+		_overridden[&"key_label_gap_px"] = true
 
 const DEFAULT_ITEM_GAP_PX: int = 8
-@export var item_gap_px: int = DEFAULT_ITEM_GAP_PX
+@export var item_gap_px: int = DEFAULT_ITEM_GAP_PX:
+	set(value):
+		item_gap_px = value
+		_overridden[&"item_gap_px"] = true
 
 const DEFAULT_BACKGROUND: StyleBox = null
-@export var background: StyleBox = DEFAULT_BACKGROUND
+@export var background: StyleBox = DEFAULT_BACKGROUND:
+	set(value):
+		background = value
+		_overridden[&"background"] = true
 
 const DEFAULT_MARGIN_PX: int = 8
-@export var margin_px: int = DEFAULT_MARGIN_PX
+@export var margin_px: int = DEFAULT_MARGIN_PX:
+	set(value):
+		margin_px = value
+		_overridden[&"margin_px"] = true
 
 const DEFAULT_MAX_SIZE_PX: int = 0  # 0 means no constraint
-@export var max_size_px: int = DEFAULT_MAX_SIZE_PX
+@export var max_size_px: int = DEFAULT_MAX_SIZE_PX:
+	set(value):
+		max_size_px = value
+		_overridden[&"max_size_px"] = true
+
+
+# Exported property names assigned at least once, whatever the value. Member
+# initializers bypass the setters, so a fresh instance starts empty.
+var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -103,37 +141,42 @@ func load_from_theme(p_control: Control) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
+## Returns [code]true[/code] when [param p_property] has been assigned on this
+## resource, whatever the assigned value.
+func is_overridden(p_property: StringName) -> bool:
+	return _overridden.has(p_property)
+
+
 ## Applies overridden properties from [param p_user_style] onto this resolved
-## instance. A property is considered overridden when its value on the user
-## resource differs from the matching DEFAULT_* constant.
+## instance.
 func apply_overrides_from(p_user_style: TauLegendStyle) -> void:
 	if p_user_style == null:
 		return
 
-	if p_user_style.font != DEFAULT_FONT:
+	if p_user_style.is_overridden(&"font"):
 		font = p_user_style.font
-	if p_user_style.font_size != DEFAULT_FONT_SIZE:
+	if p_user_style.is_overridden(&"font_size"):
 		font_size = p_user_style.font_size
-	if p_user_style.font_color != DEFAULT_FONT_COLOR:
+	if p_user_style.is_overridden(&"font_color"):
 		font_color = p_user_style.font_color
 
-	if p_user_style.key_size_px != DEFAULT_KEY_SIZE_PX:
+	if p_user_style.is_overridden(&"key_size_px"):
 		key_size_px = p_user_style.key_size_px
-	if p_user_style.key_gap_px != DEFAULT_KEY_GAP_PX:
+	if p_user_style.is_overridden(&"key_gap_px"):
 		key_gap_px = p_user_style.key_gap_px
-	if p_user_style.key_label_gap_px != DEFAULT_KEY_LABEL_GAP_PX:
+	if p_user_style.is_overridden(&"key_label_gap_px"):
 		key_label_gap_px = p_user_style.key_label_gap_px
 
-	if p_user_style.item_gap_px != DEFAULT_ITEM_GAP_PX:
+	if p_user_style.is_overridden(&"item_gap_px"):
 		item_gap_px = p_user_style.item_gap_px
 
-	if p_user_style.background != DEFAULT_BACKGROUND:
+	if p_user_style.is_overridden(&"background"):
 		background = p_user_style.background
 
-	if p_user_style.margin_px != DEFAULT_MARGIN_PX:
+	if p_user_style.is_overridden(&"margin_px"):
 		margin_px = p_user_style.margin_px
 
-	if p_user_style.max_size_px != DEFAULT_MAX_SIZE_PX:
+	if p_user_style.is_overridden(&"max_size_px"):
 		max_size_px = p_user_style.max_size_px
 
 
@@ -165,8 +208,25 @@ static func resolve(
 # Change detection
 ####################################################################################################
 
+## Returns a copy of this resource carrying the property values and the
+## override flags. The flags are copied explicitly because
+## [method Resource.duplicate] only copies stored properties.
+func make_snapshot() -> TauLegendStyle:
+	var copy := duplicate() as TauLegendStyle
+	copy._copy_overrides_from(self)
+	return copy
+
+
+# Writing a typed collection into another instance through a property is
+# rejected at runtime, so the copy is made from inside the target.
+func _copy_overrides_from(p_source: TauLegendStyle) -> void:
+	_overridden = p_source._overridden.duplicate()
+
+
 func is_equal_to(p_other: TauLegendStyle) -> bool:
 	if p_other == null:
+		return false
+	if _overridden != p_other._overridden:
 		return false
 	if font != p_other.font:
 		return false

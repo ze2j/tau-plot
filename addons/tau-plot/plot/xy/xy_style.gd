@@ -1,15 +1,21 @@
+@tool
+
 ## Contains theme-driven visual and spacing parameters for the XY plot.
 ##
 ## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults.
+## over the theme and the built-in defaults. A property counts as set as soon
+## as it is assigned, whatever the value, so assigning a built-in default from
+## code still beats the theme.
 ##
 ## Properties left untouched fall back to the Godot theme. If the theme does
 ## not define them either, the built-in defaults apply.
 ##
-## [b]Limitation:[/b] because "untouched" means "still equal to the built-in
-## default", setting a property to exactly its default value has no visible
-## effect. To force the default value to win over a theme, use an imperceptibly
-## different value (e.g. 17 instead of 16).
+## For array properties, assign a new array to mark the property as set.
+## Mutating the existing array in place does not.
+##
+## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
+## default is not written to the saved resource, so it reads as untouched on
+## load and the theme still wins. Assign it from code instead.
 class_name TauXYStyle extends Resource
 
 ################################################################################################
@@ -19,16 +25,28 @@ class_name TauXYStyle extends Resource
 ################################################################################################
 
 const DEFAULT_AXIS_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
-@export var axis_color: Color = DEFAULT_AXIS_COLOR
+@export var axis_color: Color = DEFAULT_AXIS_COLOR:
+	set(value):
+		axis_color = value
+		_overridden[&"axis_color"] = true
 
 const DEFAULT_LABEL_FONT: Font = null
-@export var label_font: Font = DEFAULT_LABEL_FONT
+@export var label_font: Font = DEFAULT_LABEL_FONT:
+	set(value):
+		label_font = value
+		_overridden[&"label_font"] = true
 
 const DEFAULT_LABEL_FONT_SIZE: int = 16
-@export var label_font_size: int = DEFAULT_LABEL_FONT_SIZE
+@export var label_font_size: int = DEFAULT_LABEL_FONT_SIZE:
+	set(value):
+		label_font_size = value
+		_overridden[&"label_font_size"] = true
 
 const DEFAULT_LABEL_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
-@export var label_color: Color = DEFAULT_LABEL_COLOR
+@export var label_color: Color = DEFAULT_LABEL_COLOR:
+	set(value):
+		label_color = value
+		_overridden[&"label_color"] = true
 
 ## Tick mark dimensions for the x axis and y axis respectively.
 ## "x" and "y" refer to the logical axis, not screen direction. These values
@@ -37,49 +55,91 @@ const DEFAULT_LABEL_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
 ## - length: how far the tick protrudes from the axis line (perpendicular to it).
 ## - thickness: stroke width of the tick mark (passed to draw_line).
 const DEFAULT_X_MAJOR_TICK_LENGTH_PX: int = 4
-@export var x_major_tick_length_px: int = DEFAULT_X_MAJOR_TICK_LENGTH_PX
+@export var x_major_tick_length_px: int = DEFAULT_X_MAJOR_TICK_LENGTH_PX:
+	set(value):
+		x_major_tick_length_px = value
+		_overridden[&"x_major_tick_length_px"] = true
 
 const DEFAULT_X_MAJOR_TICK_THICKNESS_PX: int = 1
-@export var x_major_tick_thickness_px: int = DEFAULT_X_MAJOR_TICK_THICKNESS_PX
+@export var x_major_tick_thickness_px: int = DEFAULT_X_MAJOR_TICK_THICKNESS_PX:
+	set(value):
+		x_major_tick_thickness_px = value
+		_overridden[&"x_major_tick_thickness_px"] = true
 
 const DEFAULT_Y_MAJOR_TICK_LENGTH_PX: int = 4
-@export var y_major_tick_length_px: int = DEFAULT_Y_MAJOR_TICK_LENGTH_PX
+@export var y_major_tick_length_px: int = DEFAULT_Y_MAJOR_TICK_LENGTH_PX:
+	set(value):
+		y_major_tick_length_px = value
+		_overridden[&"y_major_tick_length_px"] = true
 
 const DEFAULT_Y_MAJOR_TICK_THICKNESS_PX: int = 1
-@export var y_major_tick_thickness_px: int = DEFAULT_Y_MAJOR_TICK_THICKNESS_PX
+@export var y_major_tick_thickness_px: int = DEFAULT_Y_MAJOR_TICK_THICKNESS_PX:
+	set(value):
+		y_major_tick_thickness_px = value
+		_overridden[&"y_major_tick_thickness_px"] = true
 
 ## Minor tick dimensions. The length is derived from the major tick length by
 ## multiplying it with minor_tick_length_ratio (shared across both axes).
 ## Thickness is independent per axis.
 const DEFAULT_MINOR_TICK_LENGTH_RATIO: float = 0.5
-@export var minor_tick_length_ratio: float = DEFAULT_MINOR_TICK_LENGTH_RATIO
+@export var minor_tick_length_ratio: float = DEFAULT_MINOR_TICK_LENGTH_RATIO:
+	set(value):
+		minor_tick_length_ratio = value
+		_overridden[&"minor_tick_length_ratio"] = true
 
 const DEFAULT_X_MINOR_TICK_THICKNESS_PX: int = 1
-@export var x_minor_tick_thickness_px: int = DEFAULT_X_MINOR_TICK_THICKNESS_PX
+@export var x_minor_tick_thickness_px: int = DEFAULT_X_MINOR_TICK_THICKNESS_PX:
+	set(value):
+		x_minor_tick_thickness_px = value
+		_overridden[&"x_minor_tick_thickness_px"] = true
 
 const DEFAULT_Y_MINOR_TICK_THICKNESS_PX: int = 1
-@export var y_minor_tick_thickness_px: int = DEFAULT_Y_MINOR_TICK_THICKNESS_PX
+@export var y_minor_tick_thickness_px: int = DEFAULT_Y_MINOR_TICK_THICKNESS_PX:
+	set(value):
+		y_minor_tick_thickness_px = value
+		_overridden[&"y_minor_tick_thickness_px"] = true
 
 const DEFAULT_X_TICK_X_LABEL_GAP_PX: int = 4
-@export var x_tick_x_label_gap_px: int = DEFAULT_X_TICK_X_LABEL_GAP_PX
+@export var x_tick_x_label_gap_px: int = DEFAULT_X_TICK_X_LABEL_GAP_PX:
+	set(value):
+		x_tick_x_label_gap_px = value
+		_overridden[&"x_tick_x_label_gap_px"] = true
 
 const DEFAULT_Y_TICK_Y_LABEL_GAP_PX: int = 4
-@export var y_tick_y_label_gap_px: int = DEFAULT_Y_TICK_Y_LABEL_GAP_PX
+@export var y_tick_y_label_gap_px: int = DEFAULT_Y_TICK_Y_LABEL_GAP_PX:
+	set(value):
+		y_tick_y_label_gap_px = value
+		_overridden[&"y_tick_y_label_gap_px"] = true
 
 const DEFAULT_PADDING_LEFT_PX: int = 4
-@export var padding_left_px: int = DEFAULT_PADDING_LEFT_PX
+@export var padding_left_px: int = DEFAULT_PADDING_LEFT_PX:
+	set(value):
+		padding_left_px = value
+		_overridden[&"padding_left_px"] = true
 
 const DEFAULT_PADDING_RIGHT_PX: int = 4
-@export var padding_right_px: int = DEFAULT_PADDING_RIGHT_PX
+@export var padding_right_px: int = DEFAULT_PADDING_RIGHT_PX:
+	set(value):
+		padding_right_px = value
+		_overridden[&"padding_right_px"] = true
 
 const DEFAULT_PADDING_TOP_PX: int = 4
-@export var padding_top_px: int = DEFAULT_PADDING_TOP_PX
+@export var padding_top_px: int = DEFAULT_PADDING_TOP_PX:
+	set(value):
+		padding_top_px = value
+		_overridden[&"padding_top_px"] = true
 
 const DEFAULT_PADDING_BOTTOM_PX: int = 4
-@export var padding_bottom_px: int = DEFAULT_PADDING_BOTTOM_PX
+@export var padding_bottom_px: int = DEFAULT_PADDING_BOTTOM_PX:
+	set(value):
+		padding_bottom_px = value
+		_overridden[&"padding_bottom_px"] = true
 
 const DEFAULT_PANE_GAP_PX: int = 4
-@export var pane_gap_px: int = DEFAULT_PANE_GAP_PX
+@export var pane_gap_px: int = DEFAULT_PANE_GAP_PX:
+	set(value):
+		pane_gap_px = value
+		_overridden[&"pane_gap_px"] = true
 
 ## Plot-wide series color palette.
 const DEFAULT_SERIES_COLORS: Array[Color] = [
@@ -101,11 +161,22 @@ const DEFAULT_SERIES_COLORS: Array[Color] = [
 	Color(0.5, 0.416, 0.955),
 	Color(0.612, 0.459, 0.373),
 	Color(0.929, 0.888, 0.282),
-]
+]:
+	set(value):
+		series_colors = value
+		_overridden[&"series_colors"] = true
 
 ## Plot-wide series alpha (0.0-1.0).
 const DEFAULT_SERIES_ALPHA: float = 1.0
-@export var series_alpha: float = DEFAULT_SERIES_ALPHA
+@export var series_alpha: float = DEFAULT_SERIES_ALPHA:
+	set(value):
+		series_alpha = value
+		_overridden[&"series_alpha"] = true
+
+
+# Exported property names assigned at least once, whatever the value. Member
+# initializers bypass the setters, so a fresh instance starts empty.
+var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -193,69 +264,65 @@ func load_from_theme(p_control: Control) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
+## Returns [code]true[/code] when [param p_property] has been assigned on this
+## resource, whatever the assigned value.
+func is_overridden(p_property: StringName) -> bool:
+	return _overridden.has(p_property)
+
+
 ## Applies overridden properties from [param p_user_style] onto this resolved
-## instance. A property is considered overridden when its value on the user
-## resource differs from the matching DEFAULT_* constant.
+## instance.
 func apply_overrides_from(p_user_style: TauXYStyle) -> void:
 	if p_user_style == null:
 		return
 
-	if p_user_style.axis_color != DEFAULT_AXIS_COLOR:
+	if p_user_style.is_overridden(&"axis_color"):
 		axis_color = p_user_style.axis_color
 
-	if p_user_style.label_font != DEFAULT_LABEL_FONT:
+	if p_user_style.is_overridden(&"label_font"):
 		label_font = p_user_style.label_font
-	if p_user_style.label_font_size != DEFAULT_LABEL_FONT_SIZE:
+	if p_user_style.is_overridden(&"label_font_size"):
 		label_font_size = p_user_style.label_font_size
-	if p_user_style.label_color != DEFAULT_LABEL_COLOR:
+	if p_user_style.is_overridden(&"label_color"):
 		label_color = p_user_style.label_color
 
-	if p_user_style.x_major_tick_length_px != DEFAULT_X_MAJOR_TICK_LENGTH_PX:
+	if p_user_style.is_overridden(&"x_major_tick_length_px"):
 		x_major_tick_length_px = p_user_style.x_major_tick_length_px
-	if p_user_style.x_major_tick_thickness_px != DEFAULT_X_MAJOR_TICK_THICKNESS_PX:
+	if p_user_style.is_overridden(&"x_major_tick_thickness_px"):
 		x_major_tick_thickness_px = p_user_style.x_major_tick_thickness_px
-	if p_user_style.y_major_tick_length_px != DEFAULT_Y_MAJOR_TICK_LENGTH_PX:
+	if p_user_style.is_overridden(&"y_major_tick_length_px"):
 		y_major_tick_length_px = p_user_style.y_major_tick_length_px
-	if p_user_style.y_major_tick_thickness_px != DEFAULT_Y_MAJOR_TICK_THICKNESS_PX:
+	if p_user_style.is_overridden(&"y_major_tick_thickness_px"):
 		y_major_tick_thickness_px = p_user_style.y_major_tick_thickness_px
 
-	if p_user_style.minor_tick_length_ratio != DEFAULT_MINOR_TICK_LENGTH_RATIO:
+	if p_user_style.is_overridden(&"minor_tick_length_ratio"):
 		minor_tick_length_ratio = p_user_style.minor_tick_length_ratio
-	if p_user_style.x_minor_tick_thickness_px != DEFAULT_X_MINOR_TICK_THICKNESS_PX:
+	if p_user_style.is_overridden(&"x_minor_tick_thickness_px"):
 		x_minor_tick_thickness_px = p_user_style.x_minor_tick_thickness_px
-	if p_user_style.y_minor_tick_thickness_px != DEFAULT_Y_MINOR_TICK_THICKNESS_PX:
+	if p_user_style.is_overridden(&"y_minor_tick_thickness_px"):
 		y_minor_tick_thickness_px = p_user_style.y_minor_tick_thickness_px
 
-	if p_user_style.x_tick_x_label_gap_px != DEFAULT_X_TICK_X_LABEL_GAP_PX:
+	if p_user_style.is_overridden(&"x_tick_x_label_gap_px"):
 		x_tick_x_label_gap_px = p_user_style.x_tick_x_label_gap_px
-	if p_user_style.y_tick_y_label_gap_px != DEFAULT_Y_TICK_Y_LABEL_GAP_PX:
+	if p_user_style.is_overridden(&"y_tick_y_label_gap_px"):
 		y_tick_y_label_gap_px = p_user_style.y_tick_y_label_gap_px
 
-	if p_user_style.padding_left_px != DEFAULT_PADDING_LEFT_PX:
+	if p_user_style.is_overridden(&"padding_left_px"):
 		padding_left_px = p_user_style.padding_left_px
-	if p_user_style.padding_right_px != DEFAULT_PADDING_RIGHT_PX:
+	if p_user_style.is_overridden(&"padding_right_px"):
 		padding_right_px = p_user_style.padding_right_px
-	if p_user_style.padding_top_px != DEFAULT_PADDING_TOP_PX:
+	if p_user_style.is_overridden(&"padding_top_px"):
 		padding_top_px = p_user_style.padding_top_px
-	if p_user_style.padding_bottom_px != DEFAULT_PADDING_BOTTOM_PX:
+	if p_user_style.is_overridden(&"padding_bottom_px"):
 		padding_bottom_px = p_user_style.padding_bottom_px
 
-	if p_user_style.pane_gap_px != DEFAULT_PANE_GAP_PX:
+	if p_user_style.is_overridden(&"pane_gap_px"):
 		pane_gap_px = p_user_style.pane_gap_px
 
-	if p_user_style.series_alpha != DEFAULT_SERIES_ALPHA:
+	if p_user_style.is_overridden(&"series_alpha"):
 		series_alpha = p_user_style.series_alpha
 
-	# Array comparison: use size + element loop (safest).
-	var colors_overridden := false
-	if p_user_style.series_colors.size() != DEFAULT_SERIES_COLORS.size():
-		colors_overridden = true
-	else:
-		for i in range(p_user_style.series_colors.size()):
-			if p_user_style.series_colors[i] != DEFAULT_SERIES_COLORS[i]:
-				colors_overridden = true
-				break
-	if colors_overridden:
+	if p_user_style.is_overridden(&"series_colors"):
 		series_colors = p_user_style.series_colors.duplicate()
 
 
@@ -287,8 +354,25 @@ static func resolve(
 # Change detection
 ####################################################################################################
 
+## Returns a copy of this resource carrying the property values and the
+## override flags. The flags are copied explicitly because
+## [method Resource.duplicate] only copies stored properties.
+func make_snapshot() -> TauXYStyle:
+	var copy := duplicate() as TauXYStyle
+	copy._copy_overrides_from(self)
+	return copy
+
+
+# Writing a typed collection into another instance through a property is
+# rejected at runtime, so the copy is made from inside the target.
+func _copy_overrides_from(p_source: TauXYStyle) -> void:
+	_overridden = p_source._overridden.duplicate()
+
+
 func is_equal_to(p_other: TauXYStyle) -> bool:
 	if p_other == null:
+		return false
+	if _overridden != p_other._overridden:
 		return false
 	if axis_color != p_other.axis_color:
 		return false
