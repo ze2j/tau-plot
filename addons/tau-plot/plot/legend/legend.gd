@@ -11,8 +11,8 @@ class Legend extends PanelContainer:
 		## Must match the signature:
 		##   func(p_series_index: int) -> Control
 		## The returned Control must handle its own rendering internally.
-		## If the returned Control sets custom_minimum_size, that size is used.
-		## Otherwise the legend applies its default key_size_px.
+		## Each axis of custom_minimum_size set to a positive value by the factory
+		## is honored. Each axis left at zero falls back to key_size_px.
 		var create_key_control: Callable = Callable()
 
 	## Describes one series entry in the legend.
@@ -64,8 +64,8 @@ class Legend extends PanelContainer:
 
 
 	## Forces a full rebuild of all legend items.
-	## Call when renderer styles change (colors, alpha, outline, marker shape/size)
-	## so that legend keys reflect the updated appearance.
+	## Keys resolve their appearance when they are created, so call this after a
+	## change that alters what a key would draw.
 	func rebuild() -> void:
 		_rebuild()
 
@@ -231,14 +231,13 @@ class Legend extends PanelContainer:
 
 	## Holds one or more legend key Controls side by side, one per overlay type
 	## bound to the series. Each key is created by invoking the factory Callable
-	## stored in KeyInfo.create_key_control. Child Controls are positioned
-	## manually to replicate the exact centering of the original draw-based
-	## approach.
+	## stored in KeyInfo.create_key_control. Keys are placed manually so that
+	## boxes of differing sizes stay centered on the cross axis.
 	class _KeyStrip extends Control:
 		var _series_info: SeriesInfo = null
 		var _style: TauLegendStyle = null
 		var _key_controls: Array[Control] = []
-		var _key_sizes: PackedFloat32Array = PackedFloat32Array()
+		var _key_sizes: PackedVector2Array = PackedVector2Array()
 
 
 		func _init(p_info: SeriesInfo, p_style: TauLegendStyle) -> void:
@@ -246,36 +245,30 @@ class Legend extends PanelContainer:
 			_style = p_style
 
 			for key_info in _series_info.keys:
-				if not key_info.create_key_control.is_valid():
-					push_error("Legend._KeyStrip: create_key_control callable is not valid for series '%s'" % _series_info.series_name)
-					continue
 				var ctrl: Control = key_info.create_key_control.call(_series_info.series_index)
-				if ctrl == null:
-					push_error("Legend._KeyStrip: create_key_control returned null for series '%s'" % _series_info.series_name)
-					continue
 
-				# Determine the key size. If the factory set a minimum size,
-				# use its width (keys are square). Otherwise use key_size_px.
-				var key_sz: float = _style.key_size_px
-				if ctrl.custom_minimum_size.x > 0.0:
-					key_sz = ctrl.custom_minimum_size.x
-				else:
-					ctrl.custom_minimum_size = Vector2(_style.key_size_px, _style.key_size_px)
+				# A factory sizes only the axes its picture constrains, so each axis
+				# falls back on its own rather than one axis deciding both.
+				var key_size: Vector2 = ctrl.custom_minimum_size
+				if key_size.x <= 0.0:
+					key_size.x = _style.key_size_px
+				if key_size.y <= 0.0:
+					key_size.y = _style.key_size_px
+				ctrl.custom_minimum_size = key_size
 
 				_key_controls.append(ctrl)
-				_key_sizes.append(key_sz)
+				_key_sizes.append(key_size)
 				add_child(ctrl)
 
-			# Compute minimum size based on key count (same logic as old code).
-			var key_count := _key_controls.size()
+			# Keys sit side by side, so widths add up and the tallest sets the height.
 			var total_width: float = 0.0
-			for i in range(key_count):
-				total_width += _key_sizes[i]
+			var max_key_height: float = 0.0
+			for key_sz in _key_sizes:
+				total_width += key_sz.x
+				max_key_height = max(max_key_height, key_sz.y)
+			var key_count := _key_controls.size()
 			if key_count > 1:
 				total_width += float((key_count - 1) * _style.key_gap_px)
-			var max_key_height: float = 0.0
-			for sz in _key_sizes:
-				max_key_height = max(max_key_height, sz)
 			custom_minimum_size = Vector2(total_width, max_key_height)
 
 
@@ -288,8 +281,8 @@ class Legend extends PanelContainer:
 			var x_offset: float = 0.0
 			for i in range(_key_controls.size()):
 				var ctrl: Control = _key_controls[i]
-				var key_sz: float = _key_sizes[i]
-				var y_offset: float = (size.y - key_sz) * 0.5
+				var key_size: Vector2 = _key_sizes[i]
+				var y_offset: float = (size.y - key_size.y) * 0.5
 				ctrl.position = Vector2(x_offset, y_offset)
-				ctrl.size = Vector2(key_sz, key_sz)
-				x_offset += key_sz + _style.key_gap_px
+				ctrl.size = key_size
+				x_offset += key_size.x + _style.key_gap_px
