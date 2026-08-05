@@ -64,7 +64,7 @@ const _XYPlotScene := preload("res://addons/tau-plot/plot/xy/xy_plot.tscn")
 			return
 		legend_config = value
 		if _xy_plot != null:
-			_xy_plot.set_legend_config(legend_config)
+			_xy_plot.set_legend_config(_effective_legend_config())
 			queue_refresh()
 
 
@@ -111,6 +111,10 @@ signal sample_click_dismissed()
 
 
 var _pending_refresh := false
+
+# Stands in for legend_config when the user leaves it unset, so the plot
+# internals always read a config. Its defaults are the documented ones.
+var _default_legend_config := TauLegendConfig.new()
 
 # Child nodes
 var _plot_title: RichTextLabel
@@ -181,7 +185,7 @@ func plot_xy(p_dataset: Dataset, p_xy_config: TauXYConfig, p_series_bindings: Ar
 	_xy_plot.setup(
 		self, queue_refresh,
 		p_dataset, p_xy_config, p_series_bindings,
-		legend_enabled, legend_config,
+		legend_enabled, _effective_legend_config(),
 		hover_enabled, hover_config)
 
 	# Title is driven by the exported property.
@@ -225,8 +229,11 @@ func reset():
 func _refresh() -> void:
 	_pending_refresh = false
 	if _xy_plot != null:
-		var pos := legend_config.position if legend_config != null else TauLegendConfig.Position.OUTSIDE_TOP
-		_xy_plot.refresh(global_position, pos)
+		_xy_plot.refresh(global_position, _effective_legend_config().position)
+
+
+func _effective_legend_config() -> TauLegendConfig:
+	return legend_config if legend_config != null else _default_legend_config
 
 
 func _reset_active_plot() -> void:

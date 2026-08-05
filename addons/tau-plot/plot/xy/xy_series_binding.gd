@@ -19,4 +19,11 @@ const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 ## Must be orthogonal to the x-axis.
 @export var y_axis_id: AxisId = AxisId.LEFT
 
+## Whether this binding contributes a key to the legend.
+##
+## Each binding carries its own key, so a series bound to several overlays can
+## show only some of them. A series whose bindings are all excluded gets no
+## legend entry at all.
+@export var show_in_legend: bool = true
+
 var visual_attributes: VisualAttributes = null

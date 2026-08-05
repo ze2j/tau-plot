@@ -10,7 +10,6 @@ extends VBoxContainer
 
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const Position = TauLegendConfig.Position
-const FlowDirection = TauLegendConfig.FlowDirection
 
 const DatasetChange := preload("res://addons/tau-plot/model/dataset_change.gd").DatasetChange
 const DatasetChangeAnalyzer := preload("res://addons/tau-plot/plot/xy/dataset_change_analyzer.gd").DatasetChangeAnalyzer
@@ -377,14 +376,14 @@ func setup(
 	_axis_title_layout.build(p_xy_config, _series_assignment)
 
 	# Legend
-	_user_legend_style = p_legend_config.style if p_legend_config != null else null
+	_user_legend_style = p_legend_config.style
 	if _user_legend_style != null and not _user_legend_style.changed.is_connected(_on_style_changed):
 		_user_legend_style.changed.connect(_on_style_changed)
 
 	# The builder creates the legend, places it in the tree, then resolves
 	# the TauLegendStyle cascade against the in-tree legend (TauLegend type
 	# variation) so that theme lookups work correctly.
-	_resolved_legend_style = _legend_builder.build(p_dataset, p_series_bindings, p_xy_config,
+	_resolved_legend_style = _legend_builder.build(p_dataset, p_series_bindings,
 		_get_legend_key_factory,
 		p_legend_config, p_legend_enabled)
 
@@ -872,9 +871,7 @@ func set_legend_enabled(p_enabled: bool) -> void:
 
 
 func set_legend_config(p_config: TauLegendConfig) -> void:
-	var new_style: TauLegendStyle = p_config.style if p_config != null else null
-	var new_position: Position = p_config.position if p_config != null else Position.OUTSIDE_TOP
-	var new_flow: FlowDirection = p_config.flow_direction if p_config != null else FlowDirection.AUTO
+	var new_style: TauLegendStyle = p_config.style
 
 	# Update style tracking.
 	if _user_legend_style != new_style:
@@ -887,8 +884,8 @@ func set_legend_config(p_config: TauLegendConfig) -> void:
 			_user_legend_style.changed.connect(_on_style_changed)
 
 	# Update position and flow direction.
-	_legend_builder.controller.place(new_position)
-	_legend_builder.controller.apply_flow_direction(new_position, new_flow)
+	_legend_builder.controller.place(p_config.position)
+	_legend_builder.controller.apply_flow_direction(p_config.position, p_config.flow_direction)
 
 
 func set_hover_enabled(p_enabled: bool) -> void:
