@@ -30,6 +30,11 @@ class_name TauLineStyle extends Resource
 ## series index using modulo: series [code]i[/code] reads entry
 ## [code]i % line_widths_px.size()[/code]. An empty array is treated as all
 ## series rendered at [code]2.0[/code] pixels.
+##
+## An entry of [code]0[/code] draws no line for that series and leaves only
+## its [TauLineFill], the way to get an area chart with no outline. Such a
+## series still reports hover on its samples. A series with neither a line nor
+## a fill paints nothing and answers no hover.
 @export var line_widths_px: Array[float] = [2.0]:
 	set(value):
 		line_widths_px = value
@@ -46,6 +51,9 @@ class_name TauLineStyle extends Resource
 ## At draw time, the resolved per-series hovered width is clamped to be at
 ## least the resolved per-series base width from [member line_widths_px], so
 ## a thicker series never becomes thinner on hover.
+##
+## A series whose base width is [code]0[/code] has no line to emphasize and
+## ignores this property entirely: hovering it never makes a line appear.
 @export var hovered_line_widths_px: Array[float] = [3.0]:
 	set(value):
 		hovered_line_widths_px = value

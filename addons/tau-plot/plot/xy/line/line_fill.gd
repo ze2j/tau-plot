@@ -11,6 +11,8 @@
 ## - Recency fade on a live chart: [member stretch_span] VALUE_X.
 ## - Repeating motif like dots or hatching: [member texture_mode] TILE.
 ## - Scrolling pattern: animate [member tile_offset_px].
+## - Fill with no outline: any of the above with the series entry in
+## [member TauLineStyle.line_widths_px] set to [code]0[/code].
 ##
 ## A field counts as set as soon as it is assigned, whatever the value.
 ##

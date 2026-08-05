@@ -38,8 +38,10 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 # Rendering path selection (per series):
 # - The active line width for a series is resolved from
 #   TauLineStyle.line_widths_px through the helper
-#   TauLineStyle.get_series_width_px(global_series_index). A series whose
-#   resolved width is 0 is skipped entirely.
+#   TauLineStyle.get_series_width_px(global_series_index). A resolved width of
+#   0 strokes nothing and leaves the series to its fill alone, hover emphasis
+#   included. A series that strokes nothing and fills nothing is skipped
+#   entirely, so it produces no hit record either.
 # - The active dash length for a series is resolved from
 #   TauLineStyle.dash_lengths_px through the helper
 #   TauLineStyle.get_series_dash_px(global_series_index). Path selection is
@@ -62,7 +64,9 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   into up to three contiguous parts at the hovered sample's adjacent real
 #   neighbors. The middle part is drawn at the per-series resolved hovered
 #   width from TauLineStyle.hovered_line_widths_px, clamped to be at least
-#   the per-series base width. The outer two parts keep the base width.
+#   the per-series base width. The outer two parts keep the base width. A
+#   series at width 0 has no stroke to emphasize and keeps only the color
+#   routing.
 #   Each part is one draw call. For dashed lines, each part inherits the
 #   cumulative arc-length offset from the polyline start, so the dash
 #   pattern stays continuous through the slices.
@@ -106,6 +110,8 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   straddling column closes cleanly. The whole strip is emitted in one
 #   canvas_item_add_triangle_array call. The line itself is one draw call per
 #   contiguous run.
+#   The strip does not need the stroke it is paired with: at width 0 the fill
+#   is all the series paints, and its upper edge is the bare strip boundary.
 # - Fill resolution is against one TauLineFill per series, resolved through
 #   TauLineStyle.get_series_fill (modulo-cycled per series, like
 #   line_widths_px). That resource carries the whole fill for the series, its
@@ -182,6 +188,7 @@ class LineRenderer extends Control:
 	# dim/brighten default). When the hovered sample lies within a drawn
 	# run, the two segments adjacent to it are drawn at the per-series
 	# resolved hovered width clamped to be at least the per-series base width.
+	# A series at base width 0 has no stroke and takes no emphasis.
 	var _highlight_active: bool = false
 	var _hovered_series_id: int = -1
 	var _hovered_sample_index: int = -1
@@ -294,18 +301,37 @@ class LineRenderer extends Control:
 	#     - SKIP   flushes the current run and starts a new one.
 	#     - BRIDGE drops the sample and keeps appending into the same run.
 	#   - A run of fewer than two points is discarded.
+	#
+	# A series that neither strokes nor fills is dropped here, before its x plan
+	# is built, so it costs nothing and reaches no hit record. Everything else
+	# runs the full path: a series at width 0 still fills and still answers
+	# hover on its samples.
 	func _draw_series(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
+		if not _series_paints_anything(p_series_index):
+			return
+
 		if _get_x_axis_config().type == TauAxisConfig.Type.CATEGORICAL:
 			_draw_series_categorical(p_series_index, p_stacked)
 		else:
 			_draw_series_continuous(p_series_index, p_stacked)
 
 
+	# True when the series puts at least one of its two marks on screen, a
+	# stroke or a fill. Width 0 kills the stroke and a transparent resolved fill
+	# color kills the fill, NONE and a zeroed alpha alike, so both off means the
+	# whole series is invisible. The fill resolved here is the same one
+	# _draw_series_runs resolves for the run loop, both cheap reads off the
+	# resolved style.
+	func _series_paints_anything(p_series_index: int) -> bool:
+		var global_series_index := _get_global_series_index(p_series_index)
+		if _line_style.get_series_width_px(global_series_index) > 0.0:
+			return true
+		var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
+		return _resolve_series_fill_color(global_series_index, fill).a > 0.0
+
+
 	func _draw_series_continuous(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
 		var series_id := _get_line_series_id(p_series_index)
-		var global_series_index := _get_global_series_index(p_series_index)
-		if _line_style.get_series_width_px(global_series_index) <= 0.0:
-			return
 
 		# Precompute the x plan for the shared run loop. A sample whose x is NaN,
 		# Inf, or forbidden by the axis scale gets a NAN x pixel, which the loop
@@ -331,9 +357,6 @@ class LineRenderer extends Control:
 
 	func _draw_series_categorical(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
 		var series_id := _get_line_series_id(p_series_index)
-		var global_series_index := _get_global_series_index(p_series_index)
-		if _line_style.get_series_width_px(global_series_index) <= 0.0:
-			return
 
 		# Precompute the x plan for the shared run loop. Category centers are
 		# always valid, so no x pixel is ever NAN and a run only breaks on an
@@ -551,6 +574,9 @@ class LineRenderer extends Control:
 	# buffered p_run_baseline (the layer below's top) for STACKED, resampled with
 	# the upper edge so the two stay index-aligned. The line itself is unaffected.
 	#
+	# A p_width_px of 0 ends the run at the fill: no screen mapping, no stroke,
+	# no hover emphasis.
+	#
 	# Path selection per series (no hover):
 	#   - p_dash_px == 0: one draw_polyline_colors call.
 	#   - p_dash_px  > 0: one draw_multiline_colors call after dash precomputation.
@@ -602,6 +628,12 @@ class LineRenderer extends Control:
 			var lower_edge := _resolve_fill_lower_edge(polyline, p_run_baseline, p_baseline_y_px, p_mode, p_fill)
 			if not lower_edge.is_empty():
 				_draw_fill(polyline, lower_edge, p_fill, p_fill_color, p_fill_uv_ctx)
+
+		# Nothing left to stroke at width 0. The run stops before the screen
+		# mapping, so the hover slice is never resolved and the emphasized
+		# width cannot bring a stroke back on a series that has none.
+		if p_width_px <= 0.0:
+			return
 
 		# The line is drawn in screen space. The mapping preserves vertex
 		# order, so real_polyline_indices stay valid.
