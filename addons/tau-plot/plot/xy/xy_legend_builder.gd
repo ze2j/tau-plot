@@ -2,6 +2,7 @@
 const Legend := preload("res://addons/tau-plot/plot/legend/legend.gd").Legend
 const LegendController := preload("res://addons/tau-plot/plot/legend/legend_controller.gd").LegendController
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 
 
 ## XY-specific legend builder.
@@ -10,6 +11,15 @@ const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 ## mapping [TauXYSeriesBinding] entries to [Legend.SeriesInfo] and resolving
 ## key factory callables via a plot-provided resolver.
 class XYLegendBuilder extends RefCounted:
+
+	# Overlay paint order within a pane, lowest painted first. Mirrors the
+	# renderer creation order in XYPlot so a row of keys reads as a cross
+	# section of the pane it describes.
+	const _PAINT_ORDER := {
+		PaneOverlayType.BAR: 0,
+		PaneOverlayType.LINE: 1,
+		PaneOverlayType.SCATTER: 2,
+	}
 
 	## The reusable controller that handles placement, flow, and sizing.
 	var controller: LegendController = null
@@ -58,6 +68,8 @@ class XYLegendBuilder extends RefCounted:
 
 	## Collects SeriesInfo array from bindings, skipping those opting out of the legend.
 	## A series contributes an entry as soon as one of its bindings opts in.
+	## Rows come out ordered by series index, and the keys within a row by
+	## overlay paint order.
 	func _collect_series_infos(p_dataset: Dataset,
 			p_bindings: Array[TauXYSeriesBinding],
 			p_key_factory_resolver: Callable,
@@ -66,11 +78,19 @@ class XYLegendBuilder extends RefCounted:
 		var result: Array[Legend.SeriesInfo] = []
 		var seen: Dictionary[int, int] = {}  # series_id -> index in result
 
-		for binding in p_bindings:
+		# Keys are appended in traversal order, so the bindings are walked in
+		# paint order. Two bindings of one series never share an overlay type,
+		# so the unstable sort cannot reshuffle a row.
+		var ordered_bindings := p_bindings.duplicate()
+		ordered_bindings.sort_custom(func(a: TauXYSeriesBinding, b: TauXYSeriesBinding) -> bool:
+			return _PAINT_ORDER[a.overlay_type] < _PAINT_ORDER[b.overlay_type]
+		)
+
+		for binding in ordered_bindings:
 			if not binding.show_in_legend:
 				continue
 
-			var series_id := binding.series_id
+			var series_id: int = binding.series_id
 			var key := Legend.KeyInfo.new()
 			key.create_key_control = p_key_factory_resolver.call(binding.overlay_type, binding.pane_index)
 			key.refresh_key_control = p_key_refresh_resolver.call(binding.overlay_type, binding.pane_index)

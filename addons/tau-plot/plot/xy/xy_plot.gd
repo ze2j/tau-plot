@@ -318,6 +318,12 @@ func setup(
 		pane_renderer.set_resolved_pane_style(resolved_style)
 		pane_renderer.set_grid_line_config(pane_config.grid_line)
 
+		# Overlay renderers are siblings under the pane container and paint in
+		# child order, so the creation order below is the paint order: bars,
+		# then lines, then scatter. It goes from the widest footprint to the
+		# narrowest, so a marker is never buried under a line fill.
+		# TauPaneConfig.overlays does not reorder this.
+
 		# Create BarRenderer for this pane if it has bar series
 		if not _bar_series_ids_per_pane[pane_index].is_empty():
 			var bar_renderer := BarRenderer.new(
@@ -336,24 +342,6 @@ func setup(
 			bar_renderer.set_resolved_bar_style(resolved_bar_style)
 			bar_renderer.set_resolved_xy_style(_resolved_xy_style)
 
-		# Create ScatterRenderer for this pane if it has scatter series
-		if not _scatter_series_ids_per_pane[pane_index].is_empty():
-			var scatter_renderer := ScatterRenderer.new(
-				_xy_layout, _dataset, _scatter_config_per_pane[pane_index], p_xy_config.style,
-				_series_assignment,
-				pane_index, scatter_va_per_pane[pane_index],
-				_scatter_series_ids_per_pane[pane_index])
-			pane_container.add_child(scatter_renderer)
-			scatter_renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			_scatter_renderers[pane_index] = scatter_renderer
-
-			# Resolve TauScatterStyle cascade and push it to the renderer.
-			var scatter_user_style: TauScatterStyle = _scatter_config_per_pane[pane_index].style
-			var resolved_scatter_style := TauScatterStyle.resolve(scatter_renderer, pane_index, scatter_user_style)
-			_resolved_scatter_styles[pane_index] = resolved_scatter_style
-			scatter_renderer.set_resolved_scatter_style(resolved_scatter_style)
-			scatter_renderer.set_resolved_xy_style(_resolved_xy_style)
-
 		# Create LineRenderer for this pane if it has line series
 		if not _line_series_ids_per_pane[pane_index].is_empty():
 			var line_renderer := LineRenderer.new(
@@ -371,6 +359,24 @@ func setup(
 			_resolved_line_styles[pane_index] = resolved_line_style
 			line_renderer.set_resolved_line_style(resolved_line_style)
 			line_renderer.set_resolved_xy_style(_resolved_xy_style)
+
+		# Create ScatterRenderer for this pane if it has scatter series
+		if not _scatter_series_ids_per_pane[pane_index].is_empty():
+			var scatter_renderer := ScatterRenderer.new(
+				_xy_layout, _dataset, _scatter_config_per_pane[pane_index], p_xy_config.style,
+				_series_assignment,
+				pane_index, scatter_va_per_pane[pane_index],
+				_scatter_series_ids_per_pane[pane_index])
+			pane_container.add_child(scatter_renderer)
+			scatter_renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			_scatter_renderers[pane_index] = scatter_renderer
+
+			# Resolve TauScatterStyle cascade and push it to the renderer.
+			var scatter_user_style: TauScatterStyle = _scatter_config_per_pane[pane_index].style
+			var resolved_scatter_style := TauScatterStyle.resolve(scatter_renderer, pane_index, scatter_user_style)
+			_resolved_scatter_styles[pane_index] = resolved_scatter_style
+			scatter_renderer.set_resolved_scatter_style(resolved_scatter_style)
+			scatter_renderer.set_resolved_xy_style(_resolved_xy_style)
 
 	# Axis titles
 	_axis_title_layout.build(p_xy_config, _series_assignment)
