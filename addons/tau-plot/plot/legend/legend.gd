@@ -13,6 +13,10 @@ class Legend extends PanelContainer:
 		## The returned Control must handle its own rendering internally.
 		## Each axis of custom_minimum_size set to a positive value by the factory
 		## is honored. Each axis left at zero falls back to key_size_px.
+		##
+		## The resolved box is the size of the picture, not the space the legend
+		## reserves for it. A vertically flowing legend pads every box out to the
+		## widest one so the series names share a single offset.
 		var create_key_control: Callable = Callable()
 
 		## Callable that pushes a new appearance into a Control the factory built.
@@ -36,6 +40,7 @@ class Legend extends PanelContainer:
 	var _flow_container: FlowContainer = null
 	var _legend_items: Array[Control] = []
 	var _is_rebuilding: bool = false
+	var _align_key_columns: bool = false
 
 	## Maximum size in pixels. 0 on either axis means unconstrained.
 	## Set by LegendController based on theme constraints and plot dimensions.
@@ -84,6 +89,7 @@ class Legend extends PanelContainer:
 	func refresh_keys() -> void:
 		for item in _legend_items:
 			(item as _LegendItem).refresh_keys()
+		_apply_key_column_width()
 
 
 	## Sets whether the flow container uses horizontal or vertical arrangement.
@@ -97,8 +103,12 @@ class Legend extends PanelContainer:
 	## Horizontal flow (p_vertical=false): items flow left-to-right, wrapping
 	## into new rows.  The FlowContainer must expand horizontally so items
 	## have room to flow.  Scrolling, if needed, happens vertically.
+	##
+	## Only a vertical flow stacks the series names into a column, so it is the
+	## only one that aligns the key strips.
 	func set_flow_vertical(p_vertical: bool) -> void:
 		_flow_container.vertical = p_vertical
+		_align_key_columns = p_vertical
 		if p_vertical:
 			_flow_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			_flow_container.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -109,6 +119,8 @@ class Legend extends PanelContainer:
 			_flow_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			_scroll_container.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 			_scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+
+		_apply_key_column_width()
 		# The FlowContainer minimum size depends on the flow direction.
 		# Defer so the layout pass runs first and children report correct sizes.
 		_update_scroll_minimum_size.call_deferred()
@@ -167,9 +179,9 @@ class Legend extends PanelContainer:
 			target = Vector2(flow_total, flow_min.y)
 
 		if max_size.x > 0:
-			target.x = min(target.x, max_size.x)
+			target.x = minf(target.x, max_size.x)
 		if max_size.y > 0:
-			target.y = min(target.y, max_size.y)
+			target.y = minf(target.y, max_size.y)
 		_scroll_container.custom_minimum_size = target
 
 
@@ -201,11 +213,31 @@ class Legend extends PanelContainer:
 			_flow_container.add_child(item)
 			_legend_items.append(item)
 
+		_apply_key_column_width()
+
 		# Defer the minimum size update.  At this point child Labels have not
 		# yet computed their minimum sizes (that happens during the layout
 		# pass), so get_combined_minimum_size() would return stale values.
 		_update_scroll_minimum_size.call_deferred()
 		_is_rebuilding = false
+
+
+	## Widens every key strip to the widest one so the series names stacked
+	## under each other share a single offset. Key boxes keep the size their
+	## factory asked for, only the strip around them grows.
+	##
+	## A width of 0 releases the strips back to their own width, what a
+	## horizontal flow wants since it puts no name under another.
+	##
+	## Strip widths come from the key boxes alone, which are resolved at
+	## construction, so this runs without waiting for a layout pass.
+	func _apply_key_column_width() -> void:
+		var column_width: float = 0.0
+		if _align_key_columns:
+			for item in _legend_items:
+				column_width = maxf(column_width, (item as _LegendItem).get_natural_key_width())
+		for item in _legend_items:
+			(item as _LegendItem).set_key_column_width(column_width)
 
 
 	####################################################################################################
@@ -245,6 +277,16 @@ class Legend extends PanelContainer:
 			_key_strip.refresh_keys()
 
 
+		## Width the key strip takes on its own, before any column alignment.
+		func get_natural_key_width() -> float:
+			return _key_strip.get_natural_width()
+
+
+		## Widens the key strip to p_width. 0 releases it to its own width.
+		func set_key_column_width(p_width: float) -> void:
+			_key_strip.set_column_width(p_width)
+
+
 	####################################################################################################
 	# KeyStrip (inner class)
 	####################################################################################################
@@ -252,12 +294,16 @@ class Legend extends PanelContainer:
 	## Holds one or more legend key Controls side by side, one per overlay type
 	## bound to the series. Each key is created by invoking the factory Callable
 	## stored in KeyInfo.create_key_control. Keys are placed manually so that
-	## boxes of differing sizes stay centered on the cross axis.
+	## boxes of differing sizes stay centered on both axes, on the cross axis
+	## within the strip and on the main axis within the shared column the strip
+	## may be widened to.
 	class _KeyStrip extends Control:
 		var _series_info: SeriesInfo = null
 		var _style: TauLegendStyle = null
 		var _key_controls: Array[Control] = []
 		var _key_sizes: PackedVector2Array = PackedVector2Array()
+		var _natural_width: float = 0.0
+		var _column_width: float = 0.0
 
 
 		func _init(p_info: SeriesInfo, p_style: TauLegendStyle) -> void:
@@ -288,6 +334,19 @@ class Legend extends PanelContainer:
 			_layout_children()
 
 
+		## Width of the key run itself, ignoring any column width pushed in.
+		func get_natural_width() -> float:
+			return _natural_width
+
+
+		## Sets the width the strip is padded out to. Anything below the key run
+		## is ignored, so 0 leaves the strip at its own width.
+		func set_column_width(p_width: float) -> void:
+			_column_width = p_width
+			_update_minimum_size()
+			_layout_children()
+
+
 		func _notification(what: int) -> void:
 			if what == NOTIFICATION_RESIZED:
 				_layout_children()
@@ -307,19 +366,21 @@ class Legend extends PanelContainer:
 
 		# Keys sit side by side, so widths add up and the tallest sets the height.
 		func _update_minimum_size() -> void:
-			var total_width: float = 0.0
 			var max_key_height: float = 0.0
+			_natural_width = 0.0
 			for key_sz in _key_sizes:
-				total_width += key_sz.x
-				max_key_height = max(max_key_height, key_sz.y)
+				_natural_width += key_sz.x
+				max_key_height = maxf(max_key_height, key_sz.y)
 			var key_count := _key_controls.size()
 			if key_count > 1:
-				total_width += float((key_count - 1) * _style.key_gap_px)
-			custom_minimum_size = Vector2(total_width, max_key_height)
+				_natural_width += float((key_count - 1) * _style.key_gap_px)
+			custom_minimum_size = Vector2(maxf(_natural_width, _column_width), max_key_height)
 
 
+		# The key run is centered, so a strip padded out to the shared column
+		# keeps even space on both sides rather than hugging one edge.
 		func _layout_children() -> void:
-			var x_offset: float = 0.0
+			var x_offset: float = (size.x - _natural_width) * 0.5
 			for i in range(_key_controls.size()):
 				var ctrl: Control = _key_controls[i]
 				var key_size: Vector2 = _key_sizes[i]
