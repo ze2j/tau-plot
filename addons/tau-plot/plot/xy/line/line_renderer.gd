@@ -7,6 +7,7 @@ const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
 const LineHitRecord := preload("res://addons/tau-plot/plot/xy/line/line_hit_record.gd").LineHitRecord
+const LineLegendKey := preload("res://addons/tau-plot/plot/xy/line/line_legend_key.gd").LineLegendKey
 const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_series_values.gd").StackedSeriesValues
 
 
@@ -263,10 +264,61 @@ class LineRenderer extends Control:
 		return _hit_records
 
 
-	## Creates a legend key Control for a line overlay.
-	func create_legend_key_control(_p_series_index: int) -> Control:
-		# TODO: implement create_legend_key_control for lines
-		return Control.new()
+	## Returns the color passed as the modulation argument of the fill draw
+	## call for one series. TO_BASELINE and STACKED resolve a color the same way,
+	## since both paint the same strip. Three cases:
+	##
+	##   1. p_fill's mode is NONE. No fill is drawn for this series, so the
+	##      return value is fully transparent black and the draw call is skipped
+	##      upstream.
+	##   2. p_fill has a texture. The fill is the texture and must not be
+	##      tinted, so the modulation color is white. Its alpha carries
+	##      p_fill.alpha, which is the only thing that scales the texture.
+	##   3. p_fill has no texture. The fill is a flat color: p_fill.color,
+	##      or the per-series color from TauXYStyle.series_colors when
+	##      p_fill.color is TauLineFill.NO_COLOR. p_fill.alpha is then
+	##      applied to its alpha channel.
+	func resolve_series_fill_color(p_global_series_index: int, p_fill: TauLineFill) -> Color:
+		if p_fill.fill_mode == TauLineFill.FillMode.NONE:
+			return Color(0, 0, 0, 0)
+		if p_fill.texture != null:
+			return Color(1.0, 1.0, 1.0, p_fill.alpha)
+		var color: Color = p_fill.color
+		if color == TauLineFill.NO_COLOR:
+			color = _xy_style.get_series_color(p_global_series_index)
+		color.a = clampf(color.a * p_fill.alpha, 0.0, 1.0)
+		return color
+
+
+	## Creates a legend key Control for a line overlay: a segment across the box,
+	## with the series' fill band under it when the series fills.
+	##
+	## Reads the stroke and the fill from the resolved styles on this renderer
+	## instance, at the per-series granularity the draw path uses. Requests the
+	## box width from TauLineStyle.legend_key_width_px and leaves the height to
+	## the legend.
+	func create_legend_key_control(p_series_index: int) -> Control:
+		var fill: TauLineFill = _line_style.get_series_fill(p_series_index)
+
+		var stroke_color: Color = _xy_style.get_series_color(p_series_index)
+		stroke_color.a = clampf(_xy_style.series_alpha, 0.0, 1.0)
+
+		var spec := LineLegendKey.Spec.new()
+		spec.stroke_color = stroke_color
+		spec.stroke_width_px = _line_style.get_series_width_px(p_series_index)
+		spec.dash_px = _line_style.get_series_dash_px(p_series_index)
+		spec.fill_color = resolve_series_fill_color(p_series_index, fill)
+		spec.fill_texture = fill.texture
+		spec.texture_mode = fill.texture_mode
+		spec.stretch_span = fill.stretch_span
+		spec.gradient_reversed = _is_legend_gradient_reversed(p_series_index, fill)
+		spec.tile_scale = fill.tile_scale
+		spec.tile_rotation_deg = fill.tile_rotation_deg
+		spec.tile_offset_px = fill.tile_offset_px
+
+		var key := LineLegendKey.new(spec)
+		key.custom_minimum_size = Vector2(_line_style.legend_key_width_px, 0.0)
+		return key
 
 
 	####################################################################################################
@@ -327,7 +379,7 @@ class LineRenderer extends Control:
 		if _line_style.get_series_width_px(global_series_index) > 0.0:
 			return true
 		var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
-		return _resolve_series_fill_color(global_series_index, fill).a > 0.0
+		return resolve_series_fill_color(global_series_index, fill).a > 0.0
 
 
 	func _draw_series_continuous(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
@@ -394,7 +446,7 @@ class LineRenderer extends Control:
 		# Resolved once per series: every run of this series fills against the
 		# same baseline and the same color, and uses the same UV reference frame.
 		var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
-		var fill_color: Color = _resolve_series_fill_color(global_series_index, fill)
+		var fill_color: Color = resolve_series_fill_color(global_series_index, fill)
 		var baseline_y_px: float = _resolve_fill_baseline_y_px(fill, y_axis_id)
 		var fill_uv_ctx: _FillUVContext = _resolve_fill_uv_context(fill, y_axis_id)
 
@@ -1147,32 +1199,6 @@ class LineRenderer extends Control:
 		return uvs
 
 
-	# Returns the color passed as the modulation argument of the fill draw
-	# call for one series. TO_BASELINE and STACKED resolve a color the same way,
-	# since both paint the same strip. Three cases:
-	#
-	#   1. p_fill's mode is NONE. No fill is drawn for this series, so the
-	#      return value is fully transparent black and the draw call is skipped
-	#      upstream.
-	#   2. p_fill has a texture. The fill is the texture and must not be
-	#      tinted, so the modulation color is white. Its alpha carries
-	#      p_fill.alpha, which is the only thing that scales the texture.
-	#   3. p_fill has no texture. The fill is a flat color: p_fill.color,
-	#      or the per-series color from TauXYStyle.series_colors when
-	#      p_fill.color is TauLineFill.NO_COLOR. p_fill.alpha is then
-	#      applied to its alpha channel.
-	func _resolve_series_fill_color(p_global_series_index: int, p_fill: TauLineFill) -> Color:
-		if p_fill.fill_mode == TauLineFill.FillMode.NONE:
-			return Color(0, 0, 0, 0)
-		if p_fill.texture != null:
-			return Color(1.0, 1.0, 1.0, p_fill.alpha)
-		var color: Color = p_fill.color
-		if color == TauLineFill.NO_COLOR:
-			color = _xy_style.get_series_color(p_global_series_index)
-		color.a = clampf(color.a * p_fill.alpha, 0.0, 1.0)
-		return color
-
-
 	# Returns the fill baseline's coordinate on the y (value) axis, or NAN when
 	# no flat baseline applies. The fill strip is built in axis space, so this
 	# is the .y the strip builder compares its vertices against.
@@ -1419,6 +1445,36 @@ class LineRenderer extends Control:
 		var d1: float = p_upper1.y - p_lower1.y
 		var t: float = d0 / (d0 - d1)
 		return p_lower0.lerp(p_lower1, t)
+
+
+	####################################################################################################
+	# Legend key
+	####################################################################################################
+
+	# True when the legend gradient must run against its default direction: from
+	# the segment to the bottom edge of the band for the vertical spans, left to
+	# right for VALUE_X.
+	#
+	# Two independent flips compose, hence the inequality. A swapped custom
+	# window reverses any span that reads one. Axis inversion reverses the two
+	# spans that measure along an axis: the segment to baseline relationship
+	# LINE reads has no axis direction, and MAGNITUDE grows away from the
+	# baseline whichever way the axis points.
+	func _is_legend_gradient_reversed(p_global_series_index: int, p_fill: TauLineFill) -> bool:
+		var window_swapped: bool = p_fill.stretch_range_policy == TauLineFill.StretchRangePolicy.CUSTOM \
+			and p_fill.stretch_range.x > p_fill.stretch_range.y
+
+		match p_fill.stretch_span:
+			TauLineFill.FillStretchSpan.VALUE_X:
+				return window_swapped != _get_x_axis_config().inverted
+			TauLineFill.FillStretchSpan.VALUE_Y:
+				var series_id: int = _dataset.get_series_id_by_index(p_global_series_index)
+				var pane_cfg: TauPaneConfig = _layout.domain.config.panes[_pane_index]
+				var y_cfg: TauAxisConfig = pane_cfg.get_y_axis_config(_get_y_axis_id_for_series(series_id))
+				return window_swapped != y_cfg.inverted
+			TauLineFill.FillStretchSpan.MAGNITUDE:
+				return window_swapped
+		return false
 
 
 	####################################################################################################
