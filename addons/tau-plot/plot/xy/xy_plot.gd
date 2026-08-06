@@ -385,6 +385,7 @@ func setup(
 	# variation) so that theme lookups work correctly.
 	_resolved_legend_style = _legend_builder.build(p_dataset, p_series_bindings,
 		_get_legend_key_factory,
+		_get_legend_key_refresher,
 		p_legend_config, p_legend_enabled)
 
 	# Initialize per-pane dirty flags
@@ -590,7 +591,10 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	# XY style: three-layer change detection (theme dirty, ref change, content mutation).
 	#  - layout-affecting properties trigger ticks + pane rect recompute,
 	#  - visual-only properties (colors, alpha) trigger data renderer redraws.
-	var _legend_rebuild_needed := false
+	# Legend keys read visual properties from renderer instances, so any resolved
+	# style change makes them stale. The series list is untouched here, so the
+	# rows stay and only the pictures are re-resolved.
+	var legend_refresh_needed := false
 
 	if _domain_config != null:
 		var xy_user_style := _domain_config.style
@@ -624,9 +628,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				if renderer != null:
 					renderer.set_resolved_xy_style(_resolved_xy_style)
 
-			# Legend keys read visual properties from renderer instances.
-			# When the resolved TauXYStyle changes (colors, alpha), keys become stale.
-			_legend_rebuild_needed = true
+			legend_refresh_needed = true
 
 			# Determine the scope of dirtying based on what changed.
 			if prev_resolved == null or _resolved_xy_style.has_layout_affecting_change(prev_resolved):
@@ -664,7 +666,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				_bar_renderers[pane_index].set_resolved_bar_style(resolved_bar)
 				_state.save_bar_style_for_pane(pane_index, bar_config.style)
 				_bars_dirty_panes[pane_index] = true
-				_legend_rebuild_needed = true
+				legend_refresh_needed = true
 
 	# Scatter style: three-layer change detection (theme dirty, ref change, content mutation).
 	# All TauScatterStyle properties are visual-only, so only dirty the owning scatter pane.
@@ -692,7 +694,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				_scatter_renderers[pane_index].set_resolved_scatter_style(resolved_scatter)
 				_state.save_scatter_style_for_pane(pane_index, scatter_config.style)
 				_scatter_dirty_panes[pane_index] = true
-				_legend_rebuild_needed = true
+				legend_refresh_needed = true
 
 	# Line style: three-layer change detection (theme dirty, ref change, content mutation).
 	# All TauLineStyle properties are visual-only, so only dirty the owning line pane.
@@ -720,7 +722,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				_line_renderers[pane_index].set_resolved_line_style(resolved_line)
 				_state.save_line_style_for_pane(pane_index, line_config.style)
 				_line_dirty_panes[pane_index] = true
-				_legend_rebuild_needed = true
+				legend_refresh_needed = true
 
 	# Step 3c: Check grid_line config changes, style reference changes,
 	# and pane style mutations. All visual-only.
@@ -827,12 +829,11 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		_pane_rect_dirty = false
 		_ticks_dirty = false
 
-	# Rebuild legend keys once if any overlay or plot-wide style changed.
-	# Must run after the layout update as some legend keys depends on the
-	# layout (e.g. scatter with DATA_UNITS marker size policy, which uses
-	# map_x_to_px).
-	if _legend_rebuild_needed:
-		_legend_builder.controller.legend.rebuild()
+	# Re-resolve the legend keys once if any overlay or plot-wide style changed.
+	# Must run after the layout update as some legend keys depend on the layout
+	# (e.g. scatter with DATA_UNITS marker size policy, which uses map_x_to_px).
+	if legend_refresh_needed:
+		_legend_builder.controller.legend.refresh_keys()
 
 	# Step 7b: Update legend overlay if INSIDE position
 	if _is_inside_legend_position(p_legend_position):
@@ -905,27 +906,38 @@ static func _is_inside_legend_position(p_pos: Position) -> bool:
 	return p_pos >= Position.INSIDE_TOP
 
 
-## Returns the create_legend_key_control callable for the renderer that owns
-## the given overlay type on the given pane. Used by XYLegendBuilder as a
-## resolver so that the legend system never imports any renderer class.
+## Returns the create_key_control callable for the renderer that owns the given
+## overlay type on the given pane. Used by XYLegendBuilder as a resolver so that
+## the legend system never imports any renderer class.
 func _get_legend_key_factory(p_overlay_type: int, p_pane_index: int) -> Callable:
+	var renderer = _get_overlay_renderer(p_overlay_type, p_pane_index)
+	if renderer == null:
+		return Callable()
+	return renderer.create_legend_key_control
+
+
+## Same as _get_legend_key_factory for the refresh_key_control callable.
+func _get_legend_key_refresher(p_overlay_type: int, p_pane_index: int) -> Callable:
+	var renderer = _get_overlay_renderer(p_overlay_type, p_pane_index)
+	if renderer == null:
+		return Callable()
+	return renderer.refresh_legend_key_control
+
+
+# The three overlay renderers share no base beyond Control, so the result stays
+# untyped and the key callables are looked up dynamically.
+func _get_overlay_renderer(p_overlay_type: int, p_pane_index: int):
 	match p_overlay_type:
 		TauXYSeriesBinding.PaneOverlayType.BAR:
 			if p_pane_index >= 0 and p_pane_index < _bar_renderers.size():
-				var r = _bar_renderers[p_pane_index]
-				if r != null:
-					return r.create_legend_key_control
+				return _bar_renderers[p_pane_index]
 		TauXYSeriesBinding.PaneOverlayType.SCATTER:
 			if p_pane_index >= 0 and p_pane_index < _scatter_renderers.size():
-				var r = _scatter_renderers[p_pane_index]
-				if r != null:
-					return r.create_legend_key_control
+				return _scatter_renderers[p_pane_index]
 		TauXYSeriesBinding.PaneOverlayType.LINE:
 			if p_pane_index >= 0 and p_pane_index < _line_renderers.size():
-				var r = _line_renderers[p_pane_index]
-				if r != null:
-					return r.create_legend_key_control
-	return Callable()
+				return _line_renderers[p_pane_index]
+	return null
 
 
 ## Callback for LegendController: attaches the legend node at the correct

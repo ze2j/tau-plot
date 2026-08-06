@@ -27,6 +27,9 @@ class XYLegendBuilder extends RefCounted:
 	## the given overlay type on the given pane. The Legend and this builder
 	## never import any renderer class directly.
 	##
+	## [param p_key_refresh_resolver] Same shape, for the refresh_key_control
+	## callable of that renderer.
+	##
 	## [param p_legend_config] Required. TauPlot substitutes a default config
 	## when the user leaves the property unset.
 	##
@@ -34,9 +37,11 @@ class XYLegendBuilder extends RefCounted:
 	func build(p_dataset: Dataset,
 			p_series_bindings: Array[TauXYSeriesBinding],
 			p_key_factory_resolver: Callable,
+			p_key_refresh_resolver: Callable,
 			p_legend_config: TauLegendConfig,
 			p_visible: bool) -> TauLegendStyle:
-		var series_infos := _collect_series_infos(p_dataset, p_series_bindings, p_key_factory_resolver)
+		var series_infos := _collect_series_infos(p_dataset, p_series_bindings,
+				p_key_factory_resolver, p_key_refresh_resolver)
 		return controller.build(series_infos, p_legend_config.style, p_legend_config.position,
 				p_legend_config.flow_direction, p_visible)
 
@@ -55,7 +60,8 @@ class XYLegendBuilder extends RefCounted:
 	## A series contributes an entry as soon as one of its bindings opts in.
 	func _collect_series_infos(p_dataset: Dataset,
 			p_bindings: Array[TauXYSeriesBinding],
-			p_key_factory_resolver: Callable
+			p_key_factory_resolver: Callable,
+			p_key_refresh_resolver: Callable
 			) -> Array[Legend.SeriesInfo]:
 		var result: Array[Legend.SeriesInfo] = []
 		var seen: Dictionary[int, int] = {}  # series_id -> index in result
@@ -67,6 +73,7 @@ class XYLegendBuilder extends RefCounted:
 			var series_id := binding.series_id
 			var key := Legend.KeyInfo.new()
 			key.create_key_control = p_key_factory_resolver.call(binding.overlay_type, binding.pane_index)
+			key.refresh_key_control = p_key_refresh_resolver.call(binding.overlay_type, binding.pane_index)
 
 			if series_id in seen:
 				var idx: int = seen[series_id]

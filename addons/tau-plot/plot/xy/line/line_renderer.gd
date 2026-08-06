@@ -298,27 +298,18 @@ class LineRenderer extends Control:
 	## box width from TauLineStyle.legend_key_width_px and leaves the height to
 	## the legend.
 	func create_legend_key_control(p_series_index: int) -> Control:
-		var fill: TauLineFill = _line_style.get_series_fill(p_series_index)
-
-		var stroke_color: Color = _xy_style.get_series_color(p_series_index)
-		stroke_color.a = clampf(_xy_style.series_alpha, 0.0, 1.0)
-
-		var spec := LineLegendKey.Spec.new()
-		spec.stroke_color = stroke_color
-		spec.stroke_width_px = _line_style.get_series_width_px(p_series_index)
-		spec.dash_px = _line_style.get_series_dash_px(p_series_index)
-		spec.fill_color = resolve_series_fill_color(p_series_index, fill)
-		spec.fill_texture = fill.texture
-		spec.texture_mode = fill.texture_mode
-		spec.stretch_span = fill.stretch_span
-		spec.gradient_reversed = _is_legend_gradient_reversed(p_series_index, fill)
-		spec.tile_scale = fill.tile_scale
-		spec.tile_rotation_deg = fill.tile_rotation_deg
-		spec.tile_offset_px = fill.tile_offset_px
-
-		var key := LineLegendKey.new(spec)
+		var key := LineLegendKey.new(_resolve_legend_key_spec(p_series_index))
 		key.custom_minimum_size = Vector2(_line_style.legend_key_width_px, 0.0)
 		return key
+
+
+	## Re-resolves the appearance of a legend key created by
+	## create_legend_key_control() and repaints it, so a style change costs no
+	## rebuild of the legend row.
+	func refresh_legend_key_control(p_series_index: int, p_control: Control) -> void:
+		var key := p_control as LineLegendKey
+		key.set_spec(_resolve_legend_key_spec(p_series_index))
+		key.custom_minimum_size = Vector2(_line_style.legend_key_width_px, 0.0)
 
 
 	####################################################################################################
@@ -1450,6 +1441,29 @@ class LineRenderer extends Control:
 	####################################################################################################
 	# Legend key
 	####################################################################################################
+
+	# The whole input of the key picture, read at the per-series granularity the
+	# draw path uses.
+	func _resolve_legend_key_spec(p_series_index: int) -> LineLegendKey.Spec:
+		var fill: TauLineFill = _line_style.get_series_fill(p_series_index)
+
+		var stroke_color: Color = _xy_style.get_series_color(p_series_index)
+		stroke_color.a = clampf(_xy_style.series_alpha, 0.0, 1.0)
+
+		var spec := LineLegendKey.Spec.new()
+		spec.stroke_color = stroke_color
+		spec.stroke_width_px = _line_style.get_series_width_px(p_series_index)
+		spec.dash_px = _line_style.get_series_dash_px(p_series_index)
+		spec.fill_color = resolve_series_fill_color(p_series_index, fill)
+		spec.fill_texture = fill.texture
+		spec.texture_mode = fill.texture_mode
+		spec.stretch_span = fill.stretch_span
+		spec.gradient_reversed = _is_legend_gradient_reversed(p_series_index, fill)
+		spec.tile_scale = fill.tile_scale
+		spec.tile_rotation_deg = fill.tile_rotation_deg
+		spec.tile_offset_px = fill.tile_offset_px
+		return spec
+
 
 	# True when the legend gradient must run against its default direction: from
 	# the segment to the bottom edge of the band for the vertical spans, left to

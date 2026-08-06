@@ -15,6 +15,13 @@ class Legend extends PanelContainer:
 		## is honored. Each axis left at zero falls back to key_size_px.
 		var create_key_control: Callable = Callable()
 
+		## Callable that pushes a new appearance into a Control the factory built.
+		## Must match the signature:
+		##   func(p_series_index: int, p_control: Control) -> void
+		## It repaints the Control itself, and may request a different box size the
+		## same way the factory does, under the same per-axis fallback rule.
+		var refresh_key_control: Callable = Callable()
+
 	## Describes one series entry in the legend.
 	class SeriesInfo extends RefCounted:
 		var series_id: int = -1
@@ -64,10 +71,19 @@ class Legend extends PanelContainer:
 
 
 	## Forces a full rebuild of all legend items.
-	## Keys resolve their appearance when they are created, so call this after a
-	## change that alters what a key would draw.
+	## Call this after a change to the series list itself. A change to what a key
+	## draws is cheaper through refresh_keys().
 	func rebuild() -> void:
 		_rebuild()
+
+
+	## Re-resolves every key in place through KeyInfo.refresh_key_control, then
+	## re-measures and re-places the key strips.
+	## Rows, labels and Controls are kept, so an animated style costs no
+	## allocation per frame.
+	func refresh_keys() -> void:
+		for item in _legend_items:
+			(item as _LegendItem).refresh_keys()
 
 
 	## Sets whether the flow container uses horizontal or vertical arrangement.
@@ -225,6 +241,10 @@ class Legend extends PanelContainer:
 			add_child(_label)
 
 
+		func refresh_keys() -> void:
+			_key_strip.refresh_keys()
+
+
 	####################################################################################################
 	# KeyStrip (inner class)
 	####################################################################################################
@@ -244,23 +264,49 @@ class Legend extends PanelContainer:
 			_series_info = p_info
 			_style = p_style
 
-			for key_info in _series_info.keys:
+			_key_sizes.resize(_series_info.keys.size())
+			for i in range(_series_info.keys.size()):
+				var key_info: KeyInfo = _series_info.keys[i]
 				var ctrl: Control = key_info.create_key_control.call(_series_info.series_index)
-
-				# A factory sizes only the axes its picture constrains, so each axis
-				# falls back on its own rather than one axis deciding both.
-				var key_size: Vector2 = ctrl.custom_minimum_size
-				if key_size.x <= 0.0:
-					key_size.x = _style.key_size_px
-				if key_size.y <= 0.0:
-					key_size.y = _style.key_size_px
-				ctrl.custom_minimum_size = key_size
-
 				_key_controls.append(ctrl)
-				_key_sizes.append(key_size)
+				_resolve_key_size(i, ctrl)
 				add_child(ctrl)
 
-			# Keys sit side by side, so widths add up and the tallest sets the height.
+			_update_minimum_size()
+
+
+		## Re-resolves every key through its refresh callable. A key is free to
+		## request a different box on refresh, so the strip re-measures itself and
+		## places the keys again.
+		func refresh_keys() -> void:
+			for i in range(_key_controls.size()):
+				var ctrl: Control = _key_controls[i]
+				_series_info.keys[i].refresh_key_control.call(_series_info.series_index, ctrl)
+				_resolve_key_size(i, ctrl)
+
+			_update_minimum_size()
+			_layout_children()
+
+
+		func _notification(what: int) -> void:
+			if what == NOTIFICATION_RESIZED:
+				_layout_children()
+
+
+		# A factory sizes only the axes its picture constrains, so each axis falls
+		# back on its own rather than one axis deciding both.
+		func _resolve_key_size(p_index: int, p_control: Control) -> void:
+			var key_size: Vector2 = p_control.custom_minimum_size
+			if key_size.x <= 0.0:
+				key_size.x = _style.key_size_px
+			if key_size.y <= 0.0:
+				key_size.y = _style.key_size_px
+			p_control.custom_minimum_size = key_size
+			_key_sizes[p_index] = key_size
+
+
+		# Keys sit side by side, so widths add up and the tallest sets the height.
+		func _update_minimum_size() -> void:
 			var total_width: float = 0.0
 			var max_key_height: float = 0.0
 			for key_sz in _key_sizes:
@@ -270,11 +316,6 @@ class Legend extends PanelContainer:
 			if key_count > 1:
 				total_width += float((key_count - 1) * _style.key_gap_px)
 			custom_minimum_size = Vector2(total_width, max_key_height)
-
-
-		func _notification(what: int) -> void:
-			if what == NOTIFICATION_RESIZED:
-				_layout_children()
 
 
 		func _layout_children() -> void:

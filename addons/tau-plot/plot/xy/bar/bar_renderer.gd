@@ -156,14 +156,14 @@ class BarRenderer extends Control:
 	## Reads fill color and alpha from resolved styles on this renderer instance.
 	## Does not set custom_minimum_size, so the legend applies its default key_size_px.
 	func create_legend_key_control(p_series_index: int) -> Control:
-		var global_index := p_series_index
-		var color := _xy_style.get_series_color(global_index)
-		var alpha := _xy_style.series_alpha
-		color.a = clampf(alpha, 0.0, 1.0)
-		var sb := _bar_style.style_box.duplicate()
-		_set_style_box_color(sb, color)
-		var key := _BarLegendKey.new(sb)
-		return key
+		return _BarLegendKey.new(_resolve_legend_style_box(p_series_index))
+
+
+	## Re-resolves the appearance of a legend key created by
+	## create_legend_key_control() and repaints it, so a style change costs no
+	## rebuild of the legend row.
+	func refresh_legend_key_control(p_series_index: int, p_control: Control) -> void:
+		(p_control as _BarLegendKey).set_style_box(_resolve_legend_style_box(p_series_index))
 
 	####################################################################################################
 	# Private
@@ -177,9 +177,22 @@ class BarRenderer extends Control:
 		func _init(p_style_box: StyleBox) -> void:
 			_style_box = p_style_box
 
+		func set_style_box(p_style_box: StyleBox) -> void:
+			_style_box = p_style_box
+			queue_redraw()
+
 		func _draw() -> void:
-			if _style_box != null:
-				draw_style_box(_style_box, Rect2(Vector2.ZERO, size))
+			draw_style_box(_style_box, Rect2(Vector2.ZERO, size))
+
+
+	# The canonical StyleBox tinted with the series color, so the key shows what
+	# the user authored rather than the remapped box the bars are drawn with.
+	func _resolve_legend_style_box(p_series_index: int) -> StyleBox:
+		var color := _xy_style.get_series_color(p_series_index)
+		color.a = clampf(_xy_style.series_alpha, 0.0, 1.0)
+		var style_box: StyleBox = _bar_style.style_box.duplicate()
+		_set_style_box_color(style_box, color)
+		return style_box
 
 
 	func _draw() -> void:

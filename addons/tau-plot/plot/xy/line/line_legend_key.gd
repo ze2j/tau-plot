@@ -16,8 +16,8 @@
 ##
 ## Axis inversion is followed, for the direction of a gradient fill only.
 ##
-## Everything painted comes from the Spec handed in at construction, so the key
-## resolves nothing on its own and draws the same picture wherever it sits.
+## Everything painted comes from the Spec, so the key resolves nothing on its
+## own and draws the same picture wherever it sits.
 class LineLegendKey extends Control:
 
 	## Resolved appearance of one series, the whole input of the picture.
@@ -69,6 +69,12 @@ class LineLegendKey extends Control:
 		match what:
 			NOTIFICATION_RESIZED:
 				queue_redraw()
+
+
+	## Replaces the resolved appearance and repaints.
+	func set_spec(p_spec: Spec) -> void:
+		_spec = p_spec
+		queue_redraw()
 
 
 	####################################################################################################

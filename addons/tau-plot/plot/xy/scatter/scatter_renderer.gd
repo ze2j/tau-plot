@@ -184,51 +184,51 @@ class ScatterRenderer extends Control:
 	## fill color, alpha, marker shape, outline color, outline width, marker size.
 	## For DATA_UNITS marker size policy, computes size at the domain midpoint.
 	func create_legend_key_control(p_series_index: int) -> Control:
-		# Resolve visual properties from styles.
-		var color := _xy_style.get_series_color(p_series_index)
-		var alpha := _xy_style.series_alpha
-		var fill_color := _apply_alpha(color, alpha)
-		var shape: MarkerShape = _scatter_style.get_series_shape(p_series_index)
-		var outline_color := _apply_alpha(_scatter_style.outline_color, alpha)
-		var outline_width := _scatter_style.outline_width_px
-
-		# Resolve marker size in pixels.
-		var size_px := _resolve_legend_marker_size_px()
-
-		# Build the key Control.
-		var key := Control.new()
-		key.custom_minimum_size = Vector2(size_px, size_px)
-
-		# Build a 1-instance MultiMesh.
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_2D
-		mm.use_colors = true
-		mm.use_custom_data = true
-		mm.mesh = _unit_quad_mesh
-		mm.instance_count = 1
-		mm.visible_instance_count = 1
-
-		# Transform: centered in the key rect, scaled to size_px.
-		var t := Transform2D()
-		t = t.scaled(Vector2(size_px, size_px))
-		t.origin = Vector2(size_px * 0.5, size_px * 0.5)
-		mm.set_instance_transform_2d(0, t)
-
-		# Fill color (with alpha pre-applied).
-		mm.set_instance_color(0, fill_color)
-
-		# Custom data: outline info + shape type.
-		var ow_norm: float = 0.0
-		if size_px > 0.0:
-			ow_norm = clampf(outline_width / size_px, 0.0, 0.5)
-		mm.set_instance_custom_data(0, _pack_custom_data(outline_color, shape, ow_norm))
-
-		var mmi := MultiMeshInstance2D.new()
-		mmi.multimesh = mm
-		mmi.material = _shared_material
-		key.add_child(mmi)
-
+		var key := _ScatterLegendKey.new(_unit_quad_mesh, _shared_material)
+		_write_legend_key(p_series_index, key)
 		return key
+
+
+	## Re-resolves the appearance of a legend key created by
+	## create_legend_key_control(), so a style change costs no rebuild of the
+	## legend row. Under the DATA_UNITS marker size policy the requested box
+	## follows the current layout, so call it after the layout update.
+	func refresh_legend_key_control(p_series_index: int, p_control: Control) -> void:
+		_write_legend_key(p_series_index, p_control as _ScatterLegendKey)
+
+
+	####################################################################################################
+	# Legend key
+	####################################################################################################
+
+	## Control hosting the single-instance MultiMesh that draws one marker.
+	## Rendered through the same shared SDF material as the scatter path, so the
+	## key is pixel-identical to a real marker.
+	class _ScatterLegendKey extends Control:
+		var _multi_mesh: MultiMesh = null
+
+		func _init(p_mesh: Mesh, p_material: Material) -> void:
+			_multi_mesh = MultiMesh.new()
+			_multi_mesh.transform_format = MultiMesh.TRANSFORM_2D
+			_multi_mesh.use_colors = true
+			_multi_mesh.use_custom_data = true
+			_multi_mesh.mesh = p_mesh
+			_multi_mesh.instance_count = 1
+			_multi_mesh.visible_instance_count = 1
+
+			var mmi := MultiMeshInstance2D.new()
+			mmi.multimesh = _multi_mesh
+			mmi.material = p_material
+			add_child(mmi)
+
+		## Sizes the box to the marker and writes the single instance, centered.
+		func write_marker(p_size_px: float, p_fill_color: Color, p_custom_data: Color) -> void:
+			custom_minimum_size = Vector2(p_size_px, p_size_px)
+			var marker_transform := Transform2D().scaled(Vector2(p_size_px, p_size_px))
+			marker_transform.origin = Vector2(p_size_px * 0.5, p_size_px * 0.5)
+			_multi_mesh.set_instance_transform_2d(0, marker_transform)
+			_multi_mesh.set_instance_color(0, p_fill_color)
+			_multi_mesh.set_instance_custom_data(0, p_custom_data)
 
 
 	## Resolves the marker size in pixels for the legend key.
@@ -244,6 +244,23 @@ class ScatterRenderer extends Control:
 				var geom := ScatterGeometry.new(_layout, _scatter_config, _scatter_style, _pane_index)
 				return geom.compute_marker_size_px_at_x(x_mid)
 		return max(_scatter_style.marker_size_px, 1.0)
+
+
+	# Resolves the marker appearance and writes it into the key. Per-sample
+	# styling and hover emphasis are left out, so the key shows the per-series
+	# marker only.
+	func _write_legend_key(p_series_index: int, p_key: _ScatterLegendKey) -> void:
+		var alpha := _xy_style.series_alpha
+		var fill_color := _apply_alpha(_xy_style.get_series_color(p_series_index), alpha)
+		var outline_color := _apply_alpha(_scatter_style.outline_color, alpha)
+		var shape: MarkerShape = _scatter_style.get_series_shape(p_series_index)
+
+		var size_px := _resolve_legend_marker_size_px()
+		var outline_width_norm: float = 0.0
+		if size_px > 0.0:
+			outline_width_norm = clampf(_scatter_style.outline_width_px / size_px, 0.0, 0.5)
+
+		p_key.write_marker(size_px, fill_color, _pack_custom_data(outline_color, shape, outline_width_norm))
 
 
 	####################################################################################################
