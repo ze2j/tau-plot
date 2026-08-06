@@ -1,0 +1,151 @@
+[gd_scene load_steps=17 format=3 uid="uid://bluty21yf1tb5"]
+
+[ext_resource type="Script" uid="uid://bdiiwjwrk3qj1" path="res://addons/tau-plot/tests/plot/legend/test_legend_mixed.gd" id="1_1it6f"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_esyoc"]
+[ext_resource type="Script" uid="uid://uhgixxbpx26l" path="res://addons/tau-plot/plot/legend/legend_config.gd" id="3_d5rpb"]
+[ext_resource type="Script" uid="uid://byus5xc02avlw" path="res://addons/tau-plot/plot/legend/legend_style.gd" id="4_tbuc4"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1it6f"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0.3, 0.3, 0.3, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Resource" id="Resource_esyoc"]
+script = ExtResource("4_tbuc4")
+background = SubResource("StyleBoxFlat_1it6f")
+
+[sub_resource type="Resource" id="Resource_d5rpb"]
+script = ExtResource("3_d5rpb")
+position = 3
+style = SubResource("Resource_esyoc")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tbuc4"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0.3, 0.3, 0.3, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Resource" id="Resource_garyv"]
+script = ExtResource("4_tbuc4")
+background = SubResource("StyleBoxFlat_tbuc4")
+
+[sub_resource type="Resource" id="Resource_cpng5"]
+script = ExtResource("3_d5rpb")
+position = 3
+style = SubResource("Resource_garyv")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6r1hj"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0.3, 0.3, 0.3, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Resource" id="Resource_f0su8"]
+script = ExtResource("4_tbuc4")
+background = SubResource("StyleBoxFlat_6r1hj")
+
+[sub_resource type="Resource" id="Resource_ybny5"]
+script = ExtResource("3_d5rpb")
+position = 3
+style = SubResource("Resource_f0su8")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3kxah"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0.3, 0.3, 0.3, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Resource" id="Resource_3boec"]
+script = ExtResource("4_tbuc4")
+background = SubResource("StyleBoxFlat_3kxah")
+
+[sub_resource type="Resource" id="Resource_8si63"]
+script = ExtResource("3_d5rpb")
+position = 3
+style = SubResource("Resource_3boec")
+
+[node name="LegendTests" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_1it6f")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Test legend LINE keys"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 2
+
+[node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_esyoc")
+title = "Two keys"
+legend_config = SubResource("Resource_d5rpb")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_esyoc")
+title = "Three keys"
+legend_config = SubResource("Resource_cpng5")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_esyoc")
+title = "Hidden keys"
+legend_config = SubResource("Resource_ybny5")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_esyoc")
+title = "Transposed"
+legend_config = SubResource("Resource_8si63")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
