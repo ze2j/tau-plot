@@ -74,13 +74,11 @@ enum GapPolicy
 	BRIDGE   ## Drop invalid samples and connect the surrounding valid samples.
 }
 
-## Per-series cycle of gap policies. Each entry sets the policy for one
-## series, with the array indexed cyclically by series index using modulo:
-## series [code]i[/code] reads entry [code]i % gap_policies.size()[/code]. An
-## empty array is treated as all series using SKIP.
+## Strategy applied to invalid samples, for every series in the overlay.
+## See [enum GapPolicy].
 ##
 ## This property is visual-only and does not affect layout or domain.
-@export var gap_policies: Array[GapPolicy] = [GapPolicy.SKIP]
+@export var gap_policy: GapPolicy = GapPolicy.SKIP
 
 
 const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
@@ -96,21 +94,23 @@ const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_neg
 @export var stacked_negative_policy: StackedNegativePolicy = StackedNegativePolicy.SIGNED_SUM
 
 
-## Per-series cycle of maximum pixel distances from the cursor to a sample
-## position for that sample to be considered a hover hit. Each entry sets the
-## distance for one series, with the array indexed cyclically by series index
-## using modulo: series [code]i[/code] reads entry
-## [code]i % hover_max_distances_px.size()[/code]. An empty array is treated
-## as all series gated at [code]10[/code] pixels.
+## Maximum pixel distance from the cursor to a sample position
+## for the sample to be considered a hit.
 ##
 ## In NEAREST mode, this is a 2D Euclidean distance gate. Samples farther
 ## than this value from the cursor are excluded entirely.
 ##
-## In X_ALIGNED mode, this is an x-axis-only pixel gate. Samples whose x
-## screen position differs from the target x by more than this value are
-## excluded. The same threshold sets [member SampleHit.contains_pointer]
+## In X_ALIGNED mode with a continuous x axis, this is an x-axis-only pixel
+## gate. Samples whose x screen position differs from the target x by more
+## than this value are excluded. The same threshold sets [member SampleHit.contains_pointer]
 ## on included hits.
-@export var hover_max_distances_px: Array[int] = [10]
+##
+## In X_ALIGNED mode with a categorical x axis, this property does not gate
+## which samples are returned. All samples at the matching category are
+## included. The distance is still compared against this threshold to set
+## [member SampleHit.contains_pointer], which controls whether the sample
+## receives the visual hover highlight.
+@export var hover_max_distance_px: int = 10
 
 
 ####################################################################################################
@@ -134,26 +134,11 @@ func _init() -> void:
 	overlay_type = PaneOverlayType.LINE
 
 
-## Returns the resolved gap policy for the given series index.
-func get_series_gap_policy(p_series_index: int) -> GapPolicy:
-	if gap_policies.is_empty():
-		return GapPolicy.SKIP
-	return gap_policies[p_series_index % gap_policies.size()]
-
-
 ## Returns the resolved interpolation mode for the given series index.
 func get_series_interpolation(p_series_index: int) -> InterpolationMode:
 	if interpolation_modes.is_empty():
 		return InterpolationMode.LINEAR
 	return interpolation_modes[p_series_index % interpolation_modes.size()]
-
-
-## Returns the resolved hover pixel gate for the given series index. The
-## result is clamped to be non-negative.
-func get_series_hover_distance(p_series_index: int) -> int:
-	if hover_max_distances_px.is_empty():
-		return 10
-	return max(hover_max_distances_px[p_series_index % hover_max_distances_px.size()], 0)
 
 
 func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
@@ -170,11 +155,11 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 		return false
 	if stacked_negative_policy != other.stacked_negative_policy:
 		return false
-	if gap_policies != other.gap_policies:
+	if gap_policy != other.gap_policy:
 		return false
 	if interpolation_modes != other.interpolation_modes:
 		return false
-	if hover_max_distances_px != other.hover_max_distances_px:
+	if hover_max_distance_px != other.hover_max_distance_px:
 		return false
 
 	return true
@@ -185,8 +170,8 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 #
 # mode, stacked_normalization, and stacked_negative_policy affect the domain:
 # stacking changes Y bounds, normalization pins the range, and the negative
-# policy decides whether the lower half-axis exists. Hover distances are pure
-# hit-test parameters with no layout effect.
+# policy decides whether the lower half-axis exists. The hover distance is a
+# pure hit-test parameter with no layout effect.
 func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauLineConfig
 	if other == null:

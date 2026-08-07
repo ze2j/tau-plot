@@ -12,7 +12,7 @@ const LineHitRecord := preload("res://addons/tau-plot/plot/xy/line/line_hit_reco
 ## so the hit geometry cannot drift from the painted geometry.
 ##
 ## In NEAREST mode, performs a brute-force linear scan over all records and
-## returns the closest sample within its series' hover pixel gate.
+## returns the closest sample within the configured hover pixel gate.
 ## In X_ALIGNED mode, collects all samples whose x position (categorical
 ## index or continuous value) matches the target.
 ##
@@ -51,18 +51,19 @@ class LineHitTester extends OverlayHitTester:
 	# NEAREST mode
 	####################################################################
 
-	## Brute-force linear scan. Returns the closest record within its series'
-	## hover pixel gate, or null.
+	## Brute-force linear scan. Returns the closest record within
+	## hover_max_distance_px, or null.
 	func hit_test_nearest(p_local_pos: Vector2) -> SampleHit:
+		var max_dist: float = float(_line_config.hover_max_distance_px)
+		var max_dist_sq: float = max_dist * max_dist
 		var best_record: LineHitRecord = null
 		var best_dist_sq: float = INF
 
 		for record: LineHitRecord in _line_renderer.get_hit_records():
-			var max_dist: float = float(_line_config.get_series_hover_distance(record.series_index))
 			var dx: float = p_local_pos.x - record.screen_position.x
 			var dy: float = p_local_pos.y - record.screen_position.y
 			var dist_sq: float = dx * dx + dy * dy
-			if dist_sq < best_dist_sq and dist_sq <= max_dist * max_dist:
+			if dist_sq < best_dist_sq and dist_sq <= max_dist_sq:
 				best_dist_sq = dist_sq
 				best_record = record
 
@@ -77,11 +78,11 @@ class LineHitTester extends OverlayHitTester:
 
 	func collect_hits_at_category(p_category_index: int, p_x_value: String, p_local_pos: Vector2) -> Array[SampleHit]:
 		var hits: Array[SampleHit] = []
+		var max_dist: float = float(_line_config.hover_max_distance_px)
 
 		for record: LineHitRecord in _line_renderer.get_hit_records():
 			if record.sample_index != p_category_index:
 				continue
-			var max_dist: float = float(_line_config.get_series_hover_distance(record.series_index))
 			var dx: float = p_local_pos.x - record.screen_position.x
 			var dy: float = p_local_pos.y - record.screen_position.y
 			var dist: float = sqrt(dx * dx + dy * dy)
@@ -98,10 +99,10 @@ class LineHitTester extends OverlayHitTester:
 	func collect_hits_at_continuous_x(p_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
 		var x_is_horizontal: bool = _layout._x_is_horizontal
 		var target_x_px: float = _layout.map_x_to_px(_pane_index, p_x_value)
+		var max_dist_x: float = float(_line_config.hover_max_distance_px)
 		var hits: Array[SampleHit] = []
 
 		for record: LineHitRecord in _line_renderer.get_hit_records():
-			var max_dist_x: float = float(_line_config.get_series_hover_distance(record.series_index))
 			var sample_x_px: float = record.screen_position.x if x_is_horizontal else record.screen_position.y
 			var x_dist: float = absf(sample_x_px - target_x_px)
 			if x_dist > max_dist_x:

@@ -40,7 +40,7 @@ func _setup_test_1() -> void:
 	fill.fill_baseline = 0.
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
 	line_config.style.fills = [fill]
 
 	var pane_config := TauPaneConfig.new()
@@ -96,7 +96,7 @@ func _setup_test_2() -> void:
 	fill.fill_baseline = 0.
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
@@ -151,7 +151,7 @@ func _setup_test_3() -> void:
 	fill.fill_baseline = 0.
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
 	line_config.style.fills = [fill]
 
 	var pane_config := TauPaneConfig.new()
@@ -207,7 +207,7 @@ func _setup_test_4() -> void:
 	fill.fill_baseline = 0.
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
@@ -262,7 +262,7 @@ func _setup_test_5() -> void:
 	fill.fill_baseline = 0.
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
 	line_config.style.fills = [fill]
 
 	var pane_config := TauPaneConfig.new()
@@ -318,7 +318,7 @@ func _setup_test_6() -> void:
 	fill.fill_baseline = 0.
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()
@@ -373,7 +373,7 @@ func _setup_test_7() -> void:
 	fill.fill_baseline = 1.
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
 	line_config.style.fills = [fill]
 
 	var pane_config := TauPaneConfig.new()
@@ -429,7 +429,7 @@ func _setup_test_8() -> void:
 	fill.fill_baseline = 1.
 
 	var line_config := TauLineConfig.new()
-	line_config.gap_policies = [TauLineConfig.GapPolicy.SKIP]
+	line_config.gap_policy = TauLineConfig.GapPolicy.SKIP
 	line_config.style.fills = [fill]
 
 	var pane := TauPaneConfig.new()

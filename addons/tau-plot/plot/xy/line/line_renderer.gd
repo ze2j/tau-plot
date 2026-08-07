@@ -19,8 +19,8 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 # draw calls when the hovered sample lies inside the run.
 #
 # Runtime behavior:
-# - NaN and Inf X or Y values are treated according to the per-series gap
-#   policy from TauLineConfig.get_series_gap_policy(global_series_index).
+# - NaN and Inf X or Y values are treated according to
+#   TauLineConfig.gap_policy.
 # - Logarithmic Y scales: y <= 0 is treated as invalid.
 # - Logarithmic X scales: x <= 0 is treated as invalid.
 # - GapPolicy.SKIP breaks the polyline at every invalid sample.
@@ -430,7 +430,7 @@ class LineRenderer extends Control:
 		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
 		var hover_width_px: float = max(_line_style.get_series_hovered_width_px(global_series_index), width_px)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
-		var bridge: bool = _line_config.get_series_gap_policy(global_series_index) == TauLineConfig.GapPolicy.BRIDGE
+		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
 		var interpolation: TauLineConfig.InterpolationMode = _line_config.get_series_interpolation(global_series_index)
 
 		# Resolved once per series: every run of this series fills against the
@@ -511,7 +511,6 @@ class LineRenderer extends Control:
 
 			var record := LineHitRecord.new()
 			record.series_id = series_id
-			record.series_index = global_series_index
 			record.sample_index = i
 			record.x_value = x_value
 			record.y_plotted_value = y_plotted
