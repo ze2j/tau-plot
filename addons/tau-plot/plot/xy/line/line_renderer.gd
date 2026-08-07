@@ -27,11 +27,11 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 # - GapPolicy.BRIDGE drops invalid samples and keeps the polyline contiguous,
 #   so the surrounding valid samples are connected directly.
 # - The per-series interpolation mode from
-#   TauLineConfig.get_series_interpolation(global_series_index) controls the
-#   curve drawn between two consecutive valid samples. LINEAR draws straight
-#   segments. The step
-#   modes (STEP_BEFORE, STEP_AFTER, STEP_MIDDLE) insert synthetic
-#   intermediate points along the parameter axis into the polyline.
+#   TauLineConfig.get_series_interpolation_mode(global_series_index) controls
+#   the curve drawn between two consecutive valid samples. LINEAR draws
+#   straight segments. The step modes (STEP_BEFORE, STEP_AFTER, STEP_MIDDLE)
+#   insert synthetic intermediate points along the parameter axis into the
+#   polyline.
 #   SMOOTH_MONOTONE replaces each segment with a fixed number of sub-samples
 #   from a Fritsch-Carlson piecewise cubic Hermite curve. Both run in axis
 #   space and the finished polyline is mapped to screen space before drawing.
@@ -45,9 +45,9 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   entirely, so it produces no hit record either.
 # - The active dash length for a series is resolved from
 #   TauLineStyle.dash_lengths_px through the helper
-#   TauLineStyle.get_series_dash_px(global_series_index). Path selection is
-#   therefore per series: two series in the same overlay can run on
-#   different paths in the same frame.
+#   TauLineStyle.get_series_dash_length_px(global_series_index). Path
+#   selection is therefore per series: two series in the same overlay can run
+#   on different paths in the same frame.
 # - Fast path: resolved per-series dash length is 0. The run is
 #   drawn with a single draw_polyline_colors() call.
 # - Dashed batched path: resolved per-series dash length is positive.
@@ -300,15 +300,15 @@ class LineRenderer extends Control:
 	## Reads the stroke and the fill from the resolved styles on this renderer
 	## instance, at the per-series granularity the draw path uses. Leaves the box
 	## to the legend, which sizes a line key wider than tall.
-	func create_legend_key_control(p_series_index: int) -> Control:
-		return LineLegendKey.new(_resolve_legend_key_spec(p_series_index))
+	func create_legend_key_control(p_global_series_index: int) -> Control:
+		return LineLegendKey.new(_resolve_legend_key_spec(p_global_series_index))
 
 
 	## Re-resolves the appearance of a legend key created by
 	## create_legend_key_control() and repaints it, so a style change costs no
 	## rebuild of the legend row.
-	func refresh_legend_key_control(p_series_index: int, p_control: Control) -> void:
-		(p_control as LineLegendKey).set_spec(_resolve_legend_key_spec(p_series_index))
+	func refresh_legend_key_control(p_global_series_index: int, p_control: Control) -> void:
+		(p_control as LineLegendKey).set_spec(_resolve_legend_key_spec(p_global_series_index))
 
 
 	####################################################################################################
@@ -427,11 +427,11 @@ class LineRenderer extends Control:
 		var series_id := _get_line_series_id(p_series_index)
 		var global_series_index := _get_global_series_index(p_series_index)
 		var width_px: float = _line_style.get_series_width_px(global_series_index)
-		var dash_px: int = _line_style.get_series_dash_px(global_series_index)
+		var dash_px: int = _line_style.get_series_dash_length_px(global_series_index)
 		var hover_width_px: float = max(_line_style.get_series_hovered_width_px(global_series_index), width_px)
 		var y_axis_id := _get_y_axis_id_for_series(series_id)
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
-		var interpolation: TauLineConfig.InterpolationMode = _line_config.get_series_interpolation(global_series_index)
+		var interpolation: TauLineConfig.InterpolationMode = _line_config.get_series_interpolation_mode(global_series_index)
 
 		# Resolved once per series: every run of this series fills against the
 		# same baseline and the same color, and uses the same UV reference frame.
@@ -1442,21 +1442,21 @@ class LineRenderer extends Control:
 
 	# The whole input of the key picture, read at the per-series granularity the
 	# draw path uses.
-	func _resolve_legend_key_spec(p_series_index: int) -> LineLegendKey.Spec:
-		var fill: TauLineFill = _line_style.get_series_fill(p_series_index)
+	func _resolve_legend_key_spec(p_global_series_index: int) -> LineLegendKey.Spec:
+		var fill: TauLineFill = _line_style.get_series_fill(p_global_series_index)
 
-		var stroke_color: Color = _xy_style.get_series_color(p_series_index)
-		stroke_color.a = _xy_style.get_series_alpha(p_series_index)
+		var stroke_color: Color = _xy_style.get_series_color(p_global_series_index)
+		stroke_color.a = _xy_style.get_series_alpha(p_global_series_index)
 
 		var spec := LineLegendKey.Spec.new()
 		spec.stroke_color = stroke_color
-		spec.stroke_width_px = _line_style.get_series_width_px(p_series_index)
-		spec.dash_px = _line_style.get_series_dash_px(p_series_index)
-		spec.fill_color = resolve_series_fill_color(p_series_index, fill)
+		spec.stroke_width_px = _line_style.get_series_width_px(p_global_series_index)
+		spec.dash_px = _line_style.get_series_dash_length_px(p_global_series_index)
+		spec.fill_color = resolve_series_fill_color(p_global_series_index, fill)
 		spec.fill_texture = fill.texture
 		spec.texture_mode = fill.texture_mode
 		spec.stretch_span = fill.stretch_span
-		spec.gradient_reversed = _is_legend_gradient_reversed(p_series_index, fill)
+		spec.gradient_reversed = _is_legend_gradient_reversed(p_global_series_index, fill)
 		spec.tile_scale = fill.tile_scale
 		spec.tile_rotation_deg = fill.tile_rotation_deg
 		spec.tile_offset_px = fill.tile_offset_px

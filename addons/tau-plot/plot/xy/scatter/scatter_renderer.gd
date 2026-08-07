@@ -188,9 +188,9 @@ class ScatterRenderer extends Control:
 	## Reads all visual properties from resolved styles on this renderer instance:
 	## fill color, alpha, marker shape, outline color, outline width, marker size.
 	## For DATA_UNITS marker size policy, computes size at the domain midpoint.
-	func create_legend_key_control(p_series_index: int) -> Control:
+	func create_legend_key_control(p_global_series_index: int) -> Control:
 		var key := _ScatterLegendKey.new(_unit_quad_mesh, _shared_material)
-		_write_legend_key(p_series_index, key)
+		_write_legend_key(p_global_series_index, key)
 		return key
 
 
@@ -198,8 +198,8 @@ class ScatterRenderer extends Control:
 	## create_legend_key_control(), so a style change costs no rebuild of the
 	## legend row. Under the DATA_UNITS marker size policy the requested box
 	## follows the current layout, so call it after the layout update.
-	func refresh_legend_key_control(p_series_index: int, p_control: Control) -> void:
-		_write_legend_key(p_series_index, p_control as _ScatterLegendKey)
+	func refresh_legend_key_control(p_global_series_index: int, p_control: Control) -> void:
+		_write_legend_key(p_global_series_index, p_control as _ScatterLegendKey)
 
 
 	####################################################################################################
@@ -254,11 +254,11 @@ class ScatterRenderer extends Control:
 	# Resolves the marker appearance and writes it into the key. Per-sample
 	# styling and hover emphasis are left out, so the key shows the per-series
 	# marker only.
-	func _write_legend_key(p_series_index: int, p_key: _ScatterLegendKey) -> void:
-		var alpha := _xy_style.get_series_alpha(p_series_index)
-		var fill_color := _apply_alpha(_xy_style.get_series_color(p_series_index), alpha)
+	func _write_legend_key(p_global_series_index: int, p_key: _ScatterLegendKey) -> void:
+		var alpha := _xy_style.get_series_alpha(p_global_series_index)
+		var fill_color := _apply_alpha(_xy_style.get_series_color(p_global_series_index), alpha)
 		var outline_color := _apply_alpha(_scatter_style.outline_color, alpha)
-		var shape: MarkerShape = _scatter_style.get_series_shape(p_series_index)
+		var shape: MarkerShape = _scatter_style.get_series_shape(p_global_series_index)
 
 		var size_px := _resolve_legend_marker_size_px()
 		var outline_width_norm: float = 0.0

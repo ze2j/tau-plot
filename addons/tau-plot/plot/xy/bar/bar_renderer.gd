@@ -159,15 +159,15 @@ class BarRenderer extends Control:
 	## Creates a legend key Control for a bar overlay: a filled square with alpha.
 	## Reads fill color and alpha from resolved styles on this renderer instance.
 	## Does not set custom_minimum_size, so the legend applies its default key_size_px.
-	func create_legend_key_control(p_series_index: int) -> Control:
-		return _BarLegendKey.new(_resolve_legend_style_box(p_series_index))
+	func create_legend_key_control(p_global_series_index: int) -> Control:
+		return _BarLegendKey.new(_resolve_legend_style_box(p_global_series_index))
 
 
 	## Re-resolves the appearance of a legend key created by
 	## create_legend_key_control() and repaints it, so a style change costs no
 	## rebuild of the legend row.
-	func refresh_legend_key_control(p_series_index: int, p_control: Control) -> void:
-		(p_control as _BarLegendKey).set_style_box(_resolve_legend_style_box(p_series_index))
+	func refresh_legend_key_control(p_global_series_index: int, p_control: Control) -> void:
+		(p_control as _BarLegendKey).set_style_box(_resolve_legend_style_box(p_global_series_index))
 
 	####################################################################################################
 	# Private
@@ -191,9 +191,9 @@ class BarRenderer extends Control:
 
 	# The canonical StyleBox tinted with the series color, so the key shows what
 	# the user authored rather than the remapped box the bars are drawn with.
-	func _resolve_legend_style_box(p_series_index: int) -> StyleBox:
-		var color := _xy_style.get_series_color(p_series_index)
-		color.a = _xy_style.get_series_alpha(p_series_index)
+	func _resolve_legend_style_box(p_global_series_index: int) -> StyleBox:
+		var color := _xy_style.get_series_color(p_global_series_index)
+		color.a = _xy_style.get_series_alpha(p_global_series_index)
 		var style_box: StyleBox = _bar_style.style_box.duplicate()
 		_set_style_box_color(style_box, color)
 		return style_box

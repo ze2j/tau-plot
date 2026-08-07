@@ -130,7 +130,7 @@ func get_series_hovered_width_px(p_series_index: int) -> float:
 
 
 ## Returns the resolved dash length in pixels for the given series index.
-func get_series_dash_px(p_series_index: int) -> int:
+func get_series_dash_length_px(p_series_index: int) -> int:
 	if dash_lengths_px.is_empty():
 		return 0
 	var entry: int = dash_lengths_px[p_series_index % dash_lengths_px.size()]

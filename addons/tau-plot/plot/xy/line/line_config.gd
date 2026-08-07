@@ -135,7 +135,7 @@ func _init() -> void:
 
 
 ## Returns the resolved interpolation mode for the given series index.
-func get_series_interpolation(p_series_index: int) -> InterpolationMode:
+func get_series_interpolation_mode(p_series_index: int) -> InterpolationMode:
 	if interpolation_modes.is_empty():
 		return InterpolationMode.LINEAR
 	return interpolation_modes[p_series_index % interpolation_modes.size()]
