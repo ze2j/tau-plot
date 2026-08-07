@@ -194,6 +194,10 @@ func get_series_fill(p_series_index: int) -> TauLineFill:
 ## Every property is written unconditionally. Properties without a matching
 ## theme entry keep their current value, so this method is safe to call on
 ## an instance already populated with defaults.
+##
+## A constant holding a value outside the enum it feeds is reported and
+## replaced by that enum's default, keeping the cycle the length the theme
+## declared.
 func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control == null:
 		push_error("TauLineStyle.load_from_theme(): control is null")
@@ -286,7 +290,7 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		if not p_control.has_theme_constant(key):
 			break
 		_ensure_fills_min_size(fill_mode_index + 1)
-		fills[fill_mode_index].fill_mode = p_control.get_theme_constant(key) as TauLineFill.FillMode
+		fills[fill_mode_index].fill_mode = _resolve_theme_fill_mode(key, p_control.get_theme_constant(key))
 		fill_mode_index += 1
 
 	var pane_fill_mode_index := 0
@@ -295,7 +299,7 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		if not p_control.has_theme_constant(key):
 			break
 		_ensure_fills_min_size(pane_fill_mode_index + 1)
-		fills[pane_fill_mode_index].fill_mode = p_control.get_theme_constant(key) as TauLineFill.FillMode
+		fills[pane_fill_mode_index].fill_mode = _resolve_theme_fill_mode(key, p_control.get_theme_constant(key))
 		pane_fill_mode_index += 1
 
 	# color
@@ -363,7 +367,7 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		if not p_control.has_theme_constant(key):
 			break
 		_ensure_fills_min_size(mode_index + 1)
-		fills[mode_index].texture_mode = p_control.get_theme_constant(key) as TauLineFill.FillTextureMode
+		fills[mode_index].texture_mode = _resolve_theme_fill_texture_mode(key, p_control.get_theme_constant(key))
 		mode_index += 1
 
 	var pane_mode_index := 0
@@ -372,7 +376,7 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		if not p_control.has_theme_constant(key):
 			break
 		_ensure_fills_min_size(pane_mode_index + 1)
-		fills[pane_mode_index].texture_mode = p_control.get_theme_constant(key) as TauLineFill.FillTextureMode
+		fills[pane_mode_index].texture_mode = _resolve_theme_fill_texture_mode(key, p_control.get_theme_constant(key))
 		pane_mode_index += 1
 
 	# stretch_span
@@ -382,7 +386,7 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		if not p_control.has_theme_constant(key):
 			break
 		_ensure_fills_min_size(span_index + 1)
-		fills[span_index].stretch_span = p_control.get_theme_constant(key) as TauLineFill.FillStretchSpan
+		fills[span_index].stretch_span = _resolve_theme_fill_stretch_span(key, p_control.get_theme_constant(key))
 		span_index += 1
 
 	var pane_span_index := 0
@@ -391,7 +395,7 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		if not p_control.has_theme_constant(key):
 			break
 		_ensure_fills_min_size(pane_span_index + 1)
-		fills[pane_span_index].stretch_span = p_control.get_theme_constant(key) as TauLineFill.FillStretchSpan
+		fills[pane_span_index].stretch_span = _resolve_theme_fill_stretch_span(key, p_control.get_theme_constant(key))
 		pane_span_index += 1
 
 	# tile_scale: stored as a percent (100 means 1.0).
@@ -599,6 +603,36 @@ func has_layout_affecting_change(p_other: TauLineStyle) -> bool:
 ####################################################################################################
 # Private
 ####################################################################################################
+
+# Theme constants are free-form integers, so a key feeding a TauLineFill enum
+# may hold anything. None of the three enums carries a sentinel member, so
+# membership is tested directly.
+#
+# An invalid value falls back to the enum's default rather than skipping the
+# position, so the surrounding scan keeps the index run the theme declared.
+static func _resolve_theme_fill_mode(p_key: StringName, p_value: int) -> TauLineFill.FillMode:
+	if TauLineFill.FillMode.values().has(p_value):
+		return p_value as TauLineFill.FillMode
+
+	push_error("TauLineStyle.load_from_theme(): theme constant '%s' is %d, not a TauLineFill.FillMode value. Using NONE." % [p_key, p_value])
+	return TauLineFill.FillMode.NONE
+
+
+static func _resolve_theme_fill_texture_mode(p_key: StringName, p_value: int) -> TauLineFill.FillTextureMode:
+	if TauLineFill.FillTextureMode.values().has(p_value):
+		return p_value as TauLineFill.FillTextureMode
+
+	push_error("TauLineStyle.load_from_theme(): theme constant '%s' is %d, not a TauLineFill.FillTextureMode value. Using STRETCH." % [p_key, p_value])
+	return TauLineFill.FillTextureMode.STRETCH
+
+
+static func _resolve_theme_fill_stretch_span(p_key: StringName, p_value: int) -> TauLineFill.FillStretchSpan:
+	if TauLineFill.FillStretchSpan.values().has(p_value):
+		return p_value as TauLineFill.FillStretchSpan
+
+	push_error("TauLineStyle.load_from_theme(): theme constant '%s' is %d, not a TauLineFill.FillStretchSpan value. Using LINE." % [p_key, p_value])
+	return TauLineFill.FillStretchSpan.LINE
+
 
 # Grows `fills` to at least p_min_size entries, filling any new slots with
 # default-constructed TauLineFill instances.

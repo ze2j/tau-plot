@@ -115,6 +115,10 @@ func get_series_shape(p_series_index: int) -> MarkerShape:
 ##
 ## This method writes every property unconditionally because it is called on
 ## the resolved instance, not on the user-provided resource.
+##
+## A shape constant holding a value outside [enum MarkerShape] is reported and
+## replaced by [code]CIRCLE[/code], keeping the cycle the length the theme
+## declared.
 func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control == null:
 		push_error("TauScatterStyle.load_from_theme(): control is null")
@@ -167,10 +171,10 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	var global_shapes: Array[MarkerShape] = []
 	var shape_index := 0
 	while true:
-		var key := "scatter_marker_shape_%d" % shape_index
+		var key := StringName("scatter_marker_shape_%d" % shape_index)
 		if not p_control.has_theme_constant(key):
 			break
-		global_shapes.append(p_control.get_theme_constant(key) as MarkerShape)
+		global_shapes.append(_resolve_theme_marker_shape(key, p_control.get_theme_constant(key)))
 		shape_index += 1
 
 	if not global_shapes.is_empty():
@@ -179,14 +183,14 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	# Level 2 (per-pane): scatter_marker_shape_N_P overrides series N in pane P.
 	var pane_shape_index := 0
 	while true:
-		var key := "scatter_marker_shape_%d_%d" % [pane_shape_index, p_pane_index]
+		var key := StringName("scatter_marker_shape_%d_%d" % [pane_shape_index, p_pane_index])
 		if not p_control.has_theme_constant(key):
 			break
 		# Grow the array if the per-pane theme defines more shapes than the
 		# global theme (or the default).
 		if pane_shape_index >= marker_shapes.size():
 			marker_shapes.resize(pane_shape_index + 1)
-		marker_shapes[pane_shape_index] = p_control.get_theme_constant(key) as MarkerShape
+		marker_shapes[pane_shape_index] = _resolve_theme_marker_shape(key, p_control.get_theme_constant(key))
 		pane_shape_index += 1
 
 
@@ -292,3 +296,21 @@ func is_equal_to(p_other: TauScatterStyle) -> bool:
 # drawn within a fixed domain but do not affect domain, ticks, or pane rect.
 func has_layout_affecting_change(p_other: TauScatterStyle) -> bool:
 	return false
+
+
+####################################################################################################
+# Private
+####################################################################################################
+
+# Theme constants are free-form integers, so a shape key may hold anything.
+# COUNT is the shape count, not a shape, which rules out a plain range check
+# over MarkerShape.values(). NONE must stay the last member for this to hold.
+#
+# An invalid value falls back to CIRCLE rather than skipping the position, so
+# the surrounding scan keeps the index run the theme declared.
+static func _resolve_theme_marker_shape(p_key: StringName, p_value: int) -> MarkerShape:
+	if (p_value >= 0 and p_value < MarkerShape.COUNT) or p_value == MarkerShape.NONE:
+		return p_value as MarkerShape
+
+	push_error("TauScatterStyle.load_from_theme(): theme constant '%s' is %d, not a MarkerShape value. Using CIRCLE." % [p_key, p_value])
+	return MarkerShape.CIRCLE
