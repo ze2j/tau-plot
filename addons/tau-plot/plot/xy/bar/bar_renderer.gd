@@ -30,6 +30,10 @@ class BarRenderer extends Control:
 	var _dataset: Dataset = null
 	var _bar_config: TauBarConfig = null
 	var _series_assignment: SeriesAxisAssignment = null
+
+	# Parallel to _bar_series_ids: one entry per pane-local series, in the same order.
+	# Series without user-supplied attributes get an empty instance. This is the only
+	# per-series array indexed by the pane-local index rather than the dataset-global one.
 	var _visual_attributes: Array[BarVisualAttributes] = []
 
 	# Pane index this renderer belongs to. Used for per-pane domain/layout queries.
@@ -275,12 +279,11 @@ class BarRenderer extends Control:
 
 	func _get_bar_color(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
 		# Try per sample color (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var color_buffer: VisualAttributes.ColorBuffer = _visual_attributes[p_series_index].color_buffer
-			if color_buffer != null and p_sample_index >= 0 and p_sample_index < color_buffer.size():
-				var color = color_buffer.get_value(p_sample_index)
-				if color != VisualAttributes.ColorBuffer.NO_COLOR:
-					return color
+		var color_buffer: VisualAttributes.ColorBuffer = _visual_attributes[p_series_index].color_buffer
+		if color_buffer != null and p_sample_index >= 0 and p_sample_index < color_buffer.size():
+			var color = color_buffer.get_value(p_sample_index)
+			if color != VisualAttributes.ColorBuffer.NO_COLOR:
+				return color
 
 		var global_series_index := _get_global_series_index(p_series_index)
 
@@ -295,12 +298,11 @@ class BarRenderer extends Control:
 
 	func _get_bar_alpha(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
 		# Try per sample alpha (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var alpha_buffer: VisualAttributes.AlphaBuffer = _visual_attributes[p_series_index].alpha_buffer
-			if alpha_buffer != null and p_sample_index >= 0 and p_sample_index < alpha_buffer.size():
-				var alpha = alpha_buffer.get_value(p_sample_index)
-				if alpha >= 0.0:
-					return alpha
+		var alpha_buffer: VisualAttributes.AlphaBuffer = _visual_attributes[p_series_index].alpha_buffer
+		if alpha_buffer != null and p_sample_index >= 0 and p_sample_index < alpha_buffer.size():
+			var alpha = alpha_buffer.get_value(p_sample_index)
+			if alpha >= 0.0:
+				return alpha
 
 		# Try per sample alpha (with VisualCallbacks)
 		var vc = _bar_config.bar_visual_callbacks

@@ -160,6 +160,10 @@ class LineRenderer extends Control:
 	var _dataset: Dataset = null
 	var _line_config: TauLineConfig = null
 	var _series_assignment: SeriesAxisAssignment = null
+
+	# Parallel to _line_series_ids: one entry per pane-local series, in the same order.
+	# Series without user-supplied attributes get an empty instance. This is the only
+	# per-series array indexed by the pane-local index rather than the dataset-global one.
 	var _visual_attributes: Array[LineVisualAttributes] = []
 
 	# Pane index this renderer belongs to.
@@ -1800,12 +1804,11 @@ class LineRenderer extends Control:
 
 	func _resolve_sample_color_only(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
 		# Per-sample override from LineVisualAttributes.color_buffer.
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var color_buffer: VisualAttributes.ColorBuffer = _visual_attributes[p_series_index].color_buffer
-			if color_buffer != null and p_sample_index >= 0 and p_sample_index < color_buffer.size():
-				var c := color_buffer.get_value(p_sample_index)
-				if c != VisualAttributes.ColorBuffer.NO_COLOR:
-					return c
+		var color_buffer: VisualAttributes.ColorBuffer = _visual_attributes[p_series_index].color_buffer
+		if color_buffer != null and p_sample_index >= 0 and p_sample_index < color_buffer.size():
+			var c := color_buffer.get_value(p_sample_index)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		var global_series_index := _get_global_series_index(p_series_index)
 
@@ -1819,12 +1822,11 @@ class LineRenderer extends Control:
 
 	func _resolve_sample_alpha(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
 		# Per-sample override from LineVisualAttributes.alpha_buffer.
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var alpha_buffer: VisualAttributes.AlphaBuffer = _visual_attributes[p_series_index].alpha_buffer
-			if alpha_buffer != null and p_sample_index >= 0 and p_sample_index < alpha_buffer.size():
-				var a := alpha_buffer.get_value(p_sample_index)
-				if a >= 0.0:
-					return a
+		var alpha_buffer: VisualAttributes.AlphaBuffer = _visual_attributes[p_series_index].alpha_buffer
+		if alpha_buffer != null and p_sample_index >= 0 and p_sample_index < alpha_buffer.size():
+			var a := alpha_buffer.get_value(p_sample_index)
+			if a >= 0.0:
+				return a
 
 		# Per-sample override from LineVisualCallbacks.alpha_callback.
 		var vc := _line_config.line_visual_callbacks

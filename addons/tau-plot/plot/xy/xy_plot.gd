@@ -168,16 +168,20 @@ func setup(
 	_bar_series_ids_per_pane.clear()
 	_scatter_series_ids_per_pane.clear()
 	_line_series_ids_per_pane.clear()
-	var bar_va_per_pane: Array = []     # Array of Array[BarVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
-	var scatter_va_per_pane: Array = [] # Array of Array[ScatterVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
-	var line_va_per_pane: Array = []    # Array of Array[LineVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
+
+	# Visual attributes arrive in binding-iteration order, which is neither dense over
+	# the pane's series nor in the order the renderers index them by. Key them by
+	# series id here and lay them out once the series id order below is final.
+	var bar_va_by_sid_per_pane: Array[Dictionary] = []
+	var scatter_va_by_sid_per_pane: Array[Dictionary] = []
+	var line_va_by_sid_per_pane: Array[Dictionary] = []
 	for i in range(pane_count):
 		_bar_series_ids_per_pane.append(PackedInt64Array())
 		_scatter_series_ids_per_pane.append(PackedInt64Array())
 		_line_series_ids_per_pane.append(PackedInt64Array())
-		bar_va_per_pane.append([] as Array[BarVisualAttributes])
-		scatter_va_per_pane.append([] as Array[ScatterVisualAttributes])
-		line_va_per_pane.append([] as Array[LineVisualAttributes])
+		bar_va_by_sid_per_pane.append({})
+		scatter_va_by_sid_per_pane.append({})
+		line_va_by_sid_per_pane.append({})
 
 	# Extract series bindings
 	_series_assignment = SeriesAxisAssignment.new(pane_count)
@@ -199,7 +203,7 @@ func setup(
 
 				if binding.visual_attributes != null:
 					# Type is guaranteed by validation (BarValidator._validate_bar_visuals).
-					bar_va_per_pane[pane_index].append(binding.visual_attributes as BarVisualAttributes)
+					bar_va_by_sid_per_pane[pane_index][sid] = binding.visual_attributes as BarVisualAttributes
 
 			TauXYSeriesBinding.PaneOverlayType.SCATTER:
 				if sid not in _scatter_series_ids_per_pane[pane_index]:
@@ -213,7 +217,7 @@ func setup(
 
 				if binding.visual_attributes != null:
 					# Type is guaranteed by validation (ScatterValidator._validate_scatter_visuals).
-					scatter_va_per_pane[pane_index].append(binding.visual_attributes as ScatterVisualAttributes)
+					scatter_va_by_sid_per_pane[pane_index][sid] = binding.visual_attributes as ScatterVisualAttributes
 
 			TauXYSeriesBinding.PaneOverlayType.LINE:
 				if sid not in _line_series_ids_per_pane[pane_index]:
@@ -227,7 +231,7 @@ func setup(
 
 				if binding.visual_attributes != null:
 					# Type is guaranteed by validation (LineValidator._validate_line_visuals).
-					line_va_per_pane[pane_index].append(binding.visual_attributes as LineVisualAttributes)
+					line_va_by_sid_per_pane[pane_index][sid] = binding.visual_attributes as LineVisualAttributes
 
 			_:
 				# Unknown overlay types are rejected by validation.
@@ -239,6 +243,18 @@ func setup(
 	for pane_index in range(pane_count):
 		_sort_series_ids_by_dataset_index(_bar_series_ids_per_pane[pane_index])
 		_sort_series_ids_by_dataset_index(_line_series_ids_per_pane[pane_index])
+
+	# The series id order is settled, so the visual attributes can be laid out against it.
+	var bar_va_per_pane: Array = []     # Array of Array[BarVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
+	var scatter_va_per_pane: Array = [] # Array of Array[ScatterVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
+	var line_va_per_pane: Array = []    # Array of Array[LineVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
+	for pane_index in range(pane_count):
+		bar_va_per_pane.append(_align_bar_visual_attributes(
+			_bar_series_ids_per_pane[pane_index], bar_va_by_sid_per_pane[pane_index]))
+		scatter_va_per_pane.append(_align_scatter_visual_attributes(
+			_scatter_series_ids_per_pane[pane_index], scatter_va_by_sid_per_pane[pane_index]))
+		line_va_per_pane.append(_align_line_visual_attributes(
+			_line_series_ids_per_pane[pane_index], line_va_by_sid_per_pane[pane_index]))
 
 	# Domain + layout creation
 	_xy_domain_overrides = XYDomainOverrides.new()
@@ -982,6 +998,44 @@ func _sort_series_ids_by_dataset_index(p_ids: PackedInt64Array) -> void:
 			p_ids[insert_at] = p_ids[insert_at - 1]
 			insert_at -= 1
 		p_ids[insert_at] = current_sid
+
+
+# Lays visual attributes out in the pane's series id order, which is the order the
+# renderers index them by. A series with no user-supplied attributes gets an empty
+# instance rather than null: every buffer inside it is already null, so the existing
+# per-buffer null checks cover the gap and the per-sample path needs no element check.
+# Only one instance can exist per series, since xy_plot_validator rejects duplicate
+# (pane_index, overlay_type, series_id) bindings.
+func _align_bar_visual_attributes(p_series_ids: PackedInt64Array,
+		p_va_by_sid: Dictionary) -> Array[BarVisualAttributes]:
+	var aligned: Array[BarVisualAttributes] = []
+	aligned.resize(p_series_ids.size())
+	for i in range(p_series_ids.size()):
+		var sid := p_series_ids[i]
+		aligned[i] = p_va_by_sid[sid] if p_va_by_sid.has(sid) else BarVisualAttributes.new()
+	return aligned
+
+
+# See _align_bar_visual_attributes.
+func _align_scatter_visual_attributes(p_series_ids: PackedInt64Array,
+		p_va_by_sid: Dictionary) -> Array[ScatterVisualAttributes]:
+	var aligned: Array[ScatterVisualAttributes] = []
+	aligned.resize(p_series_ids.size())
+	for i in range(p_series_ids.size()):
+		var sid := p_series_ids[i]
+		aligned[i] = p_va_by_sid[sid] if p_va_by_sid.has(sid) else ScatterVisualAttributes.new()
+	return aligned
+
+
+# See _align_bar_visual_attributes.
+func _align_line_visual_attributes(p_series_ids: PackedInt64Array,
+		p_va_by_sid: Dictionary) -> Array[LineVisualAttributes]:
+	var aligned: Array[LineVisualAttributes] = []
+	aligned.resize(p_series_ids.size())
+	for i in range(p_series_ids.size()):
+		var sid := p_series_ids[i]
+		aligned[i] = p_va_by_sid[sid] if p_va_by_sid.has(sid) else LineVisualAttributes.new()
+	return aligned
 
 
 func _init_pane_dirty_flags(p_pane_count: int) -> void:

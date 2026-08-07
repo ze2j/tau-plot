@@ -30,7 +30,12 @@ class ScatterRenderer extends Control:
 	var _dataset: Dataset = null
 	var _scatter_config: TauScatterConfig = null
 	var _series_assignment: SeriesAxisAssignment = null
+
+	# Parallel to _scatter_series_ids: one entry per pane-local series, in the same order.
+	# Series without user-supplied attributes get an empty instance. This is the only
+	# per-series array indexed by the pane-local index rather than the dataset-global one.
 	var _visual_attributes: Array[ScatterVisualAttributes] = []
+
 	# Pane index this renderer belongs to. Used for per-pane domain/layout queries.
 	var _pane_index: int = 0
 
@@ -405,12 +410,11 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_color(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
 		# Try per sample color (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].color_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var c = buf.get_value(p_sample_index)
-				if c != VisualAttributes.ColorBuffer.NO_COLOR:
-					return c
+		var buf = _visual_attributes[p_series_index].color_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var c = buf.get_value(p_sample_index)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		var global_series_index := _get_global_series_index(p_series_index)
 
@@ -425,12 +429,11 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_alpha(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
 		# Try per sample alpha (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].alpha_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var alpha = buf.get_value(p_sample_index)
-				if alpha >= 0.0:
-					return alpha
+		var buf = _visual_attributes[p_series_index].alpha_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var alpha = buf.get_value(p_sample_index)
+			if alpha >= 0.0:
+				return alpha
 
 		# Try per sample alpha (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
@@ -445,15 +448,14 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_size_px(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
 		# Try per sample marker size (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].size_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var sz = buf.get_value(p_sample_index)
-				if sz >= 0.0:
-					var policy := _geometry_cache.get_resolved_marker_size_policy()
-					if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
-						return _compute_size_px_from_data_units(sz, p_x_value)
-					return max(sz, 1.0)
+		var buf = _visual_attributes[p_series_index].size_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var sz = buf.get_value(p_sample_index)
+			if sz >= 0.0:
+				var policy := _geometry_cache.get_resolved_marker_size_policy()
+				if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
+					return _compute_size_px_from_data_units(sz, p_x_value)
+				return max(sz, 1.0)
 
 		# Try per sample marker size (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
@@ -483,12 +485,11 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_shape(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> MarkerShape:
 		# Try per sample marker shape (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].shape_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var shape_val: int = buf.get_value(p_sample_index)
-				if shape_val >= 0:
-					return shape_val as MarkerShape
+		var buf = _visual_attributes[p_series_index].shape_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var shape_val: int = buf.get_value(p_sample_index)
+			if shape_val >= 0:
+				return shape_val as MarkerShape
 
 		# Try per sample marker shape (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
@@ -503,12 +504,11 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_outline_color(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
 		# Try per sample outline color (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].outline_color_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var c = buf.get_value(p_sample_index)
-				if c != VisualAttributes.ColorBuffer.NO_COLOR:
-					return c
+		var buf = _visual_attributes[p_series_index].outline_color_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var c = buf.get_value(p_sample_index)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		var global_series_index := _get_global_series_index(p_series_index)
 
@@ -523,12 +523,11 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_outline_width(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
 		# Try per sample outline width (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].outline_width_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var w = buf.get_value(p_sample_index)
-				if w >= 0.0:
-					return w
+		var buf = _visual_attributes[p_series_index].outline_width_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var w = buf.get_value(p_sample_index)
+			if w >= 0.0:
+				return w
 
 		# Try per sample outline width (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
