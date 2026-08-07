@@ -255,7 +255,7 @@ class ScatterRenderer extends Control:
 	# styling and hover emphasis are left out, so the key shows the per-series
 	# marker only.
 	func _write_legend_key(p_series_index: int, p_key: _ScatterLegendKey) -> void:
-		var alpha := _xy_style.series_alpha
+		var alpha := _xy_style.get_series_alpha(p_series_index)
 		var fill_color := _apply_alpha(_xy_style.get_series_color(p_series_index), alpha)
 		var outline_color := _apply_alpha(_scatter_style.outline_color, alpha)
 		var shape: MarkerShape = _scatter_style.get_series_shape(p_series_index)
@@ -435,15 +435,17 @@ class ScatterRenderer extends Control:
 			if alpha >= 0.0:
 				return alpha
 
+		var global_series_index := _get_global_series_index(p_series_index)
+
 		# Try per sample alpha (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.alpha_callback.is_valid():
-			var alpha = vc.alpha_callback.call(_get_global_series_index(p_series_index), p_sample_index, p_x_value, p_y_value)
+			var alpha = vc.alpha_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
 			if alpha >= 0.0:
 				return alpha
 
-		# Use series alpha from TauXYStyle (theme if set, otherwise default value).
-		return _xy_style.series_alpha
+		# Use per series alpha from TauXYStyle (theme if set, otherwise default value).
+		return _xy_style.get_series_alpha(global_series_index)
 
 
 	func _get_marker_size_px(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:

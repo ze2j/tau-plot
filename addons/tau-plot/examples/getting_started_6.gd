@@ -42,15 +42,14 @@ func _ready() -> void:
 	config.x_axis = x_axis
 	config.panes = [pane]
 
-	# The series color palette lives on the plot-wide style. Colors are
-	# assigned to series in order. series_alpha controls the opacity of
-	# all series uniformly.
+	# The series color palette lives on the plot-wide style.
+	# Colors and alphas are assigned to series in order.
 	config.style.series_colors = [
 		Color(0.85, 0.20, 0.20),
 		Color(1.0, 0.60, 0.10),
 		Color(0.95, 0.85, 0.20),
 	]
-	config.style.series_alpha = 0.9
+	config.style.series_alphas = [0.9, 0.6, 0.8]
 
 	var bindings: Array[TauXYSeriesBinding] = []
 	for i in dataset.get_series_count():

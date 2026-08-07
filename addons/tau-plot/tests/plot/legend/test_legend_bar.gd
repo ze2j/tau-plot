@@ -9,7 +9,7 @@ const SERIES_OFFSET := 0.5
 const CORNER_RADIUS_PX := 6
 const BORDER_WIDTH_PX := 3
 const BORDER_COLOR := Color(0.1, 0.1, 0.1)
-const FADED_SERIES_ALPHA := 0.4
+const FADED_SERIES_ALPHAS: Array[float] = [0.3, 0.7]
 
 
 func _ready() -> void:
@@ -21,7 +21,7 @@ func _ready() -> void:
 # Helpers
 ####################################################################################################
 
-func _make_single_pane_plot(p_plot: TauPlot, p_title: String, p_series_names: PackedStringArray, p_bar_config: TauBarConfig, p_series_alpha := 1.0) -> void:
+func _make_single_pane_plot(p_plot: TauPlot, p_title: String, p_series_names: PackedStringArray, p_bar_config: TauBarConfig, p_series_alphas: Array[float] = [1.0]) -> void:
 	var series_count := p_series_names.size()
 	var dataset := TauPlot.Dataset.make_shared_x_continuous(p_series_names, X, _make_y_series(series_count))
 
@@ -32,7 +32,7 @@ func _make_single_pane_plot(p_plot: TauPlot, p_title: String, p_series_names: Pa
 	var config := TauXYConfig.new()
 	config.x_axis = _make_x_axis()
 	config.panes = [pane]
-	config.style.series_alpha = p_series_alpha
+	config.style.series_alphas = p_series_alphas
 
 	var bindings: Array[TauXYSeriesBinding] = []
 	for i in range(series_count):
@@ -166,7 +166,7 @@ func _setup_test_2() -> void:
 	_make_single_pane_plot(%TestPlot2, "Texture style box", series_names, bar_config)
 
 ####################################################################################################
-# Test 3: color cycle and alpha
+# Test 3: alpha cycle
 ####################################################################################################
 
 func _setup_test_3() -> void:
@@ -174,4 +174,4 @@ func _setup_test_3() -> void:
 
 	var bar_config := _make_bar_config(TauBarConfig.BarMode.GROUPED, _make_flat_box(CORNER_RADIUS_PX, 0), series_names.size())
 
-	_make_single_pane_plot(%TestPlot3, "Color cycle and alpha", series_names, bar_config, FADED_SERIES_ALPHA)
+	_make_single_pane_plot(%TestPlot3, "Alpha cycle", series_names, bar_config, FADED_SERIES_ALPHAS)

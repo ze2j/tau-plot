@@ -77,7 +77,7 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   LineVisualCallbacks.color_callback, then the per-series color from
 #   TauXYStyle.series_colors.
 # - Alpha resolution order: LineVisualAttributes.alpha_buffer, then
-#   LineVisualCallbacks.alpha_callback, then TauXYStyle.series_alpha.
+#   LineVisualCallbacks.alpha_callback, then TauXYStyle.series_alphas.
 # - The resolved alpha overwrites the alpha channel of the resolved color.
 # - When the highlight feature is active, the resulting color is then
 #   routed through TauHoverConfig.hover_highlight_callback.
@@ -1447,7 +1447,7 @@ class LineRenderer extends Control:
 		var fill: TauLineFill = _line_style.get_series_fill(p_series_index)
 
 		var stroke_color: Color = _xy_style.get_series_color(p_series_index)
-		stroke_color.a = clampf(_xy_style.series_alpha, 0.0, 1.0)
+		stroke_color.a = _xy_style.get_series_alpha(p_series_index)
 
 		var spec := LineLegendKey.Spec.new()
 		spec.stroke_color = stroke_color
@@ -1828,14 +1828,16 @@ class LineRenderer extends Control:
 			if a >= 0.0:
 				return a
 
+		var global_series_index := _get_global_series_index(p_series_index)
+
 		# Per-sample override from LineVisualCallbacks.alpha_callback.
 		var vc := _line_config.line_visual_callbacks
 		if vc != null and vc.alpha_callback.is_valid():
-			var a: float = vc.alpha_callback.call(_get_global_series_index(p_series_index), p_sample_index, p_x_value, p_y_value)
+			var a: float = vc.alpha_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
 			if a >= 0.0:
 				return a
 
-		return _xy_style.series_alpha
+		return _xy_style.get_series_alpha(global_series_index)
 
 
 	####################################################################################################

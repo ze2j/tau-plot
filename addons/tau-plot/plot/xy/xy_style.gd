@@ -126,9 +126,14 @@ class_name TauXYStyle extends Resource
 		pane_gap_px = value
 		_overridden[&"pane_gap_px"] = true
 
-## Plot-wide series color palette.
+const DEFAULT_SERIES_COLOR := Color(0.306, 0.475, 0.655)
+
+## Per-series cycle of series colors. Each entry sets the color of one series,
+## with the array indexed cyclically by series index using modulo: series
+## [code]i[/code] reads entry [code]i % series_colors.size()[/code]. An empty
+## array is treated as all series drawn in [constant DEFAULT_SERIES_COLOR].
 @export var series_colors: Array[Color] = [
-	Color(0.306, 0.475, 0.655),
+	DEFAULT_SERIES_COLOR,
 	Color(0.882, 0.341, 0.349),
 	Color(0.349, 0.631, 0.31),
 	Color(0.949, 0.557, 0.169),
@@ -141,11 +146,17 @@ class_name TauXYStyle extends Resource
 		series_colors = value
 		_overridden[&"series_colors"] = true
 
-## Plot-wide series alpha (0.0-1.0).
-@export var series_alpha: float = 1.0:
+const DEFAULT_SERIES_ALPHA := 1.0
+
+## Per-series cycle of series opacities, from [code]0.0[/code] to
+## [code]1.0[/code]. Each entry sets the opacity of one series, with the array
+## indexed cyclically by series index using modulo: series [code]i[/code] reads
+## entry [code]i % series_alphas.size()[/code]. An empty array is treated as
+## all series fully opaque.
+@export var series_alphas: Array[float] = [DEFAULT_SERIES_ALPHA]:
 	set(value):
-		series_alpha = value
-		_overridden[&"series_alpha"] = true
+		series_alphas = value
+		_overridden[&"series_alphas"] = true
 
 
 # Exported property names assigned at least once, whatever the value. Member
@@ -228,10 +239,20 @@ func load_from_theme(p_control: Control) -> void:
 		for i in range(theme_series_colors.size()):
 			series_colors[i] = theme_series_colors[i]
 
-	# Series alpha is stored as a percentage in theme resources (only integers are supported).
-	if p_control.has_theme_constant(&"series_alpha_percent"):
-		var alpha_percent := p_control.get_theme_constant(&"series_alpha_percent")
-		series_alpha = clampf(float(alpha_percent) / 100.0, 0.0, 1.0)
+	# Series alphas: unlimited number, keyed series_alpha_percent_0, series_alpha_percent_1, ...
+	# Stored as percentages because theme constants only support integers.
+	var theme_series_alphas: Array[float]
+	var alpha_index := 0
+	while true:
+		var key := "series_alpha_percent_%d" % alpha_index
+		if not p_control.has_theme_constant(key):
+			break
+		theme_series_alphas.append(clampf(float(p_control.get_theme_constant(key)) / 100.0, 0.0, 1.0))
+		alpha_index += 1
+	if not theme_series_alphas.is_empty():
+		series_alphas.resize(max(series_alphas.size(), theme_series_alphas.size()))
+		for i in range(theme_series_alphas.size()):
+			series_alphas[i] = theme_series_alphas[i]
 
 
 ####################################################################################################
@@ -293,8 +314,8 @@ func apply_overrides_from(p_user_style: TauXYStyle) -> void:
 	if p_user_style.is_overridden(&"pane_gap_px"):
 		pane_gap_px = p_user_style.pane_gap_px
 
-	if p_user_style.is_overridden(&"series_alpha"):
-		series_alpha = p_user_style.series_alpha
+	if p_user_style.is_overridden(&"series_alphas"):
+		series_alphas = p_user_style.series_alphas.duplicate()
 
 	if p_user_style.is_overridden(&"series_colors"):
 		series_colors = p_user_style.series_colors.duplicate()
@@ -384,7 +405,7 @@ func is_equal_to(p_other: TauXYStyle) -> bool:
 		return false
 	if pane_gap_px != p_other.pane_gap_px:
 		return false
-	if series_alpha != p_other.series_alpha:
+	if series_alphas != p_other.series_alphas:
 		return false
 	if series_colors != p_other.series_colors:
 		return false
@@ -394,7 +415,7 @@ func is_equal_to(p_other: TauXYStyle) -> bool:
 # Layout-affecting: label_font, label_font_size, tick sizes, tick-label gaps,
 # all four paddings, pane_gap_px. These feed into XYLayout.update() which
 # computes pane rects and tick positions.
-# Visual-only: axis_color, series_colors, series_alpha.
+# Visual-only: axis_color, series_colors, series_alphas.
 func has_layout_affecting_change(p_other: TauXYStyle) -> bool:
 	if p_other == null:
 		return true
@@ -431,8 +452,15 @@ func has_layout_affecting_change(p_other: TauXYStyle) -> bool:
 # Helpers
 ####################################################################################################
 
+## Returns the resolved color for the given series index.
 func get_series_color(p_series_index: int) -> Color:
-	if p_series_index < 0 or p_series_index >= series_colors.size():
-		push_error("TauXYStyle.get_series_color(): out of range series index: %d not in [0, %d]" % [p_series_index, series_colors.size()])
-		return Color()
-	return series_colors[p_series_index]
+	if series_colors.is_empty():
+		return DEFAULT_SERIES_COLOR
+	return series_colors[p_series_index % series_colors.size()]
+
+
+## Returns the resolved opacity for the given series index.
+func get_series_alpha(p_series_index: int) -> float:
+	if series_alphas.is_empty():
+		return DEFAULT_SERIES_ALPHA
+	return clampf(series_alphas[p_series_index % series_alphas.size()], 0.0, 1.0)

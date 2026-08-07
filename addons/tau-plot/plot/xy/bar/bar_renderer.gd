@@ -193,7 +193,7 @@ class BarRenderer extends Control:
 	# the user authored rather than the remapped box the bars are drawn with.
 	func _resolve_legend_style_box(p_series_index: int) -> StyleBox:
 		var color := _xy_style.get_series_color(p_series_index)
-		color.a = clampf(_xy_style.series_alpha, 0.0, 1.0)
+		color.a = _xy_style.get_series_alpha(p_series_index)
 		var style_box: StyleBox = _bar_style.style_box.duplicate()
 		_set_style_box_color(style_box, color)
 		return style_box
@@ -304,15 +304,17 @@ class BarRenderer extends Control:
 			if alpha >= 0.0:
 				return alpha
 
+		var global_series_index := _get_global_series_index(p_series_index)
+
 		# Try per sample alpha (with VisualCallbacks)
 		var vc = _bar_config.bar_visual_callbacks
 		if vc != null and vc.alpha_callback.is_valid():
-			var alpha = vc.alpha_callback.call(_get_global_series_index(p_series_index), p_sample_index, p_x_value, p_y_value)
+			var alpha = vc.alpha_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
 			if alpha >= 0.0:
 				return alpha
 
-		# Use series alpha from TauXYStyle (theme if set, otherwise default value).
-		return _xy_style.series_alpha
+		# Use per series alpha from TauXYStyle (theme if set, otherwise default value).
+		return _xy_style.get_series_alpha(global_series_index)
 
 
 	func _apply_alpha_override(p_color: Color, p_alpha: float) -> Color:
