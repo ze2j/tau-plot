@@ -602,6 +602,10 @@ func has_layout_affecting_change(p_other: TauLineStyle) -> bool:
 
 # Grows `fills` to at least p_min_size entries, filling any new slots with
 # default-constructed TauLineFill instances.
+#
+# The theme loads fills field by field at both levels, so the plot-wide level
+# patches where the other cycles replace. That only coincides with a replace
+# because the built-in default of `fills` is empty. Keep it empty.
 func _ensure_fills_min_size(p_min_size: int) -> void:
 	while fills.size() < p_min_size:
 		fills.append(TauLineFill.new())

@@ -225,6 +225,11 @@ func load_from_theme(p_control: Control) -> void:
 	if p_control.has_theme_constant(&"xy_y_minor_tick_thickness"):
 		y_minor_tick_thickness_px = p_control.get_theme_constant(&"xy_y_minor_tick_thickness")
 
+	# A themed run replaces the whole cycle rather than patching over the
+	# built-in one, so the resolved cycle is exactly what the theme defines and
+	# no built-in entry trails it. Both scans stop at the first missing index,
+	# so indices must be contiguous from 0.
+
 	# Series colors: unlimited number, keyed series_color_0, series_color_1, ...
 	var theme_series_colors: Array[Color]
 	var color_index := 0
@@ -235,9 +240,7 @@ func load_from_theme(p_control: Control) -> void:
 		theme_series_colors.append(p_control.get_theme_color(key))
 		color_index += 1
 	if not theme_series_colors.is_empty():
-		series_colors.resize(max(series_colors.size(), theme_series_colors.size()))
-		for i in range(theme_series_colors.size()):
-			series_colors[i] = theme_series_colors[i]
+		series_colors = theme_series_colors
 
 	# Series alphas: unlimited number, keyed series_alpha_percent_0, series_alpha_percent_1, ...
 	# Stored as percentages because theme constants only support integers.
@@ -250,9 +253,7 @@ func load_from_theme(p_control: Control) -> void:
 		theme_series_alphas.append(clampf(float(p_control.get_theme_constant(key)) / 100.0, 0.0, 1.0))
 		alpha_index += 1
 	if not theme_series_alphas.is_empty():
-		series_alphas.resize(max(series_alphas.size(), theme_series_alphas.size()))
-		for i in range(theme_series_alphas.size()):
-			series_alphas[i] = theme_series_alphas[i]
+		series_alphas = theme_series_alphas
 
 
 ####################################################################################################
