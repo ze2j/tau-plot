@@ -294,22 +294,17 @@ class LineRenderer extends Control:
 	## with the series' fill band under it when the series fills.
 	##
 	## Reads the stroke and the fill from the resolved styles on this renderer
-	## instance, at the per-series granularity the draw path uses. Requests the
-	## box width from TauLineStyle.legend_key_width_px and leaves the height to
-	## the legend.
+	## instance, at the per-series granularity the draw path uses. Leaves the box
+	## to the legend, which sizes a line key wider than tall.
 	func create_legend_key_control(p_series_index: int) -> Control:
-		var key := LineLegendKey.new(_resolve_legend_key_spec(p_series_index))
-		key.custom_minimum_size = Vector2(_line_style.legend_key_width_px, 0.0)
-		return key
+		return LineLegendKey.new(_resolve_legend_key_spec(p_series_index))
 
 
 	## Re-resolves the appearance of a legend key created by
 	## create_legend_key_control() and repaints it, so a style change costs no
 	## rebuild of the legend row.
 	func refresh_legend_key_control(p_series_index: int, p_control: Control) -> void:
-		var key := p_control as LineLegendKey
-		key.set_spec(_resolve_legend_key_spec(p_series_index))
-		key.custom_minimum_size = Vector2(_line_style.legend_key_width_px, 0.0)
+		(p_control as LineLegendKey).set_spec(_resolve_legend_key_spec(p_series_index))
 
 
 	####################################################################################################

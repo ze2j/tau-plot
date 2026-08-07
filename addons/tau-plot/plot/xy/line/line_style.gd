@@ -84,18 +84,6 @@ class_name TauLineStyle extends Resource
 		fills = value
 		_overridden[&"fills"] = true
 
-## Width in pixels of the legend key box for this overlay. The height of the
-## box comes from [member TauLegendStyle.key_size_px].
-##
-## One value for the whole overlay rather than a per-series cycle, so the legend
-## keys stay in a straight column. The box is wider than tall because a key
-## needs room to show a dash pattern, and a line together with the band under
-## it.
-@export var legend_key_width_px: float = 24.0:
-	set(value):
-		legend_key_width_px = value
-		_overridden[&"legend_key_width_px"] = true
-
 
 # Exported property names assigned at least once, whatever the value. Member
 # initializers bypass the setters, so a fresh instance starts empty.
@@ -202,10 +190,6 @@ func get_series_fill(p_series_index: int) -> TauLineFill:
 ##     (theme constant, integer degrees)
 ##   - tile_offset_px:    [code]line_fill_texture_offset_px_x[/code] and
 ##     [code]line_fill_texture_offset_px_y[/code] (theme constants)
-##
-## [member legend_key_width_px] is a scalar, so it takes the non-indexed theme
-## key [code]line_legend_key_width_px[/code] first, then the pane-indexed
-## [code]line_legend_key_width_px_P[/code] if present.
 ##
 ## Every property is written unconditionally. Properties without a matching
 ## theme entry keep their current value, so this method is safe to call on
@@ -493,13 +477,6 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		fills[pane_offset_y_index].tile_offset_px = offset
 		pane_offset_y_index += 1
 
-	# legend_key_width_px
-	if p_control.has_theme_constant(&"line_legend_key_width_px"):
-		legend_key_width_px = max(float(p_control.get_theme_constant(&"line_legend_key_width_px")), 1.0)
-	var indexed_legend_key_width_key := StringName("line_legend_key_width_px_%d" % p_pane_index)
-	if p_control.has_theme_constant(indexed_legend_key_width_key):
-		legend_key_width_px = max(float(p_control.get_theme_constant(indexed_legend_key_width_key)), 1.0)
-
 
 ####################################################################################################
 # Cascade: user overrides (layer 3)
@@ -524,8 +501,6 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 		hovered_line_widths_px = p_user_style.hovered_line_widths_px.duplicate()
 	if p_user_style.is_overridden(&"dash_lengths_px"):
 		dash_lengths_px = p_user_style.dash_lengths_px.duplicate()
-	if p_user_style.is_overridden(&"legend_key_width_px"):
-		legend_key_width_px = p_user_style.legend_key_width_px
 	fills = _merge_fills(p_user_style.fills)
 
 
@@ -597,8 +572,6 @@ func is_equal_to(p_other: TauLineStyle) -> bool:
 		return false
 	if dash_lengths_px != p_other.dash_lengths_px:
 		return false
-	if legend_key_width_px != p_other.legend_key_width_px:
-		return false
 	# Array equality compares object entries by identity, so the fill cycle is
 	# compared entry by entry to reach the field values and the override flags.
 	if fills.size() != p_other.fills.size():
@@ -618,8 +591,7 @@ func is_equal_to(p_other: TauLineStyle) -> bool:
 ## Returns true if a change from [param p_other] to this instance would
 ## require the surrounding layout (domain, ticks, pane rect) to be
 ## recomputed. Always false: TauLineStyle properties only affect how lines
-## are drawn within a fixed domain, and [member legend_key_width_px] is
-## measured by the legend on its own rebuild.
+## are drawn within a fixed domain.
 func has_layout_affecting_change(p_other: TauLineStyle) -> bool:
 	return false
 

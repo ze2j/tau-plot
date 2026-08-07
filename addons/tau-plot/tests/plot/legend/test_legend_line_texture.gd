@@ -9,7 +9,6 @@ const X: PackedFloat64Array = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
 const Y_SHAPE: PackedFloat64Array = [1.0, 4.0, 2.0, 5.0, 2.5, 4.5]
 const MAGNITUDE_BASELINE := 3.0
 const SPAN_NAMES: PackedStringArray = ["LINE", "VALUE_Y", "VALUE_X", "MAGNITUDE"]
-const LEGEND_KEY_WIDTH_PX := 48.0
 const LEGEND_KEY_HEIGHT_PX := 20
 const TILE_ROTATION_DEG := 30.0
 const TILE_SCROLL_SPEED_PX := 20.0
@@ -100,7 +99,6 @@ func _make_line_config() -> TauLineConfig:
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
 	line_config.interpolation_modes = [TauLineConfig.InterpolationMode.LINEAR]
-	line_config.style.legend_key_width_px = LEGEND_KEY_WIDTH_PX
 	return line_config
 
 

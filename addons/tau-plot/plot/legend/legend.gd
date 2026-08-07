@@ -12,7 +12,8 @@ class Legend extends PanelContainer:
 		##   func(p_series_index: int) -> Control
 		## The returned Control must handle its own rendering internally.
 		## Each axis of custom_minimum_size set to a positive value by the factory
-		## is honored. Each axis left at zero falls back to key_size_px.
+		## is honored. A height left at zero falls back to key_size_px, a width
+		## left at zero to the resolved height times key_aspect_ratio.
 		##
 		## The resolved box is the size of the picture, not the space the legend
 		## reserves for it. A vertically flowing legend pads every box out to the
@@ -25,6 +26,13 @@ class Legend extends PanelContainer:
 		## It repaints the Control itself, and may request a different box size the
 		## same way the factory does, under the same per-axis fallback rule.
 		var refresh_key_control: Callable = Callable()
+
+		## Width of the key box as a multiple of its height, for a factory that
+		## leaves the width at zero. The default keeps the box square.
+		##
+		## A ratio rather than a pixel width so a key that needs a wide box stays
+		## proportional when key_size_px changes.
+		var key_aspect_ratio: float = 1.0
 
 	## Describes one series entry in the legend.
 	class SeriesInfo extends RefCounted:
@@ -352,14 +360,15 @@ class Legend extends PanelContainer:
 				_layout_children()
 
 
-		# A factory sizes only the axes its picture constrains, so each axis falls
-		# back on its own rather than one axis deciding both.
+		# A factory sizes only the axes its picture constrains. The height falls
+		# back to the themed key size, the width to that height scaled by the
+		# ratio the key asked for, so a wide key follows key_size_px.
 		func _resolve_key_size(p_index: int, p_control: Control) -> void:
 			var key_size: Vector2 = p_control.custom_minimum_size
-			if key_size.x <= 0.0:
-				key_size.x = _style.key_size_px
 			if key_size.y <= 0.0:
 				key_size.y = _style.key_size_px
+			if key_size.x <= 0.0:
+				key_size.x = key_size.y * _series_info.keys[p_index].key_aspect_ratio
 			p_control.custom_minimum_size = key_size
 			_key_sizes[p_index] = key_size
 

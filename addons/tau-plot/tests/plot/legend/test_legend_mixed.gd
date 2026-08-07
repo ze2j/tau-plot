@@ -5,7 +5,6 @@ const X: PackedFloat64Array = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
 const Y_SHAPE: PackedFloat64Array = [1.0, 2.2, 1.4, 2.6, 1.8, 2.8]
 const SERIES_OFFSET := 1.0
 const BAR_WIDTH_X_UNITS := 0.6
-const LEGEND_KEY_WIDTH_PX := 24.0
 
 
 func _ready() -> void:
@@ -77,7 +76,6 @@ func _make_line_config() -> TauLineConfig:
 	var line_config := TauLineConfig.new()
 	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
 	line_config.interpolation_modes = [TauLineConfig.InterpolationMode.LINEAR]
-	line_config.style.legend_key_width_px = LEGEND_KEY_WIDTH_PX
 	return line_config
 
 

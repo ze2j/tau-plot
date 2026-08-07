@@ -21,6 +21,16 @@ class XYLegendBuilder extends RefCounted:
 		PaneOverlayType.SCATTER: 2,
 	}
 
+	# Width of a key box as a multiple of its height, per overlay type. A line
+	# key is wider than tall because it has to show a dash pattern, and a
+	# segment together with the band under it. A swatch and a marker read fine
+	# in a square.
+	const _KEY_ASPECT_RATIO := {
+		PaneOverlayType.BAR: 1.0,
+		PaneOverlayType.LINE: 2.0,
+		PaneOverlayType.SCATTER: 1.0,
+	}
+
 	## The reusable controller that handles placement, flow, and sizing.
 	var controller: LegendController = null
 
@@ -94,6 +104,7 @@ class XYLegendBuilder extends RefCounted:
 			var key := Legend.KeyInfo.new()
 			key.create_key_control = p_key_factory_resolver.call(binding.overlay_type, binding.pane_index)
 			key.refresh_key_control = p_key_refresh_resolver.call(binding.overlay_type, binding.pane_index)
+			key.key_aspect_ratio = _KEY_ASPECT_RATIO[binding.overlay_type]
 
 			if series_id in seen:
 				var idx: int = seen[series_id]
