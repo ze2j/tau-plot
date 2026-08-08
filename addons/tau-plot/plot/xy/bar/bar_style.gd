@@ -2,21 +2,14 @@
 
 ## Contains theme-driven visual and spacing parameters for the bars.
 ##
-## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults. A property counts as set as soon
-## as it is assigned, whatever the value, so assigning a built-in default from
-## code still beats the theme.
-##
-## Properties left untouched fall back to the Godot theme. If the theme does
-## not define them either, the built-in defaults apply.
+## Properties are resolved from the built-in defaults, the theme, and the values
+## set here, in that order. See [TauStyle] for the details.
 ##
 ## Assign a new [StyleBox] rather than mutating the one already assigned. An
 ## in-place change is not detected.
 ##
-## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
-## default is not written to the saved resource, so it reads as untouched on
-## load and the theme still wins. Assign it from code instead.
-class_name TauBarStyle extends Resource
+## Theme type variation: TauBar
+class_name TauBarStyle extends TauStyle
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
@@ -46,11 +39,6 @@ class_name TauBarStyle extends Resource
 	set(value):
 		hovered_style_box = value
 		_overridden[&"hovered_style_box"] = true
-
-
-# Exported property names assigned at least once, whatever the value. Member
-# initializers bypass the setters, so a fresh instance starts empty.
-var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -142,12 +130,6 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
-## Returns [code]true[/code] when [param p_property] has been assigned on this
-## resource, whatever the assigned value.
-func is_overridden(p_property: StringName) -> bool:
-	return _overridden.has(p_property)
-
-
 ## Applies overridden properties from [param p_user_style] onto this resolved
 ## instance.
 func apply_overrides_from(p_user_style: TauBarStyle) -> void:
@@ -204,24 +186,19 @@ func make_snapshot() -> TauBarStyle:
 	return copy
 
 
-# Writing a typed collection into another instance through a property is
-# rejected at runtime, so the copy is made from inside the target.
-func _copy_overrides_from(p_source: TauBarStyle) -> void:
-	_overridden = p_source._overridden.duplicate()
-
-
-func is_equal_to(p_other: TauBarStyle) -> bool:
-	if p_other == null:
+func is_equal_to(p_other: TauStyle) -> bool:
+	var other := p_other as TauBarStyle
+	if other == null:
 		return false
-	if _overridden != p_other._overridden:
+	if not super.is_equal_to(other):
 		return false
-	if bar_width_px != p_other.bar_width_px:
+	if bar_width_px != other.bar_width_px:
 		return false
-	if bar_intragroup_gap_px != p_other.bar_intragroup_gap_px:
+	if bar_intragroup_gap_px != other.bar_intragroup_gap_px:
 		return false
-	if style_box != p_other.style_box:
+	if style_box != other.style_box:
 		return false
-	if hovered_style_box != p_other.hovered_style_box:
+	if hovered_style_box != other.hovered_style_box:
 		return false
 	return true
 

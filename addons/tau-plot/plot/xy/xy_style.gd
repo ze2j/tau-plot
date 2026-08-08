@@ -2,24 +2,16 @@
 
 ## Contains theme-driven visual and spacing parameters for the XY plot.
 ##
-## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults. A property counts as set as soon
-## as it is assigned, whatever the value, so assigning a built-in default from
-## code still beats the theme.
-##
-## Properties left untouched fall back to the Godot theme. If the theme does
-## not define them either, the built-in defaults apply.
-##
-## For array properties, assign a new array to mark the property as set.
-## Mutating the existing array in place does not.
+## Properties are resolved from the built-in defaults, the theme, and the values
+## set here, in that order. The per-series arrays are read as cycles. TauXYStyle
+## covers the whole plot, so its theme keys carry no pane index. See [TauStyle]
+## for the details.
 ##
 ## Assign a new [Font] rather than mutating the one already assigned. An
 ## in-place change is not detected.
 ##
-## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
-## default is not written to the saved resource, so it reads as untouched on
-## load and the theme still wins. Assign it from code instead.
-class_name TauXYStyle extends Resource
+## Theme type variation: TauPlot
+class_name TauXYStyle extends TauStyle
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
@@ -128,10 +120,9 @@ class_name TauXYStyle extends Resource
 
 const DEFAULT_SERIES_COLOR := Color(0.306, 0.475, 0.655)
 
-## Per-series cycle of series colors. Each entry sets the color of one series,
-## with the array indexed cyclically by series index using modulo: series
-## [code]i[/code] reads entry [code]i % series_colors.size()[/code]. An empty
-## array is treated as all series drawn in [constant DEFAULT_SERIES_COLOR].
+## Per-series cycle of series colors. See [TauStyle] for how a cycle is
+## indexed. An empty array is treated as all series drawn in
+## [constant DEFAULT_SERIES_COLOR].
 @export var series_colors: Array[Color] = [
 	DEFAULT_SERIES_COLOR,
 	Color(0.882, 0.341, 0.349),
@@ -149,19 +140,12 @@ const DEFAULT_SERIES_COLOR := Color(0.306, 0.475, 0.655)
 const DEFAULT_SERIES_ALPHA := 1.0
 
 ## Per-series cycle of series opacities, from [code]0.0[/code] to
-## [code]1.0[/code]. Each entry sets the opacity of one series, with the array
-## indexed cyclically by series index using modulo: series [code]i[/code] reads
-## entry [code]i % series_alphas.size()[/code]. An empty array is treated as
-## all series fully opaque.
+## [code]1.0[/code]. See [TauStyle] for how a cycle is indexed. An empty array
+## is treated as all series fully opaque.
 @export var series_alphas: Array[float] = [DEFAULT_SERIES_ALPHA]:
 	set(value):
 		series_alphas = value
 		_overridden[&"series_alphas"] = true
-
-
-# Exported property names assigned at least once, whatever the value. Member
-# initializers bypass the setters, so a fresh instance starts empty.
-var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -260,12 +244,6 @@ func load_from_theme(p_control: Control) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
-## Returns [code]true[/code] when [param p_property] has been assigned on this
-## resource, whatever the assigned value.
-func is_overridden(p_property: StringName) -> bool:
-	return _overridden.has(p_property)
-
-
 ## Applies overridden properties from [param p_user_style] onto this resolved
 ## instance.
 func apply_overrides_from(p_user_style: TauXYStyle) -> void:
@@ -359,56 +337,51 @@ func make_snapshot() -> TauXYStyle:
 	return copy
 
 
-# Writing a typed collection into another instance through a property is
-# rejected at runtime, so the copy is made from inside the target.
-func _copy_overrides_from(p_source: TauXYStyle) -> void:
-	_overridden = p_source._overridden.duplicate()
-
-
-func is_equal_to(p_other: TauXYStyle) -> bool:
-	if p_other == null:
+func is_equal_to(p_other: TauStyle) -> bool:
+	var other := p_other as TauXYStyle
+	if other == null:
 		return false
-	if _overridden != p_other._overridden:
+	if not super.is_equal_to(other):
 		return false
-	if axis_color != p_other.axis_color:
+	if axis_color != other.axis_color:
 		return false
-	if label_font != p_other.label_font:
+	if label_font != other.label_font:
 		return false
-	if label_font_size != p_other.label_font_size:
+	if label_font_size != other.label_font_size:
 		return false
-	if label_color != p_other.label_color:
+	if label_color != other.label_color:
 		return false
-	if x_major_tick_length_px != p_other.x_major_tick_length_px:
+	if x_major_tick_length_px != other.x_major_tick_length_px:
 		return false
-	if x_major_tick_thickness_px != p_other.x_major_tick_thickness_px:
+	if x_major_tick_thickness_px != other.x_major_tick_thickness_px:
 		return false
-	if y_major_tick_length_px != p_other.y_major_tick_length_px:
+	if y_major_tick_length_px != other.y_major_tick_length_px:
 		return false
-	if y_major_tick_thickness_px != p_other.y_major_tick_thickness_px:
+	if y_major_tick_thickness_px != other.y_major_tick_thickness_px:
 		return false
-	if minor_tick_length_ratio != p_other.minor_tick_length_ratio:
+	if minor_tick_length_ratio != other.minor_tick_length_ratio:
 		return false
-	if x_minor_tick_thickness_px != p_other.x_minor_tick_thickness_px:
+	if x_minor_tick_thickness_px != other.x_minor_tick_thickness_px:
 		return false
-	if y_minor_tick_thickness_px != p_other.y_minor_tick_thickness_px:
+	if y_minor_tick_thickness_px != other.y_minor_tick_thickness_px:
 		return false
-	if x_tick_x_label_gap_px != p_other.x_tick_x_label_gap_px:
+	if x_tick_x_label_gap_px != other.x_tick_x_label_gap_px:
 		return false
-	if y_tick_y_label_gap_px != p_other.y_tick_y_label_gap_px:
+	if y_tick_y_label_gap_px != other.y_tick_y_label_gap_px:
 		return false
-	if padding_left_px != p_other.padding_left_px:
+	if padding_left_px != other.padding_left_px:
 		return false
-	if padding_right_px != p_other.padding_right_px:
+	if padding_right_px != other.padding_right_px:
 		return false
-	if padding_top_px != p_other.padding_top_px:
+	if padding_top_px != other.padding_top_px:
 		return false
-	if padding_bottom_px != p_other.padding_bottom_px:
+	if padding_bottom_px != other.padding_bottom_px:
 		return false
-	if pane_gap_px != p_other.pane_gap_px:
+	if pane_gap_px != other.pane_gap_px:
 		return false
-	if series_alphas != p_other.series_alphas:
+	if series_alphas != other.series_alphas:
 		return false
-	if series_colors != p_other.series_colors:
+	if series_colors != other.series_colors:
 		return false
 	return true
 

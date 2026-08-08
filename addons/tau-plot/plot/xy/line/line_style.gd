@@ -2,22 +2,29 @@
 
 ## Contains theme-driven visual parameters for line overlays.
 ##
-## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults. A property counts as set as soon
-## as it is assigned, whatever the value, so assigning a built-in default from
-## code still beats the theme.
+## Properties are resolved from the built-in defaults, the theme, and the values
+## set here, in that order. The per-series arrays are read as cycles. See
+## [TauStyle] for the details.
 ##
-## Properties left untouched fall back to the Godot theme. If the theme does
-## not define them either, the built-in defaults apply.
+## [member fills] is the one exception to the array rule stated there. The other
+## cycles on this class replace the themed one outright: assign
+## [member line_widths_px] and every themed width is gone. A fill is merged
+## instead, field by field, so it only has to carry what it changes.
 ##
-## For the per-series arrays other than [member fills], assign a new array to
-## mark the property as set. Mutating the existing array in place does not.
-## [member fills] needs no marking: it merges with the theme entry by entry.
+## Say the theme fills every series with a gradient texture down to the baseline,
+## and the only thing wrong is the opacity:
+## [codeblock]
+## var faded := TauLineFill.new()
+## faded.alpha = 0.2
+## line_style.fills = [faded]
+## [/codeblock]
+## The fill mode and the texture stay as the theme set them, because a
+## [TauLineFill] tracks which of its own fields were assigned and leaves the rest
+## to the theme. One entry is enough, since the cycle repeats it across every
+## series.
 ##
-## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
-## default is not written to the saved resource, so it reads as untouched on
-## load and the theme still wins. Assign it from code instead.
-class_name TauLineStyle extends Resource
+## Theme type variation: TauLine
+class_name TauLineStyle extends TauStyle
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
@@ -25,10 +32,8 @@ class_name TauLineStyle extends Resource
 #          `has_layout_affecting_change()`.
 ################################################################################################
 
-## Per-series cycle of line widths in pixels in the normal state. Each entry
-## sets the line width for one series, with the array indexed cyclically by
-## series index using modulo: series [code]i[/code] reads entry
-## [code]i % line_widths_px.size()[/code]. An empty array is treated as all
+## Per-series cycle of line widths in pixels in the normal state. See
+## [TauStyle] for how a cycle is indexed. An empty array is treated as all
 ## series rendered at [code]2.0[/code] pixels.
 ##
 ## An entry of [code]0[/code] draws no line for that series and leaves only
@@ -41,12 +46,9 @@ class_name TauLineStyle extends Resource
 		_overridden[&"line_widths_px"] = true
 
 ## Per-series cycle of line widths in pixels for the two segments adjacent to
-## the hovered sample. Each entry sets the hovered width for one series, with
-## the array indexed cyclically by series index using modulo: series
-## [code]i[/code] reads entry [code]i % hovered_line_widths_px.size()[/code].
-## An empty array means no hover emphasis: the segments adjacent to the
-## hovered sample are drawn at the resolved [member line_widths_px] value for
-## that series.
+## the hovered sample. See [TauStyle] for how a cycle is indexed. An empty
+## array means no hover emphasis: the segments adjacent to the hovered sample
+## are drawn at the resolved [member line_widths_px] value for that series.
 ##
 ## At draw time, the resolved per-series hovered width is clamped to be at
 ## least the resolved per-series base width from [member line_widths_px], so
@@ -59,22 +61,20 @@ class_name TauLineStyle extends Resource
 		hovered_line_widths_px = value
 		_overridden[&"hovered_line_widths_px"] = true
 
-## Per-series dash length cycle, in pixels. Each entry sets the dash length
-## for one series, with the array indexed cyclically by series index using
-## modulo: series [code]i[/code] reads entry
-## [code]i % dash_lengths_px.size()[/code]. An entry of [code]0[/code]
-## produces a solid line for that series. Any positive entry switches that
-## series to dashed rendering with alternating on-off segments of that pixel
-## length. An empty array is treated as all series solid.
+## Per-series dash length cycle, in pixels. See [TauStyle] for how a cycle is
+## indexed. An entry of [code]0[/code] produces a solid line for that series.
+## Any positive entry switches that series to dashed rendering with
+## alternating on-off segments of that pixel length. An empty array is treated
+## as all series solid.
 @export var dash_lengths_px: Array[int] = [0]:
 	set(value):
 		dash_lengths_px = value
 		_overridden[&"dash_lengths_px"] = true
 
-## Per-series cycle of [TauLineFill], indexed cyclically by series index
-## using modulo.
+## Per-series cycle of [TauLineFill]. See [TauStyle] for how a cycle is
+## indexed.
 ##
-## This property merges with the theme instead of replacing it. The resolved
+## Merges with the themed cycle rather than replacing it. The resolved
 ## cycle is as long as the longer of the two cycles, both are read cyclically,
 ## and each resolved entry keeps every themed field the matching
 ## [TauLineFill] leaves unset. Leave the array empty to take the themed cycle
@@ -82,12 +82,10 @@ class_name TauLineStyle extends Resource
 @export var fills: Array[TauLineFill] = []:
 	set(value):
 		fills = value
+		# Not read by the cascade: _merge_fills() runs unconditionally. The flag
+		# only feeds is_equal_to(), so a user first assigning fills registers as
+		# a change.
 		_overridden[&"fills"] = true
-
-
-# Exported property names assigned at least once, whatever the value. Member
-# initializers bypass the setters, so a fresh instance starts empty.
-var _overridden: Dictionary[StringName, bool] = {}
 
 
 # Shared instance returned by get_series_fill() when fills is empty or the
@@ -160,19 +158,16 @@ func get_series_fill(p_series_index: int) -> TauLineFill:
 
 ## Loads properties from the Godot theme attached to [param p_control].
 ##
-## The per-series array properties use a two-level indexed lookup at series
-## granularity:
-##   1. [code]<key>_N[/code] sets the value for series N across all panes.
-##   2. [code]<key>_N_P[/code] overrides series N in pane P only.
+## The per-series arrays use the two-level cycle keys described in [TauStyle].
 ##
 ## Theme key prefixes for the per-series arrays:
 ##   - [member line_widths_px]:         [code]line_width_px[/code]
 ##   - [member hovered_line_widths_px]: [code]line_hovered_width_px[/code]
 ##   - [member dash_lengths_px]:        [code]line_dash_px[/code]
 ##
-## [member fills] uses the same two-level indexing, applied independently
-## per [TauLineFill] field, so a theme may define more entries for one
-## field than another:
+## [member fills] uses the same two-level keys, applied independently per
+## [TauLineFill] field, so a theme may define more entries for one field
+## than another:
 ##   - fill_mode:        [code]line_fill_mode[/code] (theme constant, an
 ##     integer [enum TauLineFill.FillMode] value)
 ##   - color:            [code]line_fill_color[/code] (theme color)
@@ -486,12 +481,6 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
-## Returns [code]true[/code] when [param p_property] has been assigned on this
-## resource, whatever the assigned value.
-func is_overridden(p_property: StringName) -> bool:
-	return _overridden.has(p_property)
-
-
 ## Applies overridden properties from [param p_user_style] onto this resolved
 ## instance. [member fills] merges per entry and per field, every other
 ## property replaces.
@@ -544,12 +533,6 @@ func make_snapshot() -> TauLineStyle:
 	return copy
 
 
-# Writing a typed collection into another instance through a property is
-# rejected at runtime, so the copy is made from inside the target.
-func _copy_overrides_from(p_source: TauLineStyle) -> void:
-	_overridden = p_source._overridden.duplicate()
-
-
 # duplicate() gives the copy its own array but keeps the source's TauLineFill
 # instances in it, so a fill mutated in place would be compared against itself.
 # The entries are rebuilt one by one. Null entries are part of the contract and
@@ -565,24 +548,25 @@ func _copy_fills_from(p_source: TauLineStyle) -> void:
 ## Deep equality between this instance and [param p_other]. Compares every
 ## public property value-for-value, including the per-series arrays, plus the
 ## set of overridden property names.
-func is_equal_to(p_other: TauLineStyle) -> bool:
-	if p_other == null:
+func is_equal_to(p_other: TauStyle) -> bool:
+	var other := p_other as TauLineStyle
+	if other == null:
 		return false
-	if _overridden != p_other._overridden:
+	if not super.is_equal_to(other):
 		return false
-	if line_widths_px != p_other.line_widths_px:
+	if line_widths_px != other.line_widths_px:
 		return false
-	if hovered_line_widths_px != p_other.hovered_line_widths_px:
+	if hovered_line_widths_px != other.hovered_line_widths_px:
 		return false
-	if dash_lengths_px != p_other.dash_lengths_px:
+	if dash_lengths_px != other.dash_lengths_px:
 		return false
 	# Array equality compares object entries by identity, so the fill cycle is
 	# compared entry by entry to reach the field values and the override flags.
-	if fills.size() != p_other.fills.size():
+	if fills.size() != other.fills.size():
 		return false
 	for i in range(fills.size()):
 		var fill: TauLineFill = fills[i]
-		var other_fill: TauLineFill = p_other.fills[i]
+		var other_fill: TauLineFill = other.fills[i]
 		if fill == null:
 			if other_fill != null:
 				return false

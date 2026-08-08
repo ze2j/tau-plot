@@ -2,21 +2,15 @@
 
 ## Visual style for the legend.
 ##
-## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults. A property counts as set as soon
-## as it is assigned, whatever the value, so assigning a built-in default from
-## code still beats the theme.
-##
-## Properties left untouched fall back to the Godot theme. If the theme does
-## not define them either, the built-in defaults apply.
+## Properties are resolved from the built-in defaults, the theme, and the values
+## set here, in that order. TauLegendStyle covers the whole plot, so its theme
+## keys carry no pane index. See [TauStyle] for the details.
 ##
 ## Assign a new [Font] or [StyleBox] rather than mutating the one already
 ## assigned. An in-place change is not detected.
 ##
-## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
-## default is not written to the saved resource, so it reads as untouched on
-## load and the theme still wins. Assign it from code instead.
-class_name TauLegendStyle extends Resource
+## Theme type variation: TauLegend
+class_name TauLegendStyle extends TauStyle
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
@@ -76,11 +70,6 @@ class_name TauLegendStyle extends Resource
 		_overridden[&"max_size_px"] = true
 
 
-# Exported property names assigned at least once, whatever the value. Member
-# initializers bypass the setters, so a fresh instance starts empty.
-var _overridden: Dictionary[StringName, bool] = {}
-
-
 ####################################################################################################
 # Cascade: theme loading (layer 2)
 ####################################################################################################
@@ -133,12 +122,6 @@ func load_from_theme(p_control: Control) -> void:
 ####################################################################################################
 # Cascade: user overrides (layer 3)
 ####################################################################################################
-
-## Returns [code]true[/code] when [param p_property] has been assigned on this
-## resource, whatever the assigned value.
-func is_overridden(p_property: StringName) -> bool:
-	return _overridden.has(p_property)
-
 
 ## Applies overridden properties from [param p_user_style] onto this resolved
 ## instance.
@@ -210,36 +193,31 @@ func make_snapshot() -> TauLegendStyle:
 	return copy
 
 
-# Writing a typed collection into another instance through a property is
-# rejected at runtime, so the copy is made from inside the target.
-func _copy_overrides_from(p_source: TauLegendStyle) -> void:
-	_overridden = p_source._overridden.duplicate()
-
-
-func is_equal_to(p_other: TauLegendStyle) -> bool:
-	if p_other == null:
+func is_equal_to(p_other: TauStyle) -> bool:
+	var other := p_other as TauLegendStyle
+	if other == null:
 		return false
-	if _overridden != p_other._overridden:
+	if not super.is_equal_to(other):
 		return false
-	if font != p_other.font:
+	if font != other.font:
 		return false
-	if font_size != p_other.font_size:
+	if font_size != other.font_size:
 		return false
-	if font_color != p_other.font_color:
+	if font_color != other.font_color:
 		return false
-	if key_size_px != p_other.key_size_px:
+	if key_size_px != other.key_size_px:
 		return false
-	if key_gap_px != p_other.key_gap_px:
+	if key_gap_px != other.key_gap_px:
 		return false
-	if key_label_gap_px != p_other.key_label_gap_px:
+	if key_label_gap_px != other.key_label_gap_px:
 		return false
-	if item_gap_px != p_other.item_gap_px:
+	if item_gap_px != other.item_gap_px:
 		return false
-	if background != p_other.background:
+	if background != other.background:
 		return false
-	if margin_px != p_other.margin_px:
+	if margin_px != other.margin_px:
 		return false
-	if max_size_px != p_other.max_size_px:
+	if max_size_px != other.max_size_px:
 		return false
 	return true
 

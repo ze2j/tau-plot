@@ -14,15 +14,14 @@
 ## - Fill with no outline: any of the above with the series entry in
 ## [member TauLineStyle.line_widths_px] set to [code]0[/code].
 ##
-## A field counts as set as soon as it is assigned, whatever the value.
+## A field counts as set as soon as it is assigned, whatever the value. See
+## [TauStyle] for the details.
 ##
 ## Assign a new [Texture2D] rather than mutating the one already assigned. An
 ## in-place change is not detected.
 ##
-## [b]Limitation:[/b] a field set from the inspector to exactly its built-in
-## default is not written to the saved resource, so it reads as untouched on
-## load. Assign it from code instead.
-class_name TauLineFill extends Resource
+## Theme type variation: TauLine
+class_name TauLineFill extends TauStyle
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()` and
@@ -235,20 +234,9 @@ enum FillStretchSpan
 		_overridden[&"tile_offset_px"] = true
 
 
-# Exported property names assigned at least once, whatever the value. Member
-# initializers bypass the setters, so a fresh instance starts empty.
-var _overridden: Dictionary[StringName, bool] = {}
-
-
 ####################################################################################################
 # Cascade: user overrides
 ####################################################################################################
-
-## Returns [code]true[/code] when [param p_property] has been assigned on this
-## resource, whatever the assigned value.
-func is_overridden(p_property: StringName) -> bool:
-	return _overridden.has(p_property)
-
 
 ## Applies the overridden fields of [param p_user_fill] on top of this
 ## instance, field by field. A no-op when [param p_user_fill] is
@@ -296,41 +284,36 @@ func make_snapshot() -> TauLineFill:
 	return copy
 
 
-# Writing a typed collection into another instance through a property is
-# rejected at runtime, so the copy is made from inside the target.
-func _copy_overrides_from(p_source: TauLineFill) -> void:
-	_overridden = p_source._overridden.duplicate()
-
-
 ## Deep equality between this instance and [param p_other]. Compares every
 ## field value-for-value, plus the set of overridden field names.
-func is_equal_to(p_other: TauLineFill) -> bool:
-	if p_other == null:
+func is_equal_to(p_other: TauStyle) -> bool:
+	var other := p_other as TauLineFill
+	if other == null:
 		return false
-	if _overridden != p_other._overridden:
+	if not super.is_equal_to(other):
 		return false
-	if fill_mode != p_other.fill_mode:
+	if fill_mode != other.fill_mode:
 		return false
-	if fill_baseline != p_other.fill_baseline:
+	if fill_baseline != other.fill_baseline:
 		return false
-	if stretch_range_policy != p_other.stretch_range_policy:
+	if stretch_range_policy != other.stretch_range_policy:
 		return false
-	if stretch_range != p_other.stretch_range:
+	if stretch_range != other.stretch_range:
 		return false
-	if color != p_other.color:
+	if color != other.color:
 		return false
-	if alpha != p_other.alpha:
+	if alpha != other.alpha:
 		return false
-	if texture != p_other.texture:
+	if texture != other.texture:
 		return false
-	if texture_mode != p_other.texture_mode:
+	if texture_mode != other.texture_mode:
 		return false
-	if stretch_span != p_other.stretch_span:
+	if stretch_span != other.stretch_span:
 		return false
-	if tile_scale != p_other.tile_scale:
+	if tile_scale != other.tile_scale:
 		return false
-	if tile_rotation_deg != p_other.tile_rotation_deg:
+	if tile_rotation_deg != other.tile_rotation_deg:
 		return false
-	if tile_offset_px != p_other.tile_offset_px:
+	if tile_offset_px != other.tile_offset_px:
 		return false
 	return true

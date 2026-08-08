@@ -2,21 +2,12 @@
 
 ## Contains theme-driven visual and sizing parameters for scatter markers.
 ##
-## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults. A property counts as set as soon
-## as it is assigned, whatever the value, so assigning a built-in default from
-## code still beats the theme.
+## Properties are resolved from the built-in defaults, the theme, and the values
+## set here, in that order. The per-series arrays are read as cycles. See
+## [TauStyle] for the details.
 ##
-## Properties left untouched fall back to the Godot theme. If the theme does
-## not define them either, the built-in defaults apply.
-##
-## For array properties, assign a new array to mark the property as set.
-## Mutating the existing array in place does not.
-##
-## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
-## default is not written to the saved resource, so it reads as untouched on
-## load and the theme still wins. Assign it from code instead.
-class_name TauScatterStyle extends Resource
+## Theme type variation: TauScatter
+class_name TauScatterStyle extends TauStyle
 
 enum MarkerShape
 {
@@ -39,11 +30,9 @@ enum MarkerShape
 
 const DEFAULT_MARKER_SIZE_PX := 12.0
 
-## Per-series cycle of marker sizes in pixels. Each entry sets the marker size
-## for one series, with the array indexed cyclically by series index using
-## modulo: series [code]i[/code] reads entry
-## [code]i % marker_sizes_px.size()[/code]. An empty array is treated as all
-## series drawn at [constant DEFAULT_MARKER_SIZE_PX].
+## Per-series cycle of marker sizes in pixels. See [TauStyle] for how a cycle
+## is indexed. An empty array is treated as all series drawn at
+## [constant DEFAULT_MARKER_SIZE_PX].
 ##
 ## Only read under [constant TauScatterConfig.MarkerSizePolicy.THEME]. Under
 ## [constant TauScatterConfig.MarkerSizePolicy.DATA_UNITS] the size comes from
@@ -64,11 +53,9 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 		outline_color = value
 		_overridden[&"outline_color"] = true
 
-## Per-series cycle of marker sizes in pixels for the hovered marker. Each
-## entry sets the hovered size for one series, with the array indexed
-## cyclically by series index using modulo: series [code]i[/code] reads entry
-## [code]i % hovered_marker_sizes_px.size()[/code]. An empty array means no
-## size change on hover: the hovered marker keeps its resolved base size.
+## Per-series cycle of marker sizes in pixels for the hovered marker. See
+## [TauStyle] for how a cycle is indexed. An empty array means no size change
+## on hover: the hovered marker keeps its resolved base size.
 ##
 ## The hovered size replaces the base size instead of being clamped against
 ## it, so it may be smaller. Under
@@ -103,11 +90,6 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 	set(value):
 		marker_shapes = value
 		_overridden[&"marker_shapes"] = true
-
-
-# Exported property names assigned at least once, whatever the value. Member
-# initializers bypass the setters, so a fresh instance starts empty.
-var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -150,9 +132,7 @@ func get_series_shape(p_series_index: int) -> MarkerShape:
 ## for all panes), then the indexed key for [param p_pane_index] overwrites it
 ## if present.
 ##
-## The per-series cycles use a two-level indexed lookup at series granularity:
-##   1. [code]<key>_N[/code] sets the value for series N across all panes.
-##   2. [code]<key>_N_P[/code] overrides series N in pane P only.
+## The per-series cycles use the two-level cycle keys described in [TauStyle].
 ##
 ## Theme key prefixes for the per-series cycles:
 ##   - [member marker_sizes_px]:         [code]scatter_marker_size_px[/code]
@@ -281,12 +261,6 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
-## Returns [code]true[/code] when [param p_property] has been assigned on this
-## resource, whatever the assigned value.
-func is_overridden(p_property: StringName) -> bool:
-	return _overridden.has(p_property)
-
-
 ## Applies overridden properties from [param p_user_style] onto this resolved
 ## instance.
 func apply_overrides_from(p_user_style: TauScatterStyle) -> void:
@@ -347,30 +321,25 @@ func make_snapshot() -> TauScatterStyle:
 	return copy
 
 
-# Writing a typed collection into another instance through a property is
-# rejected at runtime, so the copy is made from inside the target.
-func _copy_overrides_from(p_source: TauScatterStyle) -> void:
-	_overridden = p_source._overridden.duplicate()
-
-
-func is_equal_to(p_other: TauScatterStyle) -> bool:
-	if p_other == null:
+func is_equal_to(p_other: TauStyle) -> bool:
+	var other := p_other as TauScatterStyle
+	if other == null:
 		return false
-	if _overridden != p_other._overridden:
+	if not super.is_equal_to(other):
 		return false
-	if marker_sizes_px != p_other.marker_sizes_px:
+	if marker_sizes_px != other.marker_sizes_px:
 		return false
-	if outline_width_px != p_other.outline_width_px:
+	if outline_width_px != other.outline_width_px:
 		return false
-	if outline_color != p_other.outline_color:
+	if outline_color != other.outline_color:
 		return false
-	if hovered_marker_sizes_px != p_other.hovered_marker_sizes_px:
+	if hovered_marker_sizes_px != other.hovered_marker_sizes_px:
 		return false
-	if hovered_outline_width_px != p_other.hovered_outline_width_px:
+	if hovered_outline_width_px != other.hovered_outline_width_px:
 		return false
-	if hovered_outline_color != p_other.hovered_outline_color:
+	if hovered_outline_color != other.hovered_outline_color:
 		return false
-	if marker_shapes != p_other.marker_shapes:
+	if marker_shapes != other.marker_shapes:
 		return false
 	return true
 

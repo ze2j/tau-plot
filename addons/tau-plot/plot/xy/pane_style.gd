@@ -2,21 +2,14 @@
 
 ## Visual style for a single pane.
 ##
-## Properties set on this resource take the highest priority, always winning
-## over the theme and the built-in defaults. A property counts as set as soon
-## as it is assigned, whatever the value, so assigning a built-in default from
-## code still beats the theme.
-##
-## Properties left untouched fall back to the Godot theme. If the theme does
-## not define them either, the built-in defaults apply.
+## Properties are resolved from the built-in defaults, the theme, and the values
+## set here, in that order. See [TauStyle] for the details.
 ##
 ## Multiple panes can share the same TauPaneStyle. Every pane that references it
 ## will pick up the changes.
 ##
-## [b]Limitation:[/b] a property set from the inspector to exactly its built-in
-## default is not written to the saved resource, so it reads as untouched on
-## load and the theme still wins. Assign it from code instead.
-class_name TauPaneStyle extends Resource
+## Theme type variation: TauPane
+class_name TauPaneStyle extends TauStyle
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
@@ -105,11 +98,6 @@ class_name TauPaneStyle extends Resource
 		_overridden[&"y_minor_grid_line_dash_px"] = true
 
 
-# Exported property names assigned at least once, whatever the value. Member
-# initializers bypass the setters, so a fresh instance starts empty.
-var _overridden: Dictionary[StringName, bool] = {}
-
-
 ####################################################################################################
 # Cascade: theme loading (layer 2)
 ####################################################################################################
@@ -180,12 +168,6 @@ func _load_constant_from_theme(
 ####################################################################################################
 # Cascade: user overrides (layer 3)
 ####################################################################################################
-
-## Returns [code]true[/code] when [param p_property] has been assigned on this
-## resource, whatever the assigned value.
-func is_overridden(p_property: StringName) -> bool:
-	return _overridden.has(p_property)
-
 
 ## Applies overridden properties from [param p_user_style] onto this resolved
 ## instance.
@@ -260,40 +242,35 @@ func make_snapshot() -> TauPaneStyle:
 	return copy
 
 
-# Writing a typed collection into another instance through a property is
-# rejected at runtime, so the copy is made from inside the target.
-func _copy_overrides_from(p_source: TauPaneStyle) -> void:
-	_overridden = p_source._overridden.duplicate()
-
-
-func is_equal_to(p_other: TauPaneStyle) -> bool:
-	if p_other == null:
+func is_equal_to(p_other: TauStyle) -> bool:
+	var other := p_other as TauPaneStyle
+	if other == null:
 		return false
-	if _overridden != p_other._overridden:
+	if not super.is_equal_to(other):
 		return false
-	if x_major_grid_line_color != p_other.x_major_grid_line_color:
+	if x_major_grid_line_color != other.x_major_grid_line_color:
 		return false
-	if x_major_grid_line_thickness_px != p_other.x_major_grid_line_thickness_px:
+	if x_major_grid_line_thickness_px != other.x_major_grid_line_thickness_px:
 		return false
-	if x_major_grid_line_dash_px != p_other.x_major_grid_line_dash_px:
+	if x_major_grid_line_dash_px != other.x_major_grid_line_dash_px:
 		return false
-	if x_minor_grid_line_color != p_other.x_minor_grid_line_color:
+	if x_minor_grid_line_color != other.x_minor_grid_line_color:
 		return false
-	if x_minor_grid_line_thickness_px != p_other.x_minor_grid_line_thickness_px:
+	if x_minor_grid_line_thickness_px != other.x_minor_grid_line_thickness_px:
 		return false
-	if x_minor_grid_line_dash_px != p_other.x_minor_grid_line_dash_px:
+	if x_minor_grid_line_dash_px != other.x_minor_grid_line_dash_px:
 		return false
-	if y_major_grid_line_color != p_other.y_major_grid_line_color:
+	if y_major_grid_line_color != other.y_major_grid_line_color:
 		return false
-	if y_major_grid_line_thickness_px != p_other.y_major_grid_line_thickness_px:
+	if y_major_grid_line_thickness_px != other.y_major_grid_line_thickness_px:
 		return false
-	if y_major_grid_line_dash_px != p_other.y_major_grid_line_dash_px:
+	if y_major_grid_line_dash_px != other.y_major_grid_line_dash_px:
 		return false
-	if y_minor_grid_line_color != p_other.y_minor_grid_line_color:
+	if y_minor_grid_line_color != other.y_minor_grid_line_color:
 		return false
-	if y_minor_grid_line_thickness_px != p_other.y_minor_grid_line_thickness_px:
+	if y_minor_grid_line_thickness_px != other.y_minor_grid_line_thickness_px:
 		return false
-	if y_minor_grid_line_dash_px != p_other.y_minor_grid_line_dash_px:
+	if y_minor_grid_line_dash_px != other.y_minor_grid_line_dash_px:
 		return false
 	return true
 

@@ -2,15 +2,14 @@
 
 ## Visual styling for the hover tooltip popup.
 ##
-## Resolved through the same three-layer cascade (defaults, theme, user
-## overrides) as TauBarStyle, TauScatterStyle, TauPaneStyle. A property counts
-## as set as soon as it is assigned, whatever the value.
+## Properties are resolved from the built-in defaults, the theme, and the values
+## set here, in that order. See [TauStyle] for the details.
 ##
 ## Assign a new [StyleBox] or [Font] rather than mutating the one already
 ## assigned. An in-place change is not detected.
 ##
 ## Theme type variation: TauTooltip
-class_name TauTooltipStyle extends Resource
+class_name TauTooltipStyle extends TauStyle
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
@@ -68,11 +67,6 @@ class_name TauTooltipStyle extends Resource
 	set(value):
 		max_width_px = value
 		_overridden[&"max_width_px"] = true
-
-
-# Exported property names assigned at least once, whatever the value. Member
-# initializers bypass the setters, so a fresh instance starts empty.
-var _overridden: Dictionary[StringName, bool] = {}
 
 
 ####################################################################################################
@@ -146,12 +140,6 @@ func load_from_theme(p_control: Control) -> void:
 # Cascade: user overrides (layer 3)
 ####################################################################################################
 
-## Returns [code]true[/code] when [param p_property] has been assigned on this
-## resource, whatever the assigned value.
-func is_overridden(p_property: StringName) -> bool:
-	return _overridden.has(p_property)
-
-
 func apply_overrides_from(p_user_style: TauTooltipStyle) -> void:
 	if p_user_style == null:
 		return
@@ -194,25 +182,28 @@ static func resolve(p_control: Control, p_user_style: TauTooltipStyle) -> TauToo
 # Change detection
 ####################################################################################################
 
-func is_equal_to(p_other: TauTooltipStyle) -> bool:
-	if p_other == null:
+func is_equal_to(p_other: TauStyle) -> bool:
+	var other := p_other as TauTooltipStyle
+	if other == null:
 		return false
-	if font_size != p_other.font_size:
+	if not super.is_equal_to(other):
 		return false
-	if font_color != p_other.font_color:
+	if font_size != other.font_size:
 		return false
-	if padding_px != p_other.padding_px:
+	if font_color != other.font_color:
 		return false
-	if offset_px != p_other.offset_px:
+	if padding_px != other.padding_px:
 		return false
-	if max_width_px != p_other.max_width_px:
+	if offset_px != other.offset_px:
+		return false
+	if max_width_px != other.max_width_px:
 		return false
 	# StyleBox and font comparisons are reference-based (mutations are
 	# picked up via the Resource.changed signal).
-	if style_box != p_other.style_box:
+	if style_box != other.style_box:
 		return false
-	if pinned_style_box != p_other.pinned_style_box:
+	if pinned_style_box != other.pinned_style_box:
 		return false
-	if font != p_other.font:
+	if font != other.font:
 		return false
 	return true
