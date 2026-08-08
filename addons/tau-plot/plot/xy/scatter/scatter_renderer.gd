@@ -237,10 +237,10 @@ class ScatterRenderer extends Control:
 
 
 	## Resolves the marker size in pixels for the legend key.
-	## THEME policy: uses the resolved scatter style marker_size_px.
+	## THEME policy: uses the resolved scatter style size cycle.
 	## DATA_UNITS policy: computes pixel size at the domain x midpoint
 	## via ScatterGeometry.compute_marker_size_px_at_x.
-	func _resolve_legend_marker_size_px() -> float:
+	func _resolve_legend_marker_size_px(p_global_series_index: int) -> float:
 		var policy := _scatter_config.get_resolved_marker_size_policy()
 		if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
 			var x_domain = _layout.domain.x_axis_domain
@@ -248,7 +248,7 @@ class ScatterRenderer extends Control:
 				var x_mid: float = (x_domain.min_val + x_domain.max_val) * 0.5
 				var geom := ScatterGeometry.new(_layout, _scatter_config, _scatter_style, _pane_index)
 				return geom.compute_marker_size_px_at_x(x_mid)
-		return max(_scatter_style.marker_size_px, 1.0)
+		return _scatter_style.get_series_size_px(p_global_series_index)
 
 
 	# Resolves the marker appearance and writes it into the key. Per-sample
@@ -260,7 +260,7 @@ class ScatterRenderer extends Control:
 		var outline_color := _apply_alpha(_scatter_style.outline_color, alpha)
 		var shape: MarkerShape = _scatter_style.get_series_shape(p_global_series_index)
 
-		var size_px := _resolve_legend_marker_size_px()
+		var size_px := _resolve_legend_marker_size_px(p_global_series_index)
 		var outline_width_norm: float = 0.0
 		if size_px > 0.0:
 			outline_width_norm = clampf(_scatter_style.outline_width_px / size_px, 0.0, 0.5)
@@ -449,6 +449,8 @@ class ScatterRenderer extends Control:
 
 
 	func _get_marker_size_px(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
+		var global_series_index := _get_global_series_index(p_series_index)
+
 		# Try per sample marker size (with VisualAttributes)
 		var buf = _visual_attributes[p_series_index].size_buffer
 		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
@@ -456,17 +458,17 @@ class ScatterRenderer extends Control:
 			if sz >= 0.0:
 				var policy := _geometry_cache.get_resolved_marker_size_policy()
 				if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
-					return _compute_size_px_from_data_units(sz, p_x_value)
+					return _compute_size_px_from_data_units(sz, p_x_value, global_series_index)
 				return max(sz, 1.0)
 
 		# Try per sample marker size (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.size_callback.is_valid():
-			var sz = vc.size_callback.call(_get_global_series_index(p_series_index), p_sample_index, p_x_value, p_y_value)
+			var sz = vc.size_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
 			if sz >= 0.0:
 				var policy := _geometry_cache.get_resolved_marker_size_policy()
 				if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
-					return _compute_size_px_from_data_units(sz, p_x_value)
+					return _compute_size_px_from_data_units(sz, p_x_value, global_series_index)
 				return max(sz, 1.0)
 
 		var policy := _geometry_cache.get_resolved_marker_size_policy()
@@ -479,10 +481,10 @@ class ScatterRenderer extends Control:
 				else:
 					# If marker size is provided in data units on a CATEGORICAL axis, use marker size
 					# from theme if set, otherwise from style default value.
-					return _geometry_cache.get_marker_size_px_from_theme()
+					return _geometry_cache.get_marker_size_px_from_theme(global_series_index)
 			_:
 				# Use marker size from theme if set, otherwise from style default value.
-				return _geometry_cache.get_marker_size_px_from_theme()
+				return _geometry_cache.get_marker_size_px_from_theme(global_series_index)
 
 
 	func _get_marker_shape(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> MarkerShape:
@@ -614,15 +616,17 @@ class ScatterRenderer extends Control:
 			# Rewrite transform and custom_data for the hovered marker so that
 			# size and outline reflect hovered-state style properties.
 			var is_hovered := _highlight_active and series_id == _hovered_series_id and sample_index == _hovered_sample_index
-			var size_px: float
+			var size_px := _get_marker_size_px(series_index, sample_index, x_value, y_value)
 			var outline_color: Color
 			var outline_width: float
 			if is_hovered:
-				size_px = _scatter_style.hovered_marker_size_px
+				# An empty hovered size cycle returns the sentinel and leaves the base size in place.
+				var hovered_size_px := _scatter_style.get_series_hovered_size_px(_get_global_series_index(series_index))
+				if hovered_size_px > 0.0:
+					size_px = hovered_size_px
 				outline_width = _scatter_style.hovered_outline_width_px
 				outline_color = _apply_alpha(_scatter_style.hovered_outline_color, alpha)
 			else:
-				size_px = _get_marker_size_px(series_index, sample_index, x_value, y_value)
 				outline_width = _get_marker_outline_width(series_index, sample_index, x_value, y_value)
 				outline_color = _apply_alpha(_get_marker_outline_color(series_index, sample_index, x_value, y_value), alpha)
 
@@ -643,7 +647,7 @@ class ScatterRenderer extends Control:
 	# Private size conversion
 	####################################################################################################
 
-	func _compute_size_px_from_data_units(p_size_data_units: float, p_x_value: Variant) -> float:
+	func _compute_size_px_from_data_units(p_size_data_units: float, p_x_value: Variant, p_global_series_index: int) -> float:
 		if p_size_data_units <= 0.0:
 			return 1.0
 		if p_x_value is float or p_x_value is int:
@@ -653,7 +657,7 @@ class ScatterRenderer extends Control:
 			var px0 := _layout.map_x_to_px(_pane_index, x_f - half)
 			var px1 := _layout.map_x_to_px(_pane_index, x_f + half)
 			return max(absf(px1 - px0), 1.0)
-		return _geometry_cache.get_marker_size_px_from_theme()
+		return _geometry_cache.get_marker_size_px_from_theme(p_global_series_index)
 
 
 	####################################################################################################
@@ -763,7 +767,10 @@ class ScatterRenderer extends Control:
 
 		# Hovered-state style property overrides for the specifically hovered marker.
 		if _highlight_active and series_id == _hovered_series_id and p_sample_index == _hovered_sample_index:
-			size_px = _scatter_style.hovered_marker_size_px
+			# An empty hovered size cycle returns the sentinel and leaves the base size in place.
+			var hovered_size_px := _scatter_style.get_series_hovered_size_px(_get_global_series_index(p_series_index))
+			if hovered_size_px > 0.0:
+				size_px = hovered_size_px
 			outline_width = _scatter_style.hovered_outline_width_px
 			outline_color = _apply_alpha(_scatter_style.hovered_outline_color, alpha)
 

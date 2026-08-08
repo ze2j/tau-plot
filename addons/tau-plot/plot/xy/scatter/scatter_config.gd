@@ -9,7 +9,7 @@ const ScatterVisualCallbacks = preload("res://addons/tau-plot/plot/xy/scatter/sc
 ################################################################################################
 
 ## Theme-driven visual and sizing parameters for scatter markers.
-## Never null. Modify properties directly: scatter_config.style.marker_size_px = 8.0.
+## Never null. Modify properties directly: scatter_config.style.marker_sizes_px = [8.0].
 ## Properties set this way are automatically guarded from theme overwriting.
 @export var style: TauScatterStyle = TauScatterStyle.new()
 

@@ -108,7 +108,7 @@ func _make_y_axis() -> TauAxisConfig:
 func _make_scatter_config() -> TauScatterConfig:
 	var scatter_config := TauScatterConfig.new()
 	scatter_config.marker_size_policy = TauScatterConfig.MarkerSizePolicy.THEME
-	scatter_config.style.marker_size_px = DEFAULT_MARKER_SIZE_PX
+	scatter_config.style.marker_sizes_px = [DEFAULT_MARKER_SIZE_PX]
 	scatter_config.style.outline_width_px = THIN_OUTLINE_WIDTH_PX
 	scatter_config.style.outline_color = DARK_OUTLINE_COLOR
 	return scatter_config
@@ -123,7 +123,7 @@ func _make_outline_config(p_outline_width_px: float, p_outline_color: Color) -> 
 
 func _make_size_config(p_marker_size_px: float) -> TauScatterConfig:
 	var scatter_config := _make_scatter_config()
-	scatter_config.style.marker_size_px = p_marker_size_px
+	scatter_config.style.marker_sizes_px = [p_marker_size_px]
 	return scatter_config
 
 
@@ -197,4 +197,4 @@ func _setup_test_3() -> void:
 		_make_data_units_config(),
 	]
 
-	_make_pane_per_series_plot(%TestPlot3, "Marker size", series_names, scatter_configs)
+	_make_pane_per_series_plot(%TestPlot3, "Marker sizes", series_names, scatter_configs)

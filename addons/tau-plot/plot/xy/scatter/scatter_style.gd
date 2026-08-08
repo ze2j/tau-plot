@@ -37,10 +37,22 @@ enum MarkerShape
 #          `has_layout_affecting_change()`.
 ################################################################################################
 
-@export var marker_size_px: float = 12.0:
+const DEFAULT_MARKER_SIZE_PX := 12.0
+
+## Per-series cycle of marker sizes in pixels. Each entry sets the marker size
+## for one series, with the array indexed cyclically by series index using
+## modulo: series [code]i[/code] reads entry
+## [code]i % marker_sizes_px.size()[/code]. An empty array is treated as all
+## series drawn at [constant DEFAULT_MARKER_SIZE_PX].
+##
+## Only read under [constant TauScatterConfig.MarkerSizePolicy.THEME]. Under
+## [constant TauScatterConfig.MarkerSizePolicy.DATA_UNITS] the size comes from
+## [member TauScatterConfig.marker_size_data_units], except on a categorical x
+## axis where there is no data span to convert and this cycle applies again.
+@export var marker_sizes_px: Array[float] = [DEFAULT_MARKER_SIZE_PX]:
 	set(value):
-		marker_size_px = value
-		_overridden[&"marker_size_px"] = true
+		marker_sizes_px = value
+		_overridden[&"marker_sizes_px"] = true
 
 @export var outline_width_px: float = 1.0:
 	set(value):
@@ -52,11 +64,20 @@ enum MarkerShape
 		outline_color = value
 		_overridden[&"outline_color"] = true
 
-## Marker size when hovered (px).
-@export var hovered_marker_size_px: float = 16.0:
+## Per-series cycle of marker sizes in pixels for the hovered marker. Each
+## entry sets the hovered size for one series, with the array indexed
+## cyclically by series index using modulo: series [code]i[/code] reads entry
+## [code]i % hovered_marker_sizes_px.size()[/code]. An empty array means no
+## size change on hover: the hovered marker keeps its resolved base size.
+##
+## The hovered size replaces the base size instead of being clamped against
+## it, so it may be smaller. Under
+## [constant TauScatterConfig.MarkerSizePolicy.DATA_UNITS] the base size comes
+## from the data, and comparing it against a pixel value has no meaning.
+@export var hovered_marker_sizes_px: Array[float] = [16.0]:
 	set(value):
-		hovered_marker_size_px = value
-		_overridden[&"hovered_marker_size_px"] = true
+		hovered_marker_sizes_px = value
+		_overridden[&"hovered_marker_sizes_px"] = true
 
 ## Outline width when hovered (px).
 @export var hovered_outline_width_px: float = 2.0:
@@ -93,6 +114,26 @@ var _overridden: Dictionary[StringName, bool] = {}
 # Helpers
 ####################################################################################################
 
+## Returns the resolved marker size in pixels for the given series index.
+##
+## An empty [member marker_sizes_px] returns [constant DEFAULT_MARKER_SIZE_PX].
+## The result is floored at [code]1.0[/code], the smallest size that still
+## paints a marker.
+func get_series_size_px(p_series_index: int) -> float:
+	if marker_sizes_px.is_empty():
+		return DEFAULT_MARKER_SIZE_PX
+	return max(marker_sizes_px[p_series_index % marker_sizes_px.size()], 1.0)
+
+
+## Returns the resolved hovered marker size in pixels for the given series
+## index. An empty [member hovered_marker_sizes_px] returns [code]0.0[/code] as
+## a "no size change" sentinel, leaving the hovered marker at its base size.
+func get_series_hovered_size_px(p_series_index: int) -> float:
+	if hovered_marker_sizes_px.is_empty():
+		return 0.0
+	return max(hovered_marker_sizes_px[p_series_index % hovered_marker_sizes_px.size()], 0.0)
+
+
 func get_series_shape(p_series_index: int) -> MarkerShape:
 	if marker_shapes.is_empty():
 		return MarkerShape.CIRCLE
@@ -109,9 +150,14 @@ func get_series_shape(p_series_index: int) -> MarkerShape:
 ## for all panes), then the indexed key for [param p_pane_index] overwrites it
 ## if present.
 ##
-## For marker shapes, the same convention applies:
-##   1. scatter_marker_shape_N sets the shape for series N across all panes.
-##   2. scatter_marker_shape_N_P overrides series N in pane P only.
+## The per-series cycles use a two-level indexed lookup at series granularity:
+##   1. [code]<key>_N[/code] sets the value for series N across all panes.
+##   2. [code]<key>_N_P[/code] overrides series N in pane P only.
+##
+## Theme key prefixes for the per-series cycles:
+##   - [member marker_sizes_px]:         [code]scatter_marker_size_px[/code]
+##   - [member hovered_marker_sizes_px]: [code]scatter_hovered_marker_size_px[/code]
+##   - [member marker_shapes]:           [code]scatter_marker_shape[/code]
 ##
 ## This method writes every property unconditionally because it is called on
 ## the resolved instance, not on the user-provided resource.
@@ -124,12 +170,32 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		push_error("TauScatterStyle.load_from_theme(): control is null")
 		return
 
-	# marker_size_px
-	if p_control.has_theme_constant(&"scatter_marker_size_px"):
-		marker_size_px = max(float(p_control.get_theme_constant(&"scatter_marker_size_px")), 1.0)
-	var indexed_size_key := StringName("scatter_marker_size_px_%d" % p_pane_index)
-	if p_control.has_theme_constant(indexed_size_key):
-		marker_size_px = max(float(p_control.get_theme_constant(indexed_size_key)), 1.0)
+	# marker_sizes_px: two-level indexed lookup.
+	# Level 1 (global): scatter_marker_size_px_N
+	var global_sizes: Array[float] = []
+	var size_index := 0
+	while true:
+		var key := StringName("scatter_marker_size_px_%d" % size_index)
+		if not p_control.has_theme_constant(key):
+			break
+		global_sizes.append(float(p_control.get_theme_constant(key)))
+		size_index += 1
+
+	if not global_sizes.is_empty():
+		marker_sizes_px = global_sizes
+
+	# Level 2 (per-pane): scatter_marker_size_px_N_P overrides series N in pane P.
+	var pane_size_index := 0
+	while true:
+		var key := StringName("scatter_marker_size_px_%d_%d" % [pane_size_index, p_pane_index])
+		if not p_control.has_theme_constant(key):
+			break
+		# Grow the array if the per-pane theme defines more sizes than the
+		# global theme (or the default).
+		if pane_size_index >= marker_sizes_px.size():
+			marker_sizes_px.resize(pane_size_index + 1)
+		marker_sizes_px[pane_size_index] = float(p_control.get_theme_constant(key))
+		pane_size_index += 1
 
 	# outline_width_px
 	if p_control.has_theme_constant(&"scatter_outline_width_px"):
@@ -145,12 +211,29 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control.has_theme_color(indexed_color_key):
 		outline_color = p_control.get_theme_color(indexed_color_key)
 
-	# hovered_marker_size_px
-	if p_control.has_theme_constant(&"scatter_hovered_marker_size_px"):
-		hovered_marker_size_px = max(float(p_control.get_theme_constant(&"scatter_hovered_marker_size_px")), 1.0)
-	var indexed_hovered_size_key := StringName("scatter_hovered_marker_size_px_%d" % p_pane_index)
-	if p_control.has_theme_constant(indexed_hovered_size_key):
-		hovered_marker_size_px = max(float(p_control.get_theme_constant(indexed_hovered_size_key)), 1.0)
+	# hovered_marker_sizes_px: two-level indexed lookup, same pattern as
+	# marker_sizes_px.
+	var global_hovered_sizes: Array[float] = []
+	var hovered_size_index := 0
+	while true:
+		var key := StringName("scatter_hovered_marker_size_px_%d" % hovered_size_index)
+		if not p_control.has_theme_constant(key):
+			break
+		global_hovered_sizes.append(float(p_control.get_theme_constant(key)))
+		hovered_size_index += 1
+
+	if not global_hovered_sizes.is_empty():
+		hovered_marker_sizes_px = global_hovered_sizes
+
+	var pane_hovered_size_index := 0
+	while true:
+		var key := StringName("scatter_hovered_marker_size_px_%d_%d" % [pane_hovered_size_index, p_pane_index])
+		if not p_control.has_theme_constant(key):
+			break
+		if pane_hovered_size_index >= hovered_marker_sizes_px.size():
+			hovered_marker_sizes_px.resize(pane_hovered_size_index + 1)
+		hovered_marker_sizes_px[pane_hovered_size_index] = float(p_control.get_theme_constant(key))
+		pane_hovered_size_index += 1
 
 	# hovered_outline_width_px
 	if p_control.has_theme_constant(&"scatter_hovered_outline_width_px"):
@@ -210,14 +293,14 @@ func apply_overrides_from(p_user_style: TauScatterStyle) -> void:
 	if p_user_style == null:
 		return
 
-	if p_user_style.is_overridden(&"marker_size_px"):
-		marker_size_px = p_user_style.marker_size_px
+	if p_user_style.is_overridden(&"marker_sizes_px"):
+		marker_sizes_px = p_user_style.marker_sizes_px.duplicate()
 	if p_user_style.is_overridden(&"outline_width_px"):
 		outline_width_px = p_user_style.outline_width_px
 	if p_user_style.is_overridden(&"outline_color"):
 		outline_color = p_user_style.outline_color
-	if p_user_style.is_overridden(&"hovered_marker_size_px"):
-		hovered_marker_size_px = p_user_style.hovered_marker_size_px
+	if p_user_style.is_overridden(&"hovered_marker_sizes_px"):
+		hovered_marker_sizes_px = p_user_style.hovered_marker_sizes_px.duplicate()
 	if p_user_style.is_overridden(&"hovered_outline_width_px"):
 		hovered_outline_width_px = p_user_style.hovered_outline_width_px
 	if p_user_style.is_overridden(&"hovered_outline_color"):
@@ -275,13 +358,13 @@ func is_equal_to(p_other: TauScatterStyle) -> bool:
 		return false
 	if _overridden != p_other._overridden:
 		return false
-	if marker_size_px != p_other.marker_size_px:
+	if marker_sizes_px != p_other.marker_sizes_px:
 		return false
 	if outline_width_px != p_other.outline_width_px:
 		return false
 	if outline_color != p_other.outline_color:
 		return false
-	if hovered_marker_size_px != p_other.hovered_marker_size_px:
+	if hovered_marker_sizes_px != p_other.hovered_marker_sizes_px:
 		return false
 	if hovered_outline_width_px != p_other.hovered_outline_width_px:
 		return false

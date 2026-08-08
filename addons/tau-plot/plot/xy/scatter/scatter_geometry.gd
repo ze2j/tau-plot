@@ -31,9 +31,10 @@ class ScatterGeometry extends RefCounted:
 		return _resolved_marker_size_policy
 
 
-	# Returns marker size in pixels for THEME policy.
-	func get_marker_size_px_from_theme() -> float:
-		return max(_style.marker_size_px, 1.0)
+	# Returns marker size in pixels for THEME policy. p_series_index is the
+	# dataset-global series index, which is what the style cycle is keyed on.
+	func get_marker_size_px_from_theme(p_series_index: int) -> float:
+		return _style.get_series_size_px(p_series_index)
 
 
 	# Returns marker size in pixels for DATA_UNITS policy at a given X value.
