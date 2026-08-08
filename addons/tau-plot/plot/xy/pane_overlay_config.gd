@@ -83,6 +83,11 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 
 # Returns true if the change between this and p_other affects layout/domain
 # Returns false if the change only affects visual appearance
+#
+# No base property affects layout, so the only case left is a missing previous
+# config, where nothing can be proven unchanged and the conservative answer is
+# a full recompute. Subclasses chain this as a disjunction: any part reporting
+# a layout-affecting change wins.
 func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 	return p_other == null
 

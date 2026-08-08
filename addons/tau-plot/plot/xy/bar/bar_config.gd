@@ -241,11 +241,9 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 # a fixed domain but do not feed into domain or tick computation.
 func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauBarConfig
-	if other == null:
-		return false
 
-	if not super.has_layout_affecting_change(other):
-		return false
+	if super.has_layout_affecting_change(other):
+		return true
 
 	if mode != other.mode:
 		return true
