@@ -1,6 +1,7 @@
 # Ring buffer storage of 32-bit integers.
 # Logical index 0 is the oldest element.
 # Sentinel value for "unset" is -1.
+# Reading outside [0; size()[ is an error and returns -1.
 class Int32Buffer extends RefCounted:
 	var _capacity: int = 1024
 	var _storage_head: int = 0
@@ -19,15 +20,6 @@ class Int32Buffer extends RefCounted:
 		return _capacity
 
 
-	func size() -> int:
-		return _stored_count
-
-
-	func clear() -> void:
-		_storage_head = 0
-		_stored_count = 0
-
-
 	func set_capacity(p_capacity: int) -> void:
 		var new_cap := max(p_capacity, 1)
 		if new_cap == _capacity:
@@ -41,13 +33,28 @@ class Int32Buffer extends RefCounted:
 		_storage_head = keep % _capacity
 
 
+	func size() -> int:
+		return _stored_count
+
+
+	func clear() -> void:
+		_storage_head = 0
+		_stored_count = 0
+
+
 	func get_value(p_logical_index: int) -> int:
 		var storage_i := _map_logical_to_storage(p_logical_index)
+		if storage_i < 0:
+			return -1
+
 		return _buffer[storage_i]
 
 
 	func set_value(p_logical_index: int, p_value: int) -> void:
 		var storage_i := _map_logical_to_storage(p_logical_index)
+		if storage_i < 0:
+			return
+
 		_buffer[storage_i] = p_value
 
 
@@ -114,14 +121,15 @@ class Int32Buffer extends RefCounted:
 	# Private
 	####################################################################################################
 
+	# Negative when the logical index has no storage slot.
 	func _map_logical_to_storage(p_logical_index: int) -> int:
 		if _stored_count <= 0:
 			push_error("Int32Buffer: the buffer is empty")
-			return 0
+			return -1
 
 		if p_logical_index < 0 or p_logical_index >= _stored_count:
 			push_error("Int32Buffer: logical index %d out of range [0; %d[" % [p_logical_index, _stored_count])
-			return 0
+			return -1
 
 		var oldest_storage := _storage_head - _stored_count
 		if oldest_storage < 0:
