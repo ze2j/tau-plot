@@ -234,13 +234,10 @@ enum FillStretchSpan
 		_overridden[&"tile_offset_px"] = true
 
 
-####################################################################################################
-# Cascade: user overrides
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
-## Applies the overridden fields of [param p_user_fill] on top of this
-## instance, field by field. A no-op when [param p_user_fill] is
-## [code]null[/code].
+# Applies the overridden fields of p_user_fill on top of this instance, field
+# by field. A no-op when p_user_fill is null.
 func apply_overrides_from(p_user_fill: TauLineFill) -> void:
 	if p_user_fill == null:
 		return
@@ -271,21 +268,17 @@ func apply_overrides_from(p_user_fill: TauLineFill) -> void:
 		tile_offset_px = p_user_fill.tile_offset_px
 
 
-####################################################################################################
-# Change detection
-####################################################################################################
-
-## Returns a copy of this fill carrying the field values and the override
-## flags. The flags are copied explicitly because
-## [method Resource.duplicate] only copies stored properties.
+# Returns a copy of this fill carrying the field values and the override
+# flags. The flags are copied explicitly because Resource.duplicate() only
+# copies stored properties.
 func make_snapshot() -> TauLineFill:
 	var copy := duplicate() as TauLineFill
 	copy._copy_overrides_from(self)
 	return copy
 
 
-## Deep equality between this instance and [param p_other]. Compares every
-## field value-for-value, plus the set of overridden field names.
+# Deep equality between this instance and p_other. Compares every field
+# value-for-value, plus the set of overridden field names.
 func is_equal_to(p_other: TauStyle) -> bool:
 	var other := p_other as TauLineFill
 	if other == null:
@@ -317,3 +310,5 @@ func is_equal_to(p_other: TauStyle) -> bool:
 	if tile_offset_px != other.tile_offset_px:
 		return false
 	return true
+
+#endregion

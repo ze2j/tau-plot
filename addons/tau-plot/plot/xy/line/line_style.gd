@@ -88,6 +88,8 @@ class_name TauLineStyle extends TauStyle
 		_overridden[&"fills"] = true
 
 
+#region Internal, not public API, may change without notice.
+
 # Shared instance returned by get_series_fill() when fills is empty or the
 # series entry is null, so the renderer does not allocate one per series per
 # frame. Read-only: callers must not mutate it.
@@ -99,14 +101,10 @@ class_name TauLineStyle extends TauStyle
 static var _SHARED_DEFAULT_FILL: TauLineFill = null
 
 
-####################################################################################################
-# Helpers
-####################################################################################################
-
-## Returns the resolved line width in pixels for the given series index.
-##
-## An empty [member line_widths_px] returns [code]2.0[/code]. The result is
-## clamped to be non-negative.
+# Returns the resolved line width in pixels for the given series index.
+#
+# An empty line_widths_px returns 2.0. The result is clamped to be
+# non-negative.
 func get_series_width_px(p_series_index: int) -> float:
 	if line_widths_px.is_empty():
 		return 2.0
@@ -114,12 +112,11 @@ func get_series_width_px(p_series_index: int) -> float:
 	return max(entry, 0.0)
 
 
-## Returns the resolved hovered line width in pixels for the given series
-## index. An empty [member hovered_line_widths_px] returns [code]0.0[/code]
-## as a "no hover emphasis" sentinel. The result is later clamped against
-## the per-series base width from [member line_widths_px] at draw time, so
-## the empty-array case falls back to the base width and never produces a
-## thinner line on hover.
+# Returns the resolved hovered line width in pixels for the given series
+# index. An empty hovered_line_widths_px returns 0.0 as a "no hover emphasis"
+# sentinel. The result is later clamped against the per-series base width from
+# line_widths_px at draw time, so the empty-array case falls back to the base
+# width and never produces a thinner line on hover.
 func get_series_hovered_width_px(p_series_index: int) -> float:
 	if hovered_line_widths_px.is_empty():
 		return 0.0
@@ -127,7 +124,7 @@ func get_series_hovered_width_px(p_series_index: int) -> float:
 	return max(entry, 0.0)
 
 
-## Returns the resolved dash length in pixels for the given series index.
+# Returns the resolved dash length in pixels for the given series index.
 func get_series_dash_length_px(p_series_index: int) -> int:
 	if dash_lengths_px.is_empty():
 		return 0
@@ -135,10 +132,10 @@ func get_series_dash_length_px(p_series_index: int) -> int:
 	return max(entry, 0)
 
 
-## Returns the resolved [TauLineFill] for the given series index.
-##
-## An empty [member fills] returns a shared instance at [TauLineFill]'s
-## built-in defaults. The returned resource must be treated as read-only.
+# Returns the resolved TauLineFill for the given series index.
+#
+# An empty fills returns a shared instance at TauLineFill's built-in defaults.
+# The returned resource must be treated as read-only.
 func get_series_fill(p_series_index: int) -> TauLineFill:
 	if not fills.is_empty():
 		var fill: TauLineFill = fills[p_series_index % fills.size()]
@@ -152,47 +149,41 @@ func get_series_fill(p_series_index: int) -> TauLineFill:
 	return _SHARED_DEFAULT_FILL
 
 
-####################################################################################################
-# Cascade: theme loading (layer 2)
-####################################################################################################
-
-## Loads properties from the Godot theme attached to [param p_control].
-##
-## The per-series arrays use the two-level cycle keys described in [TauStyle].
-##
-## Theme key prefixes for the per-series arrays:
-##   - [member line_widths_px]:         [code]line_width_px[/code]
-##   - [member hovered_line_widths_px]: [code]line_hovered_width_px[/code]
-##   - [member dash_lengths_px]:        [code]line_dash_px[/code]
-##
-## [member fills] uses the same two-level keys, applied independently per
-## [TauLineFill] field, so a theme may define more entries for one field
-## than another:
-##   - fill_mode:        [code]line_fill_mode[/code] (theme constant, an
-##     integer [enum TauLineFill.FillMode] value)
-##   - color:            [code]line_fill_color[/code] (theme color)
-##   - alpha:            [code]line_fill_alpha_percent[/code] (theme
-##     constant, percent integer, [code]100[/code] means [code]1.0[/code])
-##   - texture:           [code]line_fill_texture[/code] (theme icon)
-##   - texture_mode:      [code]line_fill_texture_mode[/code] (theme
-##     constant, an integer [enum TauLineFill.FillTextureMode] value)
-##   - stretch_span:      [code]line_fill_texture_stretch_span[/code] (theme
-##     constant, an integer [enum TauLineFill.FillStretchSpan] value)
-##   - tile_scale:        [code]line_fill_texture_scale_percent[/code]
-##     (theme constant, percent integer, [code]100[/code] means
-##     [code]1.0[/code])
-##   - tile_rotation_deg: [code]line_fill_texture_rotation_deg[/code]
-##     (theme constant, integer degrees)
-##   - tile_offset_px:    [code]line_fill_texture_offset_px_x[/code] and
-##     [code]line_fill_texture_offset_px_y[/code] (theme constants)
-##
-## Every property is written unconditionally. Properties without a matching
-## theme entry keep their current value, so this method is safe to call on
-## an instance already populated with defaults.
-##
-## A constant holding a value outside the enum it feeds is reported and
-## replaced by that enum's default, keeping the cycle the length the theme
-## declared.
+# Loads properties from the Godot theme attached to p_control.
+#
+# The per-series arrays use the two-level cycle keys described in TauStyle.
+#
+# Theme key prefixes for the per-series arrays:
+#   - line_widths_px:         line_width_px
+#   - hovered_line_widths_px: line_hovered_width_px
+#   - dash_lengths_px:        line_dash_px
+#
+# fills uses the same two-level keys, applied independently per TauLineFill
+# field, so a theme may define more entries for one field than another:
+#   - fill_mode:        line_fill_mode (theme constant, an integer
+#     TauLineFill.FillMode value)
+#   - color:            line_fill_color (theme color)
+#   - alpha:            line_fill_alpha_percent (theme constant, percent
+#     integer, 100 means 1.0)
+#   - texture:           line_fill_texture (theme icon)
+#   - texture_mode:      line_fill_texture_mode (theme constant, an integer
+#     TauLineFill.FillTextureMode value)
+#   - stretch_span:      line_fill_texture_stretch_span (theme constant, an
+#     integer TauLineFill.FillStretchSpan value)
+#   - tile_scale:        line_fill_texture_scale_percent (theme constant,
+#     percent integer, 100 means 1.0)
+#   - tile_rotation_deg: line_fill_texture_rotation_deg (theme constant,
+#     integer degrees)
+#   - tile_offset_px:    line_fill_texture_offset_px_x and
+#     line_fill_texture_offset_px_y (theme constants)
+#
+# Every property is written unconditionally. Properties without a matching
+# theme entry keep their current value, so this method is safe to call on an
+# instance already populated with defaults.
+#
+# A constant holding a value outside the enum it feeds is reported and
+# replaced by that enum's default, keeping the cycle the length the theme
+# declared.
 func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control == null:
 		push_error("TauLineStyle.load_from_theme(): control is null")
@@ -477,13 +468,9 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		pane_offset_y_index += 1
 
 
-####################################################################################################
-# Cascade: user overrides (layer 3)
-####################################################################################################
-
-## Applies overridden properties from [param p_user_style] onto this resolved
-## instance. [member fills] merges per entry and per field, every other
-## property replaces.
+# Applies overridden properties from p_user_style onto this resolved
+# instance. fills merges per entry and per field, every other property
+# replaces.
 func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 	if p_user_style == null:
 		return
@@ -497,35 +484,23 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 	fills = _merge_fills(p_user_style.fills)
 
 
-####################################################################################################
-# Full cascade resolution
-####################################################################################################
-
-## Produces a fully resolved TauLineStyle by applying all three cascade layers:
-##   1. Start from defaults (a fresh TauLineStyle instance).
-##   2. Load theme values (non-indexed, then indexed for this pane).
-##   3. Apply user overrides from [param p_user_style] (may be null).
-##
-## The returned instance is a new TauLineStyle owned by the caller.
-## [param p_user_style] is never mutated.
-static func resolve(
-	p_control: Control,
-	p_pane_index: int,
-	p_user_style: TauLineStyle
-) -> TauLineStyle:
+# Produces a fully resolved TauLineStyle by applying all three cascade layers:
+#   1. Start from defaults (a fresh TauLineStyle instance).
+#   2. Load theme values (non-indexed, then indexed for this pane).
+#   3. Apply user overrides from p_user_style (may be null).
+#
+# The returned instance is a new TauLineStyle owned by the caller.
+# p_user_style is never mutated.
+static func resolve(p_control: Control, p_pane_index: int, p_user_style: TauLineStyle) -> TauLineStyle:
 	var resolved := TauLineStyle.new()
 	resolved.load_from_theme(p_control, p_pane_index)
 	resolved.apply_overrides_from(p_user_style)
 	return resolved
 
 
-####################################################################################################
-# Change detection
-####################################################################################################
-
-## Returns a copy of this resource carrying the property values and the
-## override flags. The flags are copied explicitly because
-## [method Resource.duplicate] only copies stored properties.
+# Returns a copy of this resource carrying the property values and the
+# override flags. The flags are copied explicitly because
+# Resource.duplicate() only copies stored properties.
 func make_snapshot() -> TauLineStyle:
 	var copy := duplicate() as TauLineStyle
 	copy._copy_overrides_from(self)
@@ -545,9 +520,9 @@ func _copy_fills_from(p_source: TauLineStyle) -> void:
 		fills[i] = null if source_fill == null else source_fill.make_snapshot()
 
 
-## Deep equality between this instance and [param p_other]. Compares every
-## public property value-for-value, including the per-series arrays, plus the
-## set of overridden property names.
+# Deep equality between this instance and p_other. Compares every public
+# property value-for-value, including the per-series arrays, plus the set of
+# overridden property names.
 func is_equal_to(p_other: TauStyle) -> bool:
 	var other := p_other as TauLineStyle
 	if other == null:
@@ -576,17 +551,13 @@ func is_equal_to(p_other: TauStyle) -> bool:
 	return true
 
 
-## Returns true if a change from [param p_other] to this instance would
-## require the surrounding layout (domain, ticks, pane rect) to be
-## recomputed. Always false: TauLineStyle properties only affect how lines
-## are drawn within a fixed domain.
+# Returns true if a change from p_other to this instance would require the
+# surrounding layout (domain, ticks, pane rect) to be recomputed. Always
+# false: TauLineStyle properties only affect how lines are drawn within a
+# fixed domain.
 func has_layout_affecting_change(p_other: TauLineStyle) -> bool:
 	return false
 
-
-####################################################################################################
-# Private
-####################################################################################################
 
 # Theme constants are free-form integers, so a key feeding a TauLineFill enum
 # may hold anything. None of the three enums carries a sentinel member, so
@@ -654,3 +625,5 @@ func _merge_fills(p_user_fills: Array[TauLineFill]) -> Array[TauLineFill]:
 			entry.apply_overrides_from(p_user_fills[i % user_count])
 		merged[i] = entry
 	return merged
+
+#endregion

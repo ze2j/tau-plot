@@ -9,17 +9,18 @@
 ## Theme type variation: TauScatter
 class_name TauScatterStyle extends TauStyle
 
+## Picture drawn at a sample position. See [member marker_shapes].
 enum MarkerShape
 {
-	CIRCLE = 0,
-	SQUARE = 1,
-	TRIANGLE_UP = 2,
-	TRIANGLE_DOWN = 3,
-	DIAMOND = 4,
-	CROSS = 5,
-	PLUS = 6,
-	COUNT = 7,  # Number of available shapes
-	NONE = 8    # Marker is invisible (useful for hiding specific markers without removing data)
+	CIRCLE = 0,        ## Filled disc.
+	SQUARE = 1,        ## Filled axis-aligned square.
+	TRIANGLE_UP = 2,   ## Filled triangle pointing up.
+	TRIANGLE_DOWN = 3, ## Filled triangle pointing down.
+	DIAMOND = 4,       ## Filled square turned 45 degrees.
+	CROSS = 5,         ## Two diagonal strokes.
+	PLUS = 6,          ## One horizontal and one vertical stroke.
+	COUNT = 7,         ## Number of drawable shapes. Not a shape itself.
+	NONE = 8           ## Draws nothing, hiding the markers of a series without removing its samples from the dataset.
 }
 
 ################################################################################################
@@ -28,6 +29,7 @@ enum MarkerShape
 #          `has_layout_affecting_change()`.
 ################################################################################################
 
+## Marker size in pixels applied when [member marker_sizes_px] is empty.
 const DEFAULT_MARKER_SIZE_PX := 12.0
 
 ## Per-series cycle of marker sizes in pixels. See [TauStyle] for how a cycle
@@ -43,11 +45,15 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 		marker_sizes_px = value
 		_overridden[&"marker_sizes_px"] = true
 
+## Thickness in pixels of the outline stroked around every marker.
+## [code]0[/code] leaves the markers unoutlined. Negative values are clamped
+## to 0.
 @export var outline_width_px: float = 1.0:
 	set(value):
 		outline_width_px = value
 		_overridden[&"outline_width_px"] = true
 
+## Color of the outline stroked around every marker.
 @export var outline_color: Color = Color(0, 0, 0, 1):
 	set(value):
 		outline_color = value
@@ -66,18 +72,22 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 		hovered_marker_sizes_px = value
 		_overridden[&"hovered_marker_sizes_px"] = true
 
-## Outline width when hovered (px).
+## Thickness in pixels of the outline stroked around the hovered marker.
+## Negative values are clamped to 0.
 @export var hovered_outline_width_px: float = 2.0:
 	set(value):
 		hovered_outline_width_px = value
 		_overridden[&"hovered_outline_width_px"] = true
 
-## Outline color when hovered.
+## Color of the outline stroked around the hovered marker.
 @export var hovered_outline_color: Color = Color(1, 1, 1, 1):
 	set(value):
 		hovered_outline_color = value
 		_overridden[&"hovered_outline_color"] = true
 
+## Per-series cycle of marker shapes. See [TauStyle] for how a cycle is
+## indexed. An empty array is treated as all series drawn as
+## [constant MarkerShape.CIRCLE].
 @export var marker_shapes: Array[MarkerShape] = [
 	MarkerShape.CIRCLE,
 	MarkerShape.SQUARE,
@@ -92,24 +102,21 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 		_overridden[&"marker_shapes"] = true
 
 
-####################################################################################################
-# Helpers
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
-## Returns the resolved marker size in pixels for the given series index.
-##
-## An empty [member marker_sizes_px] returns [constant DEFAULT_MARKER_SIZE_PX].
-## The result is floored at [code]1.0[/code], the smallest size that still
-## paints a marker.
+# Returns the resolved marker size in pixels for the given series index.
+#
+# An empty marker_sizes_px returns DEFAULT_MARKER_SIZE_PX. The result is
+# floored at 1.0, the smallest size that still paints a marker.
 func get_series_size_px(p_series_index: int) -> float:
 	if marker_sizes_px.is_empty():
 		return DEFAULT_MARKER_SIZE_PX
 	return max(marker_sizes_px[p_series_index % marker_sizes_px.size()], 1.0)
 
 
-## Returns the resolved hovered marker size in pixels for the given series
-## index. An empty [member hovered_marker_sizes_px] returns [code]0.0[/code] as
-## a "no size change" sentinel, leaving the hovered marker at its base size.
+# Returns the resolved hovered marker size in pixels for the given series
+# index. An empty hovered_marker_sizes_px returns 0.0 as a "no size change"
+# sentinel, leaving the hovered marker at its base size.
 func get_series_hovered_size_px(p_series_index: int) -> float:
 	if hovered_marker_sizes_px.is_empty():
 		return 0.0
@@ -122,29 +129,24 @@ func get_series_shape(p_series_index: int) -> MarkerShape:
 	return marker_shapes[p_series_index % marker_shapes.size()]
 
 
-####################################################################################################
-# Cascade: theme loading (layer 2)
-####################################################################################################
-
-## Loads properties from the Godot theme attached to [param p_control].
-##
-## For scalar properties, the non-indexed theme key is fetched first (shared base
-## for all panes), then the indexed key for [param p_pane_index] overwrites it
-## if present.
-##
-## The per-series cycles use the two-level cycle keys described in [TauStyle].
-##
-## Theme key prefixes for the per-series cycles:
-##   - [member marker_sizes_px]:         [code]scatter_marker_size_px[/code]
-##   - [member hovered_marker_sizes_px]: [code]scatter_hovered_marker_size_px[/code]
-##   - [member marker_shapes]:           [code]scatter_marker_shape[/code]
-##
-## This method writes every property unconditionally because it is called on
-## the resolved instance, not on the user-provided resource.
-##
-## A shape constant holding a value outside [enum MarkerShape] is reported and
-## replaced by [code]CIRCLE[/code], keeping the cycle the length the theme
-## declared.
+# Loads properties from the Godot theme attached to p_control.
+#
+# For scalar properties, the non-indexed theme key is fetched first (shared
+# base for all panes), then the indexed key for p_pane_index overwrites it if
+# present.
+#
+# The per-series cycles use the two-level cycle keys described in TauStyle.
+#
+# Theme key prefixes for the per-series cycles:
+#   - marker_sizes_px:         scatter_marker_size_px
+#   - hovered_marker_sizes_px: scatter_hovered_marker_size_px
+#   - marker_shapes:           scatter_marker_shape
+#
+# This method writes every property unconditionally because it is called on
+# the resolved instance, not on the user-provided resource.
+#
+# A shape constant holding a value outside MarkerShape is reported and
+# replaced by CIRCLE, keeping the cycle the length the theme declared.
 func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control == null:
 		push_error("TauScatterStyle.load_from_theme(): control is null")
@@ -257,12 +259,8 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		pane_shape_index += 1
 
 
-####################################################################################################
-# Cascade: user overrides (layer 3)
-####################################################################################################
-
-## Applies overridden properties from [param p_user_style] onto this resolved
-## instance.
+# Applies overridden properties from p_user_style onto this resolved
+# instance.
 func apply_overrides_from(p_user_style: TauScatterStyle) -> void:
 	if p_user_style == null:
 		return
@@ -283,22 +281,15 @@ func apply_overrides_from(p_user_style: TauScatterStyle) -> void:
 		marker_shapes = p_user_style.marker_shapes.duplicate()
 
 
-####################################################################################################
-# Full cascade resolution
-####################################################################################################
-
-## Produces a fully resolved TauScatterStyle by applying all three cascade layers:
-##   1. Start from defaults (a fresh TauScatterStyle instance).
-##   2. Load theme values (non-indexed, then indexed for this pane).
-##   3. Apply user overrides from [param p_user_style] (may be null).
-##
-## The returned instance is a new TauScatterStyle owned by the caller. It is separate
-## from [param p_user_style] which is never mutated.
-static func resolve(
-	p_control: Control,
-	p_pane_index: int,
-	p_user_style: TauScatterStyle
-) -> TauScatterStyle:
+# Produces a fully resolved TauScatterStyle by applying all three cascade
+# layers:
+#   1. Start from defaults (a fresh TauScatterStyle instance).
+#   2. Load theme values (non-indexed, then indexed for this pane).
+#   3. Apply user overrides from p_user_style (may be null).
+#
+# The returned instance is a new TauScatterStyle owned by the caller. It is
+# separate from p_user_style, which is never mutated.
+static func resolve(p_control: Control, p_pane_index: int, p_user_style: TauScatterStyle) -> TauScatterStyle:
 	# Layer 1: defaults.
 	var resolved := TauScatterStyle.new()
 	# Layer 2: theme values.
@@ -308,13 +299,9 @@ static func resolve(
 	return resolved
 
 
-####################################################################################################
-# Change detection
-####################################################################################################
-
-## Returns a copy of this resource carrying the property values and the
-## override flags. The flags are copied explicitly because
-## [method Resource.duplicate] only copies stored properties.
+# Returns a copy of this resource carrying the property values and the
+# override flags. The flags are copied explicitly because
+# Resource.duplicate() only copies stored properties.
 func make_snapshot() -> TauScatterStyle:
 	var copy := duplicate() as TauScatterStyle
 	copy._copy_overrides_from(self)
@@ -350,10 +337,6 @@ func has_layout_affecting_change(p_other: TauScatterStyle) -> bool:
 	return false
 
 
-####################################################################################################
-# Private
-####################################################################################################
-
 # Theme constants are free-form integers, so a shape key may hold anything.
 # COUNT is the shape count, not a shape, which rules out a plain range check
 # over MarkerShape.values(). NONE must stay the last member for this to hold.
@@ -366,3 +349,5 @@ static func _resolve_theme_marker_shape(p_key: StringName, p_value: int) -> Mark
 
 	push_error("TauScatterStyle.load_from_theme(): theme constant '%s' is %d, not a MarkerShape value. Using CIRCLE." % [p_key, p_value])
 	return MarkerShape.CIRCLE
+
+#endregion

@@ -19,105 +19,128 @@ class_name TauXYStyle extends TauStyle
 #          `has_layout_affecting_change()`.
 ################################################################################################
 
+## Color of the axis lines and of the tick marks on every axis.
 @export var axis_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		axis_color = value
 		_overridden[&"axis_color"] = true
 
+## Font of the tick labels. Left at [code]null[/code], the plot falls back to
+## the default project font.
 @export var label_font: Font = null:
 	set(value):
 		label_font = value
 		_overridden[&"label_font"] = true
 
+## Size in pixels of the tick labels.
 @export var label_font_size: int = 16:
 	set(value):
 		label_font_size = value
 		_overridden[&"label_font_size"] = true
 
+## Color of the tick labels.
 @export var label_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		label_color = value
 		_overridden[&"label_color"] = true
 
-## Tick mark dimensions for the x axis and y axis respectively.
-## "x" and "y" refer to the logical axis, not screen direction. These values
-## are orientation-independent: they work the same regardless of whether the
-## axis is placed on a horizontal or vertical edge.
-## - length: how far the tick protrudes from the axis line (perpendicular to it).
-## - thickness: stroke width of the tick mark (passed to draw_line).
+## How far a major tick on the x axis protrudes from the axis line, in
+## pixels, measured perpendicular to that line.
+##
+## [code]x[/code] names the logical axis, not a screen direction, so this
+## reads the same whether the x axis sits on a horizontal or a vertical edge.
 @export var x_major_tick_length_px: int = 4:
 	set(value):
 		x_major_tick_length_px = value
 		_overridden[&"x_major_tick_length_px"] = true
 
+## Stroke width in pixels of a major tick on the x axis.
 @export var x_major_tick_thickness_px: int = 1:
 	set(value):
 		x_major_tick_thickness_px = value
 		_overridden[&"x_major_tick_thickness_px"] = true
 
+## How far a major tick on a y axis protrudes from the axis line, in pixels,
+## measured perpendicular to that line. Applies to every y axis of every pane.
 @export var y_major_tick_length_px: int = 4:
 	set(value):
 		y_major_tick_length_px = value
 		_overridden[&"y_major_tick_length_px"] = true
 
+## Stroke width in pixels of a major tick on a y axis.
 @export var y_major_tick_thickness_px: int = 1:
 	set(value):
 		y_major_tick_thickness_px = value
 		_overridden[&"y_major_tick_thickness_px"] = true
 
-## Minor tick dimensions. The length is derived from the major tick length by
-## multiplying it with minor_tick_length_ratio (shared across both axes).
-## Thickness is independent per axis.
+## Length of a minor tick as a fraction of the major tick length of the same
+## axis. Shared by both axes. Valid range is [code][0.0, 1.0][/code], and
+## values outside it are clamped.
 @export var minor_tick_length_ratio: float = 0.5:
 	set(value):
 		minor_tick_length_ratio = value
 		_overridden[&"minor_tick_length_ratio"] = true
 
+## Stroke width in pixels of a minor tick on the x axis.
 @export var x_minor_tick_thickness_px: int = 1:
 	set(value):
 		x_minor_tick_thickness_px = value
 		_overridden[&"x_minor_tick_thickness_px"] = true
 
+## Stroke width in pixels of a minor tick on a y axis.
 @export var y_minor_tick_thickness_px: int = 1:
 	set(value):
 		y_minor_tick_thickness_px = value
 		_overridden[&"y_minor_tick_thickness_px"] = true
 
+## Gap in pixels between the x axis tick marks and the x tick labels.
 @export var x_tick_x_label_gap_px: int = 4:
 	set(value):
 		x_tick_x_label_gap_px = value
 		_overridden[&"x_tick_x_label_gap_px"] = true
 
+## Gap in pixels between the y axis tick marks and the y tick labels.
 @export var y_tick_y_label_gap_px: int = 4:
 	set(value):
 		y_tick_y_label_gap_px = value
 		_overridden[&"y_tick_y_label_gap_px"] = true
 
+## Padding in pixels between the left edge of the plot control and the panes,
+## outside the space the axes reserve for their ticks and labels.
 @export var padding_left_px: int = 4:
 	set(value):
 		padding_left_px = value
 		_overridden[&"padding_left_px"] = true
 
+## Padding in pixels between the right edge of the plot control and the panes,
+## outside the space the axes reserve for their ticks and labels.
 @export var padding_right_px: int = 4:
 	set(value):
 		padding_right_px = value
 		_overridden[&"padding_right_px"] = true
 
+## Padding in pixels between the top edge of the plot control and the panes,
+## outside the space the axes reserve for their ticks and labels.
 @export var padding_top_px: int = 4:
 	set(value):
 		padding_top_px = value
 		_overridden[&"padding_top_px"] = true
 
+## Padding in pixels between the bottom edge of the plot control and the panes,
+## outside the space the axes reserve for their ticks and labels.
 @export var padding_bottom_px: int = 4:
 	set(value):
 		padding_bottom_px = value
 		_overridden[&"padding_bottom_px"] = true
 
+## Gap in pixels between two neighbouring panes, and between the axis titles
+## that belong to them.
 @export var pane_gap_px: int = 4:
 	set(value):
 		pane_gap_px = value
 		_overridden[&"pane_gap_px"] = true
 
+## Color applied when [member series_colors] is empty.
 const DEFAULT_SERIES_COLOR := Color(0.306, 0.475, 0.655)
 
 ## Per-series cycle of series colors. See [TauStyle] for how a cycle is
@@ -137,6 +160,7 @@ const DEFAULT_SERIES_COLOR := Color(0.306, 0.475, 0.655)
 		series_colors = value
 		_overridden[&"series_colors"] = true
 
+## Opacity applied when [member series_alphas] is empty.
 const DEFAULT_SERIES_ALPHA := 1.0
 
 ## Per-series cycle of series opacities, from [code]0.0[/code] to
@@ -148,15 +172,13 @@ const DEFAULT_SERIES_ALPHA := 1.0
 		_overridden[&"series_alphas"] = true
 
 
-####################################################################################################
-# Cascade: theme loading (layer 2)
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
-## Loads properties from the Godot theme attached to [param p_control].
-##
-## TauXYStyle is plot-wide, so there is no pane indexing. This method writes every
-## property unconditionally because it is called on the resolved instance, not
-## on the user-provided resource.
+# Loads properties from the Godot theme attached to p_control.
+#
+# TauXYStyle is plot-wide, so there is no pane indexing. This method writes
+# every property unconditionally because it is called on the resolved
+# instance, not on the user-provided resource.
 func load_from_theme(p_control: Control) -> void:
 	if p_control == null:
 		push_error("TauXYStyle.load_from_theme(): control is null")
@@ -240,12 +262,8 @@ func load_from_theme(p_control: Control) -> void:
 		series_alphas = theme_series_alphas
 
 
-####################################################################################################
-# Cascade: user overrides (layer 3)
-####################################################################################################
-
-## Applies overridden properties from [param p_user_style] onto this resolved
-## instance.
+# Applies overridden properties from p_user_style onto this resolved
+# instance.
 func apply_overrides_from(p_user_style: TauXYStyle) -> void:
 	if p_user_style == null:
 		return
@@ -300,21 +318,14 @@ func apply_overrides_from(p_user_style: TauXYStyle) -> void:
 		series_colors = p_user_style.series_colors.duplicate()
 
 
-####################################################################################################
-# Full cascade resolution
-####################################################################################################
-
-## Produces a fully resolved TauXYStyle by applying all three cascade layers:
-##   1. Start from defaults (a fresh TauXYStyle instance).
-##   2. Load theme values (TauXYStyle is plot-wide, no pane indexing).
-##   3. Apply user overrides from [param p_user_style] (may be null).
-##
-## The returned instance is a new TauXYStyle owned by the caller. It is separate
-## from [param p_user_style] which is never mutated.
-static func resolve(
-	p_control: Control,
-	p_user_style: TauXYStyle
-) -> TauXYStyle:
+# Produces a fully resolved TauXYStyle by applying all three cascade layers:
+#   1. Start from defaults (a fresh TauXYStyle instance).
+#   2. Load theme values (TauXYStyle is plot-wide, no pane indexing).
+#   3. Apply user overrides from p_user_style (may be null).
+#
+# The returned instance is a new TauXYStyle owned by the caller. It is
+# separate from p_user_style, which is never mutated.
+static func resolve(p_control: Control, p_user_style: TauXYStyle) -> TauXYStyle:
 	# Layer 1: defaults.
 	var resolved := TauXYStyle.new()
 	# Layer 2: theme values.
@@ -324,13 +335,9 @@ static func resolve(
 	return resolved
 
 
-####################################################################################################
-# Change detection
-####################################################################################################
-
-## Returns a copy of this resource carrying the property values and the
-## override flags. The flags are copied explicitly because
-## [method Resource.duplicate] only copies stored properties.
+# Returns a copy of this resource carrying the property values and the
+# override flags. The flags are copied explicitly because
+# Resource.duplicate() only copies stored properties.
 func make_snapshot() -> TauXYStyle:
 	var copy := duplicate() as TauXYStyle
 	copy._copy_overrides_from(self)
@@ -422,19 +429,17 @@ func has_layout_affecting_change(p_other: TauXYStyle) -> bool:
 	return false
 
 
-####################################################################################################
-# Helpers
-####################################################################################################
-
-## Returns the resolved color for the given series index.
+# Returns the resolved color for the given series index.
 func get_series_color(p_series_index: int) -> Color:
 	if series_colors.is_empty():
 		return DEFAULT_SERIES_COLOR
 	return series_colors[p_series_index % series_colors.size()]
 
 
-## Returns the resolved opacity for the given series index.
+# Returns the resolved opacity for the given series index.
 func get_series_alpha(p_series_index: int) -> float:
 	if series_alphas.is_empty():
 		return DEFAULT_SERIES_ALPHA
 	return clampf(series_alphas[p_series_index % series_alphas.size()], 0.0, 1.0)
+
+#endregion

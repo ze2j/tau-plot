@@ -13,14 +13,36 @@ const ScatterVisualCallbacks = preload("res://addons/tau-plot/plot/xy/scatter/sc
 ## Properties set this way are automatically guarded from theme overwriting.
 @export var style: TauScatterStyle = TauScatterStyle.new()
 
+## Where the marker size comes from.
 enum MarkerSizePolicy
 {
-	AUTO,           ## Resolves to THEME
-	THEME,          ## Uses theme constants if provided, otherwise TauScatterStyle defaults
-	DATA_UNITS      ## Size expressed in X data units
+	## Resolves to THEME.
+	AUTO,
+
+	## Size in pixels, read from [member TauScatterStyle.marker_sizes_px].
+	THEME,
+
+	## Size in x data units, read from [member marker_size_data_units], so
+	## markers grow and shrink with the zoom level.
+	DATA_UNITS
 }
+
+## Where the marker size comes from. See [enum MarkerSizePolicy].
+##
+## The policy also decides whether the size is theme-driven.
+## [constant MarkerSizePolicy.THEME] reads
+## [member TauScatterStyle.marker_sizes_px], which is resolved through the
+## style cascade described in [TauStyle], so a theme can set it.
+## [constant MarkerSizePolicy.DATA_UNITS] reads
+## [member marker_size_data_units], a property of this config with no theme
+## layer.
 @export var marker_size_policy: MarkerSizePolicy = MarkerSizePolicy.AUTO
-@export var marker_size_data_units: float = 1.0   # Used when policy is DATA_UNITS
+
+## Marker diameter in x data units. Only read under
+## [constant MarkerSizePolicy.DATA_UNITS], and not on a categorical x axis,
+## which has no data span to convert and falls back to
+## [member TauScatterStyle.marker_sizes_px].
+@export var marker_size_data_units: float = 1.0
 
 ## Maximum pixel distance from the cursor to a scatter marker center
 ## for the marker to be considered a hit.
@@ -54,9 +76,7 @@ var scatter_visual_callbacks: ScatterVisualCallbacks:
 		visual_callbacks = value
 
 
-####################################################################################################
-# Helpers
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
 func _init() -> void:
 	overlay_type = PaneOverlayType.SCATTER
@@ -101,3 +121,5 @@ func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 		return false
 
 	return false
+
+#endregion

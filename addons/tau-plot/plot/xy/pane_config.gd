@@ -60,9 +60,7 @@ const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 @export var align_y_axes_at_zero: bool = false
 
 
-####################################################################################################
-# Helpers
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
 const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 
@@ -87,3 +85,5 @@ func get_overlay_config(p_overlay_type: PaneOverlayType) -> TauPaneOverlayConfig
 		if overlay_config != null and overlay_config.overlay_type == p_overlay_type:
 			return overlay_config
 	return null
+
+#endregion

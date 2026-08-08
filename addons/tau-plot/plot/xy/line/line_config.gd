@@ -13,11 +13,19 @@ const LineVisualCallbacks := preload("res://addons/tau-plot/plot/xy/line/line_vi
 ## Properties set this way are automatically guarded from theme overwriting.
 @export var style: TauLineStyle = TauLineStyle.new()
 
+## How the curves of several series relate to one another.
 enum LineMode
 {
-	INDEPENDENT,   ## Each series is drawn independently.
-	STACKED        ## Values at the same X are summed across series.
+	## Each series is drawn on its own, straight from its values.
+	INDEPENDENT,
+
+	## Each series is drawn on top of the ones before it, so its curve carries
+	## the running total at every x rather than its own value.
+	STACKED
 }
+
+## Relation between the curves of the series in the overlay. See
+## [enum LineMode].
 @export var mode: LineMode = LineMode.INDEPENDENT
 
 
@@ -45,11 +53,9 @@ enum InterpolationMode
 	SMOOTH_MONOTONE    ## Fritsch-Carlson monotone piecewise cubic Hermite curve.
 }
 
-## Per-series cycle of interpolation modes. Each entry sets the mode for one
-## series, with the array indexed cyclically by series index using modulo:
-## series [code]i[/code] reads entry
-## [code]i % interpolation_modes.size()[/code]. An empty array is treated as
-## all series drawn LINEAR.
+## Per-series cycle of interpolation modes. See [TauStyle] for how a cycle is
+## indexed. An empty array is treated as all series drawn
+## [constant InterpolationMode.LINEAR].
 ##
 ## Mixing modes within one overlay is the point: a raw stepped series can sit
 ## under a smoothed trend.
@@ -82,6 +88,10 @@ enum GapPolicy
 
 
 const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+
+## What each stack is scaled to in [constant LineMode.STACKED]. See
+## [enum StackedNormalization]. Ignored in
+## [constant LineMode.INDEPENDENT].
 @export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
 
 const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
@@ -126,15 +136,13 @@ var line_visual_callbacks: LineVisualCallbacks:
 		visual_callbacks = value
 
 
-####################################################################################################
-# Helpers
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
 func _init() -> void:
 	overlay_type = PaneOverlayType.LINE
 
 
-## Returns the resolved interpolation mode for the given series index.
+# Returns the resolved interpolation mode for the given series index.
 func get_series_interpolation_mode(p_series_index: int) -> InterpolationMode:
 	if interpolation_modes.is_empty():
 		return InterpolationMode.LINEAR
@@ -190,3 +198,5 @@ func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 		return true
 
 	return false
+
+#endregion

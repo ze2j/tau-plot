@@ -22,16 +22,20 @@ class_name TauPaneStyle extends TauStyle
 # X axis major grid lines
 ####################################################################################################
 
+## Color of the X major grid lines.
 @export var x_major_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.15):
 	set(value):
 		x_major_grid_line_color = value
 		_overridden[&"x_major_grid_line_color"] = true
 
+## Thickness in pixels of the X major grid lines.
 @export var x_major_grid_line_thickness_px: int = 1:
 	set(value):
 		x_major_grid_line_thickness_px = value
 		_overridden[&"x_major_grid_line_thickness_px"] = true
 
+## Length in pixels of one dash of the X major grid lines, with an equal gap
+## between dashes. [code]0[/code] draws solid lines.
 @export var x_major_grid_line_dash_px: int = 0:
 	set(value):
 		x_major_grid_line_dash_px = value
@@ -42,16 +46,20 @@ class_name TauPaneStyle extends TauStyle
 # X axis minor grid lines
 ####################################################################################################
 
+## Color of the X minor grid lines.
 @export var x_minor_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.08):
 	set(value):
 		x_minor_grid_line_color = value
 		_overridden[&"x_minor_grid_line_color"] = true
 
+## Thickness in pixels of the X minor grid lines.
 @export var x_minor_grid_line_thickness_px: int = 1:
 	set(value):
 		x_minor_grid_line_thickness_px = value
 		_overridden[&"x_minor_grid_line_thickness_px"] = true
 
+## Length in pixels of one dash of the X minor grid lines, with an equal gap
+## between dashes. [code]0[/code] draws solid lines.
 @export var x_minor_grid_line_dash_px: int = 0:
 	set(value):
 		x_minor_grid_line_dash_px = value
@@ -62,16 +70,20 @@ class_name TauPaneStyle extends TauStyle
 # Y axis major grid lines
 ####################################################################################################
 
+## Color of the Y major grid lines.
 @export var y_major_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.15):
 	set(value):
 		y_major_grid_line_color = value
 		_overridden[&"y_major_grid_line_color"] = true
 
+## Thickness in pixels of the Y major grid lines.
 @export var y_major_grid_line_thickness_px: int = 1:
 	set(value):
 		y_major_grid_line_thickness_px = value
 		_overridden[&"y_major_grid_line_thickness_px"] = true
 
+## Length in pixels of one dash of the Y major grid lines, with an equal gap
+## between dashes. [code]0[/code] draws solid lines.
 @export var y_major_grid_line_dash_px: int = 0:
 	set(value):
 		y_major_grid_line_dash_px = value
@@ -82,32 +94,34 @@ class_name TauPaneStyle extends TauStyle
 # Y axis minor grid lines
 ####################################################################################################
 
+## Color of the Y minor grid lines.
 @export var y_minor_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.08):
 	set(value):
 		y_minor_grid_line_color = value
 		_overridden[&"y_minor_grid_line_color"] = true
 
+## Thickness in pixels of the Y minor grid lines.
 @export var y_minor_grid_line_thickness_px: int = 1:
 	set(value):
 		y_minor_grid_line_thickness_px = value
 		_overridden[&"y_minor_grid_line_thickness_px"] = true
 
+## Length in pixels of one dash of the Y minor grid lines, with an equal gap
+## between dashes. [code]0[/code] draws solid lines.
 @export var y_minor_grid_line_dash_px: int = 0:
 	set(value):
 		y_minor_grid_line_dash_px = value
 		_overridden[&"y_minor_grid_line_dash_px"] = true
 
 
-####################################################################################################
-# Cascade: theme loading (layer 2)
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
-## Loads properties from the Godot theme attached to [param p_control].
-##
-## For each property, the non-indexed theme constant is fetched first (shared base
-## for all panes), then the indexed constant for [param p_pane_index] overwrites it
-## if present. This method writes every property unconditionally because it is
-## called on the resolved instance, not on the user-provided resource.
+# Loads properties from the Godot theme attached to p_control.
+#
+# For each property, the non-indexed theme constant is fetched first (shared
+# base for all panes), then the indexed constant for p_pane_index overwrites
+# it if present. This method writes every property unconditionally because it
+# is called on the resolved instance, not on the user-provided resource.
 func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control == null:
 		push_error("TauPaneStyle.load_from_theme(): control is null")
@@ -134,9 +148,9 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	_load_constant_from_theme(p_control, &"pane_y_minor_grid_line_dash", &"y_minor_grid_line_dash_px", p_pane_index)
 
 
-## Loads a theme color into the target property. Fetches the non-indexed key first,
-## then the indexed key (e.g. "pane_x_major_grid_line_color_0") to allow per-pane
-## overrides in the theme.
+# Loads a theme color into the target property. Fetches the non-indexed key
+# first, then the indexed key (e.g. "pane_x_major_grid_line_color_0") to allow
+# per-pane overrides in the theme.
 func _load_color_from_theme(
 	p_control: Control,
 	p_theme_key: StringName,
@@ -150,8 +164,9 @@ func _load_color_from_theme(
 		set(p_property, p_control.get_theme_color(indexed_key))
 
 
-## Loads a theme constant (int) into the target property. Fetches the non-indexed
-## key first, then the indexed key to allow per-pane overrides in the theme.
+# Loads a theme constant (int) into the target property. Fetches the
+# non-indexed key first, then the indexed key to allow per-pane overrides in
+# the theme.
 func _load_constant_from_theme(
 	p_control: Control,
 	p_theme_key: StringName,
@@ -165,12 +180,8 @@ func _load_constant_from_theme(
 		set(p_property, p_control.get_theme_constant(indexed_key))
 
 
-####################################################################################################
-# Cascade: user overrides (layer 3)
-####################################################################################################
-
-## Applies overridden properties from [param p_user_style] onto this resolved
-## instance.
+# Applies overridden properties from p_user_style onto this resolved
+# instance.
 func apply_overrides_from(p_user_style: TauPaneStyle) -> void:
 	if p_user_style == null:
 		return
@@ -204,22 +215,14 @@ func apply_overrides_from(p_user_style: TauPaneStyle) -> void:
 		y_minor_grid_line_dash_px = p_user_style.y_minor_grid_line_dash_px
 
 
-####################################################################################################
-# Full cascade resolution
-####################################################################################################
-
-## Produces a fully resolved TauPaneStyle by applying all three cascade layers:
-##   1. Start from defaults (a fresh TauPaneStyle instance).
-##   2. Load theme values (non-indexed, then indexed for this pane).
-##   3. Apply user overrides from [param p_user_style] (may be null).
-##
-## The returned instance is a new TauPaneStyle owned by the caller. It is separate
-## from [param p_user_style] which is never mutated.
-static func resolve(
-	p_control: Control,
-	p_pane_index: int,
-	p_user_style: TauPaneStyle
-) -> TauPaneStyle:
+# Produces a fully resolved TauPaneStyle by applying all three cascade layers:
+#   1. Start from defaults (a fresh TauPaneStyle instance).
+#   2. Load theme values (non-indexed, then indexed for this pane).
+#   3. Apply user overrides from p_user_style (may be null).
+#
+# The returned instance is a new TauPaneStyle owned by the caller. It is
+# separate from p_user_style, which is never mutated.
+static func resolve(p_control: Control, p_pane_index: int, p_user_style: TauPaneStyle) -> TauPaneStyle:
 	# Layer 1: defaults.
 	var resolved := TauPaneStyle.new()
 	# Layer 2: theme values.
@@ -229,13 +232,9 @@ static func resolve(
 	return resolved
 
 
-####################################################################################################
-# Change detection
-####################################################################################################
-
-## Returns a copy of this resource carrying the property values and the
-## override flags. The flags are copied explicitly because
-## [method Resource.duplicate] only copies stored properties.
+# Returns a copy of this resource carrying the property values and the
+# override flags. The flags are copied explicitly because
+# Resource.duplicate() only copies stored properties.
 func make_snapshot() -> TauPaneStyle:
 	var copy := duplicate() as TauPaneStyle
 	copy._copy_overrides_from(self)
@@ -275,7 +274,9 @@ func is_equal_to(p_other: TauStyle) -> bool:
 	return true
 
 
-## All current properties are visual-only and do not affect layout (pane rects,
-## tick positions, or label measurement). This always returns false.
+# All current properties are visual-only and do not affect layout (pane rects,
+# tick positions, or label measurement). This always returns false.
 func has_layout_affecting_change(p_other: TauPaneStyle) -> bool:
 	return false
+
+#endregion

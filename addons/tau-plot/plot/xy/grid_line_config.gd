@@ -30,11 +30,24 @@ const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 ## [member y_minor_enabled] are false.
 @export var y_source_axis_id: AxisId = AxisId.LEFT
 
+## If [code]true[/code], a grid line is drawn across the pane at every major
+## tick of the axis named by [member x_source_axis_id].
 @export var x_major_enabled: bool = false
+
+## If [code]true[/code], a grid line is drawn across the pane at every minor
+## tick of the axis named by [member x_source_axis_id].
 @export var x_minor_enabled: bool = false
+
+## If [code]true[/code], a grid line is drawn across the pane at every major
+## tick of the axis named by [member y_source_axis_id].
 @export var y_major_enabled: bool = false
+
+## If [code]true[/code], a grid line is drawn across the pane at every minor
+## tick of the axis named by [member y_source_axis_id].
 @export var y_minor_enabled: bool = false
 
+
+#region Internal, not public API, may change without notice.
 
 func is_equal_to(p_other: TauGridLineConfig) -> bool:
 	if p_other == null:
@@ -54,7 +67,9 @@ func is_equal_to(p_other: TauGridLineConfig) -> bool:
 	return true
 
 
-## Grid line enable/disable changes are visual-only and do not affect
-## layout (pane rects, tick positions, or label measurement).
+# Grid line enable/disable changes are visual-only and do not affect layout
+# (pane rects, tick positions, or label measurement).
 func has_layout_affecting_change(_p_other: TauGridLineConfig) -> bool:
 	return false
+
+#endregion

@@ -17,35 +17,56 @@ class_name TauBarStyle extends TauStyle
 #          `has_layout_affecting_change()`.
 ################################################################################################
 
+## Width of one bar in pixels. Only read under
+## [constant TauBarConfig.BarWidthPolicy.THEME]. The other width policies
+## derive the width from the category slot or from the local sample spacing
+## and ignore this property. Values below 1 are clamped to 1.
 @export var bar_width_px: int = 64:
 	set(value):
 		bar_width_px = value
 		_overridden[&"bar_width_px"] = true
 
+## Gap in pixels between two bars of the same group. Only read under
+## [constant TauBarConfig.BarWidthPolicy.THEME], and only in
+## [constant TauBarConfig.BarMode.GROUPED], the one mode where several
+## series share an x position. Negative values are clamped to 0.
 @export var bar_intragroup_gap_px: int = 0:
 	set(value):
 		bar_intragroup_gap_px = value
 		_overridden[&"bar_intragroup_gap_px"] = true
 
+## StyleBox drawn for every bar in the normal state. Only [StyleBoxFlat]
+## and [StyleBoxTexture] are supported.
+##
+## Corner radii and borders are authored as if the bar grew upward from the
+## baseline, and are remapped to the direction the bar actually grows in.
+##
+## The fill color is overwritten at draw time by the resolved series color,
+## so [member StyleBoxFlat.bg_color] and
+## [member StyleBoxTexture.modulate_color] carry no value here.
+##
+## Left at [code]null[/code], the cascade supplies a square-cornered
+## [StyleBoxFlat] with no border and no content margin.
 @export var style_box: StyleBox = null:
 	set(value):
 		style_box = value
 		_overridden[&"style_box"] = true
 
-## StyleBox used for the hovered bar. When null, the renderer uses the normal
-## style_box (no shape change on hover). The fill color is still determined by
-## the color pipeline and the hover_highlight_callback.
+## StyleBox drawn for the hovered bar, following the same rules as
+## [member style_box]. Set it to [code]null[/code] to leave the hovered bar
+## its normal shape.
+##
+## Left at [code]null[/code], the cascade supplies the [member style_box]
+## default plus a 2 pixel white border on all sides.
 @export var hovered_style_box: StyleBox = null:
 	set(value):
 		hovered_style_box = value
 		_overridden[&"hovered_style_box"] = true
 
 
-####################################################################################################
-# Cascade: built-in default (layer 1)
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
-## Creates a plain StyleBoxFlat with default values.
+# Creates a plain StyleBoxFlat with default values.
 static func _create_default_style_box() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color.WHITE  # Overwritten by renderer at draw time
@@ -64,8 +85,8 @@ static func _create_default_style_box() -> StyleBoxFlat:
 	return sb
 
 
-## Creates a StyleBoxFlat for the hovered state: same corner radii as the
-## default normal StyleBox, plus a 2px white border on all sides.
+# Creates a StyleBoxFlat for the hovered state: same corner radii as the
+# default normal StyleBox, plus a 2px white border on all sides.
 static func _create_default_hovered_style_box() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color.WHITE  # Overwritten by renderer at draw time
@@ -85,16 +106,12 @@ static func _create_default_hovered_style_box() -> StyleBoxFlat:
 	return sb
 
 
-####################################################################################################
-# Cascade: theme loading (layer 2)
-####################################################################################################
-
-## Loads properties from the Godot theme attached to [param p_control].
-##
-## For each property, the non-indexed theme constant is fetched first (shared base
-## for all panes), then the indexed constant for [param p_pane_index] overwrites it
-## if present. This method writes every property unconditionally because it is
-## called on the resolved instance, not on the user-provided resource.
+# Loads properties from the Godot theme attached to p_control.
+#
+# For each property, the non-indexed theme constant is fetched first (shared
+# base for all panes), then the indexed constant for p_pane_index overwrites
+# it if present. This method writes every property unconditionally because it
+# is called on the resolved instance, not on the user-provided resource.
 func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control == null:
 		push_error("TauBarStyle.load_from_theme(): control is null")
@@ -126,12 +143,8 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		hovered_style_box = p_control.get_theme_stylebox(indexed_hovered_sb_key)
 
 
-####################################################################################################
-# Cascade: user overrides (layer 3)
-####################################################################################################
-
-## Applies overridden properties from [param p_user_style] onto this resolved
-## instance.
+# Applies overridden properties from p_user_style onto this resolved
+# instance.
 func apply_overrides_from(p_user_style: TauBarStyle) -> void:
 	if p_user_style == null:
 		return
@@ -146,22 +159,14 @@ func apply_overrides_from(p_user_style: TauBarStyle) -> void:
 		hovered_style_box = p_user_style.hovered_style_box
 
 
-####################################################################################################
-# Full cascade resolution
-####################################################################################################
-
-## Produces a fully resolved TauBarStyle by applying all three cascade layers:
-##   1. Start from defaults (a fresh TauBarStyle instance).
-##   2. Load theme values (non-indexed, then indexed for this pane).
-##   3. Apply user overrides from [param p_user_style] (may be null).
-##
-## The returned instance is a new TauBarStyle owned by the caller. It is separate
-## from [param p_user_style] which is never mutated.
-static func resolve(
-	p_control: Control,
-	p_pane_index: int,
-	p_user_style: TauBarStyle
-) -> TauBarStyle:
+# Produces a fully resolved TauBarStyle by applying all three cascade layers:
+#   1. Start from defaults (a fresh TauBarStyle instance).
+#   2. Load theme values (non-indexed, then indexed for this pane).
+#   3. Apply user overrides from p_user_style (may be null).
+#
+# The returned instance is a new TauBarStyle owned by the caller. It is
+# separate from p_user_style, which is never mutated.
+static func resolve(p_control: Control, p_pane_index: int, p_user_style: TauBarStyle) -> TauBarStyle:
 	# Layer 1: defaults.
 	var resolved := TauBarStyle.new()
 	resolved.style_box = _create_default_style_box()
@@ -173,13 +178,9 @@ static func resolve(
 	return resolved
 
 
-####################################################################################################
-# Change detection
-####################################################################################################
-
-## Returns a copy of this resource carrying the property values and the
-## override flags. The flags are copied explicitly because
-## [method Resource.duplicate] only copies stored properties.
+# Returns a copy of this resource carrying the property values and the
+# override flags. The flags are copied explicitly because
+# Resource.duplicate() only copies stored properties.
 func make_snapshot() -> TauBarStyle:
 	var copy := duplicate() as TauBarStyle
 	copy._copy_overrides_from(self)
@@ -207,3 +208,5 @@ func is_equal_to(p_other: TauStyle) -> bool:
 # within a fixed domain but do not affect domain, ticks, or pane rect.
 func has_layout_affecting_change(p_other: TauBarStyle) -> bool:
 	return false
+
+#endregion

@@ -69,9 +69,7 @@ class_name TauTooltipStyle extends TauStyle
 		_overridden[&"max_width_px"] = true
 
 
-####################################################################################################
-# Cascade: built-in default (layer 1)
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
 static func _create_default_style_box() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -97,10 +95,6 @@ static func _create_default_pinned_style_box() -> StyleBoxFlat:
 	sb.border_color = Color(1.0, 1.0, 1.0, 0.3)
 	return sb
 
-
-####################################################################################################
-# Cascade: theme loading (layer 2)
-####################################################################################################
 
 func load_from_theme(p_control: Control) -> void:
 	if p_control == null:
@@ -136,10 +130,6 @@ func load_from_theme(p_control: Control) -> void:
 		max_width_px = max(p_control.get_theme_constant(&"tooltip_max_width"), 0)
 
 
-####################################################################################################
-# Cascade: user overrides (layer 3)
-####################################################################################################
-
 func apply_overrides_from(p_user_style: TauTooltipStyle) -> void:
 	if p_user_style == null:
 		return
@@ -162,10 +152,6 @@ func apply_overrides_from(p_user_style: TauTooltipStyle) -> void:
 		max_width_px = p_user_style.max_width_px
 
 
-####################################################################################################
-# Full cascade resolution
-####################################################################################################
-
 static func resolve(p_control: Control, p_user_style: TauTooltipStyle) -> TauTooltipStyle:
 	# Layer 1: defaults.
 	var resolved := TauTooltipStyle.new()
@@ -177,10 +163,6 @@ static func resolve(p_control: Control, p_user_style: TauTooltipStyle) -> TauToo
 	resolved.apply_overrides_from(p_user_style)
 	return resolved
 
-
-####################################################################################################
-# Change detection
-####################################################################################################
 
 func is_equal_to(p_other: TauStyle) -> bool:
 	var other := p_other as TauTooltipStyle
@@ -207,3 +189,5 @@ func is_equal_to(p_other: TauStyle) -> bool:
 	if font != other.font:
 		return false
 	return true
+
+#endregion

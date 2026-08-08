@@ -19,66 +19,88 @@ class_name TauLegendStyle extends TauStyle
 ################################################################################################
 
 
+## Font of the series names. Left at [code]null[/code], the legend falls back
+## to the default project font.
 @export var font: Font = null:
 	set(value):
 		font = value
 		_overridden[&"font"] = true
 
+## Size in pixels of the series names.
 @export var font_size: int = 14:
 	set(value):
 		font_size = value
 		_overridden[&"font_size"] = true
 
+## Color of the series names.
 @export var font_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		font_color = value
 		_overridden[&"font_color"] = true
 
+## Height in pixels of one legend key, the small picture standing for a
+## series in one overlay. A key that asks for a wider box than it is tall
+## keeps that proportion as this value changes.
 @export var key_size_px: int = 12:
 	set(value):
 		key_size_px = value
 		_overridden[&"key_size_px"] = true
 
+## Gap in pixels between two keys of the same entry. A series drawn by
+## several overlays gets one key per overlay, side by side.
 @export var key_gap_px: int = 2:
 	set(value):
 		key_gap_px = value
 		_overridden[&"key_gap_px"] = true
 
+## Gap in pixels between the keys of an entry and its series name.
 @export var key_label_gap_px: int = 6:
 	set(value):
 		key_label_gap_px = value
 		_overridden[&"key_label_gap_px"] = true
 
+## Gap in pixels between two legend entries, along the flow direction and
+## between wrapped rows or columns alike.
 @export var item_gap_px: int = 8:
 	set(value):
 		item_gap_px = value
 		_overridden[&"item_gap_px"] = true
 
+## StyleBox drawn behind the legend. Its content margins set the padding
+## between the border and the entries.
+##
+## Left at [code]null[/code], the cascade supplies a transparent
+## [StyleBoxFlat] with an 8 pixel content margin on all sides.
 @export var background: StyleBox = null:
 	set(value):
 		background = value
 		_overridden[&"background"] = true
 
+## Distance in pixels between the legend and the edges of the data area.
+## Only read for the [code]INSIDE_*[/code] positions of
+## [member TauLegendConfig.position], where the legend floats over the data
+## area.
 @export var margin_px: int = 8:
 	set(value):
 		margin_px = value
 		_overridden[&"margin_px"] = true
 
-@export var max_size_px: int = 0:  # 0 means no constraint
+## Cap in pixels on the legend across its flow direction: the height of a
+## legend flowing horizontally, the width of one flowing vertically. Entries
+## past the cap are reachable by scrolling. [code]0[/code] applies no cap.
+@export var max_size_px: int = 0:
 	set(value):
 		max_size_px = value
 		_overridden[&"max_size_px"] = true
 
 
-####################################################################################################
-# Cascade: theme loading (layer 2)
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
-## Loads properties from the Godot theme attached to [param p_control].
-##
-## TauLegendStyle is plot-wide, so there is no pane indexing. This method writes
-## every property unconditionally because it is called on the resolved instance,
-## not on the user-provided resource.
+# Loads properties from the Godot theme attached to p_control.
+#
+# TauLegendStyle is plot-wide, so there is no pane indexing. This method
+# writes every property unconditionally because it is called on the resolved
+# instance, not on the user-provided resource.
 func load_from_theme(p_control: Control) -> void:
 	if p_control == null:
 		push_error("TauLegendStyle.load_from_theme(): control is null")
@@ -119,12 +141,8 @@ func load_from_theme(p_control: Control) -> void:
 		max_size_px = p_control.get_theme_constant(&"legend_max_size_px")
 
 
-####################################################################################################
-# Cascade: user overrides (layer 3)
-####################################################################################################
-
-## Applies overridden properties from [param p_user_style] onto this resolved
-## instance.
+# Applies overridden properties from p_user_style onto this resolved
+# instance.
 func apply_overrides_from(p_user_style: TauLegendStyle) -> void:
 	if p_user_style == null:
 		return
@@ -156,21 +174,15 @@ func apply_overrides_from(p_user_style: TauLegendStyle) -> void:
 		max_size_px = p_user_style.max_size_px
 
 
-####################################################################################################
-# Full cascade resolution
-####################################################################################################
-
-## Produces a fully resolved TauLegendStyle by applying all three cascade layers:
-##   1. Start from defaults (a fresh TauLegendStyle instance).
-##   2. Load theme values from the control.
-##   3. Apply user overrides from [param p_user_style] (may be null).
-##
-## The returned instance is a new TauLegendStyle owned by the caller. It is separate
-## from [param p_user_style] which is never mutated.
-static func resolve(
-	p_control: Control,
-	p_user_style: TauLegendStyle
-) -> TauLegendStyle:
+# Produces a fully resolved TauLegendStyle by applying all three cascade
+# layers:
+#   1. Start from defaults (a fresh TauLegendStyle instance).
+#   2. Load theme values from the control.
+#   3. Apply user overrides from p_user_style (may be null).
+#
+# The returned instance is a new TauLegendStyle owned by the caller. It is
+# separate from p_user_style, which is never mutated.
+static func resolve(p_control: Control, p_user_style: TauLegendStyle) -> TauLegendStyle:
 	# Layer 1: defaults.
 	var resolved := TauLegendStyle.new()
 	# Layer 2: theme values.
@@ -180,13 +192,9 @@ static func resolve(
 	return resolved
 
 
-####################################################################################################
-# Change detection
-####################################################################################################
-
-## Returns a copy of this resource carrying the property values and the
-## override flags. The flags are copied explicitly because
-## [method Resource.duplicate] only copies stored properties.
+# Returns a copy of this resource carrying the property values and the
+# override flags. The flags are copied explicitly because
+# Resource.duplicate() only copies stored properties.
 func make_snapshot() -> TauLegendStyle:
 	var copy := duplicate() as TauLegendStyle
 	copy._copy_overrides_from(self)
@@ -222,8 +230,9 @@ func is_equal_to(p_other: TauStyle) -> bool:
 	return true
 
 
-## All TauLegendStyle properties affect layout (key sizes, gaps, margins, font
-## size all influence the legend's measured size and internal item arrangement).
+# All TauLegendStyle properties affect layout (key sizes, gaps, margins, font
+# size all influence the legend's measured size and internal item
+# arrangement).
 func has_layout_affecting_change(p_other: TauLegendStyle) -> bool:
 	if p_other == null:
 		return true
@@ -247,3 +256,5 @@ func has_layout_affecting_change(p_other: TauLegendStyle) -> bool:
 	if max_size_px != p_other.max_size_px:
 		return true
 	return false
+
+#endregion
