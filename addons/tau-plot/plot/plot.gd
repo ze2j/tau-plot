@@ -5,25 +5,29 @@
 class_name TauPlot extends PanelContainer
 
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const DatasetChange := preload("res://addons/tau-plot/model/dataset_change.gd").DatasetChange
 
-const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const StackedNormalization := preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
+
+const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
-const ScatterVisualAttributes = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
-const LineVisualAttributes = preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
+const ScatterVisualAttributes := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
+const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
 
-const VisualCallbacks = preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
+const VisualCallbacks := preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
 const BarVisualCallbacks := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_callbacks.gd").BarVisualCallbacks
-const ScatterVisualCallbacks = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
-const LineVisualCallbacks = preload("res://addons/tau-plot/plot/xy/line/line_visual_callbacks.gd").LineVisualCallbacks
+const ScatterVisualCallbacks := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
+const LineVisualCallbacks := preload("res://addons/tau-plot/plot/xy/line/line_visual_callbacks.gd").LineVisualCallbacks
 
-const SampleHit = preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const SampleHit := preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
 
-const ColorBuffer = preload("res://addons/tau-plot/model/color_buffer.gd").ColorBuffer
-const Float32Buffer = preload("res://addons/tau-plot/model/float32_buffer.gd").Float32Buffer
+const ColorBuffer := preload("res://addons/tau-plot/model/color_buffer.gd").ColorBuffer
+const Float32Buffer := preload("res://addons/tau-plot/model/float32_buffer.gd").Float32Buffer
 const Float64Buffer := preload("res://addons/tau-plot/model/float64_buffer.gd").Float64Buffer
-const Int32Buffer = preload("res://addons/tau-plot/model/int32_buffer.gd").Int32Buffer
+const Int32Buffer := preload("res://addons/tau-plot/model/int32_buffer.gd").Int32Buffer
 const StringBuffer := preload("res://addons/tau-plot/model/string_buffer.gd").StringBuffer
 
 const _XYPlotValidator := preload("res://addons/tau-plot/plot/xy/xy_plot_validator.gd").XYPlotValidator
