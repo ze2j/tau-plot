@@ -194,7 +194,7 @@ class BarRenderer extends Control:
 	func _resolve_legend_style_box(p_global_series_index: int) -> StyleBox:
 		var color := _xy_style.get_series_color(p_global_series_index)
 		color.a = _xy_style.get_series_alpha(p_global_series_index)
-		var style_box: StyleBox = _bar_style.style_box.duplicate()
+		var style_box: StyleBox = _bar_style.get_effective_style_box().duplicate()
 		_set_style_box_color(style_box, color)
 		return style_box
 
@@ -202,14 +202,6 @@ class BarRenderer extends Control:
 	func _draw() -> void:
 		# Cleared before any early-return so the cache cannot outlive the bars it describes.
 		_hit_records.clear()
-
-		if _bar_style == null or _bar_style.style_box == null:
-			push_error("BarRenderer: resolved TauBarStyle.style_box is null. Every bar must be drawn with a StyleBox.")
-			return
-
-		if not (_bar_style.style_box is StyleBoxFlat or _bar_style.style_box is StyleBoxTexture):
-			push_error("BarRenderer: style_box must be a StyleBoxFlat or StyleBoxTexture, got %s" % _bar_style.style_box.get_class())
-			return
 
 		var pane_rect := _layout.get_pane_rect(_pane_index)
 		if pane_rect.size.x <= 0.0 or pane_rect.size.y <= 0.0:
@@ -346,7 +338,7 @@ class BarRenderer extends Control:
 	## _derived_style_box, a working copy that the caller can freely mutate.
 	## The duplicate is only created when the source reference changes.
 	func _get_style_box(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> StyleBox:
-		var source: StyleBox = _bar_style.style_box
+		var source: StyleBox = _bar_style.get_effective_style_box()
 
 		var vc = _bar_config.bar_visual_callbacks
 		if vc != null and vc.style_box_callback.is_valid():
@@ -367,8 +359,7 @@ class BarRenderer extends Control:
 		else:
 			is_hovered_bar = series_id == _hovered_series_id and p_sample_index == _hovered_sample_index
 		if _highlight_active and is_hovered_bar:
-			if _bar_style.hovered_style_box != null:
-				source = _bar_style.hovered_style_box
+			source = _bar_style.get_effective_hovered_style_box()
 
 		if source != _derived_source_ref or _derived_style_box == null:
 			_derived_style_box = source.duplicate()

@@ -32,6 +32,14 @@
 ## style.series_colors = [Color.GREEN]      # Marked, this wins.
 ## [/codeblock]
 ##
+## [b]Empty values[/b]
+##
+## [code]null[/code] and the empty array are values, not a way to defer to the
+## theme. Assigning one marks the property like any other assignment, and what
+## it draws is stated on the property: a named default for the properties that
+## carry a mark of their own, or the value they fall back on for the ones that
+## sit on top of another. Neither is ever an error, and neither removes the mark.
+##
 ## [b]Cycles[/b]
 ##
 ## Some properties are arrays holding one entry per series, such as

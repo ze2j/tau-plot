@@ -45,19 +45,19 @@ class_name TauBarStyle extends TauStyle
 ## so [member StyleBoxFlat.bg_color] and
 ## [member StyleBoxTexture.modulate_color] carry no value here.
 ##
-## Left at [code]null[/code], the cascade supplies a square-cornered
-## [StyleBoxFlat] with no border and no content margin.
+## Left alone, or assigned [code]null[/code], the bars are drawn with a
+## square-cornered [StyleBoxFlat] with no border and no content margin.
 @export var style_box: StyleBox = null:
 	set(value):
 		style_box = value
 		_overridden[&"style_box"] = true
 
 ## StyleBox drawn for the hovered bar, following the same rules as
-## [member style_box]. Set it to [code]null[/code] to leave the hovered bar
-## its normal shape.
+## [member style_box]. It replaces the StyleBox the bar would otherwise be
+## drawn with.
 ##
-## Left at [code]null[/code], the cascade supplies the [member style_box]
-## default plus a 2 pixel white border on all sides.
+## Left alone, or assigned [code]null[/code], the hovered bar is drawn with
+## the [member style_box] default plus a 2 pixel white border on all sides.
 @export var hovered_style_box: StyleBox = null:
 	set(value):
 		hovered_style_box = value
@@ -65,6 +65,38 @@ class_name TauBarStyle extends TauStyle
 
 
 #region Internal, not public API, may change without notice.
+
+static var _SHARED_DEFAULT_STYLE_BOX: StyleBoxFlat = null
+static var _SHARED_DEFAULT_HOVERED_STYLE_BOX: StyleBoxFlat = null
+
+
+# Returns the StyleBox every bar is drawn with, never null.
+func get_effective_style_box() -> StyleBox:
+	if _is_supported_style_box(style_box, &"style_box"):
+		return style_box
+	if _SHARED_DEFAULT_STYLE_BOX == null:
+		_SHARED_DEFAULT_STYLE_BOX = _create_default_style_box()
+	return _SHARED_DEFAULT_STYLE_BOX
+
+
+# Returns the StyleBox the hovered bar is drawn with, never null.
+func get_effective_hovered_style_box() -> StyleBox:
+	if _is_supported_style_box(hovered_style_box, &"hovered_style_box"):
+		return hovered_style_box
+	if _SHARED_DEFAULT_HOVERED_STYLE_BOX == null:
+		_SHARED_DEFAULT_HOVERED_STYLE_BOX = _create_default_hovered_style_box()
+	return _SHARED_DEFAULT_HOVERED_STYLE_BOX
+
+
+# Null is a legal value carrying the built-in default, so only a wrong subclass is reported.
+static func _is_supported_style_box(p_style_box: StyleBox, p_property: StringName) -> bool:
+	if p_style_box == null:
+		return false
+	if p_style_box is StyleBoxFlat or p_style_box is StyleBoxTexture:
+		return true
+	push_error("TauBarStyle.%s must be a StyleBoxFlat or a StyleBoxTexture, got %s. Falling back to the built-in default." % [p_property, p_style_box.get_class()])
+	return false
+
 
 # Creates a plain StyleBoxFlat with default values.
 static func _create_default_style_box() -> StyleBoxFlat:
