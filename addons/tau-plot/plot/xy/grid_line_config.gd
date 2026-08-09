@@ -10,7 +10,7 @@ class_name TauGridLineConfig extends Resource
 #          and, if applicable, in `has_layout_affecting_change()`.
 ################################################################################################
 
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
 ## Which X axis edge supplies tick positions for the X grid lines.
 ## Set this to the primary x edge (e.g. BOTTOM) to use the primary

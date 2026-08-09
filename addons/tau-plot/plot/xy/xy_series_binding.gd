@@ -1,9 +1,9 @@
 ## Maps a dataset series to a visual representation in the plot.
 class_name TauXYSeriesBinding extends Resource
 
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
-const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
 
 ## The series ID from the dataset that this mapping applies to.

@@ -29,8 +29,8 @@
 ##
 @abstract class_name TauPaneOverlayConfig extends Resource
 
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
-const VisualCallbacks = preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const VisualCallbacks := preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`

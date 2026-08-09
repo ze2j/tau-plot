@@ -1,7 +1,7 @@
 # Dependencies
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const TickSequence := preload("res://addons/tau-plot/plot/xy/tick_sequence.gd").TickSequence
 
 # Draws the axes, ticks and tick labels of a single pane.

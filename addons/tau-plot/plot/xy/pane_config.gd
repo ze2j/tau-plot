@@ -11,7 +11,7 @@
 ## with a price pane and a volume pane).
 class_name TauPaneConfig extends Resource
 
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
 ## Y axis displayed on the bottom edge, or [code]null[/code] if unused.
 @export var y_bottom_axis: TauAxisConfig = null
@@ -62,7 +62,7 @@ const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
 #region Internal, not public API, may change without notice.
 
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 
 
 func get_y_axis_config(p_axis_id: AxisId) -> TauAxisConfig:

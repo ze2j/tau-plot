@@ -14,8 +14,8 @@ const Position = TauLegendConfig.Position
 const DatasetChange := preload("res://addons/tau-plot/model/dataset_change.gd").DatasetChange
 const DatasetChangeAnalyzer := preload("res://addons/tau-plot/plot/xy/dataset_change_analyzer.gd").DatasetChangeAnalyzer
 const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis_assignment.gd").SeriesAxisAssignment
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const XYLegendBuilder := preload("res://addons/tau-plot/plot/xy/xy_legend_builder.gd").XYLegendBuilder
 
 const XYState := preload("res://addons/tau-plot/plot/xy/xy_state.gd").XYState
@@ -23,29 +23,29 @@ const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const XYDomainOverrides := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").XYDomainOverrides
 const YDomainOverride := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").YDomainOverride
 const StackedPinnedRange := preload("res://addons/tau-plot/plot/xy/stacked_pinned_range.gd").StackedPinnedRange
-const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
-const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
+const StackedNormalization := preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const XYAxisTitleLayout := preload("res://addons/tau-plot/plot/xy/xy_axis_title_layout.gd").XYAxisTitleLayout
-const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
-const VisualCallbacks = preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
-const HoverController = preload("res://addons/tau-plot/plot/xy/hover/hover_controller.gd").HoverController
-const HoverFormatter = preload("res://addons/tau-plot/plot/xy/hover/hover_formatter.gd").HoverFormatter
-const OverlayHitTester = preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
+const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
+const VisualCallbacks := preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
+const HoverController := preload("res://addons/tau-plot/plot/xy/hover/hover_controller.gd").HoverController
+const HoverFormatter := preload("res://addons/tau-plot/plot/xy/hover/hover_formatter.gd").HoverFormatter
+const OverlayHitTester := preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
 
 const PaneRenderer := preload("res://addons/tau-plot/plot/xy/pane_renderer.gd").PaneRenderer
 
 const BarRenderer := preload("res://addons/tau-plot/plot/xy/bar/bar_renderer.gd").BarRenderer
 const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
-const BarHitTester = preload("res://addons/tau-plot/plot/xy/bar/bar_hit_tester.gd").BarHitTester
+const BarHitTester := preload("res://addons/tau-plot/plot/xy/bar/bar_hit_tester.gd").BarHitTester
 
 const ScatterRenderer := preload("res://addons/tau-plot/plot/xy/scatter/scatter_renderer.gd").ScatterRenderer
-const ScatterVisualAttributes = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
-const ScatterHitTester = preload("res://addons/tau-plot/plot/xy/scatter/scatter_hit_tester.gd").ScatterHitTester
+const ScatterVisualAttributes := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
+const ScatterHitTester := preload("res://addons/tau-plot/plot/xy/scatter/scatter_hit_tester.gd").ScatterHitTester
 
 const LineRenderer := preload("res://addons/tau-plot/plot/xy/line/line_renderer.gd").LineRenderer
 const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
-const LineHitTester = preload("res://addons/tau-plot/plot/xy/line/line_hit_tester.gd").LineHitTester
+const LineHitTester := preload("res://addons/tau-plot/plot/xy/line/line_hit_tester.gd").LineHitTester
 
 
 # External references (provided via setup)

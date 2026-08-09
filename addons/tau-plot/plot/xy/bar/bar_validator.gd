@@ -1,10 +1,10 @@
 # Dependencies
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
-const BarVisualAttributes = preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
-const BarVisualCallbacks = preload("res://addons/tau-plot/plot/xy/bar/bar_visual_callbacks.gd").BarVisualCallbacks
-const ValidationResult = preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
+const BarVisualCallbacks := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_callbacks.gd").BarVisualCallbacks
+const ValidationResult := preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
 
 
 ## Validates that the bar overlay configuration for a single pane is internally

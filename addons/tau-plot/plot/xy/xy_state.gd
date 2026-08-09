@@ -1,5 +1,5 @@
 # Dependencies
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const PaneYDomains := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").PaneYDomains
 const AxisDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").AxisDomain

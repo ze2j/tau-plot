@@ -3,11 +3,11 @@ const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const ScatterGeometry := preload("res://addons/tau-plot/plot/xy/scatter/scatter_geometry.gd").ScatterGeometry
 const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis_assignment.gd").SeriesAxisAssignment
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
-const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const ScatterVisualAttributes := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
-const MarkerShape = preload("res://addons/tau-plot/plot/xy/scatter/scatter_style.gd").MarkerShape
+const MarkerShape := preload("res://addons/tau-plot/plot/xy/scatter/scatter_style.gd").MarkerShape
 
 const SCATTER_SHADER: Shader = preload("res://addons/tau-plot/plot/xy/scatter/scatter.gdshader")
 

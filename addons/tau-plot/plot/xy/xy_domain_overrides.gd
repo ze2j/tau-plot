@@ -1,6 +1,6 @@
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
-const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const StackedNormalization := preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 
 
 # Stacking and forced-range override for one (pane, y-axis) pair.

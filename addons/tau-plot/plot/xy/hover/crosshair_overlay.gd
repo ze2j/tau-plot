@@ -8,7 +8,7 @@
 ## The HoverController sets position properties and calls queue_redraw().
 ## This never triggers a redraw on any data renderer.
 
-const CrosshairMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").CrosshairMode
+const CrosshairMode := preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").CrosshairMode
 
 
 class CrosshairOverlay extends Control:

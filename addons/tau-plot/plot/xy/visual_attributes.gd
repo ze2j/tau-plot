@@ -3,8 +3,8 @@
 ## Partial buffers are supported: if a buffer has fewer entries than the series,
 ## samples beyond the buffer size fall through to the resolved style values.
 @abstract class VisualAttributes extends RefCounted:
-	const ColorBuffer = preload("res://addons/tau-plot/model/color_buffer.gd").ColorBuffer
-	const AlphaBuffer = preload("res://addons/tau-plot/model/float32_buffer.gd").Float32Buffer
+	const ColorBuffer := preload("res://addons/tau-plot/model/color_buffer.gd").ColorBuffer
+	const AlphaBuffer := preload("res://addons/tau-plot/model/float32_buffer.gd").Float32Buffer
 
 	# Per-sample fill color
 	var color_buffer: ColorBuffer = null

@@ -3,8 +3,8 @@ const AxisDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").AxisDo
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const TickSequence := preload("res://addons/tau-plot/plot/xy/tick_sequence.gd").TickSequence
 const TickResolver := preload("res://addons/tau-plot/plot/xy/tick_resolver.gd").TickResolver
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 
 
 ## Resolves XY plot screen-space layout from a domain and a style.

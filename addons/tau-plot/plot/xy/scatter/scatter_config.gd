@@ -1,7 +1,7 @@
 ## Scatter-overlay specific rendering config.
 class_name TauScatterConfig extends TauPaneOverlayConfig
 
-const ScatterVisualCallbacks = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
+const ScatterVisualCallbacks := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`

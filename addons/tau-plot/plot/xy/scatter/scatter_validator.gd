@@ -1,9 +1,9 @@
 # Dependencies
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
-const ScatterVisualAttributes = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
-const ScatterVisualCallbacks = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
-const ValidationResult = preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const ScatterVisualAttributes := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
+const ScatterVisualCallbacks := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
+const ValidationResult := preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
 
 
 ## Validates that the scatter overlay configuration for a single pane is

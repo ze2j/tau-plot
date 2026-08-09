@@ -1,9 +1,9 @@
-const SampleHit = preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
-const HoverMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
-const CrosshairMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").CrosshairMode
-const TooltipPanel = preload("res://addons/tau-plot/plot/xy/hover/tooltip_panel.gd").TooltipPanel
-const HoverFormatter = preload("res://addons/tau-plot/plot/xy/hover/hover_formatter.gd").HoverFormatter
-const OverlayHitTester = preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
+const SampleHit := preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const HoverMode := preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
+const CrosshairMode := preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").CrosshairMode
+const TooltipPanel := preload("res://addons/tau-plot/plot/xy/hover/tooltip_panel.gd").TooltipPanel
+const HoverFormatter := preload("res://addons/tau-plot/plot/xy/hover/hover_formatter.gd").HoverFormatter
+const OverlayHitTester := preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
 const CrosshairOverlay := preload("res://addons/tau-plot/plot/xy/hover/crosshair_overlay.gd").CrosshairOverlay
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const PaneRenderer := preload("res://addons/tau-plot/plot/xy/pane_renderer.gd").PaneRenderer
@@ -573,7 +573,7 @@ class HoverController extends RefCounted:
 		# even without contains_pointer, tells us the hovered category).
 		var bar_sample_index_by_pane: Dictionary[int, int] = {}
 
-		const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+		const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 		for hit: SampleHit in p_hits:
 			if hit.overlay_type == PaneOverlayType.BAR:
 				if not bar_sample_index_by_pane.has(hit.pane_index):
@@ -820,7 +820,7 @@ class HoverController extends RefCounted:
 	## since screen Y grows downward).
 	## Returns Vector2.INF if no bar hits are found.
 	func _compute_grouped_bar_anchor(p_hits: Array, p_pane_index: int) -> Vector2:
-		const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+		const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 
 		var min_y_px: float = INF  # Smallest screen Y = top of tallest bar.
 		var has_bar_hit := false

@@ -1,5 +1,5 @@
-const SampleHit = preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
-const HoverMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
+const SampleHit := preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const HoverMode := preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
 
 
 ## Abstract base class that defines the hit testing contract for overlay

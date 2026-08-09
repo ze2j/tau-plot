@@ -33,13 +33,13 @@ enum BarMode
 ## A single-series overlay draws the same way in all three modes.
 @export var mode: BarMode = BarMode.GROUPED
 
-const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+const StackedNormalization := preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
 
 ## What each stack is scaled to in [constant BarMode.STACKED]. See
 ## [enum StackedNormalization]. Ignored in the other bar modes.
 @export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
 
-const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
+const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 
 ## How negative values are handled in STACKED mode:
 ## - SKIP_NEGATIVES (default) drops negative samples entirely from the stack.

@@ -1,9 +1,9 @@
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
-const SampleHit = preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
-const HoverMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
-const OverlayHitTester = preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const SampleHit := preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const HoverMode := preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
+const OverlayHitTester := preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 const BarRenderer := preload("res://addons/tau-plot/plot/xy/bar/bar_renderer.gd").BarRenderer
 const BarHitRecord := preload("res://addons/tau-plot/plot/xy/bar/bar_hit_record.gd").BarHitRecord
 

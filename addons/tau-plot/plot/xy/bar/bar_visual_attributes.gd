@@ -1,5 +1,5 @@
 # Dependencies
-const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
+const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 
 ## Per-sample data-driven visual attribute buffers for BAR overlays.
 ## Each buffer is optional (null = no per-sample override for that property).

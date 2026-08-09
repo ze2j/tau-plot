@@ -3,9 +3,9 @@ const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const BarValidator := preload("res://addons/tau-plot/plot/xy/bar/bar_validator.gd").BarValidator
 const ScatterValidator := preload("res://addons/tau-plot/plot/xy/scatter/scatter_validator.gd").ScatterValidator
 const LineValidator := preload("res://addons/tau-plot/plot/xy/line/line_validator.gd").LineValidator
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const ValidationResult = preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const ValidationResult := preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
 
 ## Validates that the configuration passed to plot_xy() is internally consistent.
 ##

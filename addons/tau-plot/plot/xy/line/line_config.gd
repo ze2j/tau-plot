@@ -88,14 +88,14 @@ enum GapPolicy
 @export var gap_policy: GapPolicy = GapPolicy.SKIP
 
 
-const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+const StackedNormalization := preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
 
 ## What each stack is scaled to in [constant LineMode.STACKED]. See
 ## [enum StackedNormalization]. Ignored in
 ## [constant LineMode.INDEPENDENT].
 @export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
 
-const StackedNegativePolicy = preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
+const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 
 ## How negative values are handled in STACKED mode.
 ## SIGNED_SUM (default) folds negative values into the cumulative as a downward
