@@ -5,7 +5,8 @@ const BarVisualCallbacks := preload("res://addons/tau-plot/plot/xy/bar/bar_visua
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`
-#          and, if applicable, in `has_layout_affecting_change()`.
+#          and, if applicable, in `has_layout_affecting_change()`. `style` is the
+#          one exception, see the note above `is_equal_to()`.
 ################################################################################################
 
 ## Theme-driven visual and spacing parameters for bars.
@@ -190,6 +191,9 @@ func get_resolved_bar_width_policy(p_axis_type: TauAxisConfig.Type) -> BarWidthP
 	return BarWidthPolicy.NEIGHBOR_SPACING_FRACTION
 
 
+# `style` is left out on purpose. A style resource carries its own equality and
+# emits `changed` when mutated, so style changes are diffed and re-resolved on
+# their own. Comparing it here would only repeat that work.
 func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauBarConfig
 	if other == null:

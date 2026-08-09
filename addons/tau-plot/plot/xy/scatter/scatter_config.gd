@@ -5,7 +5,8 @@ const ScatterVisualCallbacks = preload("res://addons/tau-plot/plot/xy/scatter/sc
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`
-#          and, if applicable, in `has_layout_affecting_change()`.
+#          and, if applicable, in `has_layout_affecting_change()`. `style` is the
+#          one exception, see the note above `is_equal_to()`.
 ################################################################################################
 
 ## Theme-driven visual and sizing parameters for scatter markers.
@@ -88,6 +89,9 @@ func get_resolved_marker_size_policy() -> MarkerSizePolicy:
 	return MarkerSizePolicy.THEME
 
 
+# `style` is left out on purpose. A style resource carries its own equality and
+# emits `changed` when mutated, so style changes are diffed and re-resolved on
+# their own. Comparing it here would only repeat that work.
 func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauScatterConfig
 	if other == null:

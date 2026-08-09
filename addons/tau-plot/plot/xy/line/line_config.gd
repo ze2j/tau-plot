@@ -5,7 +5,8 @@ const LineVisualCallbacks := preload("res://addons/tau-plot/plot/xy/line/line_vi
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`
-#          and, if applicable, in `has_layout_affecting_change()`.
+#          and, if applicable, in `has_layout_affecting_change()`. `style` is the
+#          one exception, see the note above `is_equal_to()`.
 ################################################################################################
 
 ## Theme-driven visual parameters for lines.
@@ -149,6 +150,9 @@ func get_series_interpolation_mode(p_series_index: int) -> InterpolationMode:
 	return interpolation_modes[p_series_index % interpolation_modes.size()]
 
 
+# `style` is left out on purpose. A style resource carries its own equality and
+# emits `changed` when mutated, so style changes are diffed and re-resolved on
+# their own. Comparing it here would only repeat that work.
 func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauLineConfig
 	if other == null:
