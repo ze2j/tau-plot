@@ -151,7 +151,7 @@ enum BarWidthPolicy
 ##
 ## Only read under [constant BarWidthPolicy.NEIGHBOR_SPACING_FRACTION]. Valid
 ## range is [code]]0.0, 1.0][/code].
-@export_range(0.01, 1.00) var neighbor_spacing_fraction: float = 0.8
+@export_range(0.01, 1.00, 0.01) var neighbor_spacing_fraction: float = 0.8
 
 ## Gap between two bars of the same group, as a share of one bar width, so
 ## the gap follows the local sample spacing the same way the width does.

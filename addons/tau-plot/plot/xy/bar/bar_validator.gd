@@ -160,8 +160,8 @@ class BarValidator extends RefCounted:
 							p_result.add_error("BarValidator: pane %d: bar_gap_x_units must be >= 0 (got %f)" % [p_pane_index, p_bar_config.bar_gap_x_units])
 
 			TauBarConfig.BarWidthPolicy.NEIGHBOR_SPACING_FRACTION:
-				if p_bar_config.neighbor_spacing_fraction < 0.0 or p_bar_config.neighbor_spacing_fraction > 1.0:
-					p_result.add_error("BarValidator: pane %d: neighbor_spacing_fraction must be in [0, 1]" % p_pane_index)
+				if p_bar_config.neighbor_spacing_fraction <= 0.0 or p_bar_config.neighbor_spacing_fraction > 1.0:
+					p_result.add_error("BarValidator: pane %d: neighbor_spacing_fraction must be in ]0, 1]" % p_pane_index)
 
 				if p_bar_config.mode == TauBarConfig.BarMode.GROUPED:
 					if p_bar_config.neighbor_gap_fraction < 0.0:
