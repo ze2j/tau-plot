@@ -137,8 +137,8 @@ class DatasetChangeAnalyzer extends RefCounted:
 		p_recompute_min: float,
 		p_recompute_max: float
 	) -> bool:
-		var start_idx := p_change.start_index
-		var end_idx := p_change.end_index_exclusive
+		var start_idx := p_change.start_sample_index
+		var end_idx := p_change.end_sample_index_exclusive
 
 		if p_dataset.get_mode() == Dataset.Mode.SHARED_X:
 			for i in range(start_idx, end_idx):
@@ -166,8 +166,8 @@ class DatasetChangeAnalyzer extends RefCounted:
 		p_change: DatasetChange,
 		p_axis_domain: AxisDomain
 	) -> bool:
-		var start_idx := p_change.start_index
-		var end_idx := p_change.end_index_exclusive
+		var start_idx := p_change.start_sample_index
+		var end_idx := p_change.end_sample_index_exclusive
 		var count := p_dataset.get_series_sample_count(p_series_id)
 
 		var effective_end := min(end_idx, count)

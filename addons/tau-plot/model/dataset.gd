@@ -212,7 +212,7 @@ class Dataset extends RefCounted:
 		_is_batching = _batch_depth > 0
 
 		if _batch_depth == 0:
-			if _batched_change != null and _batched_change.flags != 0:
+			if _batched_change != null and _batched_change.flags != DatasetChange.Flags.NONE:
 				changed.emit(_batched_change)
 			_batched_change = null
 
@@ -404,7 +404,7 @@ class Dataset extends RefCounted:
 
 	func get_shared_capacity() -> int:
 		if _mode != Mode.SHARED_X:
-			push_error("Dataset.get_capacity(): only meaningful in SHARED_X mode")
+			push_error("Dataset.get_shared_capacity(): only meaningful in SHARED_X mode")
 			return 0
 		return _shared_capacity
 
@@ -431,7 +431,7 @@ class Dataset extends RefCounted:
 		c.type = DatasetChange.Type.RESET
 		c.flags = DatasetChange.Flags.X_CHANGED | DatasetChange.Flags.Y_CHANGED
 		c.series_ids = _series_ids.duplicate()
-		c.count_after = get_shared_sample_count()
+		c.sample_count_after = get_shared_sample_count()
 		_emit_or_batch_change(c)
 
 
@@ -475,7 +475,7 @@ class Dataset extends RefCounted:
 		c.type = DatasetChange.Type.RESET
 		c.flags = DatasetChange.Flags.X_CHANGED | DatasetChange.Flags.Y_CHANGED
 		c.series_ids = PackedInt64Array([p_series_id])
-		c.count_after = yb.size()
+		c.sample_count_after = yb.size()
 		_emit_or_batch_change(c)
 
 
@@ -508,9 +508,9 @@ class Dataset extends RefCounted:
 		c.type = DatasetChange.Type.VALUES_CHANGED
 		c.flags = DatasetChange.Flags.X_CHANGED
 		c.series_ids = _series_ids.duplicate()
-		c.start_index = p_logical_sample_index
-		c.end_index_exclusive = p_logical_sample_index + 1
-		c.count_after = get_shared_sample_count()
+		c.start_sample_index = p_logical_sample_index
+		c.end_sample_index_exclusive = p_logical_sample_index + 1
+		c.sample_count_after = get_shared_sample_count()
 		_emit_or_batch_change(c)
 
 
@@ -551,9 +551,9 @@ class Dataset extends RefCounted:
 		c.type = DatasetChange.Type.VALUES_CHANGED
 		c.flags = DatasetChange.Flags.X_CHANGED
 		c.series_ids = PackedInt64Array([p_series_id])
-		c.start_index = p_logical_sample_index
-		c.end_index_exclusive = p_logical_sample_index + 1
-		c.count_after = xb.size()
+		c.start_sample_index = p_logical_sample_index
+		c.end_sample_index_exclusive = p_logical_sample_index + 1
+		c.sample_count_after = xb.size()
 		_emit_or_batch_change(c)
 
 
@@ -575,9 +575,9 @@ class Dataset extends RefCounted:
 		c.type = DatasetChange.Type.VALUES_CHANGED
 		c.flags = DatasetChange.Flags.Y_CHANGED
 		c.series_ids = PackedInt64Array([p_series_id])
-		c.start_index = p_logical_sample_index
-		c.end_index_exclusive = p_logical_sample_index + 1
-		c.count_after = _y_buffers[idx].size()
+		c.start_sample_index = p_logical_sample_index
+		c.end_sample_index_exclusive = p_logical_sample_index + 1
+		c.sample_count_after = _y_buffers[idx].size()
 		_emit_or_batch_change(c)
 
 
@@ -594,9 +594,9 @@ class Dataset extends RefCounted:
 		c.type = DatasetChange.Type.VALUES_CHANGED
 		c.flags = DatasetChange.Flags.Y_CHANGED
 		c.series_ids = PackedInt64Array([p_series_id])
-		c.start_index = p_start_index
-		c.end_index_exclusive = p_start_index + written
-		c.count_after = _y_buffers[idx].size()
+		c.start_sample_index = p_start_index
+		c.end_sample_index_exclusive = p_start_index + written
+		c.sample_count_after = _y_buffers[idx].size()
 		_emit_or_batch_change(c)
 
 
@@ -629,10 +629,10 @@ class Dataset extends RefCounted:
 		c.flags = DatasetChange.Flags.X_CHANGED | DatasetChange.Flags.Y_CHANGED
 		c.series_ids = _series_ids.duplicate()
 		c.appended_count = 1
-		c.dropped_count = dropped
-		c.count_after = xb.size()
-		c.start_index = xb.size() - 1
-		c.end_index_exclusive = xb.size()
+		c.overwritten_count = dropped
+		c.sample_count_after = xb.size()
+		c.start_sample_index = xb.size() - 1
+		c.end_sample_index_exclusive = xb.size()
 		if dropped > 0:
 			c.flags |= DatasetChange.Flags.OVERWROTE_OLD_SAMPLES
 		_emit_or_batch_change(c)
@@ -667,10 +667,10 @@ class Dataset extends RefCounted:
 		c.flags = DatasetChange.Flags.X_CHANGED | DatasetChange.Flags.Y_CHANGED
 		c.series_ids = PackedInt64Array([p_series_id])
 		c.appended_count = 1
-		c.dropped_count = dropped
-		c.count_after = yb.size()
-		c.start_index = yb.size() - 1
-		c.end_index_exclusive = yb.size()
+		c.overwritten_count = dropped
+		c.sample_count_after = yb.size()
+		c.start_sample_index = yb.size() - 1
+		c.end_sample_index_exclusive = yb.size()
 		if dropped > 0:
 			c.flags |= DatasetChange.Flags.OVERWROTE_OLD_SAMPLES
 		_emit_or_batch_change(c)
@@ -692,7 +692,7 @@ class Dataset extends RefCounted:
 		c.type = DatasetChange.Type.RESET
 		c.flags = DatasetChange.Flags.X_CHANGED | DatasetChange.Flags.Y_CHANGED
 		c.series_ids = _series_ids.duplicate()
-		c.count_after = get_shared_sample_count() if _mode == Mode.SHARED_X else 0
+		c.sample_count_after = get_shared_sample_count() if _mode == Mode.SHARED_X else 0
 		_emit_or_batch_change(c)
 
 
@@ -717,7 +717,7 @@ class Dataset extends RefCounted:
 		c.type = DatasetChange.Type.RESET
 		c.flags = DatasetChange.Flags.SERIES_STRUCTURE_CHANGED | DatasetChange.Flags.X_CHANGED | DatasetChange.Flags.Y_CHANGED
 		c.series_ids = previous_series_ids
-		c.count_after = 0
+		c.sample_count_after = 0
 		_emit_or_batch_change(c)
 
 
@@ -752,7 +752,7 @@ class Dataset extends RefCounted:
 		c.type = DatasetChange.Type.SERIES_ADDED
 		c.flags = DatasetChange.Flags.SERIES_STRUCTURE_CHANGED
 		c.series_ids = PackedInt64Array([id])
-		c.count_after = get_shared_sample_count() if _mode == Mode.SHARED_X else 0
+		c.sample_count_after = get_shared_sample_count() if _mode == Mode.SHARED_X else 0
 		_emit_or_batch_change(c)
 
 		return id
@@ -767,38 +767,43 @@ class Dataset extends RefCounted:
 
 
 	func _merge_change_into_batch(p_change: DatasetChange) -> void:
-		if p_change == null:
-			return
-
 		_batched_change.flags |= p_change.flags
 
 		# RESET dominates everything.
 		if p_change.type == DatasetChange.Type.RESET:
 			_batched_change.type = DatasetChange.Type.RESET
-			_batched_change.count_after = p_change.count_after
+			_batched_change.sample_count_after = p_change.sample_count_after
 			_batched_change.appended_count = 0
-			_batched_change.dropped_count = 0
-			_batched_change.start_index = 0
-			_batched_change.end_index_exclusive = 0
+			_batched_change.overwritten_count = 0
+			_batched_change.start_sample_index = 0
+			_batched_change.end_sample_index_exclusive = 0
 			_batched_change.series_ids = p_change.series_ids.duplicate()
 			_batched_change.new_order_series_ids = PackedInt64Array()
 			return
 
-		# Aggregate VALUES_APPENDED information.
-		if p_change.type == DatasetChange.Type.VALUES_APPENDED:
-			_batched_change.appended_count += p_change.appended_count
-			_batched_change.dropped_count += p_change.dropped_count
-			_batched_change.count_after = max(_batched_change.count_after, p_change.count_after)
+		var is_value_change := (
+			p_change.type == DatasetChange.Type.VALUES_CHANGED or
+			p_change.type == DatasetChange.Type.VALUES_APPENDED
+		)
 
-		# Aggregate index range for VALUES_CHANGED and VALUES_APPENDED.
-		if p_change.type == DatasetChange.Type.VALUES_CHANGED or p_change.type == DatasetChange.Type.VALUES_APPENDED:
-			if _batched_change.start_index == 0 and _batched_change.end_index_exclusive == 0:
-				_batched_change.start_index = p_change.start_index
-				_batched_change.end_index_exclusive = p_change.end_index_exclusive
-			else:
-				_batched_change.start_index = min(_batched_change.start_index, p_change.start_index)
-				_batched_change.end_index_exclusive = max(_batched_change.end_index_exclusive, p_change.end_index_exclusive)
-			_batched_change.count_after = max(_batched_change.count_after, p_change.count_after)
+		if is_value_change or p_change.type == DatasetChange.Type.SERIES_ADDED:
+			_batched_change.sample_count_after = max(_batched_change.sample_count_after, p_change.sample_count_after)
+
+		# Once a reset dominates the batch the listener re-reads everything, so
+		# the append counters and the index range stay empty rather than
+		# describing a range the RESET type does not carry.
+		if _batched_change.type != DatasetChange.Type.RESET:
+			if p_change.type == DatasetChange.Type.VALUES_APPENDED:
+				_batched_change.appended_count += p_change.appended_count
+				_batched_change.overwritten_count += p_change.overwritten_count
+
+			if is_value_change:
+				if _batched_change.start_sample_index == 0 and _batched_change.end_sample_index_exclusive == 0:
+					_batched_change.start_sample_index = p_change.start_sample_index
+					_batched_change.end_sample_index_exclusive = p_change.end_sample_index_exclusive
+				else:
+					_batched_change.start_sample_index = min(_batched_change.start_sample_index, p_change.start_sample_index)
+					_batched_change.end_sample_index_exclusive = max(_batched_change.end_sample_index_exclusive, p_change.end_sample_index_exclusive)
 
 		# Merge affected series ids (unique set).
 		if not p_change.series_ids.is_empty():
