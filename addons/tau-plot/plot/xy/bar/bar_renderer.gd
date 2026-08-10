@@ -282,7 +282,9 @@ class BarRenderer extends Control:
 		# Try per sample color (with VisualCallbacks)
 		var vc = _bar_config.bar_visual_callbacks
 		if vc != null and vc.color_callback.is_valid():
-			return vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			var color = vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			if color != VisualAttributes.ColorBuffer.NO_COLOR:
+				return color
 
 		# Use per series color from TauXYStyle (theme if set, otherwise default palette).
 		return _xy_style.get_series_color(global_series_index)

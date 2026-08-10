@@ -421,7 +421,9 @@ class ScatterRenderer extends Control:
 		# Try per sample color (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.color_callback.is_valid():
-			return vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			var c = vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		# Use per series color from TauXYStyle (theme if set, otherwise default palette).
 		return _xy_style.get_series_color(global_series_index)
@@ -519,7 +521,9 @@ class ScatterRenderer extends Control:
 		# Try per sample outline color (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.outline_color_callback.is_valid():
-			return vc.outline_color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			var c = vc.outline_color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		# Use outline color from theme if set, otherwise from style default value.
 		return _scatter_style.outline_color

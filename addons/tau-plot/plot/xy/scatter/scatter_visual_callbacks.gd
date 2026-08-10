@@ -10,6 +10,7 @@ class ScatterVisualCallbacks extends VisualCallbacks:
 	var shape_callback: Callable = Callable()
 
 	# (series_index: int, sample_index: int, x_value: Variant, y_value: float) -> Color
+	# Return ColorBuffer.NO_COLOR to leave the sample to the next resolution step.
 	var outline_color_callback: Callable = Callable()
 
 	# (series_index: int, sample_index: int, x_value: Variant, y_value: float) -> float

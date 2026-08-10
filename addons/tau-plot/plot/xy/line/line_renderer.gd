@@ -1814,7 +1814,9 @@ class LineRenderer extends Control:
 		# Per-sample override from LineVisualCallbacks.color_callback.
 		var vc := _line_config.line_visual_callbacks
 		if vc != null and vc.color_callback.is_valid():
-			return vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			var c: Color = vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		return _xy_style.get_series_color(global_series_index)
 
