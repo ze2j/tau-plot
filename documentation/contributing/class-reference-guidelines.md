@@ -131,13 +131,13 @@ A style page documents a `TauStyle` subclass and inserts three fixed subsections
 
 |Order|Heading|Content|
 |---|---|---|
-|1|`### Three-layer cascade`|The three layers, the short summary list, and the Override detection block.|
+|1|`### Three-layer cascade`|Snippet [S1](#s1-three-layer-cascade), transcribed as is.|
 |2|`### Theming`|Theme type variation, base type, a base type declaration snippet, the theme key table, and the indexing rules.|
 |3|`### Side effects`|Either the visual-only statement, or the layout-affecting and visual-only lists.|
 
 `Example` and `Notes` follow, in that order. A style page without an Example is acceptable, since the owning config page usually shows the assignment.
 
-The Three-layer cascade section is fixed text. See Boilerplate Blocks. It states the three layers and the override detection rule, then points at `TauStyle` for the theme key grammar. Do not restate the grammar: the indexing scheme, the contiguity requirement, the pane index, and the inspector caveat live on `style.md` and nowhere else.
+The Three-layer cascade section is fixed text, pinned as snippet [S1](#s1-three-layer-cascade). `style.md` owns what a style page used to duplicate: the key indexing scheme, the contiguity requirement, the pane index, the inspector caveat, and the field-by-field merge rule. A style page keeps its own theme key table and nothing more.
 
 The Theming section is the only place where a theme key appears, and it is page-specific. It must state:
 
@@ -152,6 +152,7 @@ The Theming section is the only place where a theme key appears, and it is page-
 
 - The same section order, the same method groups in the same order, the same sentence shapes.
 - Differences limited to the class name, the element type, the packed array type, the constructor signature, and the Example.
+- The out-of-range and empty-buffer contract is snippet [S3](#s3-buffer-error-path), with the returned constant substituted per element type.
 - Any correction to one page is applied to all five in the same change.
 
 Do not let the family harden a claim that is only true for one member.
@@ -429,6 +430,8 @@ Several contracts hold for whole families of classes. Repeating them on every pa
 
 Do not paraphrase these. Do not invent a variant.
 
+Four of them are pinned as copy-ready snippets in [Appendix. Verbatim Snippets](#appendix-verbatim-snippets). The entries below say what each contract is for and where it applies, the appendix holds the text to transcribe.
+
 ### Runtime mutation
 
 On every configuration class consumed by `plot_xy()`:
@@ -445,25 +448,23 @@ On every `style` property:
 
 ### Three-layer cascade
 
-The opening of the `### Three-layer cascade` section on every style page. The three numbered layers, then the summary list, then the Override detection block:
+The whole `### Three-layer cascade` section on every style page. Snippet [S1](#s1-three-layer-cascade).
 
-> **Override detection**
-> 
-> A property counts as overridden as soon as it is assigned, whatever the value, so assigning a property to exactly its built-in default from code still wins over the theme. For array properties, only assigning a new array marks the property as overridden. Mutating the array already in place does not.
-
-Add, on any style page whose resource is meant to be saved:
-
-> A property set from the inspector to exactly its built-in default is not written to the saved resource, so it reads as untouched on load and the theme wins. Assign it from code instead.
+The inspector caveat is not part of it. It applies to every style resource equally and lives on `style.md`.
 
 Never write "left at its built-in default", "override detection limitation", or "properties left at their defaults remain theme-overridable". All three claim that a property is compared against its default value, when detection is assignment-based.
 
 ### Cycles
 
-On every style property that is an array of per-series values:
-
-> Read as a cycle: series `i` uses entry `i % size`. An empty array falls back to `<named constant>` for every series. See `TauStyle`.
+On every style property that is an array of per-series values. Snippet [S2](#s2-cycle-property).
 
 State the fallback constant by name. Do not write "the built-in default" without saying what it is.
+
+### Buffer error path
+
+On every ring buffer read that takes a logical index, on all five buffer pages. Snippet [S3](#s3-buffer-error-path).
+
+The returned constant is part of the contract, so it is named on the page rather than described as a default.
 
 ### Non-serializable member
 
@@ -473,7 +474,7 @@ As a note, on every `Callable` or `VisualAttributes` member that is not exported
 
 ### Per-sample override resolution
 
-Stated once, in full, on `TauPaneOverlayConfig`: per-series appearance comes from style cycles, per-sample appearance comes from attribute buffers or callbacks, and the most specific source wins, a buffer entry first, then a callback, then the cycle. Every other page links to it rather than restating the order.
+Stated once, in full, on `TauPaneOverlayConfig`: the two per-sample mechanisms, and the order the plot reads them in, a buffer entry first, then a callback, then the property. Every other page links to it rather than restating the order. Snippet [S4](#s4-per-sample-override-resolution) holds both the full block and the pointer line.
 
 ## Formatting Conventions
 
@@ -578,6 +579,7 @@ Structure:
 - [ ] The description does not repeat the summary in different words.
 - [ ] The notes contain only edge cases and clarifications. Every concept the reader needs is already introduced in the description prose above.
 - [ ] Every boilerplate block that applies is present, with the exact wording from this guideline.
+- [ ] Every snippet from the appendix is copied as is, with only its listed substitutions applied.
 - [ ] The Constructor blurb adds no rule the Description already states, and contradicts none of them.
 - [ ] The page has an entry in `index.md`.
 
@@ -754,19 +756,7 @@ Which properties are cycles, and what an empty cycle falls back to.
 
 ### Three-layer cascade
 
-1. **Built-in default**
-2. **Theme value**
-3. **User override**
-
-In short:
-
-- the last layer that provides a value wins
-- the Godot theme is for a shared, persistent look, with optional per-series and per-pane targeting
-- this resource is for overriding from code
-
-**Override detection**
-
-<the fixed boilerplate>
+<snippet S1, transcribed as is>
 
 ### Theming
 
@@ -805,3 +795,65 @@ Range, clamps, empty-cycle fallback, per-sample override pointer.
 * [`TauStyle`](style.md) Base class. Defines the cascade, cycles, and theme key naming.
 * ...
 ````
+
+---
+
+## Appendix. Verbatim Snippets
+
+Copy the snippet, then apply the substitutions listed under it.
+
+### S1. Three-layer cascade
+
+````md
+### Three-layer cascade
+
+Each property is resolved in three layers: the built-in default, then the value the active Godot theme names, then the value assigned on this instance. A property counts as overridden as soon as it is assigned, whatever the value, and for an array property only assigning a new array counts.
+
+See [`TauStyle`](style.md#three-layer-cascade) for the cascade and [`TauStyle`](style.md#theme-keys) for the grammar of the keys listed in [Theming](#theming).
+````
+
+No substitution.
+
+### S2. Cycle property
+
+Closes the property entry of a style property that holds one entry per series, after the sentence stating what the property controls and its default.
+
+````md
+Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). An empty array falls back to `<FALLBACK>` for every series. See [`TauStyle`](style.md#cycles).
+````
+
+* `<FALLBACK>` The constant the source declares for the empty case, as `DEFAULT_SERIES_ALPHA` or `DEFAULT_MARKER_SIZE_PX`, or the literal where the source declares none, as `2.0` for [`TauLineStyle.line_widths_px`](line_style.md#line_widths_px). When the fallback is a sentinel meaning no change, state what it resolves to as well.
+
+### S3. Buffer error path
+
+Every read that takes a logical index, on the five ring buffer pages.
+
+````md
+Reading an empty buffer, or a logical index below `0` or at or above [`size()`](#size), pushes an error and returns `<FAILED_READ>`.
+````
+
+* `<FAILED_READ>` `NO_COLOR` on `color_buffer.md`, `0.0` on `float32_buffer.md` and `float64_buffer.md`, `-1` on `int32_buffer.md`, `""` on `string_buffer.md`. `dataset.md` uses `0.0` for [`get_series_y()`](dataset.md#get_series_y), which inherits this path.
+
+### S4. Per-sample override resolution
+
+The full block lands once, on `pane_overlay_config.md`, in the Description. Every other page uses the pointer line.
+
+````md
+### Per-sample overrides
+
+Some properties can be overridden per sample, through one of two mechanisms.
+
+**Visual attributes** are buffers handed to the plot with the data, holding the value of one property indexed by sample index. The values are normally precomputed, which is what the mechanism is for. Writing them at runtime works as well, and leaves the caller responsible for keeping them in step with the [`Dataset`](dataset.md). See [`TauXYSeriesBinding.visual_attributes`](xy_series_binding.md#visual_attributes).
+
+**Visual callbacks** are functions handed to the plot, called once per sample while the pane is drawn, and returning the value of one property for that sample. Each one receives the series index, the sample index, and the X and Y values of the sample, so the value can be derived from the sample itself. See [`visual_callbacks`](#visual_callbacks).
+
+The plot reads the buffer first. If the buffer holds no value for a sample, the plot calls the callback. If the callback returns no value either, the plot uses the property. A `null` buffer, a buffer shorter than the sample count, an invalid entry, an unassigned callback, and an invalid return all count as no value.
+````
+
+Pointer line, on every other page:
+
+````md
+This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for more information.
+````
+
+No substitution.
