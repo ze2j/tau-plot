@@ -148,18 +148,23 @@ Reference them as `TauPlot.ClassName`, for example `TauPlot.Dataset.new()` or `T
 The types listed below are available through this namespace.
 
 * [`Dataset`](dataset.md) Holds all X and Y sample data for one or more named series and notifies the plot of every change.
+* [`DatasetChange`](dataset_change.md) Describes one change applied to a [`Dataset`](dataset.md), carried by [`changed`](dataset.md#changed).
 * [`VisualAttributes`](visual_attributes.md) Abstract base class for data-oriented per-sample style override buffers.
 * [`BarVisualAttributes`](bar_visual_attributes.md) Per-sample style override buffers for [`BAR`](#paneoverlaytype) overlays.
 * [`ScatterVisualAttributes`](scatter_visual_attributes.md) Per-sample style override buffers for [`SCATTER`](#paneoverlaytype) overlays.
+* [`LineVisualAttributes`](line_visual_attributes.md) Per-sample style override buffers for [`LINE`](#paneoverlaytype) overlays.
 * [`VisualCallbacks`](visual_callbacks.md) Abstract base class for callback-driven per-sample style overrides.
 * [`BarVisualCallbacks`](bar_visual_callbacks.md) Callback-driven per-sample style overrides for [`BAR`](#paneoverlaytype) overlays.
 * [`ScatterVisualCallbacks`](scatter_visual_callbacks.md) Callback-driven per-sample style overrides for [`SCATTER`](#paneoverlaytype) overlays.
+* [`LineVisualCallbacks`](line_visual_callbacks.md) Callback-driven per-sample style overrides for [`LINE`](#paneoverlaytype) overlays.
 * [`SampleHit`](sample_hit.md) Read-only description of one sample detected near the cursor during hover hit testing.
 * [`ColorBuffer`](color_buffer.md) Ring buffer storing `Color` values with a fixed capacity.
 * [`Float32Buffer`](float32_buffer.md) Ring buffer storing `float` values (32-bit) with a fixed capacity.
 * [`Float64Buffer`](float64_buffer.md) Ring buffer storing `float` values (64-bit) with a fixed capacity.
 * [`Int32Buffer`](int32_buffer.md) Ring buffer storing `int` values (32-bit) with a fixed capacity.
 * [`StringBuffer`](string_buffer.md) Ring buffer storing `String` values with a fixed capacity.
+
+The enums under [Enums](#enums) are exposed on the same namespace: [`AxisId`](#axisid), [`PaneOverlayType`](#paneoverlaytype), [`StackedNormalization`](#stackednormalization), and [`StackedNegativePolicy`](#stackednegativepolicy).
 
 ## Enums
 
@@ -184,6 +189,31 @@ Identifies the visual layer type used to render series data inside a pane.
 |---|---|
 | `BAR` | Bar overlay. Renders each sample as a bar originating from zero. |
 | `SCATTER` | Scatter overlay. Renders each sample as a marker at its data position. |
+| `LINE` | Line overlay. Renders each series as one curve through its sample positions, with an optional area fill. |
+
+---
+
+### `StackedNormalization`
+
+Sets what each stack of a stacking overlay is scaled to.
+
+| Value | Meaning |
+|---|---|
+| `NONE` | Stacks the raw values. The top of each stack is their sum. |
+| `FRACTION` | Scales each stack to `1.0`. Each series carries its share of the stack. |
+| `PERCENT` | Scales each stack to `100.0`. The same share expressed as a percentage. |
+
+---
+
+### `StackedNegativePolicy`
+
+Sets how a negative value enters a stack.
+
+| Value | Meaning |
+|---|---|
+| `DIVERGING` | Positive values stack upward from zero and negative values stack downward from zero. Each X position carries two independent cumulatives. |
+| `SIGNED_SUM` | Negative values enter the cumulative signed, so a negative sample dips the stack below the layer under it. A stacking [`BAR`](#paneoverlaytype) overlay cannot draw that dip without overlapping rectangles, and [`plot_xy()`](#plot_xy) reports a validation error when one declares it. |
+| `SKIP_NEGATIVES` | Negative values are dropped from the cumulative. The sample stacks as if its value were zero. |
 
 ## Signals
 
@@ -332,3 +362,4 @@ Forces an immediate refresh in the current frame. Use this only when the plot ne
 * [`TauAxisConfig`](axis_config.md) Configures an individual axis: type, scale, domain, ticks, and title.
 * [`TauBarConfig`](bar_config.md) Bar overlay configuration placed inside a [`TauPaneConfig`](pane_config.md).
 * [`TauScatterConfig`](scatter_config.md) Scatter overlay configuration placed inside a [`TauPaneConfig`](pane_config.md).
+* [`TauLineConfig`](line_config.md) Line overlay configuration placed inside a [`TauPaneConfig`](pane_config.md).
