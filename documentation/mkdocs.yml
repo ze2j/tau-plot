@@ -35,6 +35,7 @@ nav:
           - SampleHit: api/sample_hit.md
 
       - Style Resources:
+          - TauStyle: api/style.md
           - TauXYStyle: api/xy_style.md
           - TauPaneStyle: api/pane_style.md
           - TauBarStyle: api/bar_style.md

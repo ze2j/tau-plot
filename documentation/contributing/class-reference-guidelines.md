@@ -762,7 +762,7 @@ In short:
 
 - the last layer that provides a value wins
 - the Godot theme is for a shared, persistent look, with optional per-series and per-pane targeting
-- this resource is for overriding from code, scoped to one plot or one pane
+- this resource is for overriding from code
 
 **Override detection**
 

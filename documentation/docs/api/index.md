@@ -37,6 +37,7 @@ This section documents the public classes of TauPlot.
 
 ## Style resources
 
+- [`TauStyle`](style.md): Base class of styles.
 - [`TauXYStyle`](xy_style.md): Visual appearance of the plot.
 - [`TauPaneStyle`](pane_style.md): Visual appearance of a pane.
 - [`TauBarStyle`](bar_style.md): Visual appearance of `BAR` overlays.
