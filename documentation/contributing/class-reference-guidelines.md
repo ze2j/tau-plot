@@ -297,7 +297,6 @@ Good note content:
 - An edge case ("Out-of-range access logs an error and returns early.").
 - A clarification about index shifting when the ring buffer wraps.
 - An append-never-rejects semantic.
-- A non-serializable member that must be assigned at runtime.
 - A property that merges with the theme instead of replacing it.
 
 Bad note content:
@@ -438,7 +437,7 @@ On every configuration class consumed by `plot_xy()`:
 
 > After `TauPlot.plot_xy()` succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling `TauPlot.queue_refresh()` to apply the change.
 
-Use the plural form ("to every instance it received") on classes the plot receives several of.
+Use the plural form ("to every instance it received") on classes the plot receives several of. On a base class page, "instance" may be qualified with the class name ("to every `TauPaneOverlayConfig` instance it received") when the surrounding text names several classes.
 
 ### Style ownership
 
@@ -468,9 +467,11 @@ The returned constant is part of the contract, so it is named on the page rather
 
 ### Non-serializable member
 
-As a note, on every `Callable` or `VisualAttributes` member that is not exported:
+As the last paragraph of the property entry, on every `Callable` or `VisualAttributes` member that is not exported:
 
-> **`<member>` is not serializable.** The property is not exported and cannot be saved in a `.tres` resource file. Assign it at runtime only.
+> `<member>` is not serializable. The property is not exported and cannot be saved in a `.tres` resource file. Assign it at runtime only.
+
+The member owns the constraint, so it is stated where a reader looking the member up will land. It is not a note and takes no bold lead phrase.
 
 ### Per-sample override resolution
 
