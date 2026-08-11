@@ -11,6 +11,7 @@ nav:
 
       - Data Classes:
           - Dataset: api/dataset.md
+          - DatasetChange: api/dataset_change.md
           - ColorBuffer: api/color_buffer.md
           - Float32Buffer: api/float32_buffer.md
           - Float64Buffer: api/float64_buffer.md
@@ -27,6 +28,7 @@ nav:
           - TauPaneOverlayConfig: api/pane_overlay_config.md
           - TauBarConfig: api/bar_config.md
           - TauScatterConfig: api/scatter_config.md
+          - TauLineConfig: api/line_config.md
 
       - Additional Configuration:
           - TauLegendConfig: api/legend_config.md
@@ -40,6 +42,8 @@ nav:
           - TauPaneStyle: api/pane_style.md
           - TauBarStyle: api/bar_style.md
           - TauScatterStyle: api/scatter_style.md
+          - TauLineStyle: api/line_style.md
+          - TauLineFill: api/line_fill.md
           - TauLegendStyle: api/legend_style.md
           - TauTooltipStyle: api/tooltip_style.md
           - TauCrosshairStyle: api/crosshair_style.md
@@ -48,11 +52,13 @@ nav:
           - VisualAttributes: api/visual_attributes.md
           - BarVisualAttributes: api/bar_visual_attributes.md
           - ScatterVisualAttributes: api/scatter_visual_attributes.md
+          - LineVisualAttributes: api/line_visual_attributes.md
 
       - Per-sample Visual Callbacks:
           - VisualCallbacks: api/visual_callbacks.md
           - BarVisualCallbacks: api/bar_visual_callbacks.md
           - ScatterVisualCallbacks: api/scatter_visual_callbacks.md
+          - LineVisualCallbacks: api/line_visual_callbacks.md
 
 theme:
   name: material
