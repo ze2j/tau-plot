@@ -234,12 +234,13 @@ func setup(
 				# Unknown overlay types are rejected by validation.
 				pass
 
-	# Bindings populate the per-pane series id arrays in binding-iteration
-	# order, which is unrelated to dataset order. Sorting here makes the
-	# stacking order predictable (layer 0 = first declared series).
+	# Bindings come in any order, so the ids gathered above are in no useful
+	# order. Both z_order and the stacking layers are defined on dataset order,
+	# so that is the order the renderers must get.
 	for pane_index in range(pane_count):
 		_sort_series_ids_by_dataset_index(_bar_series_ids_per_pane[pane_index])
 		_sort_series_ids_by_dataset_index(_line_series_ids_per_pane[pane_index])
+		_sort_series_ids_by_dataset_index(_scatter_series_ids_per_pane[pane_index])
 
 	# The series id order is settled, so the visual attributes can be laid out against it.
 	var bar_va_per_pane: Array = []     # Array of Array[BarVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.

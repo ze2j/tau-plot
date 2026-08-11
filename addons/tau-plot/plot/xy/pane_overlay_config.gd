@@ -45,10 +45,10 @@ const VisualCallbacks := preload("res://addons/tau-plot/plot/xy/visual_callbacks
 ## what where they overlap.
 enum ZOrder
 {
-	## Draw in dataset order, so the last series ends up on top.
+	## Draw in dataset order, so the last series of the overlay ends up on top.
 	SERIES_ORDER,
 
-	## Draw in reverse dataset order, so the first series ends up on top.
+	## Draw in reverse dataset order, so the first series of the overlay ends up on top.
 	REVERSE_SERIES_ORDER
 }
 
