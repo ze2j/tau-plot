@@ -35,9 +35,6 @@ class ScatterValidator extends RefCounted:
 				return
 
 		var pane_cfg := p_domain_cfg.panes[p_pane_index]
-		if pane_cfg == null:
-			p_result.add_error("ScatterValidator: pane %d: pane config is null" % p_pane_index)
-			return
 
 		var scatter_config := pane_cfg.get_overlay_config(PaneOverlayType.SCATTER) as TauScatterConfig
 		if scatter_config == null:

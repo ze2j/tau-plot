@@ -36,9 +36,6 @@ class BarValidator extends RefCounted:
 				return
 
 		var pane_cfg := p_domain_cfg.panes[p_pane_index]
-		if pane_cfg == null:
-			p_result.add_error("BarValidator: pane %d: pane config is null" % p_pane_index)
-			return
 
 		var bar_config := pane_cfg.get_overlay_config(PaneOverlayType.BAR) as TauBarConfig
 		if bar_config == null:

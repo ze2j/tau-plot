@@ -197,9 +197,8 @@ func setup(
 
 				if _bar_config_per_pane[pane_index] == null:
 					var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
-					var bar_cfg := pane_config.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.BAR) as TauBarConfig
-					if bar_cfg != null:
-						_bar_config_per_pane[pane_index] = bar_cfg
+					# BarValidator rejects a bar binding whose pane holds no TauBarConfig.
+					_bar_config_per_pane[pane_index] = pane_config.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.BAR) as TauBarConfig
 
 				if binding.visual_attributes != null:
 					# Type is guaranteed by validation (BarValidator._validate_bar_visuals).
@@ -211,9 +210,8 @@ func setup(
 
 				if _scatter_config_per_pane[pane_index] == null:
 					var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
-					var scatter_cfg := pane_config.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.SCATTER) as TauScatterConfig
-					if scatter_cfg != null:
-						_scatter_config_per_pane[pane_index] = scatter_cfg
+					# ScatterValidator rejects a scatter binding whose pane holds no TauScatterConfig.
+					_scatter_config_per_pane[pane_index] = pane_config.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.SCATTER) as TauScatterConfig
 
 				if binding.visual_attributes != null:
 					# Type is guaranteed by validation (ScatterValidator._validate_scatter_visuals).
@@ -225,9 +223,8 @@ func setup(
 
 				if _line_config_per_pane[pane_index] == null:
 					var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
-					var line_cfg := pane_config.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.LINE) as TauLineConfig
-					if line_cfg != null:
-						_line_config_per_pane[pane_index] = line_cfg
+					# LineValidator rejects a line binding whose pane holds no TauLineConfig.
+					_line_config_per_pane[pane_index] = pane_config.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.LINE) as TauLineConfig
 
 				if binding.visual_attributes != null:
 					# Type is guaranteed by validation (LineValidator._validate_line_visuals).

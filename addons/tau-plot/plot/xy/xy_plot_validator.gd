@@ -155,9 +155,29 @@ class XYPlotValidator extends RefCounted:
 	# Pane configs
 	####################################################################################################
 
+	## Structural checks on the pane list: at least one pane, no null pane, and
+	## at most one overlay of each type per pane. TauPaneConfig resolves an
+	## overlay type to the first matching entry, so a second entry of that type
+	## would be read by nothing and the misconfiguration would go unnoticed.
 	static func _validate_pane_configs(p_xy_config: TauXYConfig, p_result: ValidationResult) -> void:
 		if p_xy_config.panes.is_empty():
 			p_result.add_error("XYPlotValidator: TauXYConfig.panes is empty")
+
+		for pane_index in range(p_xy_config.panes.size()):
+			var pane_cfg: TauPaneConfig = p_xy_config.panes[pane_index]
+			if pane_cfg == null:
+				p_result.add_error("XYPlotValidator: pane %d: pane config is null" % pane_index)
+				continue
+
+			var seen_types := {}
+			for overlay_cfg in pane_cfg.overlays:
+				if overlay_cfg == null:
+					p_result.add_error("XYPlotValidator: pane %d: overlays holds a null entry" % pane_index)
+					continue
+				if overlay_cfg.overlay_type in seen_types:
+					p_result.add_error("XYPlotValidator: pane %d: overlays holds more than one config of overlay_type %d" % [pane_index, int(overlay_cfg.overlay_type)])
+					continue
+				seen_types[overlay_cfg.overlay_type] = true
 
 
 	####################################################################################################
@@ -174,6 +194,7 @@ class XYPlotValidator extends RefCounted:
 		for pane_index in range(p_xy_config.panes.size()):
 			var pane: TauPaneConfig = p_xy_config.panes[pane_index]
 			if pane == null:
+				# Reported by _validate_pane_configs, which runs in the same phase.
 				continue
 			if pane.y_bottom_axis != null:
 				_validate_axis_range_override(pane.y_bottom_axis, "pane %d y_bottom_axis" % pane_index, p_result)
@@ -234,9 +255,6 @@ class XYPlotValidator extends RefCounted:
 				continue
 
 			var pane_cfg: TauPaneConfig = p_xy_config.panes[binding.pane_index]
-			if pane_cfg == null:
-				p_result.add_error("XYPlotValidator: p_series_bindings[%d] (series_id %d) references pane_index %d, but that pane is null" % [i, binding.series_id, binding.pane_index])
-				continue
 
 			# Y axis orthogonal to x axis
 			if not Axis.are_orthogonal(p_xy_config.x_axis_id, binding.y_axis_id):

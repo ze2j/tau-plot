@@ -38,7 +38,7 @@ const VisualCallbacks := preload("res://addons/tau-plot/plot/xy/visual_callbacks
 ################################################################################################
 
 ## Identifies the overlay kind (BAR, SCATTER, etc.).
-## Concrete subclasses set the appropriate default. For lookup purposes only.
+## Concrete subclasses set the appropriate default. For reflection purposes only.
 @export var overlay_type: PaneOverlayType = PaneOverlayType.SCATTER
 
 ## Order the series of the overlay are drawn in, which decides what covers

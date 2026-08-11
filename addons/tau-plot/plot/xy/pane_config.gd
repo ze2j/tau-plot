@@ -82,7 +82,7 @@ func get_y_axis_config(p_axis_id: AxisId) -> TauAxisConfig:
 
 func get_overlay_config(p_overlay_type: PaneOverlayType) -> TauPaneOverlayConfig:
 	for overlay_config in overlays:
-		if overlay_config != null and overlay_config.overlay_type == p_overlay_type:
+		if overlay_config.overlay_type == p_overlay_type:
 			return overlay_config
 	return null
 
