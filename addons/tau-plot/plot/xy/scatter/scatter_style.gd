@@ -26,7 +26,7 @@ enum MarkerShape
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
 #          `apply_overrides_from()`, and, if applicable, in
-#          `has_layout_affecting_change()`.
+#          `has_layout_affecting_change()` and `validate_resolved()`.
 ################################################################################################
 
 ## Marker size in pixels applied when [member marker_sizes_px] is empty.
@@ -298,6 +298,7 @@ func apply_overrides_from(p_user_style: TauScatterStyle) -> void:
 #   1. Start from defaults (a fresh TauScatterStyle instance).
 #   2. Load theme values (non-indexed, then indexed for this pane).
 #   3. Apply user overrides from p_user_style (may be null).
+#   4. Report what the resolved combination cannot draw.
 #
 # The returned instance is a new TauScatterStyle owned by the caller. It is
 # separate from p_user_style, which is never mutated.
@@ -308,7 +309,19 @@ static func resolve(p_control: Control, p_pane_index: int, p_user_style: TauScat
 	resolved.load_from_theme(p_control, p_pane_index)
 	# Layer 3: user overrides.
 	resolved.apply_overrides_from(p_user_style)
+	# Layer 4: report what the resolved combination cannot draw.
+	resolved.validate_resolved()
 	return resolved
+
+
+# Reports the resolved property combinations that cannot be drawn as
+# configured. An enum-typed array holds plain integers at runtime, so a cycle
+# assigned from code can carry a value no shape answers to.
+func validate_resolved() -> void:
+	for i in marker_shapes.size():
+		var shape := marker_shapes[i]
+		if not _is_marker_shape(shape):
+			push_error("TauScatterStyle: marker_shapes[%d] is %d, not a MarkerShape value" % [i, shape])
 
 
 # Returns a copy of this resource carrying the property values and the
@@ -349,14 +362,19 @@ func has_layout_affecting_change(p_other: TauScatterStyle) -> bool:
 	return false
 
 
+# COUNT is the shape count, not a shape, which rules out a plain membership
+# test over MarkerShape.values(). NONE must stay the last member for this to
+# hold.
+static func _is_marker_shape(p_value: int) -> bool:
+	return (p_value >= 0 and p_value < MarkerShape.COUNT) or p_value == MarkerShape.NONE
+
+
 # Theme constants are free-form integers, so a shape key may hold anything.
-# COUNT is the shape count, not a shape, which rules out a plain range check
-# over MarkerShape.values(). NONE must stay the last member for this to hold.
 #
 # An invalid value falls back to CIRCLE rather than skipping the position, so
 # the surrounding scan keeps the index run the theme declared.
 static func _resolve_theme_marker_shape(p_key: StringName, p_value: int) -> MarkerShape:
-	if (p_value >= 0 and p_value < MarkerShape.COUNT) or p_value == MarkerShape.NONE:
+	if _is_marker_shape(p_value):
 		return p_value as MarkerShape
 
 	push_error("TauScatterStyle.load_from_theme(): theme constant '%s' is %d, not a MarkerShape value. Using CIRCLE." % [p_key, p_value])

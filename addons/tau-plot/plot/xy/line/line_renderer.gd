@@ -878,11 +878,12 @@ class LineRenderer extends Control:
 	# Resolved fill checks
 	####################################################################################################
 
-	# Reports the fill settings that cannot be drawn as configured. Each rule
-	# reads fields the theme writes next to fields only the user writes, so it
-	# is decidable on the resolved cycle and nowhere earlier. Every message
-	# names the pane, the series and the position in the cycle the fill was
-	# read from.
+	# Reports the fill settings that cannot be drawn as configured in this pane.
+	# Every rule left here weighs the resolved fill against something outside
+	# it, the x axis type or the overlay mode, so none of them is decidable on
+	# the fill alone. The fill-only rules belong to
+	# TauLineFill.validate_resolved(). Every message names the pane, the series
+	# and the position in the cycle the fill was read from.
 	func _report_fill_issues() -> void:
 		# An empty cycle leaves every series on the built-in defaults, which
 		# paint nothing.
@@ -908,28 +909,20 @@ class LineRenderer extends Control:
 		return "LineRenderer: pane %d: series %d: fills[%d]" % [_pane_index, p_series_id, p_cycle_index]
 
 
-	# Only a STRETCH fill with a non-LINE span reads the CUSTOM window. This
-	# single pass flags the misconfigurations of that window:
-	#   - the fill never reads it, so CUSTOM has no effect and DOMAIN was meant.
-	#     Harmless, the fill draws as authored.
-	#   - zero width, so the reader has no gradient to draw and falls back to
-	#     the texture middle. DOMAIN can collapse the same way on flat data,
-	#     but that is a data shape, not a setting.
-	#   - VALUE_X on a categorical x axis, whose samples sit at category
-	#     centers with no continuous x to place the ends on. DOMAIN spans those
-	#     centers instead.
+	# A CUSTOM window under a VALUE_X span places its ends on the x axis, which
+	# a categorical axis does not offer: its samples sit at category centers
+	# with no continuous x between them. DOMAIN spans those centers instead.
+	#
+	# The rules that read the fill alone, an unread window and a zero width one,
+	# belong to TauLineFill.validate_resolved().
 	func _report_stretch_range_issues(p_series_id: int, p_cycle_index: int, p_fill: TauLineFill) -> void:
 		if p_fill.stretch_range_policy != TauLineFill.StretchRangePolicy.CUSTOM:
 			return
 
-		if p_fill.texture_mode != TauLineFill.FillTextureMode.STRETCH or p_fill.stretch_span == TauLineFill.FillStretchSpan.LINE:
-			push_warning("%s: CUSTOM stretch_range_policy is set but this fill never reads it, use DOMAIN or give the fill a VALUE_X, VALUE_Y or MAGNITUDE span" % _fill_issue_prefix(p_series_id, p_cycle_index))
+		if p_fill.texture_mode != TauLineFill.FillTextureMode.STRETCH or p_fill.stretch_span != TauLineFill.FillStretchSpan.VALUE_X:
 			return
 
-		if p_fill.stretch_range.x == p_fill.stretch_range.y:
-			push_error("%s: CUSTOM stretch_range is zero width (stretch_range.x == stretch_range.y), no gradient to draw" % _fill_issue_prefix(p_series_id, p_cycle_index))
-
-		if _get_x_axis_config().type == TauAxisConfig.Type.CATEGORICAL and p_fill.stretch_span == TauLineFill.FillStretchSpan.VALUE_X:
+		if _get_x_axis_config().type == TauAxisConfig.Type.CATEGORICAL:
 			push_error("%s: CUSTOM stretch_range is not supported on a categorical x axis with VALUE_X span, use DOMAIN policy" % _fill_issue_prefix(p_series_id, p_cycle_index))
 
 

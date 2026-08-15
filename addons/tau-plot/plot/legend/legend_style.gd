@@ -15,7 +15,7 @@ class_name TauLegendStyle extends TauStyle
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
 #          `apply_overrides_from()`, and, if applicable, in
-#          `has_layout_affecting_change()`.
+#          `has_layout_affecting_change()` and `validate_resolved()`.
 ################################################################################################
 
 
@@ -181,6 +181,7 @@ func apply_overrides_from(p_user_style: TauLegendStyle) -> void:
 #   1. Start from defaults (a fresh TauLegendStyle instance).
 #   2. Load theme values from the control.
 #   3. Apply user overrides from p_user_style (may be null).
+#   4. Report what the resolved combination cannot draw.
 #
 # The returned instance is a new TauLegendStyle owned by the caller. It is
 # separate from p_user_style, which is never mutated.
@@ -191,7 +192,15 @@ static func resolve(p_control: Control, p_user_style: TauLegendStyle) -> TauLege
 	resolved.load_from_theme(p_control)
 	# Layer 3: user overrides.
 	resolved.apply_overrides_from(p_user_style)
+	# Layer 4: report what the resolved combination cannot draw.
+	resolved.validate_resolved()
 	return resolved
+
+
+# Nothing spans two properties here. Every property stands on its own and its
+# range is enforced on assignment.
+func validate_resolved() -> void:
+	pass
 
 
 # Returns a copy of this resource carrying the property values and the

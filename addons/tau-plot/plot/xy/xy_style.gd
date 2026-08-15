@@ -16,7 +16,7 @@ class_name TauXYStyle extends TauStyle
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
 #          `apply_overrides_from()`, and, if applicable, in
-#          `has_layout_affecting_change()`.
+#          `has_layout_affecting_change()` and `validate_resolved()`.
 ################################################################################################
 
 ## Color of the axis lines and of the tick marks on every axis.
@@ -324,6 +324,7 @@ func apply_overrides_from(p_user_style: TauXYStyle) -> void:
 #   1. Start from defaults (a fresh TauXYStyle instance).
 #   2. Load theme values (TauXYStyle is plot-wide, no pane indexing).
 #   3. Apply user overrides from p_user_style (may be null).
+#   4. Report what the resolved combination cannot draw.
 #
 # The returned instance is a new TauXYStyle owned by the caller. It is
 # separate from p_user_style, which is never mutated.
@@ -334,7 +335,17 @@ static func resolve(p_control: Control, p_user_style: TauXYStyle) -> TauXYStyle:
 	resolved.load_from_theme(p_control)
 	# Layer 3: user overrides.
 	resolved.apply_overrides_from(p_user_style)
+	# Layer 4: report what the resolved combination cannot draw.
+	resolved.validate_resolved()
 	return resolved
+
+
+# Reports the resolved property combinations that cannot be drawn as
+# configured. An empty cycle is legal, but it is also the one way every series
+# ends up sharing a color with no way to tell them apart.
+func validate_resolved() -> void:
+	if series_colors.is_empty():
+		push_warning("TauXYStyle: series_colors is empty, every series is drawn in DEFAULT_SERIES_COLOR")
 
 
 # Returns a copy of this resource carrying the property values and the

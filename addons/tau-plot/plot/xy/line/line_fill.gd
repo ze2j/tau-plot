@@ -24,8 +24,8 @@
 class_name TauLineFill extends TauStyle
 
 ################################################################################################
-# WARNING: Any new member added to this class must be reflected in `is_equal_to()` and
-#          `apply_overrides_from()`.
+# WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
+#          `apply_overrides_from()`, and, if applicable, in `validate_resolved()`.
 ################################################################################################
 
 ## Which area around the line is filled.
@@ -266,6 +266,23 @@ func apply_overrides_from(p_user_fill: TauLineFill) -> void:
 		tile_rotation_deg = p_user_fill.tile_rotation_deg
 	if p_user_fill.is_overridden(&"tile_offset_px"):
 		tile_offset_px = p_user_fill.tile_offset_px
+
+
+# Reports the resolved field combinations that cannot be drawn as configured.
+# Each rule reads this fill alone, so it holds wherever the fill ends up in the
+# cycle. Nothing here stops the fill from being drawn.
+func validate_resolved() -> void:
+	if stretch_range_policy == StretchRangePolicy.CUSTOM:
+		if texture_mode != FillTextureMode.STRETCH or stretch_span == FillStretchSpan.LINE:
+			push_warning("TauLineFill: CUSTOM stretch_range_policy is set but this fill never reads it, use DOMAIN or give the fill a VALUE_X, VALUE_Y or MAGNITUDE span")
+		elif stretch_range.x == stretch_range.y:
+			push_error("TauLineFill: CUSTOM stretch_range is zero width (stretch_range.x == stretch_range.y), no gradient to draw")
+
+	if texture_mode == FillTextureMode.TILE and texture != null and tile_scale <= 0.0:
+		push_warning("TauLineFill: tile_scale is %s, the tiled texture is not painted" % tile_scale)
+
+	if fill_mode != FillMode.NONE and texture == null and color == NO_COLOR and alpha == 0.0:
+		push_warning("TauLineFill: an area is filled but alpha is 0, the fill is invisible")
 
 
 # Returns a copy of this fill carrying the field values and the override

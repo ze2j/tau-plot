@@ -29,7 +29,7 @@ class_name TauLineStyle extends TauStyle
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
 #          `apply_overrides_from()`, and, if applicable, in
-#          `has_layout_affecting_change()`.
+#          `has_layout_affecting_change()` and `validate_resolved()`.
 ################################################################################################
 
 ## Per-series cycle of line widths in pixels in the normal state. See
@@ -499,14 +499,48 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 #   1. Start from defaults (a fresh TauLineStyle instance).
 #   2. Load theme values (non-indexed, then indexed for this pane).
 #   3. Apply user overrides from p_user_style (may be null).
+#   4. Report what the resolved combination cannot draw.
 #
 # The returned instance is a new TauLineStyle owned by the caller.
 # p_user_style is never mutated.
 static func resolve(p_control: Control, p_pane_index: int, p_user_style: TauLineStyle) -> TauLineStyle:
+	# Layer 1: defaults.
 	var resolved := TauLineStyle.new()
+	# Layer 2: theme values.
 	resolved.load_from_theme(p_control, p_pane_index)
+	# Layer 3: user overrides.
 	resolved.apply_overrides_from(p_user_style)
+	# Layer 4: report what the resolved combination cannot draw.
+	resolved.validate_resolved()
 	return resolved
+
+
+# Reports the resolved property combinations that cannot be drawn as
+# configured, and carries the pass into the fill cycle, which has no resolve()
+# of its own. A resolved cycle holds a fill at every position, since
+# _merge_fills() rebuilds them all, so the null entries the user may write are
+# already gone.
+func validate_resolved() -> void:
+	for fill in fills:
+		fill.validate_resolved()
+
+	if _paints_nothing():
+		push_warning("TauLineStyle: every line width is 0 and no series is filled, the overlay paints nothing")
+
+
+# True when no series has a line to stroke nor an area to fill. An empty
+# line_widths_px falls back to a non-zero width, and an empty fills falls back
+# to a NONE fill, so neither empty cycle can blank the overlay on its own.
+func _paints_nothing() -> bool:
+	if line_widths_px.is_empty():
+		return false
+	for width_px in line_widths_px:
+		if width_px > 0.0:
+			return false
+	for fill in fills:
+		if fill.fill_mode != TauLineFill.FillMode.NONE:
+			return false
+	return true
 
 
 # Returns a copy of this resource carrying the property values and the

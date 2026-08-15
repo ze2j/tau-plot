@@ -51,6 +51,13 @@
 ## entry by entry as it is stored. An entry changed in place afterwards keeps
 ## what it was given, the same way such a change leaves the property unmarked.
 ##
+## [b]Reported problems[/b]
+##
+## A range covers one property. A combination of resolved values that cannot be
+## drawn, such as a fill left with nothing to paint, is reported as a warning or
+## an error once the three layers have been applied, so it is raised once per
+## plot build rather than once per frame.
+##
 ## [b]Cycles[/b]
 ##
 ## Some properties are arrays holding one entry per series, such as
@@ -155,6 +162,13 @@ static func _floored_ints(p_values: Array[int], p_min: int) -> Array[int]:
 	for i in p_values.size():
 		result[i] = maxi(p_values[i], p_min)
 	return result
+
+
+# Reports the resolved property combinations that cannot be drawn as
+# configured. Ranges are enforced on assignment, so what is left here spans
+# several properties. Called on the resolved instance at the end of resolve(),
+# never on the user resource, whose properties are still half unset.
+@abstract func validate_resolved() -> void
 
 
 # Returns true when p_property has been assigned on this resource, whatever the

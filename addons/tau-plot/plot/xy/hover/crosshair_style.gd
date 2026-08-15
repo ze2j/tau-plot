@@ -10,7 +10,7 @@ class_name TauCrosshairStyle extends TauStyle
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
-#          `apply_overrides_from()`.
+#          `apply_overrides_from()`, and, if applicable, in `validate_resolved()`.
 ################################################################################################
 
 ## Color of the crosshair guide lines.
@@ -71,7 +71,15 @@ static func resolve(p_control: Control, p_user_style: TauCrosshairStyle) -> TauC
 	resolved.load_from_theme(p_control)
 	# Layer 3: user overrides.
 	resolved.apply_overrides_from(p_user_style)
+	# Layer 4: report what the resolved combination cannot draw.
+	resolved.validate_resolved()
 	return resolved
+
+
+# Nothing spans two properties here. Every property stands on its own and its
+# range is enforced on assignment.
+func validate_resolved() -> void:
+	pass
 
 
 func is_equal_to(p_other: TauStyle) -> bool:

@@ -14,7 +14,7 @@ class_name TauPaneStyle extends TauStyle
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`,
 #          `apply_overrides_from()`, and, if applicable, in
-#          `has_layout_affecting_change()`.
+#          `has_layout_affecting_change()` and `validate_resolved()`.
 ################################################################################################
 
 
@@ -220,6 +220,7 @@ func apply_overrides_from(p_user_style: TauPaneStyle) -> void:
 #   1. Start from defaults (a fresh TauPaneStyle instance).
 #   2. Load theme values (non-indexed, then indexed for this pane).
 #   3. Apply user overrides from p_user_style (may be null).
+#   4. Report what the resolved combination cannot draw.
 #
 # The returned instance is a new TauPaneStyle owned by the caller. It is
 # separate from p_user_style, which is never mutated.
@@ -230,7 +231,16 @@ static func resolve(p_control: Control, p_pane_index: int, p_user_style: TauPane
 	resolved.load_from_theme(p_control, p_pane_index)
 	# Layer 3: user overrides.
 	resolved.apply_overrides_from(p_user_style)
+	# Layer 4: report what the resolved combination cannot draw.
+	resolved.validate_resolved()
 	return resolved
+
+
+# Nothing spans two properties here. Every property stands on its own and its
+# range is enforced on assignment, a zero thickness included: a hidden grid line
+# is a setting, not a misconfiguration.
+func validate_resolved() -> void:
+	pass
 
 
 # Returns a copy of this resource carrying the property values and the
