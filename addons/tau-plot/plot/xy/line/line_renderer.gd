@@ -677,12 +677,11 @@ class LineRenderer extends Control:
 		# order, so real_polyline_indices stay valid.
 		polyline = _layout.map_points_to_screen(polyline)
 
-		var dash_px: int = max(p_dash_px, 0)
 		var slice_bounds := _resolve_hover_slice_bounds(real_polyline_indices, p_real_dataset_indices, p_series_id)
 
 		if slice_bounds.is_empty():
 			# No hover emphasis: draw the entire polyline in a single call.
-			_draw_polyline_segment(polyline, polyline_colors, 0, polyline.size() - 1, p_width_px, dash_px, 0.0)
+			_draw_polyline_segment(polyline, polyline_colors, 0, polyline.size() - 1, p_width_px, p_dash_px, 0.0)
 			return
 
 		var slice_start: int = slice_bounds[0]
@@ -691,17 +690,17 @@ class LineRenderer extends Control:
 
 		# Precompute cumulative arc length so each part inherits a starting
 		# phase that keeps the dash pattern continuous across the slices.
-		# When dash_px is 0 the offsets are still computed but ignored by the
+		# When p_dash_px is 0 the offsets are still computed but ignored by the
 		# solid path.
 		var arc_at_slice_start: float = _arc_length_to_index(polyline, slice_start)
 		var arc_at_slice_end: float = arc_at_slice_start + _arc_length_between(polyline, slice_start, slice_end)
 
 		# Part A: from the polyline start up to and including slice_start.
-		_draw_polyline_segment(polyline, polyline_colors, 0, slice_start, p_width_px, dash_px, 0.0)
+		_draw_polyline_segment(polyline, polyline_colors, 0, slice_start, p_width_px, p_dash_px, 0.0)
 		# Part B: the two adjacent portions, emphasized.
-		_draw_polyline_segment(polyline, polyline_colors, slice_start, slice_end, p_hover_width_px, dash_px, arc_at_slice_start)
+		_draw_polyline_segment(polyline, polyline_colors, slice_start, slice_end, p_hover_width_px, p_dash_px, arc_at_slice_start)
 		# Part C: from slice_end to the polyline end.
-		_draw_polyline_segment(polyline, polyline_colors, slice_end, last, p_width_px, dash_px, arc_at_slice_end)
+		_draw_polyline_segment(polyline, polyline_colors, slice_end, last, p_width_px, p_dash_px, arc_at_slice_end)
 
 
 	# Resolves the polyline-vertex bounds of the hover-emphasized slice for

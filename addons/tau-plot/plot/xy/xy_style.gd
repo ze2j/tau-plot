@@ -37,7 +37,7 @@ class_name TauXYStyle extends TauStyle
 ## type variation.
 @export var label_font_size: int = 16:
 	set(value):
-		label_font_size = value
+		label_font_size = maxi(value, 1)
 		_overridden[&"label_font_size"] = true
 
 ## Color of the tick labels.
@@ -53,26 +53,26 @@ class_name TauXYStyle extends TauStyle
 ## reads the same whether the x axis sits on a horizontal or a vertical edge.
 @export var x_major_tick_length_px: int = 4:
 	set(value):
-		x_major_tick_length_px = value
+		x_major_tick_length_px = maxi(value, 0)
 		_overridden[&"x_major_tick_length_px"] = true
 
 ## Stroke width in pixels of a major tick on the x axis.
 @export var x_major_tick_thickness_px: int = 1:
 	set(value):
-		x_major_tick_thickness_px = value
+		x_major_tick_thickness_px = maxi(value, 0)
 		_overridden[&"x_major_tick_thickness_px"] = true
 
 ## How far a major tick on a y axis protrudes from the axis line, in pixels,
 ## measured perpendicular to that line. Applies to every y axis of every pane.
 @export var y_major_tick_length_px: int = 4:
 	set(value):
-		y_major_tick_length_px = value
+		y_major_tick_length_px = maxi(value, 0)
 		_overridden[&"y_major_tick_length_px"] = true
 
 ## Stroke width in pixels of a major tick on a y axis.
 @export var y_major_tick_thickness_px: int = 1:
 	set(value):
-		y_major_tick_thickness_px = value
+		y_major_tick_thickness_px = maxi(value, 0)
 		_overridden[&"y_major_tick_thickness_px"] = true
 
 ## Length of a minor tick as a fraction of the major tick length of the same
@@ -80,66 +80,66 @@ class_name TauXYStyle extends TauStyle
 ## values outside it are clamped.
 @export var minor_tick_length_ratio: float = 0.5:
 	set(value):
-		minor_tick_length_ratio = value
+		minor_tick_length_ratio = clampf(value, 0.0, 1.0)
 		_overridden[&"minor_tick_length_ratio"] = true
 
 ## Stroke width in pixels of a minor tick on the x axis.
 @export var x_minor_tick_thickness_px: int = 1:
 	set(value):
-		x_minor_tick_thickness_px = value
+		x_minor_tick_thickness_px = maxi(value, 0)
 		_overridden[&"x_minor_tick_thickness_px"] = true
 
 ## Stroke width in pixels of a minor tick on a y axis.
 @export var y_minor_tick_thickness_px: int = 1:
 	set(value):
-		y_minor_tick_thickness_px = value
+		y_minor_tick_thickness_px = maxi(value, 0)
 		_overridden[&"y_minor_tick_thickness_px"] = true
 
 ## Gap in pixels between the x axis tick marks and the x tick labels.
 @export var x_tick_x_label_gap_px: int = 4:
 	set(value):
-		x_tick_x_label_gap_px = value
+		x_tick_x_label_gap_px = maxi(value, 0)
 		_overridden[&"x_tick_x_label_gap_px"] = true
 
 ## Gap in pixels between the y axis tick marks and the y tick labels.
 @export var y_tick_y_label_gap_px: int = 4:
 	set(value):
-		y_tick_y_label_gap_px = value
+		y_tick_y_label_gap_px = maxi(value, 0)
 		_overridden[&"y_tick_y_label_gap_px"] = true
 
 ## Padding in pixels between the left edge of the plot control and the panes,
 ## outside the space the axes reserve for their ticks and labels.
 @export var padding_left_px: int = 4:
 	set(value):
-		padding_left_px = value
+		padding_left_px = maxi(value, 0)
 		_overridden[&"padding_left_px"] = true
 
 ## Padding in pixels between the right edge of the plot control and the panes,
 ## outside the space the axes reserve for their ticks and labels.
 @export var padding_right_px: int = 4:
 	set(value):
-		padding_right_px = value
+		padding_right_px = maxi(value, 0)
 		_overridden[&"padding_right_px"] = true
 
 ## Padding in pixels between the top edge of the plot control and the panes,
 ## outside the space the axes reserve for their ticks and labels.
 @export var padding_top_px: int = 4:
 	set(value):
-		padding_top_px = value
+		padding_top_px = maxi(value, 0)
 		_overridden[&"padding_top_px"] = true
 
 ## Padding in pixels between the bottom edge of the plot control and the panes,
 ## outside the space the axes reserve for their ticks and labels.
 @export var padding_bottom_px: int = 4:
 	set(value):
-		padding_bottom_px = value
+		padding_bottom_px = maxi(value, 0)
 		_overridden[&"padding_bottom_px"] = true
 
 ## Gap in pixels between two neighbouring panes, and between the axis titles
 ## that belong to them.
 @export var pane_gap_px: int = 4:
 	set(value):
-		pane_gap_px = value
+		pane_gap_px = maxi(value, 0)
 		_overridden[&"pane_gap_px"] = true
 
 ## Color applied when [member series_colors] is empty.
@@ -159,7 +159,7 @@ const DEFAULT_SERIES_COLOR := Color(0.306, 0.475, 0.655)
 	Color(0.929, 0.888, 0.282),
 ]:
 	set(value):
-		series_colors = value
+		series_colors = value.duplicate()
 		_overridden[&"series_colors"] = true
 
 ## Opacity applied when [member series_alphas] is empty.
@@ -170,7 +170,7 @@ const DEFAULT_SERIES_ALPHA := 1.0
 ## is treated as all series fully opaque.
 @export var series_alphas: Array[float] = [DEFAULT_SERIES_ALPHA]:
 	set(value):
-		series_alphas = value
+		series_alphas = _clamped_floats(value, 0.0, 1.0)
 		_overridden[&"series_alphas"] = true
 
 
@@ -227,7 +227,7 @@ func load_from_theme(p_control: Control) -> void:
 	# because Godot theme constants only support integers.
 	if p_control.has_theme_constant(&"xy_minor_tick_length_ratio_percent"):
 		var ratio_percent := p_control.get_theme_constant(&"xy_minor_tick_length_ratio_percent")
-		minor_tick_length_ratio = clampf(float(ratio_percent) / 100.0, 0.0, 1.0)
+		minor_tick_length_ratio = float(ratio_percent) / 100.0
 	if p_control.has_theme_constant(&"xy_x_minor_tick_thickness"):
 		x_minor_tick_thickness_px = p_control.get_theme_constant(&"xy_x_minor_tick_thickness")
 	if p_control.has_theme_constant(&"xy_y_minor_tick_thickness"):
@@ -258,7 +258,7 @@ func load_from_theme(p_control: Control) -> void:
 		var key := "series_alpha_percent_%d" % alpha_index
 		if not p_control.has_theme_constant(key):
 			break
-		theme_series_alphas.append(clampf(float(p_control.get_theme_constant(key)) / 100.0, 0.0, 1.0))
+		theme_series_alphas.append(float(p_control.get_theme_constant(key)) / 100.0)
 		alpha_index += 1
 	if not theme_series_alphas.is_empty():
 		series_alphas = theme_series_alphas
@@ -314,10 +314,10 @@ func apply_overrides_from(p_user_style: TauXYStyle) -> void:
 		pane_gap_px = p_user_style.pane_gap_px
 
 	if p_user_style.is_overridden(&"series_alphas"):
-		series_alphas = p_user_style.series_alphas.duplicate()
+		series_alphas = p_user_style.series_alphas
 
 	if p_user_style.is_overridden(&"series_colors"):
-		series_colors = p_user_style.series_colors.duplicate()
+		series_colors = p_user_style.series_colors
 
 
 # Produces a fully resolved TauXYStyle by applying all three cascade layers:
@@ -449,6 +449,6 @@ func get_series_color(p_series_index: int) -> Color:
 func get_series_alpha(p_series_index: int) -> float:
 	if series_alphas.is_empty():
 		return DEFAULT_SERIES_ALPHA
-	return clampf(series_alphas[p_series_index % series_alphas.size()], 0.0, 1.0)
+	return series_alphas[p_series_index % series_alphas.size()]
 
 #endregion

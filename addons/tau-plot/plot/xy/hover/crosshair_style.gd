@@ -23,7 +23,7 @@ class_name TauCrosshairStyle extends TauStyle
 ## clamped to 1.
 @export var thickness_px: int = 1:
 	set(value):
-		thickness_px = value
+		thickness_px = maxi(value, 1)
 		_overridden[&"thickness_px"] = true
 
 ## Length in pixels of one dash of the crosshair guide lines, with an equal
@@ -31,7 +31,7 @@ class_name TauCrosshairStyle extends TauStyle
 ## clamped to 0.
 @export var dash_px: int = 4:
 	set(value):
-		dash_px = value
+		dash_px = maxi(value, 0)
 		_overridden[&"dash_px"] = true
 
 
@@ -46,10 +46,10 @@ func load_from_theme(p_control: Control) -> void:
 		color = p_control.get_theme_color(&"crosshair_color")
 
 	if p_control.has_theme_constant(&"crosshair_thickness"):
-		thickness_px = max(p_control.get_theme_constant(&"crosshair_thickness"), 1)
+		thickness_px = p_control.get_theme_constant(&"crosshair_thickness")
 
 	if p_control.has_theme_constant(&"crosshair_dash"):
-		dash_px = max(p_control.get_theme_constant(&"crosshair_dash"), 0)
+		dash_px = p_control.get_theme_constant(&"crosshair_dash")
 
 
 func apply_overrides_from(p_user_style: TauCrosshairStyle) -> void:

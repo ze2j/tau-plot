@@ -57,7 +57,7 @@ class BarGeometry extends RefCounted:
 
 		match _resolved_bar_width_policy:
 			TauBarConfig.BarWidthPolicy.THEME:
-				return max(float(_style.bar_intragroup_gap_px), 0.0)
+				return float(_style.bar_intragroup_gap_px)
 
 			TauBarConfig.BarWidthPolicy.DATA_UNITS:
 				return _compute_group_gap_px_data_units_at_x(x_i)
@@ -80,7 +80,7 @@ class BarGeometry extends RefCounted:
 
 		match _resolved_bar_width_policy:
 			TauBarConfig.BarWidthPolicy.THEME:
-				return max(float(_style.bar_width_px), _MIN_BAR_WIDTH_PX)
+				return float(_style.bar_width_px)
 
 			TauBarConfig.BarWidthPolicy.DATA_UNITS:
 				if _is_log_x_scale():
@@ -129,7 +129,7 @@ class BarGeometry extends RefCounted:
 
 		match _resolved_bar_width_policy:
 			TauBarConfig.BarWidthPolicy.THEME:
-				return max(float(_style.bar_width_px), _MIN_BAR_WIDTH_PX)
+				return float(_style.bar_width_px)
 
 			TauBarConfig.BarWidthPolicy.DATA_UNITS:
 				if _is_log_x_scale():
@@ -183,7 +183,7 @@ class BarGeometry extends RefCounted:
 
 		match _resolved_bar_width_policy:
 			TauBarConfig.BarWidthPolicy.THEME:
-				return max(float(_style.bar_width_px), _MIN_BAR_WIDTH_PX)
+				return float(_style.bar_width_px)
 
 			TauBarConfig.BarWidthPolicy.CATEGORY_WIDTH_FRACTION:
 				var group_span_px := step_px * clampf(_bar_config.category_width_fraction, 0.000001, 1.0)
@@ -238,7 +238,7 @@ class BarGeometry extends RefCounted:
 
 		match _resolved_bar_width_policy:
 			TauBarConfig.BarWidthPolicy.THEME:
-				return max(float(_style.bar_intragroup_gap_px), 0.0)
+				return float(_style.bar_intragroup_gap_px)
 
 			TauBarConfig.BarWidthPolicy.CATEGORY_WIDTH_FRACTION:
 				var step_px := _get_categorical_step_px(p_pane_rect, p_category_count)

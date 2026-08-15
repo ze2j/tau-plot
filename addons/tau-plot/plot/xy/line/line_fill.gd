@@ -115,7 +115,7 @@ const NO_COLOR: Color = Color(0, 0, 0, 0)
 ## from [member texture]. Valid range is [code][0.0, 1.0][/code].
 @export var alpha: float = 0.5:
 	set(value):
-		alpha = value
+		alpha = clampf(value, 0.0, 1.0)
 		_overridden[&"alpha"] = true
 
 
@@ -253,7 +253,7 @@ func apply_overrides_from(p_user_fill: TauLineFill) -> void:
 	if p_user_fill.is_overridden(&"color"):
 		color = p_user_fill.color
 	if p_user_fill.is_overridden(&"alpha"):
-		alpha = clampf(p_user_fill.alpha, 0.0, 1.0)
+		alpha = p_user_fill.alpha
 	if p_user_fill.is_overridden(&"texture"):
 		texture = p_user_fill.texture
 	if p_user_fill.is_overridden(&"texture_mode"):

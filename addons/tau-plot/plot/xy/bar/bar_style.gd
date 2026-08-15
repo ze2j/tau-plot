@@ -23,7 +23,7 @@ class_name TauBarStyle extends TauStyle
 ## and ignore this property. Values below 1 are clamped to 1.
 @export var bar_width_px: int = 64:
 	set(value):
-		bar_width_px = value
+		bar_width_px = maxi(value, 1)
 		_overridden[&"bar_width_px"] = true
 
 ## Gap in pixels between two bars of the same group. Only read under
@@ -32,7 +32,7 @@ class_name TauBarStyle extends TauStyle
 ## series share an x position. Negative values are clamped to 0.
 @export var bar_intragroup_gap_px: int = 0:
 	set(value):
-		bar_intragroup_gap_px = value
+		bar_intragroup_gap_px = maxi(value, 0)
 		_overridden[&"bar_intragroup_gap_px"] = true
 
 ## StyleBox drawn for every bar in the normal state. Only [StyleBoxFlat]

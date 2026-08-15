@@ -42,7 +42,7 @@ class_name TauLineStyle extends TauStyle
 ## a fill paints nothing and answers no hover.
 @export var line_widths_px: Array[float] = [2.0]:
 	set(value):
-		line_widths_px = value
+		line_widths_px = _floored_floats(value, 0.0)
 		_overridden[&"line_widths_px"] = true
 
 ## Per-series cycle of line widths in pixels for the two segments adjacent to
@@ -58,7 +58,7 @@ class_name TauLineStyle extends TauStyle
 ## ignores this property entirely: hovering it never makes a line appear.
 @export var hovered_line_widths_px: Array[float] = [3.0]:
 	set(value):
-		hovered_line_widths_px = value
+		hovered_line_widths_px = _floored_floats(value, 0.0)
 		_overridden[&"hovered_line_widths_px"] = true
 
 ## Per-series dash length cycle, in pixels. See [TauStyle] for how a cycle is
@@ -68,7 +68,7 @@ class_name TauLineStyle extends TauStyle
 ## as all series solid.
 @export var dash_lengths_px: Array[int] = [0]:
 	set(value):
-		dash_lengths_px = value
+		dash_lengths_px = _floored_ints(value, 0)
 		_overridden[&"dash_lengths_px"] = true
 
 ## Per-series cycle of [TauLineFill]. See [TauStyle] for how a cycle is
@@ -81,7 +81,9 @@ class_name TauLineStyle extends TauStyle
 ## as is, or use a null entry to leave one position to the theme.
 @export var fills: Array[TauLineFill] = []:
 	set(value):
-		fills = value
+		# The copy is of the cycle, not of the entries: a TauLineFill assigned
+		# here stays the caller's until _merge_fills() rebuilds it.
+		fills = value.duplicate()
 		# Not read by the cascade: _merge_fills() runs unconditionally. The flag
 		# only feeds is_equal_to(), so a user first assigning fills registers as
 		# a change.
@@ -103,13 +105,11 @@ static var _SHARED_DEFAULT_FILL: TauLineFill = null
 
 # Returns the resolved line width in pixels for the given series index.
 #
-# An empty line_widths_px returns 2.0. The result is clamped to be
-# non-negative.
+# An empty line_widths_px returns 2.0.
 func get_series_width_px(p_series_index: int) -> float:
 	if line_widths_px.is_empty():
 		return 2.0
-	var entry: float = line_widths_px[p_series_index % line_widths_px.size()]
-	return max(entry, 0.0)
+	return line_widths_px[p_series_index % line_widths_px.size()]
 
 
 # Returns the resolved hovered line width in pixels for the given series
@@ -120,16 +120,14 @@ func get_series_width_px(p_series_index: int) -> float:
 func get_series_hovered_width_px(p_series_index: int) -> float:
 	if hovered_line_widths_px.is_empty():
 		return 0.0
-	var entry: float = hovered_line_widths_px[p_series_index % hovered_line_widths_px.size()]
-	return max(entry, 0.0)
+	return hovered_line_widths_px[p_series_index % hovered_line_widths_px.size()]
 
 
 # Returns the resolved dash length in pixels for the given series index.
 func get_series_dash_length_px(p_series_index: int) -> int:
 	if dash_lengths_px.is_empty():
 		return 0
-	var entry: int = dash_lengths_px[p_series_index % dash_lengths_px.size()]
-	return max(entry, 0)
+	return dash_lengths_px[p_series_index % dash_lengths_px.size()]
 
 
 # Returns the resolved TauLineFill for the given series index.
@@ -197,12 +195,14 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		var key := "line_width_px_%d" % width_index
 		if not p_control.has_theme_constant(key):
 			break
-		global_widths.append(max(float(p_control.get_theme_constant(key)), 0.0))
+		global_widths.append(float(p_control.get_theme_constant(key)))
 		width_index += 1
 
 	if not global_widths.is_empty():
 		line_widths_px = global_widths
 
+	# Built aside and assigned whole, so the entries pass through the setter.
+	var pane_widths := line_widths_px.duplicate()
 	var pane_width_index := 0
 	while true:
 		var key := "line_width_px_%d_%d" % [pane_width_index, p_pane_index]
@@ -210,10 +210,13 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 			break
 		# Grow the array if the per-pane theme defines more width entries than
 		# the global theme (or the default).
-		if pane_width_index >= line_widths_px.size():
-			line_widths_px.resize(pane_width_index + 1)
-		line_widths_px[pane_width_index] = max(float(p_control.get_theme_constant(key)), 0.0)
+		if pane_width_index >= pane_widths.size():
+			pane_widths.resize(pane_width_index + 1)
+		pane_widths[pane_width_index] = float(p_control.get_theme_constant(key))
 		pane_width_index += 1
+
+	if pane_width_index > 0:
+		line_widths_px = pane_widths
 
 	# hovered_line_widths_px: two-level indexed lookup, same pattern as
 	# line_widths_px.
@@ -223,21 +226,25 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		var key := "line_hovered_width_px_%d" % hovered_index
 		if not p_control.has_theme_constant(key):
 			break
-		global_hovered.append(max(float(p_control.get_theme_constant(key)), 0.0))
+		global_hovered.append(float(p_control.get_theme_constant(key)))
 		hovered_index += 1
 
 	if not global_hovered.is_empty():
 		hovered_line_widths_px = global_hovered
 
+	var pane_hovered_widths := hovered_line_widths_px.duplicate()
 	var pane_hovered_index := 0
 	while true:
 		var key := "line_hovered_width_px_%d_%d" % [pane_hovered_index, p_pane_index]
 		if not p_control.has_theme_constant(key):
 			break
-		if pane_hovered_index >= hovered_line_widths_px.size():
-			hovered_line_widths_px.resize(pane_hovered_index + 1)
-		hovered_line_widths_px[pane_hovered_index] = max(float(p_control.get_theme_constant(key)), 0.0)
+		if pane_hovered_index >= pane_hovered_widths.size():
+			pane_hovered_widths.resize(pane_hovered_index + 1)
+		pane_hovered_widths[pane_hovered_index] = float(p_control.get_theme_constant(key))
 		pane_hovered_index += 1
+
+	if pane_hovered_index > 0:
+		hovered_line_widths_px = pane_hovered_widths
 
 	# dash_lengths_px: two-level indexed lookup, same pattern as
 	# line_widths_px.
@@ -247,21 +254,25 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		var key := "line_dash_px_%d" % dash_index
 		if not p_control.has_theme_constant(key):
 			break
-		global_dashes.append(max(int(p_control.get_theme_constant(key)), 0))
+		global_dashes.append(int(p_control.get_theme_constant(key)))
 		dash_index += 1
 
 	if not global_dashes.is_empty():
 		dash_lengths_px = global_dashes
 
+	var pane_dashes := dash_lengths_px.duplicate()
 	var pane_dash_index := 0
 	while true:
 		var key := "line_dash_px_%d_%d" % [pane_dash_index, p_pane_index]
 		if not p_control.has_theme_constant(key):
 			break
-		if pane_dash_index >= dash_lengths_px.size():
-			dash_lengths_px.resize(pane_dash_index + 1)
-		dash_lengths_px[pane_dash_index] = max(int(p_control.get_theme_constant(key)), 0)
+		if pane_dash_index >= pane_dashes.size():
+			pane_dashes.resize(pane_dash_index + 1)
+		pane_dashes[pane_dash_index] = int(p_control.get_theme_constant(key))
 		pane_dash_index += 1
+
+	if pane_dash_index > 0:
+		dash_lengths_px = pane_dashes
 
 	# fills: every field uses the same two-level indexed lookup as
 	# line_widths_px, applied per series entry of `fills` instead of a
@@ -315,7 +326,7 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		if not p_control.has_theme_constant(key):
 			break
 		_ensure_fills_min_size(alpha_index + 1)
-		fills[alpha_index].alpha = clampf(float(p_control.get_theme_constant(key)) / 100.0, 0.0, 1.0)
+		fills[alpha_index].alpha = float(p_control.get_theme_constant(key)) / 100.0
 		alpha_index += 1
 
 	var pane_alpha_index := 0
@@ -324,7 +335,7 @@ func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 		if not p_control.has_theme_constant(key):
 			break
 		_ensure_fills_min_size(pane_alpha_index + 1)
-		fills[pane_alpha_index].alpha = clampf(float(p_control.get_theme_constant(key)) / 100.0, 0.0, 1.0)
+		fills[pane_alpha_index].alpha = float(p_control.get_theme_constant(key)) / 100.0
 		pane_alpha_index += 1
 
 	# texture
@@ -476,11 +487,11 @@ func apply_overrides_from(p_user_style: TauLineStyle) -> void:
 		return
 
 	if p_user_style.is_overridden(&"line_widths_px"):
-		line_widths_px = p_user_style.line_widths_px.duplicate()
+		line_widths_px = p_user_style.line_widths_px
 	if p_user_style.is_overridden(&"hovered_line_widths_px"):
-		hovered_line_widths_px = p_user_style.hovered_line_widths_px.duplicate()
+		hovered_line_widths_px = p_user_style.hovered_line_widths_px
 	if p_user_style.is_overridden(&"dash_lengths_px"):
-		dash_lengths_px = p_user_style.dash_lengths_px.duplicate()
+		dash_lengths_px = p_user_style.dash_lengths_px
 	fills = _merge_fills(p_user_style.fills)
 
 

@@ -44,7 +44,7 @@ class_name TauTooltipStyle extends TauStyle
 ## type variation.
 @export var font_size: int = 16:
 	set(value):
-		font_size = value
+		font_size = maxi(value, 1)
 		_overridden[&"font_size"] = true
 
 ## Tooltip text color.
@@ -56,7 +56,7 @@ class_name TauTooltipStyle extends TauStyle
 ## Padding inside the tooltip popup (px).
 @export var padding_px: int = 8:
 	set(value):
-		padding_px = value
+		padding_px = maxi(value, 0)
 		_overridden[&"padding_px"] = true
 
 ## Offset from the anchor point (data point or cursor) in pixels.
@@ -68,7 +68,7 @@ class_name TauTooltipStyle extends TauStyle
 ## Maximum tooltip width before text wraps (px). 0 = no limit.
 @export var max_width_px: int = 300:
 	set(value):
-		max_width_px = value
+		max_width_px = maxi(value, 0)
 		_overridden[&"max_width_px"] = true
 
 
@@ -119,7 +119,7 @@ func load_from_theme(p_control: Control) -> void:
 		font_color = p_control.get_theme_color(&"font_color")
 
 	if p_control.has_theme_constant(&"tooltip_padding"):
-		padding_px = max(p_control.get_theme_constant(&"tooltip_padding"), 0)
+		padding_px = p_control.get_theme_constant(&"tooltip_padding")
 
 	var offset := offset_px
 	if p_control.has_theme_constant(&"tooltip_offset_x"):
@@ -129,7 +129,7 @@ func load_from_theme(p_control: Control) -> void:
 	offset_px = offset
 
 	if p_control.has_theme_constant(&"tooltip_max_width"):
-		max_width_px = max(p_control.get_theme_constant(&"tooltip_max_width"), 0)
+		max_width_px = p_control.get_theme_constant(&"tooltip_max_width")
 
 
 func apply_overrides_from(p_user_style: TauTooltipStyle) -> void:

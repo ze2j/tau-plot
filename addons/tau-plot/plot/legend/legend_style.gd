@@ -31,7 +31,7 @@ class_name TauLegendStyle extends TauStyle
 ## type variation.
 @export var font_size: int = 16:
 	set(value):
-		font_size = value
+		font_size = maxi(value, 1)
 		_overridden[&"font_size"] = true
 
 ## Color of the series names.
@@ -45,27 +45,27 @@ class_name TauLegendStyle extends TauStyle
 ## keeps that proportion as this value changes.
 @export var key_size_px: int = 12:
 	set(value):
-		key_size_px = value
+		key_size_px = maxi(value, 1)
 		_overridden[&"key_size_px"] = true
 
 ## Gap in pixels between two keys of the same entry. A series drawn by
 ## several overlays gets one key per overlay, side by side.
 @export var key_gap_px: int = 2:
 	set(value):
-		key_gap_px = value
+		key_gap_px = maxi(value, 0)
 		_overridden[&"key_gap_px"] = true
 
 ## Gap in pixels between the keys of an entry and its series name.
 @export var key_label_gap_px: int = 6:
 	set(value):
-		key_label_gap_px = value
+		key_label_gap_px = maxi(value, 0)
 		_overridden[&"key_label_gap_px"] = true
 
 ## Gap in pixels between two legend entries, along the flow direction and
 ## between wrapped rows or columns alike.
 @export var item_gap_px: int = 8:
 	set(value):
-		item_gap_px = value
+		item_gap_px = maxi(value, 0)
 		_overridden[&"item_gap_px"] = true
 
 ## StyleBox drawn behind the legend. Its content margins set the padding
@@ -84,7 +84,7 @@ class_name TauLegendStyle extends TauStyle
 ## area.
 @export var margin_px: int = 8:
 	set(value):
-		margin_px = value
+		margin_px = maxi(value, 0)
 		_overridden[&"margin_px"] = true
 
 ## Cap in pixels on the legend across its flow direction: the height of a
@@ -92,7 +92,7 @@ class_name TauLegendStyle extends TauStyle
 ## past the cap are reachable by scrolling. [code]0[/code] applies no cap.
 @export var max_size_px: int = 0:
 	set(value):
-		max_size_px = value
+		max_size_px = maxi(value, 0)
 		_overridden[&"max_size_px"] = true
 
 

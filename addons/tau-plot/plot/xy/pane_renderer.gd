@@ -565,7 +565,7 @@ class PaneRenderer extends Control:
 				_draw_label(label, Vector2(x - label_size.x * 0.5, label_y))
 
 		# Minor ticks
-		var minor_tick_length := tick_length * clampf(_xy_style.minor_tick_length_ratio, 0.0, 1.0)
+		var minor_tick_length := tick_length * _xy_style.minor_tick_length_ratio
 		var minor_tick_thickness := float(_xy_style.x_minor_tick_thickness_px) if is_x_axis else float(_xy_style.y_minor_tick_thickness_px)
 		for t in p_ticks.minor_ticks:
 			var x: float = p_map_fn.call(t)
@@ -646,7 +646,7 @@ class PaneRenderer extends Control:
 				_draw_label(label, Vector2(label_x, y - label_size.y * 0.5))
 
 		# Minor ticks
-		var minor_tick_length := tick_length * clampf(_xy_style.minor_tick_length_ratio, 0.0, 1.0)
+		var minor_tick_length := tick_length * _xy_style.minor_tick_length_ratio
 		var minor_tick_thickness := float(_xy_style.x_minor_tick_thickness_px) if is_x_axis else float(_xy_style.y_minor_tick_thickness_px)
 		for t in p_ticks.minor_ticks:
 			var y: float = p_map_fn.call(t)

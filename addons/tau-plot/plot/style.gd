@@ -32,6 +32,10 @@
 ## style.series_colors = [Color.GREEN]      # Marked, this wins.
 ## [/codeblock]
 ##
+## A cycle is stored as a copy of the array assigned to it, so changing that
+## array afterwards leaves the style alone. Reading the property back gives the
+## stored array, which is the one the first line above changes.
+##
 ## [b]Empty values[/b]
 ##
 ## [code]null[/code] and the empty array are values, not a way to defer to the
@@ -39,6 +43,13 @@
 ## it draws is stated on the property: a named default for the properties that
 ## carry a mark of their own, or the value they fall back on for the ones that
 ## sit on top of another. Neither is ever an error, and neither removes the mark.
+##
+## [b]Valid ranges[/b]
+##
+## A property with a valid range clamps into it on assignment, so a value out of
+## range is never observed, whichever layer it comes from. A cycle is clamped
+## entry by entry as it is stored. An entry changed in place afterwards keeps
+## what it was given, the same way such a change leaves the property unmarked.
 ##
 ## [b]Cycles[/b]
 ##
@@ -114,6 +125,36 @@
 # Exported property names assigned at least once, whatever the value. Member
 # initializers bypass the setters, so a fresh instance starts empty.
 var _overridden: Dictionary[StringName, bool] = {}
+
+
+# Returns a copy of p_values with every entry clamped into [p_min, p_max]. A
+# cycle setter with a range on both ends assigns the result, which also gives it
+# the copy every cycle setter stores.
+static func _clamped_floats(p_values: Array[float], p_min: float, p_max: float) -> Array[float]:
+	var result: Array[float] = []
+	result.resize(p_values.size())
+	for i in p_values.size():
+		result[i] = clampf(p_values[i], p_min, p_max)
+	return result
+
+
+# Returns a copy of p_values with every entry raised to p_min. Companion to
+# _clamped_floats() for the cycles bounded on the low end only.
+static func _floored_floats(p_values: Array[float], p_min: float) -> Array[float]:
+	var result: Array[float] = []
+	result.resize(p_values.size())
+	for i in p_values.size():
+		result[i] = maxf(p_values[i], p_min)
+	return result
+
+
+# Returns a copy of p_values with every entry raised to p_min.
+static func _floored_ints(p_values: Array[int], p_min: int) -> Array[int]:
+	var result: Array[int] = []
+	result.resize(p_values.size())
+	for i in p_values.size():
+		result[i] = maxi(p_values[i], p_min)
+	return result
 
 
 # Returns true when p_property has been assigned on this resource, whatever the
