@@ -75,7 +75,6 @@ class ScatterRenderer extends Control:
 	func _init(p_layout: XYLayout,
 				p_dataset: Dataset,
 				p_scatter_config: TauScatterConfig,
-				p_xy_style: TauXYStyle,
 				p_series_assignment: SeriesAxisAssignment,
 				p_pane_index: int = 0,
 				p_visual_attributes: Array[ScatterVisualAttributes] = [],
@@ -88,8 +87,6 @@ class ScatterRenderer extends Control:
 		_pane_index = p_pane_index
 		_visual_attributes = p_visual_attributes
 		_scatter_series_ids = p_scatter_series_ids
-		_scatter_style = p_scatter_config.style
-		_xy_style = p_xy_style
 
 
 	func _ready() -> void:

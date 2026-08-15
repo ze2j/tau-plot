@@ -25,14 +25,16 @@ class_name TauXYStyle extends TauStyle
 		axis_color = value
 		_overridden[&"axis_color"] = true
 
-## Font of the tick labels. Left at [code]null[/code], the plot falls back to
-## the default project font.
+## Font of the tick labels. Left at [code]null[/code], the tick labels are
+## drawn in the font Godot uses by default.
 @export var label_font: Font = null:
 	set(value):
 		label_font = value
 		_overridden[&"label_font"] = true
 
-## Size in pixels of the tick labels.
+## Size in pixels of the tick labels. The theme's default font size applies
+## unless the theme sets [code]font_size[/code] on the [code]TauPlot[/code]
+## type variation.
 @export var label_font_size: int = 16:
 	set(value):
 		label_font_size = value
@@ -176,8 +178,8 @@ const DEFAULT_SERIES_ALPHA := 1.0
 
 # Loads properties from the Godot theme attached to p_control.
 #
-# TauXYStyle is plot-wide, so there is no pane indexing. This method writes
-# every property unconditionally because it is called on the resolved
+# TauXYStyle is plot-wide, so there is no pane indexing. Values are written
+# without consulting the override marks, because this runs on the resolved
 # instance, not on the user-provided resource.
 func load_from_theme(p_control: Control) -> void:
 	if p_control == null:
@@ -187,10 +189,10 @@ func load_from_theme(p_control: Control) -> void:
 	if p_control.has_theme_color(&"xy_axis_color"):
 		axis_color = p_control.get_theme_color(&"xy_axis_color")
 
-	if p_control.has_theme_font(&"font"):
-		label_font = p_control.get_theme_font(&"font")
-	if p_control.has_theme_font_size(&"font_size"):
-		label_font_size = p_control.get_theme_font_size(&"font_size")
+	# Fonts and font sizes always resolve through the theme chain down to the
+	# engine defaults, so neither needs a guard.
+	label_font = p_control.get_theme_font(&"font")
+	label_font_size = p_control.get_theme_font_size(&"font_size")
 	if p_control.has_theme_color(&"font_color"):
 		label_color = p_control.get_theme_color(&"font_color")
 
@@ -427,6 +429,13 @@ func has_layout_affecting_change(p_other: TauXYStyle) -> bool:
 	if pane_gap_px != p_other.pane_gap_px:
 		return true
 	return false
+
+
+# Returns the font the tick labels are drawn with, never null.
+func get_label_font() -> Font:
+	if label_font == null:
+		return ThemeDB.fallback_font
+	return label_font
 
 
 # Returns the resolved color for the given series index.

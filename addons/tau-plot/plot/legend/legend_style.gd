@@ -19,15 +19,17 @@ class_name TauLegendStyle extends TauStyle
 ################################################################################################
 
 
-## Font of the series names. Left at [code]null[/code], the legend falls back
-## to the default project font.
+## Font of the series names. Left at [code]null[/code], the series names are
+## drawn in the font Godot uses by default.
 @export var font: Font = null:
 	set(value):
 		font = value
 		_overridden[&"font"] = true
 
-## Size in pixels of the series names.
-@export var font_size: int = 14:
+## Size in pixels of the series names. The theme's default font size applies
+## unless the theme sets [code]font_size[/code] on the [code]TauLegend[/code]
+## type variation.
+@export var font_size: int = 16:
 	set(value):
 		font_size = value
 		_overridden[&"font_size"] = true
@@ -98,18 +100,18 @@ class_name TauLegendStyle extends TauStyle
 
 # Loads properties from the Godot theme attached to p_control.
 #
-# TauLegendStyle is plot-wide, so there is no pane indexing. This method
-# writes every property unconditionally because it is called on the resolved
-# instance, not on the user-provided resource.
+# TauLegendStyle is plot-wide, so there is no pane indexing. Values are
+# written without consulting the override marks, because this runs on the
+# resolved instance, not on the user-provided resource.
 func load_from_theme(p_control: Control) -> void:
 	if p_control == null:
 		push_error("TauLegendStyle.load_from_theme(): control is null")
 		return
 
-	if p_control.has_theme_font(&"font"):
-		font = p_control.get_theme_font(&"font")
-	if p_control.has_theme_font_size(&"font_size"):
-		font_size = p_control.get_theme_font_size(&"font_size")
+	# Fonts and font sizes always resolve through the theme chain down to the
+	# engine defaults, so neither needs a guard.
+	font = p_control.get_theme_font(&"font")
+	font_size = p_control.get_theme_font_size(&"font_size")
 	if p_control.has_theme_color(&"font_color"):
 		font_color = p_control.get_theme_color(&"font_color")
 
@@ -256,5 +258,12 @@ func has_layout_affecting_change(p_other: TauLegendStyle) -> bool:
 	if max_size_px != p_other.max_size_px:
 		return true
 	return false
+
+
+# Returns the font the series names are drawn with, never null.
+func get_font() -> Font:
+	if font == null:
+		return ThemeDB.fallback_font
+	return font
 
 #endregion

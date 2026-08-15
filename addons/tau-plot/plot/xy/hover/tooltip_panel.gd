@@ -63,8 +63,7 @@ class TooltipPanel extends Control:
 		_margin.add_theme_constant_override(&"margin_bottom", p_padding)
 
 		# Font overrides on the RichTextLabel.
-		if p_font != null:
-			_rich_label.add_theme_font_override(&"normal_font", p_font)
+		_rich_label.add_theme_font_override(&"normal_font", p_font)
 		_rich_label.add_theme_font_size_override(&"normal_font_size", p_font_size)
 		_rich_label.add_theme_font_size_override(&"bold_font_size", p_font_size)
 		_rich_label.add_theme_font_size_override(&"italics_font_size", p_font_size)
@@ -122,7 +121,7 @@ class TooltipPanel extends Control:
 			size = content_min + pad2
 			return
 
-		if _font == null or _rich_label.text.is_empty():
+		if _rich_label.text.is_empty():
 			size = Vector2.ZERO
 			return
 

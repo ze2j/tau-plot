@@ -82,7 +82,6 @@ class BarRenderer extends Control:
 	func _init(p_layout: XYLayout,
 				p_dataset: Dataset,
 				p_bar_config: TauBarConfig,
-				p_xy_style: TauXYStyle,
 				p_series_assignment: SeriesAxisAssignment,
 				p_pane_index: int = 0,
 				p_visual_attributes: Array[BarVisualAttributes] = [],
@@ -95,8 +94,6 @@ class BarRenderer extends Control:
 		_pane_index = p_pane_index
 		_visual_attributes = p_visual_attributes
 		_bar_series_ids = p_bar_series_ids
-		_bar_style = p_bar_config.style
-		_xy_style = p_xy_style
 
 
 	func _ready() -> void:

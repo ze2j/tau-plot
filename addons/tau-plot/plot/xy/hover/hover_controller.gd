@@ -764,7 +764,7 @@ class HoverController extends RefCounted:
 		else:
 			sb = TauTooltipStyle._create_default_style_box()
 
-		p_tooltip.apply_style(sb, style.font, style.font_size,
+		p_tooltip.apply_style(sb, style.get_font(), style.font_size,
 				style.font_color, style.padding_px, style.max_width_px)
 
 

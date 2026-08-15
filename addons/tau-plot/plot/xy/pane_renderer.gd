@@ -21,11 +21,10 @@ class PaneRenderer extends Control:
 	var _hover_active: bool = false
 
 
-	func _init(p_pane_index: int, p_layout: XYLayout, p_xy_style: TauXYStyle) -> void:
+	func _init(p_pane_index: int, p_layout: XYLayout) -> void:
 		theme_type_variation = &"TauPane"
 		_pane_index = p_pane_index
 		_layout = p_layout
-		_xy_style = p_xy_style
 
 
 	func _ready() -> void:
@@ -89,9 +88,6 @@ class PaneRenderer extends Control:
 
 
 	func _draw() -> void:
-		if _xy_style == null or _xy_style.label_font == null:
-			return
-
 		var pane_rect := _layout.get_pane_rect(_pane_index)
 		if pane_rect.size.x <= 0.0 or pane_rect.size.y <= 0.0:
 			return
@@ -428,7 +424,7 @@ class PaneRenderer extends Control:
 	####################################################################################################
 
 	func _measure_label(p_label: String) -> Vector2:
-		return _xy_style.label_font.get_string_size(p_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _xy_style.label_font_size)
+		return _xy_style.get_label_font().get_string_size(p_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _xy_style.label_font_size)
 
 
 	func _decorate_x(p_text: String) -> String:
@@ -457,8 +453,9 @@ class PaneRenderer extends Control:
 
 	func _draw_label(p_text: String, p_pos: Vector2) -> void:
 		# draw_string() uses p_pos as baseline, not top-left.
-		var ascent := _xy_style.label_font.get_ascent(_xy_style.label_font_size)
-		draw_string(_xy_style.label_font, p_pos + Vector2(0.0, ascent), p_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _xy_style.label_font_size, _xy_style.label_color)
+		var label_font := _xy_style.get_label_font()
+		var ascent := label_font.get_ascent(_xy_style.label_font_size)
+		draw_string(label_font, p_pos + Vector2(0.0, ascent), p_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _xy_style.label_font_size, _xy_style.label_color)
 
 
 	####################################################################################################

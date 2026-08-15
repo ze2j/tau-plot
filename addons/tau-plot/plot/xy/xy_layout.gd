@@ -124,14 +124,6 @@ class XYLayout extends RefCounted:
 
 		_x_is_horizontal = Axis.is_horizontal(domain.config.x_axis_id)
 
-		if style == null or style.label_font == null:
-			for i in range(_pane_view_rects.size()):
-				var pl := PaneLayout.new()
-				pl.pane_index = i
-				pl.pane_rect = _pane_view_rects[i] if i < _pane_view_rects.size() else Rect2()
-				pane_layouts.append(pl)
-			return
-
 		var pane_count := domain.get_pane_count()
 		if pane_count == 0:
 			return
@@ -529,7 +521,7 @@ class XYLayout extends RefCounted:
 
 	## Returns the pixel size (width, height) of a label string using the current style font.
 	func _measure_label(p_label: String) -> Vector2:
-		return style.label_font.get_string_size(p_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, style.label_font_size)
+		return style.get_label_font().get_string_size(p_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, style.label_font_size)
 
 
 	## Applies the primary x axis format_tick_label callback to a label string.

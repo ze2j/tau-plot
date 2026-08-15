@@ -177,9 +177,9 @@ func get_series_fill(p_series_index: int) -> TauLineFill:
 #   - tile_offset_px:    line_fill_texture_offset_px_x and
 #     line_fill_texture_offset_px_y (theme constants)
 #
-# Every property is written unconditionally. Properties without a matching
-# theme entry keep their current value, so this method is safe to call on an
-# instance already populated with defaults.
+# Values are written without consulting the override marks, because this runs
+# on the resolved instance, not on the user-provided resource. A property with
+# no matching theme entry keeps the value it already holds.
 #
 # A constant holding a value outside the enum it feeds is reported and
 # replaced by that enum's default, keeping the cycle the length the theme

@@ -319,7 +319,7 @@ func setup(
 		_pane_containers[pane_index] = pane_container
 
 		# Create PaneRenderer for this pane.
-		var pane_renderer := PaneRenderer.new(pane_index, _xy_layout, p_xy_config.style)
+		var pane_renderer := PaneRenderer.new(pane_index, _xy_layout)
 		pane_container.add_child(pane_renderer)
 		pane_renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		_pane_renderers[pane_index] = pane_renderer
@@ -341,7 +341,7 @@ func setup(
 		# Create BarRenderer for this pane if it has bar series
 		if not _bar_series_ids_per_pane[pane_index].is_empty():
 			var bar_renderer := BarRenderer.new(
-				_xy_layout, _dataset, _bar_config_per_pane[pane_index], p_xy_config.style,
+				_xy_layout, _dataset, _bar_config_per_pane[pane_index],
 				_series_assignment,
 				pane_index, bar_va_per_pane[pane_index],
 				_bar_series_ids_per_pane[pane_index])
@@ -359,7 +359,7 @@ func setup(
 		# Create LineRenderer for this pane if it has line series
 		if not _line_series_ids_per_pane[pane_index].is_empty():
 			var line_renderer := LineRenderer.new(
-				_xy_layout, _dataset, _line_config_per_pane[pane_index], p_xy_config.style,
+				_xy_layout, _dataset, _line_config_per_pane[pane_index],
 				_series_assignment,
 				pane_index, line_va_per_pane[pane_index],
 				_line_series_ids_per_pane[pane_index])
@@ -377,7 +377,7 @@ func setup(
 		# Create ScatterRenderer for this pane if it has scatter series
 		if not _scatter_series_ids_per_pane[pane_index].is_empty():
 			var scatter_renderer := ScatterRenderer.new(
-				_xy_layout, _dataset, _scatter_config_per_pane[pane_index], p_xy_config.style,
+				_xy_layout, _dataset, _scatter_config_per_pane[pane_index],
 				_series_assignment,
 				pane_index, scatter_va_per_pane[pane_index],
 				_scatter_series_ids_per_pane[pane_index])

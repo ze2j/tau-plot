@@ -274,8 +274,7 @@ class Legend extends PanelContainer:
 			_label = Label.new()
 			_label.text = _series_info.series_name
 			_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			if _style.font != null:
-				_label.add_theme_font_override(&"font", _style.font)
+			_label.add_theme_font_override(&"font", _style.get_font())
 			_label.add_theme_font_size_override(&"font_size", _style.font_size)
 			_label.add_theme_color_override(&"font_color", _style.font_color)
 			add_child(_label)

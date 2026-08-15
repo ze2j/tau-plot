@@ -142,8 +142,8 @@ func get_series_shape(p_series_index: int) -> MarkerShape:
 #   - hovered_marker_sizes_px: scatter_hovered_marker_size_px
 #   - marker_shapes:           scatter_marker_shape
 #
-# This method writes every property unconditionally because it is called on
-# the resolved instance, not on the user-provided resource.
+# Values are written without consulting the override marks, because this runs
+# on the resolved instance, not on the user-provided resource.
 #
 # A shape constant holding a value outside MarkerShape is reported and
 # replaced by CIRCLE, keeping the cycle the length the theme declared.

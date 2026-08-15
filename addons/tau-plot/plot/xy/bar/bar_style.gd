@@ -142,8 +142,9 @@ static func _create_default_hovered_style_box() -> StyleBoxFlat:
 #
 # For each property, the non-indexed theme constant is fetched first (shared
 # base for all panes), then the indexed constant for p_pane_index overwrites
-# it if present. This method writes every property unconditionally because it
-# is called on the resolved instance, not on the user-provided resource.
+# it if present. Values are written without consulting the override marks,
+# because this runs on the resolved instance, not on the user-provided
+# resource.
 func load_from_theme(p_control: Control, p_pane_index: int) -> void:
 	if p_control == null:
 		push_error("TauBarStyle.load_from_theme(): control is null")

@@ -32,14 +32,17 @@ class_name TauTooltipStyle extends TauStyle
 		pinned_style_box = value
 		_overridden[&"pinned_style_box"] = true
 
-## Tooltip text font. Falls back to TauXYStyle.label_font if null.
+## Font of the tooltip text. Left at [code]null[/code], the text is drawn in
+## the font Godot uses by default.
 @export var font: Font = null:
 	set(value):
 		font = value
 		_overridden[&"font"] = true
 
-## Tooltip text font size.
-@export var font_size: int = 14:
+## Size in pixels of the tooltip text. The theme's default font size applies
+## unless the theme sets [code]font_size[/code] on the [code]TauTooltip[/code]
+## type variation.
+@export var font_size: int = 16:
 	set(value):
 		font_size = value
 		_overridden[&"font_size"] = true
@@ -107,11 +110,10 @@ func load_from_theme(p_control: Control) -> void:
 	if p_control.has_theme_stylebox(&"tooltip_pinned_style_box"):
 		pinned_style_box = p_control.get_theme_stylebox(&"tooltip_pinned_style_box")
 
-	if p_control.has_theme_font(&"font"):
-		font = p_control.get_theme_font(&"font")
-
-	if p_control.has_theme_font_size(&"font_size"):
-		font_size = max(p_control.get_theme_font_size(&"font_size"), 1)
+	# Fonts and font sizes always resolve through the theme chain down to the
+	# engine defaults, so neither needs a guard.
+	font = p_control.get_theme_font(&"font")
+	font_size = p_control.get_theme_font_size(&"font_size")
 
 	if p_control.has_theme_color(&"font_color"):
 		font_color = p_control.get_theme_color(&"font_color")
@@ -189,5 +191,12 @@ func is_equal_to(p_other: TauStyle) -> bool:
 	if font != other.font:
 		return false
 	return true
+
+
+# Returns the font the tooltip text is drawn with, never null.
+func get_font() -> Font:
+	if font == null:
+		return ThemeDB.fallback_font
+	return font
 
 #endregion
