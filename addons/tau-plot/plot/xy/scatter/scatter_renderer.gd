@@ -486,20 +486,23 @@ class ScatterRenderer extends Control:
 				return _geometry_cache.get_marker_size_px_from_theme(global_series_index)
 
 
+	# A negative value is the "no override" sentinel, so it falls through to the
+	# next step. Any other value out of range draws a circle, as it does on the
+	# style, but without a message: this runs once per sample.
 	func _get_marker_shape(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> MarkerShape:
 		# Try per sample marker shape (with VisualAttributes)
 		var buf = _visual_attributes[p_series_index].shape_buffer
 		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
 			var shape_val: int = buf.get_value(p_sample_index)
 			if shape_val >= 0:
-				return shape_val as MarkerShape
+				return TauScatterStyle.resolve_marker_shape(shape_val)
 
 		# Try per sample marker shape (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.shape_callback.is_valid():
 			var shape_val := int(vc.shape_callback.call(_get_global_series_index(p_series_index), p_sample_index, p_x_value, p_y_value))
 			if shape_val >= 0:
-				return shape_val as MarkerShape
+				return TauScatterStyle.resolve_marker_shape(shape_val)
 
 		# Use per series shape (from theme if set, otherwise from style default value)
 		return _scatter_style.get_series_shape(_get_global_series_index(p_series_index))
@@ -736,6 +739,7 @@ class ScatterRenderer extends Control:
 	#   .b = floor(outline_color.b * 255.0) + (shape_type + 0.5) / 16.0
 	#         The integer part encodes blue as a quantized 0-255 value scaled to 0.0-255.0.
 	#         The fractional part encodes shape_type so the shader can recover it.
+	#         It holds 16 slots, which every MarkerShape member fits in.
 	#   .a = outline_width_normalized
 	static func _pack_custom_data(p_outline_color: Color, p_shape: MarkerShape, p_outline_width_norm: float) -> Color:
 		var blue_quantized := floorf(p_outline_color.b * 255.0)

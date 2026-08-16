@@ -9,7 +9,7 @@
 ## Theme type variation: TauScatter
 class_name TauScatterStyle extends TauStyle
 
-## Picture drawn at a sample position. See [member marker_shapes].
+## Shape drawn at a sample position. See [member marker_shapes].
 enum MarkerShape
 {
 	CIRCLE = 0,        ## Filled disc.
@@ -88,6 +88,9 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 ## Per-series cycle of marker shapes. See [TauStyle] for how a cycle is
 ## indexed. An empty array is treated as all series drawn as
 ## [constant MarkerShape.CIRCLE].
+##
+## An entry that answers to no [enum MarkerShape] member is reported and drawn
+## as [constant MarkerShape.CIRCLE].
 @export var marker_shapes: Array[MarkerShape] = [
 	MarkerShape.CIRCLE,
 	MarkerShape.SQUARE,
@@ -125,7 +128,7 @@ func get_series_hovered_size_px(p_series_index: int) -> float:
 func get_series_shape(p_series_index: int) -> MarkerShape:
 	if marker_shapes.is_empty():
 		return MarkerShape.CIRCLE
-	return marker_shapes[p_series_index % marker_shapes.size()]
+	return resolve_marker_shape(marker_shapes[p_series_index % marker_shapes.size()])
 
 
 # Loads properties from the Godot theme attached to p_control.
@@ -316,12 +319,13 @@ static func resolve(p_control: Control, p_pane_index: int, p_user_style: TauScat
 
 # Reports the resolved property combinations that cannot be drawn as
 # configured. An enum-typed array holds plain integers at runtime, so a cycle
-# assigned from code can carry a value no shape answers to.
+# assigned from code can carry a value no shape answers to. The entry is left as
+# it is, resolve_marker_shape() supplies what draws.
 func validate_resolved() -> void:
 	for i in marker_shapes.size():
 		var shape := marker_shapes[i]
 		if not _is_marker_shape(shape):
-			push_error("TauScatterStyle: marker_shapes[%d] is %d, not a MarkerShape value" % [i, shape])
+			push_error("TauScatterStyle: marker_shapes[%d] is %d, not a MarkerShape value. Using CIRCLE." % [i, shape])
 
 
 # Returns a copy of this resource carrying the property values and the
@@ -369,15 +373,23 @@ static func _is_marker_shape(p_value: int) -> bool:
 	return (p_value >= 0 and p_value < MarkerShape.COUNT) or p_value == MarkerShape.NONE
 
 
+# Returns p_value as a MarkerShape, falling back to CIRCLE when it answers to
+# no member. An enum-typed array, a theme constant and a per-sample buffer all
+# hold plain integers, so every path that reads a shape goes through here and
+# every one of them draws the same shape for a value out of range.
+static func resolve_marker_shape(p_value: int) -> MarkerShape:
+	if _is_marker_shape(p_value):
+		return p_value as MarkerShape
+	return MarkerShape.CIRCLE
+
+
 # Theme constants are free-form integers, so a shape key may hold anything.
 #
 # An invalid value falls back to CIRCLE rather than skipping the position, so
 # the surrounding scan keeps the index run the theme declared.
 static func _resolve_theme_marker_shape(p_key: StringName, p_value: int) -> MarkerShape:
-	if _is_marker_shape(p_value):
-		return p_value as MarkerShape
-
-	push_error("TauScatterStyle.load_from_theme(): theme constant '%s' is %d, not a MarkerShape value. Using CIRCLE." % [p_key, p_value])
-	return MarkerShape.CIRCLE
+	if not _is_marker_shape(p_value):
+		push_error("TauScatterStyle.load_from_theme(): theme constant '%s' is %d, not a MarkerShape value. Using CIRCLE." % [p_key, p_value])
+	return resolve_marker_shape(p_value)
 
 #endregion
