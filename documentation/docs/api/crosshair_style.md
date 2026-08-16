@@ -1,56 +1,29 @@
 # TauCrosshairStyle
 
 !!! info ""
-    **Inherits:** `Resource`  
+    **Inherits:** [`TauStyle`](style.md)
 
 Controls the visual appearance of the crosshair guide lines drawn at the hovered position.
 
 ## Description
 
-`TauCrosshairStyle` controls how the crosshair looks: the color, stroke width, and dash length of the lines drawn across a pane at the hovered sample position.
+The crosshair draws up to two guide lines in the hovered pane. The X line crosses the pane at the hovered X position, the Y line at the hovered Y position, and each spans the pane from edge to edge. `TauCrosshairStyle` controls their color, their stroke width, and their dash length.
 
-The crosshair draws up to two lines per pane. An X line runs perpendicular to the X axis at the hovered X position, spanning the full pane extent along the Y direction. A Y line runs perpendicular to the Y axis at the hovered Y position, spanning the full pane extent along the X direction. Which lines appear depends on [`TauHoverConfig.crosshair_mode`](hover_config.md#crosshair_mode), not on `TauCrosshairStyle`.
+Which of the two lines appears comes from [`TauHoverConfig.crosshair_mode`](hover_config.md#crosshair_mode), not from this class. Both lines are drawn alike, so a plot cannot style one differently from the other.
 
-`TauCrosshairStyle` lives on [`TauHoverConfig.crosshair_style`](hover_config.md#crosshair_style). It is created automatically when [`TauHoverConfig`](hover_config.md) is instantiated, so it is never `null`.
-
-Multiple [`TauHoverConfig`](hover_config.md) instances can reference the same `TauCrosshairStyle` resource. Every crosshair that holds a reference picks up any change made to that shared instance.
+`TauCrosshairStyle` lives on [`TauHoverConfig.crosshair_style`](hover_config.md#crosshair_style). It is created with [`TauHoverConfig`](hover_config.md) and is never `null`. Several [`TauHoverConfig`](hover_config.md) instances can share the same instance.
 
 ### Three-layer cascade
 
-Each property's final value is resolved through the following cascade, in order:
+Each property is resolved in three layers: the built-in default, then the value the active Godot theme names, then the value assigned on this instance. A property counts as overridden as soon as it is assigned, whatever the value, and for an array property only assigning a new array counts.
 
-1. **Built-in default**  
-    The final value starts from the built-in default.
-
-2. **Theme value**  
-    If the active Godot theme defines a matching crosshair property, that value replaces the built-in default.
-
-3. **User override**  
-    If the property is explicitly set on the `TauCrosshairStyle` instance, that value overrides both the theme and the built-in default.
-
-In short:
-
-- the last layer that provides a value wins
-- the Godot theme is suited for **project-wide styling**
-- `TauCrosshairStyle` is suited for **per-plot styling**
-
-**Override detection limitation**
-
-A property is considered overridden only when its value differs from the corresponding built-in default constant.
-
-As a result, assigning a property to exactly its built-in default value does **not** force it to override the theme.
-
-Example:
-
-* built-in default `thickness_px` is `1`
-* the theme sets `crosshair_thickness` to `3`
-* setting `style.thickness_px = 1` does **not** override the theme
+See [`TauStyle`](style.md#three-layer-cascade) for the cascade and [`TauStyle`](style.md#theme-keys) for the grammar of the keys listed in [Theming](#theming).
 
 ### Theming
 
-`TauCrosshairStyle` reads theme values from the `TauCrosshair` **theme type variation**. Its base type is `Control`.
+`TauCrosshairStyle` reads its keys from the `TauCrosshair` **theme type variation**, whose base type is `Control`.
 
-A theme resource using `TauCrosshair` must therefore include a base type declaration:
+A theme resource using `TauCrosshair` must include a base type declaration:
 
 ```gdscript
 [resource]
@@ -62,13 +35,25 @@ The following theme entries are used:
 
 | Theme property | Description |
 | --- | --- |
-| `crosshair_color`: `Color` | Maps to [`color`](#color) |
-| `crosshair_thickness`: `int` | Maps to [`thickness_px`](#thickness_px) |
-| `crosshair_dash`: `int` | Maps to [`dash_px`](#dash_px) |
+| `crosshair_color`: `Color` | Maps to [`color`](#color). |
+| `crosshair_thickness`: `int` | Maps to [`thickness_px`](#thickness_px). |
+| `crosshair_dash`: `int` | Maps to [`dash_px`](#dash_px). |
+
+One crosshair is drawn at a time, in the hovered pane, so no key takes a pane index.
 
 ### Side effects
 
-All properties are **visual-only**. Every change triggers a redraw but never triggers layout recomputation.
+All properties are **visual-only**. A change triggers a redraw and never a layout recomputation.
+
+### Example
+
+```gdscript
+var hover := TauHoverConfig.new()
+
+hover.crosshair_mode = TauHoverConfig.CrosshairMode.BOTH
+hover.crosshair_style.color = Color(1, 1, 1, 0.6)
+hover.crosshair_style.dash_px = 0
+```
 
 ## Constructor
 
@@ -78,7 +63,7 @@ All properties are **visual-only**. Every change triggers a redraw but never tri
 TauCrosshairStyle.new() -> TauCrosshairStyle
 ```
 
-Creates a new `TauCrosshairStyle` with all properties set to their built-in defaults. Properties left at their defaults remain theme-overridable.
+Creates a `TauCrosshairStyle` holding the built-in default of every property.
 
 ## Properties
 
@@ -86,7 +71,7 @@ Creates a new `TauCrosshairStyle` with all properties set to their built-in defa
 
 `color`: `Color`
 
-The color used to draw the crosshair lines. Default is `Color(1, 1, 1, 0.4)`.
+Color of the crosshair guide lines. Default is `Color(1, 1, 1, 0.4)`.
 
 ---
 
@@ -94,7 +79,9 @@ The color used to draw the crosshair lines. Default is `Color(1, 1, 1, 0.4)`.
 
 `thickness_px`: `int`
 
-The stroke width in pixels of the crosshair lines. Default is `1`.
+Stroke width in pixels of the crosshair guide lines. Default is `1`.
+
+Values below `1` are raised to `1` on assignment, so the crosshair cannot be hidden this way. Use [`TauHoverConfig.crosshair_mode`](hover_config.md#crosshair_mode) instead.
 
 ---
 
@@ -102,17 +89,19 @@ The stroke width in pixels of the crosshair lines. Default is `1`.
 
 `dash_px`: `int`
 
-The dash length in pixels of the crosshair lines. Default is `4`.
+Length in pixels of one dash of the crosshair guide lines, with an equal gap between dashes. Default is `4`.
 
-A value of `0` produces solid lines. Any positive value switches the lines to dashed rendering with alternating segments of that length.
+`0` draws solid lines. Values below `0` are raised to `0` on assignment.
 
 ## Related Classes
 
-* [`TauPlot`](tau_plot.md) The plot node. Consumes `TauCrosshairStyle` during rendering and theme resolution.
-* [`TauHoverConfig`](hover_config.md) Owns the `TauCrosshairStyle` instance via its [`crosshair_style`](hover_config.md#crosshair_style) property.
-* [`TauXYStyle`](xy_style.md) Sibling style resource for the whole plot.
-* [`TauPaneStyle`](pane_style.md) Sibling style resource for individual panes.
+* [`TauStyle`](style.md) Base class. Defines the cascade, the cycle indexing, and the theme key grammar.
+* [`TauHoverConfig`](hover_config.md) Owns the `TauCrosshairStyle` instance through its [`crosshair_style`](hover_config.md#crosshair_style) property, and decides which guide lines are drawn.
+* [`TauPlot`](tau_plot.md) The plot node. Resolves the cascade and holds the Godot theme the second layer reads.
+* [`TauXYStyle`](xy_style.md) Sibling style resource for the plot as a whole.
+* [`TauPaneStyle`](pane_style.md) Sibling style resource for the contents of one pane.
 * [`TauBarStyle`](bar_style.md) Sibling style resource for bar overlays.
 * [`TauScatterStyle`](scatter_style.md) Sibling style resource for scatter overlays.
+* [`TauLineStyle`](line_style.md) Sibling style resource for line overlays.
 * [`TauLegendStyle`](legend_style.md) Sibling style resource for the legend.
 * [`TauTooltipStyle`](tooltip_style.md) Sibling style resource for the hover tooltip.

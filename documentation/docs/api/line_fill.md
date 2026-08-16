@@ -37,7 +37,7 @@ Whichever of the three applies, the alpha of the result is then multiplied by [`
 
 [`TILE`](#filltexturemode) repeats the texture at its native pixel size, for a motif such as dots or hatching. [`tile_scale`](#tile_scale), [`tile_rotation_deg`](#tile_rotation_deg), and [`tile_offset_px`](#tile_offset_px) control how the tiles are laid out.
 
-[`STRETCH`](#filltexturemode) reads the texture as a color scale instead of a picture. At every point of the painted area the plot measures one value, and that value picks the color of the point somewhere in the texture. What is measured is set by [`stretch_span`](#stretch_span).
+[`STRETCH`](#filltexturemode) reads the texture as a color scale instead of an image. At every point of the painted area the plot measures one value, and that value picks the color of the point somewhere in the texture. What is measured is set by [`stretch_span`](#stretch_span).
 
 Each span measures a different quantity and reads the texture along a different axis:
 
@@ -77,7 +77,7 @@ The following theme entries are used:
 | --- | --- |
 | `line_fill_mode_i`: `int` | Maps to [`fill_mode`](#fill_mode) of entry `i`. The value is a [`FillMode`](#fillmode) member as an integer. Any other integer is an error and the field falls back to [`NONE`](#fillmode). |
 | `line_fill_color_i`: `Color` | Maps to [`color`](#color) of entry `i`. |
-| `line_fill_alpha_percent_i`: `int` | Maps to [`alpha`](#alpha) of entry `i`. Stored as a percentage, resolved as `percent / 100.0`, clamped to `[0.0, 1.0]`. |
+| `line_fill_alpha_percent_i`: `int` | Maps to [`alpha`](#alpha) of entry `i`. Stored as a percentage, resolved as `percent / 100.0`. |
 | `line_fill_texture_i`: `Texture2D` | Maps to [`texture`](#texture) of entry `i`. |
 | `line_fill_texture_mode_i`: `int` | Maps to [`texture_mode`](#texture_mode) of entry `i`. The value is a [`FillTextureMode`](#filltexturemode) member as an integer. Any other integer is an error and the field falls back to [`STRETCH`](#filltexturemode). |
 | `line_fill_texture_stretch_span_i`: `int` | Maps to [`stretch_span`](#stretch_span) of entry `i`. The value is a [`FillStretchSpan`](#fillstretchspan) member as an integer. Any other integer is an error and the field falls back to [`LINE`](#fillstretchspan). |
@@ -112,7 +112,7 @@ line_overlay.style = line_style
 
 1. **A fill needs no curve.** A series whose [`TauLineStyle.line_widths_px`](line_style.md#line_widths_px) entry is `0` draws no line, and the fill is then everything the series paints. The upper edge of the area is the bare boundary of the painted shape.
 
-2. **Field consistency is checked at draw time, not by `plot_xy()`.** A fill whose fields do not go together raises an error or a warning naming the pane, the series, and the cycle index. The fill still draws, with the field that could not be applied left out. The exception is a [`STACKED`](#fillmode) fill in an overlay that does not stack, which is dropped entirely.
+2. **Settings that contradict each other are reported, never rejected.** A fill whose settings do not go together is reported once in the Godot output, as an error or as a warning, and the plot draws what it can: the setting it could not apply is left out. The one exception is a [`STACKED`](#fillmode) fill in an overlay that does not stack, which is dropped.
 
 ## Enums
 
@@ -152,7 +152,7 @@ Selects how [`texture`](#texture) is painted across the area.
 
 ### `FillStretchSpan`
 
-Selects what is measured at each point of the area under a [`STRETCH`](#filltexturemode) texture, and which axis of the texture the measurement is read along. The same gradient gives a different picture from one span to the next. See [How a texture is painted](#how-a-texture-is-painted) for the typical use case of each span.
+Selects what is measured at each point of the area under a [`STRETCH`](#filltexturemode) texture, and which axis of the texture the measurement is read along. The same gradient comes out differently from one span to the next. See [How a texture is painted](#how-a-texture-is-painted) for the typical use case of each span.
 
 | Value | Meaning |
 |---|---|
@@ -213,7 +213,7 @@ Only read when [`stretch_range_policy`](#stretch_range_policy) is [`CUSTOM`](#st
 
 What the two ends mean follows the span that reads them. For [`VALUE_Y`](#fillstretchspan) they are values on the Y axis of the series. For [`VALUE_X`](#fillstretchspan) they are values on the X axis. For [`MAGNITUDE`](#fillstretchspan) they are distances from [`fill_baseline`](#fill_baseline), so both stay at or above zero. A point measuring outside the window takes the color of the nearer end.
 
-Two cases raise an error, see [note 2](#notes): the two ends are equal, which leaves no range to measure against, and [`VALUE_X`](#fillstretchspan) on a [categorical](axis_config.md#type) X axis, which has no continuous X to place the ends on. Both fall back to reading the middle of the texture, so the area comes out in one flat color.
+Two cases raise an error, see [note 2](#notes): the two ends being equal, which leaves no range to measure against, and [`VALUE_X`](#fillstretchspan) on a [categorical](axis_config.md#type) X axis, which has no continuous X to place the ends on. Both fall back to reading the middle of the texture, so the area comes out in one flat color.
 
 ---
 
@@ -233,7 +233,9 @@ Ignored when [`texture`](#texture) holds a texture. The alpha of the resolved co
 
 Multiplier applied to the alpha of the painted area. Default is `0.5`.
 
-Applies whether the paint came from [`color`](#color), from the color of the series, or from [`texture`](#texture). Valid range is `[0.0, 1.0]`, and a value outside it is clamped.
+Applies whether the paint came from [`color`](#color), from the color of the series, or from [`texture`](#texture). Values outside `0.0` to `1.0` are clamped into that range on assignment.
+
+`0.0` on a filled area with no [`texture`](#texture) and no explicit [`color`](#color) paints nothing visible, and the plot raises a warning, see [note 2](#notes).
 
 ---
 
@@ -276,6 +278,8 @@ Ignored when [`texture`](#texture) is `null` or when [`texture_mode`](#texture_m
 Uniform scale applied to the grid of tiles. Default is `1.0`, which puts one tile at the native pixel size of the texture on screen.
 
 Only used when [`texture_mode`](#texture_mode) is [`TILE`](#filltexturemode), and ignored when [`texture`](#texture) is `null`. The tiles stay square whatever the shape of the pane.
+
+`0.0` or below paints no tile at all, and the plot raises a warning, see [note 2](#notes).
 
 ---
 

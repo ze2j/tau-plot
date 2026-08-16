@@ -197,6 +197,7 @@ These rules apply to every sentence on every page. They are organized into three
 16. When a property or parameter is an index, name the space it indexes. Dataset series index, overlay-local series index, logical sample index, pane index, and cycle index are five different things.
 17. When a property holds a resource that must be reassigned rather than mutated in place, say so. An in-place change to a `Font`, a `StyleBox`, or an array is not detected by change tracking.
 18. State the empty-collection behavior of every array property. An empty cycle falls back to a named constant, and that constant is part of the contract.
+19. A hovered-state property states what it applies to in one sentence, on the property itself: which element takes it, and the one case where nothing takes it. How the plot picks that element is documented once, on `hover_config.md`, and nowhere else. Hit ordering and pointer containment are mechanism, and a page that repeats them ages with the hit tester.
 
 ### Prohibitions
 
@@ -436,7 +437,7 @@ Several contracts hold for whole families of classes. Repeating them on every pa
 
 Do not paraphrase these. Do not invent a variant.
 
-Four of them are pinned as copy-ready snippets in [Appendix. Verbatim Snippets](#appendix-verbatim-snippets). The entries below say what each contract is for and where it applies, the appendix holds the text to transcribe.
+Six of them are pinned as copy-ready snippets in [Appendix. Verbatim Snippets](#appendix-verbatim-snippets). The entries below say what each contract is for and where it applies, the appendix holds the text to transcribe.
 
 ### Runtime mutation
 
@@ -451,6 +452,10 @@ Use the plural form ("to every instance it received") on classes the plot receiv
 On every `style` property:
 
 > Never `null`. Modify properties directly on the instance. Any property left unassigned on this instance can still be set by the active Godot theme. Multiple `<OwnerClass>` instances can share the same [`<StyleClass>`](<style_page>.md) resource.
+
+The same contract read from the style side, in the Description of every style page:
+
+> `<StyleClass>` lives on [`<OwnerClass>.<property>`](<owner_page>.md#<property>). It is created with [`<OwnerClass>`](<owner_page>.md) and is never `null`. Several [`<OwnerClass>`](<owner_page>.md) instances can share the same instance.
 
 ### Three-layer cascade
 
@@ -467,6 +472,16 @@ On every style property that is an array of per-series values. Snippet [S2](#s2-
 State the fallback constant by name. Do not write "the built-in default" without saying what it is.
 
 State the clamp where the setter bounds the entries, and drop that clause where it leaves them unbounded.
+
+The first time the page body says cycle, the word links to [`TauStyle`](style.md#cycles). The snippet carries its own link for the property entries that follow.
+
+### Themed font and font size
+
+On every `Font` property and every font size property of a style class. Snippets [S5](#s5-font-property) and [S6](#s6-font-size-property).
+
+The theme layer writes both without consulting the override marks, so the built-in default never draws on its own. Two ways of saying that are wrong and both have shipped. Do not present the built-in default as the value the user gets, and do not write that the theme always sets the property, which stops being true the moment the user assigns one.
+
+State the `null` case on the font property only, where it is reachable, and say what it drops as well as what it lands on. Leaving the property alone takes the themed font, assigning `null` takes the font Godot uses by default. The two coincide until a theme sets `font` on the type variation, so a page that says `null` falls back to the theme is wrong.
 
 ### Buffer error path
 
@@ -568,6 +583,7 @@ Use these terms consistently across all pages. Do not invent synonyms.
 |visual callbacks|Per-sample override functions called at draw time, storing nothing.|
 |stack|The set of samples at one X position accumulated by a stacking overlay.|
 |normalization|The total each stack is scaled to.|
+|pane|One plotting area of an XY plot, holding its own axes and the overlays drawn against them.|
 |hit|One sample reported by hover hit testing, described by a `SampleHit`.|
 |gap|Empty space between two drawn elements, or a break in a line caused by an invalid sample.|
 
@@ -613,6 +629,7 @@ Accuracy:
 Links and language:
 
 - [ ] Every enum value, method, property, signal, and class name in prose is linked to its definition.
+- [ ] The first mention of a cycle in the body links to `style.md#cycles`.
 - [ ] No two headings on the page slugify to the same anchor.
 - [ ] Every class named in the body appears in Related Classes, with the correct link target.
 - [ ] No class or type mentioned on this page is absent from the Public API Inventory.
@@ -844,6 +861,35 @@ Reading an empty buffer, or a logical index below `0` or at or above [`size()`](
 ````
 
 * `<FAILED_READ>` `NO_COLOR` on `color_buffer.md`, `0.0` on `float32_buffer.md` and `float64_buffer.md`, `-1` on `int32_buffer.md`, `""` on `string_buffer.md`. `dataset.md` uses `0.0` for [`get_series_y()`](dataset.md#get_series_y), which inherits this path.
+
+### S5. Font property
+
+Closes the property entry of a `Font` property on a style class, after the sentence stating what the property controls and its default.
+
+````md
+The font comes from the `font` theme property of the `<TYPE_VARIATION>` type variation when the theme sets it, and from the font Godot uses by default otherwise.
+
+A font assigned here replaces the themed one. Assigning `null` is an assignment like any other: it drops the themed font, and <TEXT> drawn in the font Godot uses by default.
+````
+
+* `<TYPE_VARIATION>` The theme type variation of the class, as `TauPlot`, `TauLegend` or `TauTooltip`.
+* `<TEXT>` What the property draws, carrying its own verb so the sentence agrees, as `the tick labels are` or `the tooltip text is`.
+
+The paragraph on mutating a `Font` in place follows this snippet, not the reverse.
+
+### S6. Font size property
+
+Closes the property entry of a font size property on a style class.
+
+````md
+The size comes from the `font_size` theme property of the `<TYPE_VARIATION>` type variation when the theme sets it, and from the theme's own default font size otherwise. In a stock project that default is `16`.
+
+A size assigned here replaces the themed one.
+````
+
+* `<TYPE_VARIATION>` As in [S5](#s5-font-property).
+
+The clamp sentence follows this snippet, worded as writing rule 12 words it.
 
 ### S4. Per-sample override resolution
 

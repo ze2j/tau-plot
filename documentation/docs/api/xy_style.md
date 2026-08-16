@@ -1,52 +1,29 @@
 # TauXYStyle
 
 !!! info ""
-    **Inherits:** `Resource`  
+    **Inherits:** [`TauStyle`](style.md)
 
-Controls the visual appearance the XY plot.
+Controls the visual appearance of an XY plot.
 
 ## Description
 
-`TauXYStyle` controls axis colors, tick dimensions, tick label gaps, plot padding, pane spacing, and the series color palette for an XY plot rendered by `TauPlot`.
+`TauXYStyle` covers everything an XY plot draws outside its panes: the axis lines, the tick marks, the tick labels, the padding around the plot area, and the gap between neighbouring panes. It also owns the palette every overlay reads its per-series color from.
 
-`TauXYStyle` lives on [`TauXYConfig.style`](xy_config.md#style). It is created automatically when `TauXYConfig` is instantiated, so it is never `null`.
+`TauXYStyle` lives on [`TauXYConfig.style`](xy_config.md#style). It is created with [`TauXYConfig`](xy_config.md) and is never `null`. Several [`TauXYConfig`](xy_config.md) instances can share the same instance.
+
+Two properties are [cycles](style.md#cycles), [`series_colors`](#series_colors) and [`series_alphas`](#series_alphas), holding one entry per series. Every overlay reads them: they give a bar and a marker their fill color and a curve its stroke color. The rest of the class is scalar and applies to the whole plot.
 
 ### Three-layer cascade
 
-Each property's final value is resolved through the following cascade, in order:
+Each property is resolved in three layers: the built-in default, then the value the active Godot theme names, then the value assigned on this instance. A property counts as overridden as soon as it is assigned, whatever the value, and for an array property only assigning a new array counts.
 
-1. **Built-in default**  
-    The final value starts from the built-in default.
-
-2. **Theme value**  
-    If the active Godot theme defines a matching property on the `TauPlot` node, that value replaces the built-in default.
-
-3. **User override**  
-    If the property is explicitly set on the `TauXYStyle` instance, that value overrides both the theme and the built-in default.
-
-In short:
-
-- the last layer that provides a value wins
-- the Godot theme is suited for **project-wide styling**
-- `TauXYStyle` is suited for **per-plot styling**
-
-**Override detection limitation**
-
-A property is considered overridden only when its value differs from the corresponding built-in default constant.
-
-As a result, assigning a property to exactly its built-in default value does **not** force it to override the theme.
-
-Example:
-
-* built-in default `label_font_size` is `16`
-* the theme sets `font_size` to `20`
-* setting `style.label_font_size = 16` does **not** override the theme
+See [`TauStyle`](style.md#three-layer-cascade) for the cascade and [`TauStyle`](style.md#theme-keys) for the grammar of the keys listed in [Theming](#theming).
 
 ### Theming
 
-`TauXYStyle` reads theme values from the `TauPlot` **theme type variation**. Its base type is `PanelContainer`.
+`TauXYStyle` reads its keys from the `TauPlot` **theme type variation**, whose base type is `PanelContainer`.
 
-A theme resource using `TauPlot` must therefore include a base type declaration:
+A theme resource using `TauPlot` must include a base type declaration:
 
 ```gdscript
 [resource]
@@ -54,12 +31,12 @@ TauPlot/base_type = &"PanelContainer"
 TauPlot/constants/xy_pane_gap = 8
 ```
 
-The following theme properties are used:
+The following theme entries are used:
 
 | Theme property | Description |
 | --- | --- |
-| `series_color_i`: `Color` | Maps to [`series_colors[i]`](#series_colors) where `i` is the series index. See note [1](#notes). |
-| `series_alpha_percent`: `int` | Maps to [`series_alpha`](#series_alpha). Stored as an integer percentage (0–100), resolved as `percent / 100.0`, clamped to `[0.0, 1.0]`. |
+| `series_color_i`: `Color` | Maps to entry `i` of [`series_colors`](#series_colors). |
+| `series_alpha_percent_i`: `int` | Maps to entry `i` of [`series_alphas`](#series_alphas). Stored as a percentage, resolved as `percent / 100.0`. |
 | `xy_axis_color`: `Color` | Maps to [`axis_color`](#axis_color). |
 | `font`: `Font` | Maps to [`label_font`](#label_font). |
 | `font_size`: `int` | Maps to [`label_font_size`](#label_font_size). |
@@ -68,7 +45,7 @@ The following theme properties are used:
 | `xy_x_major_tick_thickness`: `int` | Maps to [`x_major_tick_thickness_px`](#x_major_tick_thickness_px). |
 | `xy_y_major_tick_length`: `int` | Maps to [`y_major_tick_length_px`](#y_major_tick_length_px). |
 | `xy_y_major_tick_thickness`: `int` | Maps to [`y_major_tick_thickness_px`](#y_major_tick_thickness_px). |
-| `xy_minor_tick_length_ratio_percent`: `int` | Maps to [`minor_tick_length_ratio`](#minor_tick_length_ratio). Stored as an integer percentage (0–100), resolved as `percent / 100.0`, clamped to `[0.0, 1.0]`. |
+| `xy_minor_tick_length_ratio_percent`: `int` | Maps to [`minor_tick_length_ratio`](#minor_tick_length_ratio). Stored as a percentage, resolved as `percent / 100.0`. |
 | `xy_x_minor_tick_thickness`: `int` | Maps to [`x_minor_tick_thickness_px`](#x_minor_tick_thickness_px). |
 | `xy_y_minor_tick_thickness`: `int` | Maps to [`y_minor_tick_thickness_px`](#y_minor_tick_thickness_px). |
 | `xy_x_tick_x_label_gap`: `int` | Maps to [`x_tick_x_label_gap_px`](#x_tick_x_label_gap_px). |
@@ -79,27 +56,28 @@ The following theme properties are used:
 | `xy_padding_bottom`: `int` | Maps to [`padding_bottom_px`](#padding_bottom_px). |
 | `xy_pane_gap`: `int` | Maps to [`pane_gap_px`](#pane_gap_px). |
 
+`TauXYStyle` describes the plot as a whole, so no key takes a pane index. The two cycle keys carry a series index, written `i` in the table.
+
 ### Side effects
 
-Some property changes trigger a full layout recomputation. Others only trigger a redraw.
+**Layout-affecting**, triggering a layout recomputation and a redraw: [`label_font`](#label_font), [`label_font_size`](#label_font_size), [`x_major_tick_length_px`](#x_major_tick_length_px), [`x_major_tick_thickness_px`](#x_major_tick_thickness_px), [`y_major_tick_length_px`](#y_major_tick_length_px), [`y_major_tick_thickness_px`](#y_major_tick_thickness_px), [`x_tick_x_label_gap_px`](#x_tick_x_label_gap_px), [`y_tick_y_label_gap_px`](#y_tick_y_label_gap_px), [`padding_left_px`](#padding_left_px), [`padding_right_px`](#padding_right_px), [`padding_top_px`](#padding_top_px), [`padding_bottom_px`](#padding_bottom_px), [`pane_gap_px`](#pane_gap_px).
 
-**Layout-affecting** (trigger both layout and redraw): [`label_font`](#label_font), [`label_font_size`](#label_font_size), [`x_major_tick_length_px`](#x_major_tick_length_px), [`x_major_tick_thickness_px`](#x_major_tick_thickness_px), [`y_major_tick_length_px`](#y_major_tick_length_px), [`y_major_tick_thickness_px`](#y_major_tick_thickness_px), [`x_tick_x_label_gap_px`](#x_tick_x_label_gap_px), [`y_tick_y_label_gap_px`](#y_tick_y_label_gap_px), [`padding_left_px`](#padding_left_px), [`padding_right_px`](#padding_right_px), [`padding_top_px`](#padding_top_px), [`padding_bottom_px`](#padding_bottom_px), [`pane_gap_px`](#pane_gap_px).
-
-**Visual-only** (trigger redraw only): [`axis_color`](#axis_color), [`series_colors`](#series_colors), [`series_alpha`](#series_alpha), [`label_color`](#label_color), [`x_minor_tick_thickness_px`](#x_minor_tick_thickness_px), [`y_minor_tick_thickness_px`](#y_minor_tick_thickness_px), [`minor_tick_length_ratio`](#minor_tick_length_ratio).
+**Visual-only**, triggering a redraw alone: [`series_colors`](#series_colors), [`series_alphas`](#series_alphas), [`axis_color`](#axis_color), [`label_color`](#label_color), [`minor_tick_length_ratio`](#minor_tick_length_ratio), [`x_minor_tick_thickness_px`](#x_minor_tick_thickness_px), [`y_minor_tick_thickness_px`](#y_minor_tick_thickness_px).
 
 ### Example
 
 ```gdscript
 var config := TauXYConfig.new()
+
 config.style.axis_color = Color(0.8, 0.8, 0.8)
 config.style.pane_gap_px = 8
+
+# Six series come out cyan, orange, green, cyan, orange, green.
 config.style.series_colors = [Color.CYAN, Color.ORANGE, Color.LIME_GREEN]
-config.style.series_alpha = 0.85
+
+# One entry, so every series is drawn at 85 percent opacity.
+config.style.series_alphas = [0.85]
 ```
-
-### Notes
-
-1. **Partial series color palette override from theme.** When the theme defines `series_color_0`, `series_color_1`, ... entries, they are read sequentially starting from index 0 and stopping at the first missing index. Each entry overwrites the palette at the matching position. If the theme defines fewer colors than the built-in palette, the remaining entries keep their built-in values. If the theme defines more, the palette grows to accommodate them. Gaps are not supported: **if `series_color_0` is absent, no theme colors are loaded at all**, even if higher indices exist.
 
 ## Constructor
 
@@ -109,7 +87,7 @@ config.style.series_alpha = 0.85
 TauXYStyle.new() -> TauXYStyle
 ```
 
-Creates a new `TauXYStyle` with all properties set to their built-in defaults. Properties left at their defaults remain theme-overridable.
+Creates a `TauXYStyle` holding the built-in default of every property.
 
 ## Properties
 
@@ -117,19 +95,27 @@ Creates a new `TauXYStyle` with all properties set to their built-in defaults. P
 
 `series_colors`: `Array[Color]`
 
-The ordered color palette assigned to series. Default is an eight-color palette.
+Color of one series. Default is a palette of eight colors opening with `DEFAULT_SERIES_COLOR`.
 
-Series colors are indexed by their series index in the [Dataset](dataset.md). Assigning a non-empty array that differs from the built-in default replaces the palette entirely for that plot.
+Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). An empty array falls back to `DEFAULT_SERIES_COLOR` for every series. See [`TauStyle`](style.md#cycles).
+
+An empty array leaves every series in that one color with no way to tell them apart, so the plot pushes a warning when the resolved cycle is empty.
+
+The alpha channel of an entry is ignored and replaced by the matching entry of [`series_alphas`](#series_alphas).
+
+This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for more information.
 
 ---
 
-### series_alpha
+### series_alphas
 
-`series_alpha`: `float`
+`series_alphas`: `Array[float]`
 
-The alpha value applied to all series colors, overriding their alpha channel. Default is `1.0`.
+Opacity of one series, replacing the alpha channel of its [`series_colors`](#series_colors) entry. Default is `[DEFAULT_SERIES_ALPHA]`, fully opaque.
 
-Valid range is `0.0` (fully transparent) to `1.0` (fully opaque). This value replaces the alpha channel of every series color, ignoring any alpha encoded in the color itself.
+Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries outside `0.0` to `1.0` are clamped into that range as the array is stored. An empty array falls back to `DEFAULT_SERIES_ALPHA` for every series. See [`TauStyle`](style.md#cycles).
+
+This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for more information.
 
 ---
 
@@ -137,7 +123,7 @@ Valid range is `0.0` (fully transparent) to `1.0` (fully opaque). This value rep
 
 `axis_color`: `Color`
 
-The color used to draw axis lines and tick marks. Default is `Color(1, 1, 1, 1)`.
+Color of the axis lines and of the tick marks on every axis. Default is `Color(1, 1, 1, 1)`.
 
 ---
 
@@ -145,9 +131,13 @@ The color used to draw axis lines and tick marks. Default is `Color(1, 1, 1, 1)`
 
 `label_font`: `Font`
 
-The font used to render tick labels on both axes. Default is `null`.
+Font of the tick labels on every axis. Default is `null`.
 
-If `null`, the plot reads the font from the Godot theme entry `font` on the `TauPlot` node. If the theme does not define it either, Godot's built-in default font applies.
+The font comes from the `font` theme property of the `TauPlot` type variation when the theme sets it, and from the font Godot uses by default otherwise.
+
+A font assigned here replaces the themed one. Assigning `null` is an assignment like any other: it drops the themed font, and the tick labels are drawn in the font Godot uses by default.
+
+Assign a new `Font` rather than mutating the one already assigned. A change made in place is not detected and the plot keeps the previous resolution.
 
 ---
 
@@ -155,7 +145,13 @@ If `null`, the plot reads the font from the Godot theme entry `font` on the `Tau
 
 `label_font_size`: `int`
 
-The font size in pixels used for tick labels. Default is `16`.
+Size in pixels of the tick labels. Default is `16`.
+
+The size comes from the `font_size` theme property of the `TauPlot` type variation when the theme sets it, and from the theme's own default font size otherwise. In a stock project that default is `16`.
+
+A size assigned here replaces the themed one.
+
+Values below `1` are raised to `1` on assignment.
 
 ---
 
@@ -163,7 +159,7 @@ The font size in pixels used for tick labels. Default is `16`.
 
 `label_color`: `Color`
 
-The color used to render tick labels on both axes. Default is `Color(1, 1, 1, 1)`.
+Color of the tick labels on every axis. Default is `Color(1, 1, 1, 1)`.
 
 ---
 
@@ -171,9 +167,11 @@ The color used to render tick labels on both axes. Default is `Color(1, 1, 1, 1)
 
 `x_major_tick_length_px`: `int`
 
-The length in pixels of major tick marks on the X axis, measured perpendicular to the axis line. Default is `4`.
+How far a major tick on the X axis protrudes from the axis line, measured perpendicular to that line, in pixels. Default is `4`.
 
-This value is orientation-independent: it applies regardless of which edge carries the X axis.
+`x` names the logical axis and not a screen direction, so this reads the same whether the X axis sits on a horizontal or a vertical edge.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -181,7 +179,9 @@ This value is orientation-independent: it applies regardless of which edge carri
 
 `x_major_tick_thickness_px`: `int`
 
-The stroke width in pixels of major tick marks on the X axis. Default is `1`.
+Stroke width in pixels of a major tick on the X axis. Default is `1`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -189,9 +189,11 @@ The stroke width in pixels of major tick marks on the X axis. Default is `1`.
 
 `y_major_tick_length_px`: `int`
 
-The length in pixels of major tick marks on the Y axis, measured perpendicular to the axis line. Default is `4`.
+How far a major tick on a Y axis protrudes from the axis line, measured perpendicular to that line, in pixels. Default is `4`.
 
-This value is orientation-independent: it applies regardless of which edge carries the Y axis.
+Applies to every Y axis of every pane.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -199,7 +201,9 @@ This value is orientation-independent: it applies regardless of which edge carri
 
 `y_major_tick_thickness_px`: `int`
 
-The stroke width in pixels of major tick marks on the Y axis. Default is `1`.
+Stroke width in pixels of a major tick on a Y axis. Default is `1`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -207,9 +211,9 @@ The stroke width in pixels of major tick marks on the Y axis. Default is `1`.
 
 `minor_tick_length_ratio`: `float`
 
-The length of a minor tick mark as a fraction of the corresponding major tick length. Default is `0.5`.
+Length of a minor tick as a fraction of the major tick length of the same axis. Default is `0.5`.
 
-Valid range is `0.0` to `1.0`. This ratio is shared across both axes.
+Shared by every axis. Values outside `0.0` to `1.0` are clamped into that range on assignment.
 
 ---
 
@@ -217,7 +221,9 @@ Valid range is `0.0` to `1.0`. This ratio is shared across both axes.
 
 `x_minor_tick_thickness_px`: `int`
 
-The stroke width in pixels of minor tick marks on the X axis. Default is `1`.
+Stroke width in pixels of a minor tick on the X axis. Default is `1`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -225,7 +231,9 @@ The stroke width in pixels of minor tick marks on the X axis. Default is `1`.
 
 `y_minor_tick_thickness_px`: `int`
 
-The stroke width in pixels of minor tick marks on the Y axis. Default is `1`.
+Stroke width in pixels of a minor tick on a Y axis. Default is `1`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -233,7 +241,9 @@ The stroke width in pixels of minor tick marks on the Y axis. Default is `1`.
 
 `x_tick_x_label_gap_px`: `int`
 
-The pixel gap between the end of an X axis tick mark and its label. Default is `4`.
+Gap in pixels between the X axis tick marks and the X tick labels. Default is `4`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -241,7 +251,9 @@ The pixel gap between the end of an X axis tick mark and its label. Default is `
 
 `y_tick_y_label_gap_px`: `int`
 
-The pixel gap between the end of a Y axis tick mark and its label. Default is `4`.
+Gap in pixels between the Y axis tick marks and the Y tick labels. Default is `4`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -249,7 +261,9 @@ The pixel gap between the end of a Y axis tick mark and its label. Default is `4
 
 `padding_left_px`: `int`
 
-The pixel padding between the left edge of the plot node and the left edge of the plot area. Default is `4`.
+Padding in pixels between the left edge of the plot and the panes, outside the space the axes reserve for their ticks and labels. Default is `4`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -257,7 +271,9 @@ The pixel padding between the left edge of the plot node and the left edge of th
 
 `padding_right_px`: `int`
 
-The pixel padding between the right edge of the plot node and the right edge of the plot area. Default is `4`.
+Padding in pixels between the right edge of the plot and the panes, outside the space the axes reserve for their ticks and labels. Default is `4`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -265,7 +281,9 @@ The pixel padding between the right edge of the plot node and the right edge of 
 
 `padding_top_px`: `int`
 
-The pixel padding between the top edge of the plot node and the top edge of the plot area. Default is `4`.
+Padding in pixels between the top edge of the plot and the panes, outside the space the axes reserve for their ticks and labels. Default is `4`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -273,7 +291,9 @@ The pixel padding between the top edge of the plot node and the top edge of the 
 
 `padding_bottom_px`: `int`
 
-The pixel padding between the bottom edge of the plot node and the bottom edge of the plot area. Default is `4`.
+Padding in pixels between the bottom edge of the plot and the panes, outside the space the axes reserve for their ticks and labels. Default is `4`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -281,15 +301,23 @@ The pixel padding between the bottom edge of the plot node and the bottom edge o
 
 `pane_gap_px`: `int`
 
-The pixel gap between adjacent panes along the stacking direction. Default is `4`.
+Gap in pixels between two neighbouring panes, and between the axis titles that belong to them. Default is `4`.
 
-This property has no visible effect when the plot contains only one pane.
+A plot with a single pane draws nothing this property applies to.
+
+Values below `0` are raised to `0` on assignment.
 
 ## Related Classes
 
-* [`TauPlot`](tau_plot.md) The plot node. Consumes `TauXYStyle` during rendering and theme resolution.
-* [`TauXYConfig`](xy_config.md) Owns the `TauXYStyle` instance via its [`style`](xy_config.md#style) property.
-* [`TauPaneStyle`](pane_style.md) Sibling style resource for individual panes.
+* [`TauStyle`](style.md) Base class. Defines the cascade, the cycle indexing, and the theme key grammar.
+* [`TauXYConfig`](xy_config.md) Owns the `TauXYStyle` instance through its [`style`](xy_config.md#style) property.
+* [`TauPlot`](tau_plot.md) The plot node. Resolves the cascade and holds the Godot theme the second layer reads.
+* [`Dataset`](dataset.md) Holds the series a cycle index refers to.
+* [`TauPaneOverlayConfig`](pane_overlay_config.md) Defines the per-sample overrides that take priority over the two cycles.
+* [`TauPaneStyle`](pane_style.md) Sibling style resource for the contents of one pane.
 * [`TauBarStyle`](bar_style.md) Sibling style resource for bar overlays.
 * [`TauScatterStyle`](scatter_style.md) Sibling style resource for scatter overlays.
+* [`TauLineStyle`](line_style.md) Sibling style resource for line overlays.
 * [`TauLegendStyle`](legend_style.md) Sibling style resource for the legend.
+* [`TauTooltipStyle`](tooltip_style.md) Sibling style resource for the hover tooltip.
+* [`TauCrosshairStyle`](crosshair_style.md) Sibling style resource for the hover crosshair.

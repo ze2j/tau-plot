@@ -8,7 +8,7 @@
 
 ## Description
 
-A style resource carries the visual parameters of one part of the plot. A configuration object always holds a style, created with it. Assigning a different instance is supported, and several configuration objects can share one. [`TauLineFill`](line_fill.md) is the exception, owned by [`TauLineStyle`](line_style.md) rather than by a configuration object.
+A style resource carries the visual parameters of one part of the plot. A configuration object always holds a style, created with it. Assigning a different instance is supported, and several configuration objects can share the same one. [`TauLineFill`](line_fill.md) is the exception, owned by [`TauLineStyle`](line_style.md) rather than by a configuration object.
 
 The plot watches the style resource it received and picks up every assignment, so mutating a property at runtime does not require calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh), unlike mutating the configuration object that owns it.
 

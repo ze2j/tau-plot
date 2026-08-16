@@ -1,131 +1,92 @@
 # TauScatterStyle
 
 !!! info ""
-    **Inherits:** `Resource`  
+    **Inherits:** [`TauStyle`](style.md)
 
 Controls the visual appearance of scatter overlays.
 
 ## Description
 
-A scatter overlay draws one marker per sample at its (X, Y) position in the pane. `TauScatterStyle` controls how those markers look: their size, the width and color of their outline, how both change when a marker is hovered, and the palette of shapes cycled across series.
+A scatter overlay draws one marker per sample at its X and Y position in the pane. `TauScatterStyle` controls how those markers look: their size, their shape, the width and the color of their outline, and how the size and the outline change on the hovered marker.
 
-`TauScatterStyle` lives on [`TauScatterConfig.style`](scatter_config.md#style). It is created automatically when [`TauScatterConfig`](scatter_config.md) is instantiated, so it is never `null`.
+The fill color of a marker is not a property of this class. It comes from [`TauXYStyle.series_colors`](xy_style.md#series_colors), with its alpha channel replaced by [`TauXYStyle.series_alphas`](xy_style.md#series_alphas).
 
-Multiple [`TauScatterConfig`](scatter_config.md) instances can reference the same `TauScatterStyle` resource. Every scatter overlay that holds a reference picks up any change made to that shared instance.
+Three properties are [cycles](style.md#cycles), holding one entry per series: [`marker_sizes_px`](#marker_sizes_px), [`hovered_marker_sizes_px`](#hovered_marker_sizes_px), and [`marker_shapes`](#marker_shapes). The outline properties are scalar and apply to every series of the overlay.
 
-The fill color of each marker is not a property of `TauScatterStyle`. It comes from [`TauXYStyle.series_colors`](xy_style.md#series_colors), with its alpha channel overwritten by [`TauXYStyle.series_alpha`](xy_style.md#series_alpha), except when per-sample overrides are active (see note [1](#notes)).
+`TauScatterStyle` lives on [`TauScatterConfig.style`](scatter_config.md#style). It is created with [`TauScatterConfig`](scatter_config.md) and is never `null`. Several [`TauScatterConfig`](scatter_config.md) instances can share the same instance.
 
 ### Three-layer cascade
 
-Each property's final value is resolved through the following cascade, in order:
+Each property is resolved in three layers: the built-in default, then the value the active Godot theme names, then the value assigned on this instance. A property counts as overridden as soon as it is assigned, whatever the value, and for an array property only assigning a new array counts.
 
-1. **Built-in default**  
-    The final value starts from the built-in default.
-
-2. **Theme value**  
-    If the active Godot theme defines a matching scatter property, that value replaces the built-in default. The theme is checked twice per scalar property. First, the non-indexed key is read and applies to every pane. Then, a pane-indexed key is read and applies only to the pane at that index, overwriting the non-indexed value for that pane alone.
-
-    For example, with two panes:
-
-    ```gdscript
-    # Applies to all panes.
-    TauScatter/constants/scatter_marker_size_px = 10
-    # Overrides only pane 1, leaving pane 0 at the value above.
-    TauScatter/constants/scatter_marker_size_px_1 = 14
-    ```
-    
-    Pane `0` uses `10`. Pane `1` uses `14`.
-
-3. **User override**  
-    If the property is explicitly set on the `TauScatterStyle` instance, that value overrides both the theme and the built-in default.
-
-In short:
-
-- the last layer that provides a value wins
-- the Godot theme is suited for **project-wide styling**, with optional per-pane targeting via indexed keys
-- `TauScatterStyle` is suited for **per-plot or per-pane styling**
-
-**Override detection limitation**
-
-A property is considered overridden only when its value differs from the corresponding built-in default constant.
-
-As a result, assigning a property to exactly its built-in default value does **not** force it to override the theme.
-
-Example:
-
-* built-in default `marker_size_px` is `12.0`
-* the theme sets `scatter_marker_size_px` to `16`
-* setting `style.marker_size_px = 12.0` does **not** override the theme
+See [`TauStyle`](style.md#three-layer-cascade) for the cascade and [`TauStyle`](style.md#theme-keys) for the grammar of the keys listed in [Theming](#theming).
 
 ### Theming
 
-`TauScatterStyle` reads theme values from the `TauScatter` **theme type variation**. Its base type is `Control`.
+`TauScatterStyle` reads its keys from the `TauScatter` **theme type variation**, whose base type is `Control`.
 
-A theme resource using `TauScatter` must therefore include a base type declaration:
+A theme resource using `TauScatter` must include a base type declaration:
 
 ```gdscript
 [resource]
 TauScatter/base_type = &"Control"
-TauScatter/constants/scatter_marker_size_px = 10
+TauScatter/constants/scatter_marker_size_px_0 = 10
 ```
 
 The following theme entries are used:
 
 | Theme property | Description |
 | --- | --- |
-| `scatter_marker_size_px`:`int` | Maps to [`marker_size_px`](#marker_size_px) |
-| `scatter_outline_width_px`: `int` | Maps to [`outline_width_px`](#outline_width_px) |
-| `scatter_outline_color`: `Color` | Maps to [`outline_color`](#outline_color) |
-| `scatter_hovered_marker_size_px`: `int` | Maps to [`hovered_marker_size_px`](#hovered_marker_size_px) |
-| `scatter_hovered_outline_width_px`: `int` | Maps to [`hovered_outline_width_px`](#hovered_outline_width_px) |
-| `scatter_hovered_outline_color`: `Color` | Maps to [`hovered_outline_color`](#hovered_outline_color) |
-| `scatter_marker_shape_i`: `int` | Maps to [`marker_shapes[i]`](#marker_shapes) where `i` is the series index. |
+| `scatter_marker_size_px_i`: `int` | Maps to entry `i` of [`marker_sizes_px`](#marker_sizes_px), in pixels. |
+| `scatter_hovered_marker_size_px_i`: `int` | Maps to entry `i` of [`hovered_marker_sizes_px`](#hovered_marker_sizes_px), in pixels. |
+| `scatter_marker_shape_i`: `int` | Maps to entry `i` of [`marker_shapes`](#marker_shapes). The value is a [`MarkerShape`](#markershape) member as an integer. Any other integer is an error and the entry falls back to [`CIRCLE`](#markershape). |
+| `scatter_outline_width_px`: `int` | Maps to [`outline_width_px`](#outline_width_px). |
+| `scatter_outline_color`: `Color` | Maps to [`outline_color`](#outline_color). |
+| `scatter_hovered_outline_width_px`: `int` | Maps to [`hovered_outline_width_px`](#hovered_outline_width_px). |
+| `scatter_hovered_outline_color`: `Color` | Maps to [`hovered_outline_color`](#hovered_outline_color). |
 
-Every entry above also supports a pane-indexed variant formed by appending an underscore and the zero-based pane index (for example, `scatter_marker_size_px_0`). The indexed variant overwrites the shared value when both are defined.
-
-Example with two panes:
-
-```gdscript
-# Defaults for all panes.
-TauScatter/constants/scatter_marker_size_px = 12 # All markers have a size of 12px by default
-TauScatter/constants/scatter_marker_shape_0 = 0  # series 0: CIRCLE
-TauScatter/constants/scatter_marker_shape_1 = 1  # series 1: SQUARE
-TauScatter/constants/scatter_marker_shape_2 = 4  # series 2: DIAMOND
-
-# But in pane 1 the markers are smaller.
-TauScatter/constants/scatter_marker_size_px_1 = 8
-
-# And series 0 in pane 1 uses PLUS shape instead.
-TauScatter/constants/scatter_marker_shape_0_1 = 6  # series 0: PLUS
-```
-
-Series `0` in pane `0` uses `CIRCLE`. Series `0` in pane `1` uses `PLUS`. All other series use the global shapes in both panes.
+The three cycle keys carry a series index, written `i` in the table, and there is no key without one. `TauScatterStyle` describes the contents of a pane, so every key above also accepts a pane index appended as a further number: `scatter_marker_shape_0_1` names the first series of the second pane, `scatter_outline_color_1` the second pane.
 
 ### Side effects
 
-All properties are **visual-only**. Every change triggers a redraw but never triggers layout recomputation.
+All properties are **visual-only**. A change triggers a redraw and never a layout recomputation.
+
+### Example
+
+```gdscript
+var scatter_overlay := TauScatterConfig.new()
+
+# Four series come out circle, square, circle, square.
+scatter_overlay.style.marker_shapes = [
+	TauScatterStyle.MarkerShape.CIRCLE,
+	TauScatterStyle.MarkerShape.SQUARE,
+]
+# One entry, so every series gets 8 pixel markers. No outline anywhere.
+scatter_overlay.style.marker_sizes_px = [8.0]
+scatter_overlay.style.outline_width_px = 0.0
+```
 
 ### Notes
 
-1. **Per-sample visual overrides.** [`ScatterVisualAttributes`](scatter_visual_attributes.md) and [`ScatterVisualCallbacks`](scatter_visual_callbacks.md) can override fill color, alpha, [`outline_color`](#outline_color), [`outline_width_px`](#outline_width_px), [`marker_size_px`](#marker_size_px), and [`marker_shapes`](#marker_shapes) per sample. Fill color and alpha overrides take priority over [`TauXYStyle.series_colors`](xy_style.md#series_colors) and [`TauXYStyle.series_alpha`](xy_style.md#series_alpha).
+1. **The hovered size replaces the base size.** A hovered marker is drawn at its [`hovered_marker_sizes_px`](#hovered_marker_sizes_px) size, larger or smaller than its normal size. Under [`DATA_UNITS`](scatter_config.md#markersizepolicy) the normal size is in data units and the hovered size is still in pixels, so the two grow and shrink independently: pick the hovered size against the size the markers reach on screen, not against the data.
 
 ## Enums
 
 ### `MarkerShape`
 
-Controls the shape of the marker drawn at each scatter sample position.
+Shape drawn at a sample position.
 
 | Value | Meaning |
 |---|---|
-| `CIRCLE` | Circular marker. |
-| `SQUARE` | Square marker. |
-| `TRIANGLE_UP` | Upward-pointing triangle marker. |
-| `TRIANGLE_DOWN` | Downward-pointing triangle marker. |
-| `DIAMOND` | Diamond marker. |
-| `CROSS` | Cross-shaped marker (X shape). |
-| `PLUS` | Plus-shaped marker (+ shape). |
-| `COUNT` | The total number of distinct drawable shapes. Not a valid shape value for rendering. |
-| `NONE` | Invisible marker. The sample retains its position for hit testing but no shape is drawn. |
+| `CIRCLE` | Filled disc. |
+| `SQUARE` | Filled axis-aligned square. |
+| `TRIANGLE_UP` | Filled triangle pointing up. |
+| `TRIANGLE_DOWN` | Filled triangle pointing down. |
+| `DIAMOND` | Filled square turned 45 degrees. |
+| `CROSS` | Two diagonal strokes. |
+| `PLUS` | One horizontal and one vertical stroke. |
+| `COUNT` | The number of drawable shapes. Not a shape itself: assigning it is reported and draws a `CIRCLE`, like any other value outside the enum. |
+| `NONE` | Draws nothing, hiding the markers of a series without removing its samples from the dataset. The samples still answer hover. |
 
 ## Constructor
 
@@ -135,17 +96,21 @@ Controls the shape of the marker drawn at each scatter sample position.
 TauScatterStyle.new() -> TauScatterStyle
 ```
 
-Creates a new `TauScatterStyle` with all properties set to their built-in defaults. Properties left at their defaults remain theme-overridable.
+Creates a `TauScatterStyle` holding the built-in default of every property.
 
 ## Properties
 
-### marker_size_px
+### marker_sizes_px
 
-`marker_size_px`: `float`
+`marker_sizes_px`: `Array[float]`
 
-The size in pixels of each scatter marker in its normal state. Default is `12.0`.
+Size of the marker of one series, in pixels. Default is `[DEFAULT_MARKER_SIZE_PX]`, which is `12.0`.
 
-Can be overridden per sample (see note [1](#notes)).
+Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries below `1.0` are raised to `1.0` as the array is stored. An empty array falls back to `DEFAULT_MARKER_SIZE_PX` for every series. See [`TauStyle`](style.md#cycles).
+
+Only read under [`TauScatterConfig.MarkerSizePolicy.THEME`](scatter_config.md#markersizepolicy). Under [`DATA_UNITS`](scatter_config.md#markersizepolicy) the size comes from [`TauScatterConfig.marker_size_data_units`](scatter_config.md#marker_size_data_units), except on a [categorical](axis_config.md#type) X axis where there is no data span to convert and this cycle applies again.
+
+This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for more information.
 
 ---
 
@@ -153,9 +118,11 @@ Can be overridden per sample (see note [1](#notes)).
 
 `outline_width_px`: `float`
 
-The stroke width in pixels of the marker outline in its normal state. Default is `1.0`. A value of `0.0` disables the outline entirely.
+Thickness in pixels of the outline stroked around every marker. Default is `1.0`.
 
-Can be overridden per sample (see note [1](#notes)).
+`0.0` leaves the markers unoutlined. Values below `0.0` are raised to `0.0` on assignment, and the drawn outline never exceeds half the resolved marker size.
+
+This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for more information.
 
 ---
 
@@ -163,17 +130,25 @@ Can be overridden per sample (see note [1](#notes)).
 
 `outline_color`: `Color`
 
-The color of the marker outline in its normal state. Default is `Color(0, 0, 0, 1)`.
+Color of the outline stroked around every marker. Default is `Color(0, 0, 0, 1)`.
 
-Can be overridden per sample (see note [1](#notes)).
+The alpha of the resolved series is applied on top of it, so a marker and its outline fade together.
+
+This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for more information.
 
 ---
 
-### hovered_marker_size_px
+### hovered_marker_sizes_px
 
-`hovered_marker_size_px`: `float`
+`hovered_marker_sizes_px`: `Array[float]`
 
-The size in pixels of a marker when it is hovered. Default is `16.0`.
+Size of the hovered marker of one series, in pixels. Default is `[16.0]`.
+
+Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries below `0.0` are raised to `0.0` as the array is stored. An empty array falls back to `0.0` for every series, a sentinel meaning no size change, which leaves the hovered marker at its [`marker_sizes_px`](#marker_sizes_px) size. See [`TauStyle`](style.md#cycles).
+
+An entry of `0.0` reads as that same sentinel. The floor is `0.0` here and `1.0` on [`marker_sizes_px`](#marker_sizes_px), since only this cycle carries a no-change value. The size replaces rather than raises the base size, see [note 1](#notes).
+
+Only the marker under the cursor takes the hovered size, so with the cursor between two markers the tooltip still lists them and neither one changes.
 
 ---
 
@@ -181,9 +156,9 @@ The size in pixels of a marker when it is hovered. Default is `16.0`.
 
 `hovered_outline_width_px`: `float`
 
-The stroke width in pixels of the marker outline when the marker is hovered. Default is `2.0`.
+Thickness in pixels of the outline stroked around the hovered marker. Default is `2.0`.
 
-A value of `0.0` disables the outline on hover.
+`0.0` leaves the hovered marker unoutlined. Values below `0.0` are raised to `0.0` on assignment, and the drawn outline never exceeds half the resolved marker size. A per-sample override of [`outline_width_px`](#outline_width_px) does not apply to the hovered marker.
 
 ---
 
@@ -191,7 +166,9 @@ A value of `0.0` disables the outline on hover.
 
 `hovered_outline_color`: `Color`
 
-The color of the marker outline when the marker is hovered. Default is `Color(1, 1, 1, 1)`.
+Color of the outline stroked around the hovered marker. Default is `Color(1, 1, 1, 1)`.
+
+The alpha of the resolved series is applied on top of it. A per-sample override of [`outline_color`](#outline_color) does not apply to the hovered marker.
 
 ---
 
@@ -199,19 +176,29 @@ The color of the marker outline when the marker is hovered. Default is `Color(1,
 
 `marker_shapes`: `Array[MarkerShape]`
 
-The ordered shape palette assigned to scatter series. Default is a seven-shape palette: [`CIRCLE`](#markershape), [`SQUARE`](#markershape), [`TRIANGLE_UP`](#markershape), [`TRIANGLE_DOWN`](#markershape), [`DIAMOND`](#markershape), [`CROSS`](#markershape), [`PLUS`](#markershape).
+Shape of the marker of one series. Default is the seven drawable shapes in declaration order, from [`CIRCLE`](#markershape) to [`PLUS`](#markershape).
 
-Shapes are assigned by series index in the [Dataset](dataset.md). The first series gets the shape at position `0`, the second gets position `1`, and so on. When the series index exceeds the last position in the palette, the palette wraps back to its first entry and continues from there. Assigning a non-empty array that differs from the built-in default replaces the palette entirely for that pane.
+Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). An empty array falls back to [`CIRCLE`](#markershape) for every series. See [`TauStyle`](style.md#cycles).
 
-If the array is empty, all series fall back to [`CIRCLE`](#markershape). Can be overridden per sample (see note [1](#notes)).
+An entry outside [`MarkerShape`](#markershape) draws a [`CIRCLE`](#markershape), and the plot reports it with an error naming the entry index and the value. A per-sample override outside [`MarkerShape`](#markershape) draws a [`CIRCLE`](#markershape) as well, with no message, since it is read once per sample.
+
+This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for more information.
 
 ## Related Classes
 
-* [`TauPlot`](tau_plot.md) The plot node. Consumes `TauScatterStyle` during rendering and theme resolution.
-* [`TauScatterConfig`](scatter_config.md) Owns the `TauScatterStyle` instance via its [`style`](scatter_config.md#style) property.
-* [`TauXYStyle`](xy_style.md) Sibling style resource for the whole plot.
-* [`TauPaneStyle`](pane_style.md) Sibling style resource for individual panes.
+* [`TauStyle`](style.md) Base class. Defines the cascade, the cycle indexing, and the theme key grammar.
+* [`TauScatterConfig`](scatter_config.md) Owns the `TauScatterStyle` instance through its [`style`](scatter_config.md#style) property. Its [`marker_size_policy`](scatter_config.md#marker_size_policy) decides whether [`marker_sizes_px`](#marker_sizes_px) is read.
+* [`ScatterVisualAttributes`](scatter_visual_attributes.md) Supplies the per-sample size, shape, outline, color, and alpha buffers.
+* [`ScatterVisualCallbacks`](scatter_visual_callbacks.md) Supplies the same values as functions called at draw time.
+* [`TauPaneOverlayConfig`](pane_overlay_config.md) Base class of [`TauScatterConfig`](scatter_config.md). Defines how a per-sample override is resolved.
+* [`SampleHit`](sample_hit.md) Reports the hit that decides which marker is emphasized.
+* [`TauAxisConfig`](axis_config.md) Configures the X axis whose type decides how a [`DATA_UNITS`](scatter_config.md#markersizepolicy) size is converted.
+* [`Dataset`](dataset.md) Holds the series a cycle index refers to.
+* [`TauPlot`](tau_plot.md) The plot node. Resolves the cascade and holds the Godot theme the second layer reads.
+* [`TauXYStyle`](xy_style.md) Sibling style resource for the plot as a whole. Supplies the fill color of a marker.
+* [`TauPaneStyle`](pane_style.md) Sibling style resource for the contents of one pane.
 * [`TauBarStyle`](bar_style.md) Sibling style resource for bar overlays.
+* [`TauLineStyle`](line_style.md) Sibling style resource for line overlays.
 * [`TauLegendStyle`](legend_style.md) Sibling style resource for the legend.
 * [`TauTooltipStyle`](tooltip_style.md) Sibling style resource for the hover tooltip.
 * [`TauCrosshairStyle`](crosshair_style.md) Sibling style resource for the hover crosshair.

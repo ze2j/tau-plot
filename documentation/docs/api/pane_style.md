@@ -1,65 +1,31 @@
 # TauPaneStyle
 
 !!! info ""
-    **Inherits:** `Resource`  
+    **Inherits:** [`TauStyle`](style.md)
 
-Controls the visual appearance of a single pane.
+Controls the visual appearance of a pane.
 
 ## Description
 
-`TauPaneStyle` controls the visual appearance of a pane rendered by `TauPlot`. Grid lines are the horizontal and vertical lines drawn across the pane background at each tick position, giving the reader a reference grid to read data values against. Major grid lines align with major ticks. Minor grid lines align with minor ticks and are typically thinner and more transparent to stay visually subordinate.
+A pane is one plotting area of an XY plot, a rectangle holding its own axes and the overlays drawn against them. [`TauXYConfig.panes`](xy_config.md#panes) lists the panes of a plot.
 
-`TauPaneStyle` lives on [`TauPaneConfig.style`](pane_config.md#style). It defaults to `null`, in which case the pane falls back to theme values and then to built-in defaults. Assign a `TauPaneStyle` instance to override individual properties for that pane.
+`TauPaneStyle` carries the appearance of what the plot draws inside that rectangle. That is the grid lines: the lines crossing the pane at tick positions, giving a value something to be read against. A major grid line sits at a major tick and a minor grid line at a minor tick, on the X axis and on a Y axis alike, and each of those four families has its own color, thickness, and dash length.
 
-Multiple `TauPaneConfig` instances can reference the same `TauPaneStyle` resource. Every pane that holds a reference picks up any change made to that shared instance.
+Which grid lines are drawn at all is not decided here. It comes from [`TauGridLineConfig`](grid_line_config.md), held by [`TauPaneConfig.grid_line`](pane_config.md#grid_line), which defaults to `null`. A pane without one draws no grid line and reads no property of this class.
+
+`TauPaneStyle` lives on [`TauPaneConfig.style`](pane_config.md#style). It is created with [`TauPaneConfig`](pane_config.md) and is never `null`. Several [`TauPaneConfig`](pane_config.md) instances can share the same instance.
 
 ### Three-layer cascade
 
-Each property's final value is resolved through the following cascade, in order:
+Each property is resolved in three layers: the built-in default, then the value the active Godot theme names, then the value assigned on this instance. A property counts as overridden as soon as it is assigned, whatever the value, and for an array property only assigning a new array counts.
 
-1. **Built-in default**  
-    The final value starts from the built-in default.
-
-2. **Theme value**  
-    If the active Godot theme defines a matching pane property, that value replaces the built-in default. The theme is checked twice per property. First, the non-indexed key is read and applies to every pane. Then, a pane-indexed key is read and applies only to the pane at that index, overwriting the non-indexed value for that pane alone.
-
-    For example, with two panes:
-
-    ```gdscript
-    # Applies to all panes.
-    TauPane/colors/pane_x_major_grid_line_color = Color(1, 1, 1, 0.15)
-    # Overrides only pane 1, leaving pane 0 at the value above.
-    TauPane/colors/pane_x_major_grid_line_color_1 = Color(1, 0.5, 0, 0.3)
-    ```
-
-    Pane `0` uses `Color(1, 1, 1, 0.15)`. Pane `1` uses `Color(1, 0.5, 0, 0.3)`.
-
-3. **User override**  
-    If the property is explicitly set on the `TauPaneStyle` instance, that value overrides both the theme and the built-in default.
-
-In short:
-
-- the last layer that provides a value wins
-- the Godot theme is suited for **project-wide styling**, with optional per-pane targeting via indexed keys
-- `TauPaneStyle` is suited for **per-plot or per-pane styling**
-
-**Override detection limitation**
-
-A property is considered overridden only when its value differs from the corresponding built-in default constant.
-
-As a result, assigning a property to exactly its built-in default value does **not** force it to override the theme.
-
-Example:
-
-* built-in default `x_major_grid_line_thickness_px` is `1`
-* the theme sets `pane_x_major_grid_line_thickness` to `2`
-* setting `style.x_major_grid_line_thickness_px = 1` does **not** override the theme
+See [`TauStyle`](style.md#three-layer-cascade) for the cascade and [`TauStyle`](style.md#theme-keys) for the grammar of the keys listed in [Theming](#theming).
 
 ### Theming
 
-`TauPaneStyle` reads theme values from the `TauPane` **theme type variation**. Its base type is `Control`.
+`TauPaneStyle` reads its keys from the `TauPane` **theme type variation**, whose base type is `Control`.
 
-A theme resource using `TauPane` must therefore include a base type declaration:
+A theme resource using `TauPane` must include a base type declaration:
 
 ```gdscript
 [resource]
@@ -71,24 +37,36 @@ The following theme entries are used:
 
 | Theme property | Description |
 | --- | --- |
-|  `pane_x_major_grid_line_color`: `Color` | Maps to [`x_major_grid_line_color`](#x_major_grid_line_color) |
-| `pane_x_major_grid_line_thickness`: `int` | Maps to [`x_major_grid_line_thickness_px`](#x_major_grid_line_thickness_px) |
-| `pane_x_major_grid_line_dash`: `int` | Maps to [`x_major_grid_line_dash_px`](#x_major_grid_line_dash_px) |
-| `pane_x_minor_grid_line_color`: `Color` | Maps to [`x_minor_grid_line_color`](#x_minor_grid_line_color) |
-| `pane_x_minor_grid_line_thickness`: `int` | Maps to [`x_minor_grid_line_thickness_px`](#x_minor_grid_line_thickness_px) |
-| `pane_x_minor_grid_line_dash`: `int` | Maps to [`x_minor_grid_line_dash_px`](#x_minor_grid_line_dash_px) |
-| `pane_y_major_grid_line_color`: `Color` | Maps to [`y_major_grid_line_color`](#y_major_grid_line_color) |
-| `pane_y_major_grid_line_thickness`: `int` | Maps to [`y_major_grid_line_thickness_px`](#y_major_grid_line_thickness_px) |
-| `pane_y_major_grid_line_dash`: `int` | Maps to [`y_major_grid_line_dash_px`](#y_major_grid_line_dash_px) |
-| `pane_y_minor_grid_line_color`: `Color` | Maps to [`y_minor_grid_line_color`](#y_minor_grid_line_color) |
-| `pane_y_minor_grid_line_thickness`: `int` | Maps to [`y_minor_grid_line_thickness_px`](#y_minor_grid_line_thickness_px) |
-| `pane_y_minor_grid_line_dash`: `int` | Maps to [`y_minor_grid_line_dash_px`](#y_minor_grid_line_dash_px) |
+| `pane_x_major_grid_line_color`: `Color` | Maps to [`x_major_grid_line_color`](#x_major_grid_line_color). |
+| `pane_x_major_grid_line_thickness`: `int` | Maps to [`x_major_grid_line_thickness_px`](#x_major_grid_line_thickness_px). |
+| `pane_x_major_grid_line_dash`: `int` | Maps to [`x_major_grid_line_dash_px`](#x_major_grid_line_dash_px). |
+| `pane_x_minor_grid_line_color`: `Color` | Maps to [`x_minor_grid_line_color`](#x_minor_grid_line_color). |
+| `pane_x_minor_grid_line_thickness`: `int` | Maps to [`x_minor_grid_line_thickness_px`](#x_minor_grid_line_thickness_px). |
+| `pane_x_minor_grid_line_dash`: `int` | Maps to [`x_minor_grid_line_dash_px`](#x_minor_grid_line_dash_px). |
+| `pane_y_major_grid_line_color`: `Color` | Maps to [`y_major_grid_line_color`](#y_major_grid_line_color). |
+| `pane_y_major_grid_line_thickness`: `int` | Maps to [`y_major_grid_line_thickness_px`](#y_major_grid_line_thickness_px). |
+| `pane_y_major_grid_line_dash`: `int` | Maps to [`y_major_grid_line_dash_px`](#y_major_grid_line_dash_px). |
+| `pane_y_minor_grid_line_color`: `Color` | Maps to [`y_minor_grid_line_color`](#y_minor_grid_line_color). |
+| `pane_y_minor_grid_line_thickness`: `int` | Maps to [`y_minor_grid_line_thickness_px`](#y_minor_grid_line_thickness_px). |
+| `pane_y_minor_grid_line_dash`: `int` | Maps to [`y_minor_grid_line_dash_px`](#y_minor_grid_line_dash_px). |
 
-Each entry above also supports a pane-indexed variant formed by appending an underscore and the zero-based pane index (for example, `pane_x_major_grid_line_color_0`). The indexed variant overwrites the shared value when both are defined.
+`TauPaneStyle` describes the contents of a pane, so every key above accepts a pane index appended as a number: `pane_x_major_grid_line_color_1` names the second pane alone.
 
 ### Side effects
 
-All properties are **visual-only**. Every change triggers a redraw but never triggers layout recomputation.
+All properties are **visual-only**. A change triggers a redraw and never a layout recomputation.
+
+### Example
+
+```gdscript
+var pane := TauPaneConfig.new()
+
+# Grid lines are drawn only once a grid line configuration is set.
+pane.grid_line = TauGridLineConfig.new()
+
+pane.style.y_major_grid_line_color = Color(1, 1, 1, 0.25)
+pane.style.y_major_grid_line_dash_px = 4
+```
 
 ## Constructor
 
@@ -98,7 +76,7 @@ All properties are **visual-only**. Every change triggers a redraw but never tri
 TauPaneStyle.new() -> TauPaneStyle
 ```
 
-Creates a new `TauPaneStyle` with all properties set to their built-in defaults. Properties left at their defaults remain theme-overridable.
+Creates a `TauPaneStyle` holding the built-in default of every property.
 
 ## Properties
 
@@ -106,7 +84,7 @@ Creates a new `TauPaneStyle` with all properties set to their built-in defaults.
 
 `x_major_grid_line_color`: `Color`
 
-The color used to draw major grid lines on the X axis. Default is `Color(1, 1, 1, 0.15)`.
+Color of the X major grid lines. Default is `Color(1, 1, 1, 0.15)`.
 
 ---
 
@@ -114,7 +92,9 @@ The color used to draw major grid lines on the X axis. Default is `Color(1, 1, 1
 
 `x_major_grid_line_thickness_px`: `int`
 
-The stroke width in pixels of major grid lines on the X axis. Default is `1`.
+Stroke width in pixels of the X major grid lines. Default is `1`.
+
+Values below `0` are raised to `0` on assignment. A grid line at `0` thickness is not drawn.
 
 ---
 
@@ -122,9 +102,9 @@ The stroke width in pixels of major grid lines on the X axis. Default is `1`.
 
 `x_major_grid_line_dash_px`: `int`
 
-The dash length in pixels of major grid lines on the X axis. Default is `0`.
+Length in pixels of one dash of the X major grid lines, with an equal gap between dashes. Default is `0`.
 
-A value of `0` produces a solid line. Any positive value switches the line to dashed rendering with alternating segments of that length.
+`0` draws solid lines. Any positive value cuts them into dashes of that length. Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -132,7 +112,7 @@ A value of `0` produces a solid line. Any positive value switches the line to da
 
 `x_minor_grid_line_color`: `Color`
 
-The color used to draw minor grid lines on the X axis. Default is `Color(1, 1, 1, 0.08)`.
+Color of the X minor grid lines. Default is `Color(1, 1, 1, 0.08)`.
 
 ---
 
@@ -140,7 +120,9 @@ The color used to draw minor grid lines on the X axis. Default is `Color(1, 1, 1
 
 `x_minor_grid_line_thickness_px`: `int`
 
-The stroke width in pixels of minor grid lines on the X axis. Default is `1`.
+Stroke width in pixels of the X minor grid lines. Default is `1`.
+
+Values below `0` are raised to `0` on assignment. A grid line at `0` thickness is not drawn.
 
 ---
 
@@ -148,9 +130,9 @@ The stroke width in pixels of minor grid lines on the X axis. Default is `1`.
 
 `x_minor_grid_line_dash_px`: `int`
 
-The dash length in pixels of minor grid lines on the X axis. Default is `0`.
+Length in pixels of one dash of the X minor grid lines, with an equal gap between dashes. Default is `0`.
 
-A value of `0` produces a solid line. Any positive value switches the line to dashed rendering with alternating segments of that length.
+`0` draws solid lines. Any positive value cuts them into dashes of that length. Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -158,7 +140,7 @@ A value of `0` produces a solid line. Any positive value switches the line to da
 
 `y_major_grid_line_color`: `Color`
 
-The color used to draw major grid lines on the Y axis. Default is `Color(1, 1, 1, 0.15)`.
+Color of the Y major grid lines. Default is `Color(1, 1, 1, 0.15)`.
 
 ---
 
@@ -166,7 +148,9 @@ The color used to draw major grid lines on the Y axis. Default is `Color(1, 1, 1
 
 `y_major_grid_line_thickness_px`: `int`
 
-The stroke width in pixels of major grid lines on the Y axis. Default is `1`.
+Stroke width in pixels of the Y major grid lines. Default is `1`.
+
+Values below `0` are raised to `0` on assignment. A grid line at `0` thickness is not drawn.
 
 ---
 
@@ -174,9 +158,9 @@ The stroke width in pixels of major grid lines on the Y axis. Default is `1`.
 
 `y_major_grid_line_dash_px`: `int`
 
-The dash length in pixels of major grid lines on the Y axis. Default is `0`.
+Length in pixels of one dash of the Y major grid lines, with an equal gap between dashes. Default is `0`.
 
-A value of `0` produces a solid line. Any positive value switches the line to dashed rendering with alternating segments of that length.
+`0` draws solid lines. Any positive value cuts them into dashes of that length. Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -184,7 +168,7 @@ A value of `0` produces a solid line. Any positive value switches the line to da
 
 `y_minor_grid_line_color`: `Color`
 
-The color used to draw minor grid lines on the Y axis. Default is `Color(1, 1, 1, 0.08)`.
+Color of the Y minor grid lines. Default is `Color(1, 1, 1, 0.08)`.
 
 ---
 
@@ -192,7 +176,9 @@ The color used to draw minor grid lines on the Y axis. Default is `Color(1, 1, 1
 
 `y_minor_grid_line_thickness_px`: `int`
 
-The stroke width in pixels of minor grid lines on the Y axis. Default is `1`.
+Stroke width in pixels of the Y minor grid lines. Default is `1`.
+
+Values below `0` are raised to `0` on assignment. A grid line at `0` thickness is not drawn.
 
 ---
 
@@ -200,17 +186,21 @@ The stroke width in pixels of minor grid lines on the Y axis. Default is `1`.
 
 `y_minor_grid_line_dash_px`: `int`
 
-The dash length in pixels of minor grid lines on the Y axis. Default is `0`.
+Length in pixels of one dash of the Y minor grid lines, with an equal gap between dashes. Default is `0`.
 
-A value of `0` produces a solid line. Any positive value switches the line to dashed rendering with alternating segments of that length.
+`0` draws solid lines. Any positive value cuts them into dashes of that length. Values below `0` are raised to `0` on assignment.
 
 ## Related Classes
 
-* [`TauPlot`](tau_plot.md) The plot node. Consumes `TauPaneStyle` during rendering and theme resolution.
-* [`TauPaneConfig`](pane_config.md) Owns the `TauPaneStyle` instance via its [`style`](pane_config.md#style) property.
-* [`TauXYStyle`](xy_style.md) Sibling style resource for the whole plot.
+* [`TauStyle`](style.md) Base class. Defines the cascade, the cycle indexing, and the theme key grammar.
+* [`TauPaneConfig`](pane_config.md) Owns the `TauPaneStyle` instance through its [`style`](pane_config.md#style) property.
+* [`TauGridLineConfig`](grid_line_config.md) Decides which grid lines are drawn and which axis they are read from.
+* [`TauPlot`](tau_plot.md) The plot node. Resolves the cascade and holds the Godot theme the second layer reads.
+* [`TauXYConfig`](xy_config.md) Holds the pane list a pane index refers to.
+* [`TauXYStyle`](xy_style.md) Sibling style resource for the plot as a whole.
 * [`TauBarStyle`](bar_style.md) Sibling style resource for bar overlays.
 * [`TauScatterStyle`](scatter_style.md) Sibling style resource for scatter overlays.
+* [`TauLineStyle`](line_style.md) Sibling style resource for line overlays.
 * [`TauLegendStyle`](legend_style.md) Sibling style resource for the legend.
 * [`TauTooltipStyle`](tooltip_style.md) Sibling style resource for the hover tooltip.
 * [`TauCrosshairStyle`](crosshair_style.md) Sibling style resource for the hover crosshair.
