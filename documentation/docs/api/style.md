@@ -33,7 +33,7 @@ In short:
 
 **Override detection**
 
-A property counts as overridden as soon as it is assigned, whatever the value, so assigning a property to exactly its built-in default from code still wins over the theme. For array properties, only assigning a new array marks the property as overridden. Mutating the array already in place does not.
+A property counts as overridden as soon as it is assigned, whatever the value, so assigning a property to exactly its built-in default from code still wins over the theme. For array properties, only assigning a new array marks the property as overridden. Mutating the array already in place does not, so assign a new array rather than editing the stored one.
 
 A property set from the inspector to exactly its built-in default is not written to the saved resource, so it reads as untouched on load and the theme wins. Assign it from code instead.
 
@@ -59,6 +59,24 @@ style.series_colors = [Color.RED, Color.BLUE, Color.GREEN]
 ```
 
 An empty cycle is neither an error nor a way to defer to the theme. It falls back for every series, and each property documents its own fallback.
+
+### Valid ranges
+
+Some properties accept only part of what their type allows. A width in pixels never goes below zero, and an alpha never leaves `0.0` to `1.0`. Each property states its own range.
+
+A range applies on assignment, so a value outside it is never observed. The built-in default, the value a theme key carries, and a value assigned from code all clamp into the range the same way.
+
+A cycle clamps entry by entry as the array is stored. Changing an entry in place goes around the setter, so that entry keeps whatever it was given and the property stays unmarked. Assign a new array instead.
+
+```gdscript
+var style := TauLineStyle.new()
+
+# Assigned as a whole, so every entry is clamped. Stored as [0.0, 2.0].
+style.line_widths_px = [-5.0, 2.0]
+
+# Avoid. The entry escapes the clamp and the change goes undetected.
+style.line_widths_px[0] = -5.0
+```
 
 ### Theme keys
 

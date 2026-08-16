@@ -22,9 +22,16 @@ If you cannot answer these, keep reading the source until you can.
 
 The source file wins over every other source. Class doc comments in the source are usually accurate but are written for a different audience, so treat them as evidence, not as text to copy. When the source and an existing page disagree, the page is stale.
 
-Check every default value, every valid range, and every enum value against the declaration itself, not against the doc comment above it. A `@export_range` annotation, a class doc comment, and a validator can each state a different bound for the same property. When they disagree, document the validator, because that is the bound the user hits, and report the disagreement.
+Check every default value, every valid range, and every enum value against the declaration itself, not against the doc comment above it. A `@export_range` annotation, a class doc comment, a validator, and a property setter can each state a different bound for the same property.
 
-Check every clamp at the point of use. A property whose setter accepts any value may still be floored, capped, or coerced by the getter, by the theme loader, or by the renderer. That bound belongs on the page.
+Two families enforce a bound in two different places, so the source to trust depends on the class:
+
+- A configuration class is checked by a validator, and the validator holds the bound the user hits. Document that one.
+- A style class carries no validator. Its property setter clamps the value into range as it is assigned, so the setter holds the bound the user hits whatever layer the value arrives by. Document that one.
+
+Whichever family the class belongs to, report every disagreement between the bound documented on the page and the one any other declaration states. A disagreement is a defect in the source, and leaving it unreported leaves it in place.
+
+A value the plot adjusts where it draws, such as a grid line hidden at zero thickness, is behavior rather than a range and is documented as behavior.
 
 ## Public API Inventory
 
@@ -183,7 +190,7 @@ These rules apply to every sentence on every page. They are organized into three
 9. Document defaults and initial state. Do not assume users will guess them.
 10. Specify units, coordinate spaces, valid ranges, and return values for edge cases (empty buffer, unknown ID, out-of-range index).
 11. When a method or property is only valid in a specific mode, say so: `Only valid in SHARED_X mode.`
-12. When a value is clamped, say so: `Values below 1 are clamped to 1.`
+12. When a value is clamped, say so and say when: `Values below 1 are clamped to 1 on assignment.`
 13. When invalid input logs an error, say so: `Logs an error if the ID is unknown.`
 14. Distinguish the three failure modes. `plot_xy()` aborts on a validation error and leaves the previous plot untouched, pushes a warning and continues for a recoverable value, or silently ignores a setting whose preconditions are unmet. A silent skip is the one users cannot diagnose, so name it whenever it exists.
 15. When a value is read in units that depend on another property, name the property. A marker size entry is in pixels or in X data units depending on the active size policy, and stating only one of the two is a defect.
@@ -459,6 +466,8 @@ On every style property that is an array of per-series values. Snippet [S2](#s2-
 
 State the fallback constant by name. Do not write "the built-in default" without saying what it is.
 
+State the clamp where the setter bounds the entries, and drop that clause where it leaves them unbounded.
+
 ### Buffer error path
 
 On every ring buffer read that takes a logical index, on all five buffer pages. Snippet [S3](#s3-buffer-error-path).
@@ -587,8 +596,8 @@ Structure:
 Accuracy:
 
 - [ ] Every default value on the page matches the declaration in the source, not the doc comment above it.
-- [ ] Every valid range matches the validator, and any disagreement with `@export_range` or the doc comment is reported.
-- [ ] Every clamp applied by a setter, a getter, the theme loader, or the renderer is documented.
+- [ ] On a configuration class, every valid range matches the validator, and any disagreement with `@export_range` or the doc comment is reported.
+- [ ] On a style class, every valid range matches the bound its setter enforces and states that it applies on assignment, and any disagreement with `@export_range` or the doc comment is reported. A value adjusted where it is drawn is documented as behavior, not as a range.
 - [ ] Every enum table lists every value declared in the source.
 - [ ] Every unit is stated, including units that depend on another property.
 - [ ] Every index names the space it indexes.
@@ -820,9 +829,10 @@ No substitution.
 Closes the property entry of a style property that holds one entry per series, after the sentence stating what the property controls and its default.
 
 ````md
-Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). An empty array falls back to `<FALLBACK>` for every series. See [`TauStyle`](style.md#cycles).
+Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). <CLAMP> as the array is stored. An empty array falls back to `<FALLBACK>` for every series. See [`TauStyle`](style.md#cycles).
 ````
 
+* `<CLAMP>` The bound the setter enforces, worded as writing rule 12 words it, as ``Entries below `1.0` are raised to `1.0` `` or ``Entries outside `0.0` to `1.0` are clamped into that range``. The trailing `as the array is stored` already carries the when rule 12 asks for, so do not repeat it. Drop the sentence on a cycle the setter leaves unbounded, as [`TauXYStyle.series_colors`](xy_style.md#series_colors), [`TauScatterStyle.marker_shapes`](scatter_style.md#marker_shapes), and [`TauLineStyle.fills`](line_style.md#fills).
 * `<FALLBACK>` The constant the source declares for the empty case, as `DEFAULT_SERIES_ALPHA` or `DEFAULT_MARKER_SIZE_PX`, or the literal where the source declares none, as `2.0` for [`TauLineStyle.line_widths_px`](line_style.md#line_widths_px). When the fallback is a sentinel meaning no change, state what it resolves to as well.
 
 ### S3. Buffer error path

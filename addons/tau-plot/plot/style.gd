@@ -25,16 +25,17 @@
 ## property anyway.
 ##
 ## What marks an array property is the assignment, not the contents. Assign a
-## new array to mark it. Changing an entry of the array already in place changes
-## the value but leaves the property unmarked, so the theme still overwrites it:
+## new array to mark it. Changing an entry of the array already in place leaves
+## the property unmarked and the theme overwrites it, so it is not a way to set
+## a cycle:
 ## [codeblock]
-## style.series_colors[0] = Color.GREEN     # Not marked, the theme still wins.
 ## style.series_colors = [Color.GREEN]      # Marked, this wins.
+## style.series_colors[0] = Color.GREEN     # Avoid, not marked, the theme wins.
 ## [/codeblock]
 ##
 ## A cycle is stored as a copy of the array assigned to it, so changing that
 ## array afterwards leaves the style alone. Reading the property back gives the
-## stored array, which is the one the first line above changes.
+## stored array, which the second line above changes in place.
 ##
 ## [b]Empty values[/b]
 ##
@@ -48,8 +49,9 @@
 ##
 ## A property with a valid range clamps into it on assignment, so a value out of
 ## range is never observed, whichever layer it comes from. A cycle is clamped
-## entry by entry as it is stored. An entry changed in place afterwards keeps
-## what it was given, the same way such a change leaves the property unmarked.
+## entry by entry as it is stored. An entry changed in place goes around the
+## setter and keeps what it was given, which is a second reason to assign a new
+## array instead.
 ##
 ## [b]Reported problems[/b]
 ##
