@@ -108,7 +108,7 @@ Size of the marker of one series, in pixels. Default is `[DEFAULT_MARKER_SIZE_PX
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries below `1.0` are raised to `1.0` as the array is stored. An empty array falls back to `DEFAULT_MARKER_SIZE_PX` for every series. See [`TauStyle`](style.md#cycles).
 
-Only read under [`TauScatterConfig.MarkerSizePolicy.THEME`](scatter_config.md#markersizepolicy). Under [`DATA_UNITS`](scatter_config.md#markersizepolicy) the size comes from [`TauScatterConfig.marker_size_data_units`](scatter_config.md#marker_size_data_units), except on a [categorical](axis_config.md#type) X axis where there is no data span to convert and this cycle applies again.
+Only read under [`TauScatterConfig.MarkerSizePolicy.THEME`](scatter_config.md#markersizepolicy). Under [`DATA_UNITS`](scatter_config.md#markersizepolicy) the size comes from [`TauScatterConfig.marker_size_data_units`](scatter_config.md#marker_size_data_units), except on a [categorical](axis_config.md#type-enum) X axis where there is no data span to convert and this cycle applies again.
 
 This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for more information.
 

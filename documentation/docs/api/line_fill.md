@@ -189,7 +189,7 @@ The flat level a [`TO_BASELINE`](#fillmode) fill is painted to, in data units on
 
 The area is painted between the curve and this level. The [`MAGNITUDE`](#fillstretchspan) span also measures its distance from this level. Ignored by the other [`fill_mode`](#fill_mode) values.
 
-On a [`LOGARITHMIC`](axis_config.md#scale) Y axis the level is placed like any data value, so a value at or below zero cannot be placed and the plot raises an error, see [note 2](#notes).
+On a [`LOGARITHMIC`](axis_config.md#scale-enum) Y axis the level is placed like any data value, so a value at or below zero cannot be placed and the plot raises an error, see [note 2](#notes).
 
 ---
 
@@ -213,7 +213,7 @@ Only read when [`stretch_range_policy`](#stretch_range_policy) is [`CUSTOM`](#st
 
 What the two ends mean follows the span that reads them. For [`VALUE_Y`](#fillstretchspan) they are values on the Y axis of the series. For [`VALUE_X`](#fillstretchspan) they are values on the X axis. For [`MAGNITUDE`](#fillstretchspan) they are distances from [`fill_baseline`](#fill_baseline), so both stay at or above zero. A point measuring outside the window takes the color of the nearer end.
 
-Two cases raise an error, see [note 2](#notes): the two ends being equal, which leaves no range to measure against, and [`VALUE_X`](#fillstretchspan) on a [categorical](axis_config.md#type) X axis, which has no continuous X to place the ends on. Both fall back to reading the middle of the texture, so the area comes out in one flat color.
+Two cases raise an error, see [note 2](#notes): the two ends being equal, which leaves no range to measure against, and [`VALUE_X`](#fillstretchspan) on a [categorical](axis_config.md#type-enum) X axis, which has no continuous X to place the ends on. Both fall back to reading the middle of the texture, so the area comes out in one flat color.
 
 ---
 

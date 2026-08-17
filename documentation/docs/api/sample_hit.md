@@ -42,7 +42,7 @@ The logical index of the hit sample within its series.
 
 `x_value`: `Variant`
 
-The X value of the hit sample. Holds a `float` when the X axis is [`CONTINUOUS`](axis_config.md#type), or a `String` when it is [`CATEGORICAL`](axis_config.md#type).
+The X value of the hit sample. Holds a `float` when the X axis is [`CONTINUOUS`](axis_config.md#type-enum), or a `String` when it is [`CATEGORICAL`](axis_config.md#type-enum).
 
 ---
 

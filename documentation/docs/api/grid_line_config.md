@@ -11,6 +11,8 @@ Grid lines are straight lines drawn across the pane background at each tick posi
 
 The four flags [`x_major_enabled`](#x_major_enabled), [`x_minor_enabled`](#x_minor_enabled), [`y_major_enabled`](#y_major_enabled), and [`y_minor_enabled`](#y_minor_enabled) control each independently.
 
+A grid line needs a tick to sit on, which puts two limits on what the flags can produce. Minor ticks exist only on a [`LOGARITHMIC`](axis_config.md#scale-enum) axis, so a minor grid line draws nothing against a linear axis. A [`CATEGORICAL`](axis_config.md#type-enum) X axis produces no tick sequence at all, so a plot whose X axis is categorical draws no X grid line, major or minor. Both cases are silent: the flag stays `true` and nothing appears.
+
 `TauGridLineConfig` is assigned to [`TauPaneConfig.grid_line`](pane_config.md#grid_line). When that property is `null`, all grid lines in the pane are disabled. Assigning an instance activates the grid line system for that pane and lets individual lines be turned on or off through the four enable flags.
 
 `TauGridLineConfig` only governs behavior: which lines are drawn and at which positions. Visual properties such as color, stroke width, and dash pattern are set in [`TauPaneStyle`](pane_style.md).
@@ -58,6 +60,8 @@ The X axis whose tick positions drive the X grid lines. Default is [`BOTTOM`](ta
 
 Set this to the primary X axis (for example [`BOTTOM`](tau_plot.md#axisid)) to use primary axis ticks, or to the opposite axis (for example [`TOP`](tau_plot.md#axisid)) to use [secondary X axis](xy_config.md#secondary_x_axis) ticks. Ignored when no secondary X axis is present on the plot. Also ignored when both [`x_major_enabled`](#x_major_enabled) and [`x_minor_enabled`](#x_minor_enabled) are `false`.
 
+When a secondary X axis is present and this property names an edge that carries neither X axis, the plot pushes an error and draws no X grid line.
+
 ---
 
 ### y_source_axis_id
@@ -68,6 +72,8 @@ The Y axis whose tick positions drive the Y grid lines. Default is [`LEFT`](tau_
 
 Only applies when the pane has two populated Y axes. When exactly one Y axis is populated, that axis is used regardless of this property. Also ignored when both [`y_major_enabled`](#y_major_enabled) and [`y_minor_enabled`](#y_minor_enabled) are `false`.
 
+When the pane has two populated Y axes and this property names neither of them, the plot pushes an error and falls back to the first populated one. A pane with no populated Y axis draws no Y grid line.
+
 ---
 
 ### x_major_enabled
@@ -76,6 +82,8 @@ Only applies when the pane has two populated Y axes. When exactly one Y axis is 
 
 If `true`, major grid lines are drawn perpendicular to the X axis at each major tick position. Default is `false`.
 
+Nothing is drawn when the X axis is [`CATEGORICAL`](axis_config.md#type-enum).
+
 ---
 
 ### x_minor_enabled
@@ -83,6 +91,8 @@ If `true`, major grid lines are drawn perpendicular to the X axis at each major 
 `x_minor_enabled`: `bool`
 
 If `true`, minor grid lines are drawn perpendicular to the X axis at each minor tick position. Default is `false`.
+
+Nothing is drawn unless the source X axis is [`CONTINUOUS`](axis_config.md#type-enum) on a [`LOGARITHMIC`](axis_config.md#scale-enum) scale, the one combination that produces minor ticks.
 
 ---
 
@@ -99,6 +109,8 @@ If `true`, major grid lines are drawn perpendicular to the Y axis at each major 
 `y_minor_enabled`: `bool`
 
 If `true`, minor grid lines are drawn perpendicular to the Y axis at each minor tick position. Default is `false`.
+
+Nothing is drawn unless the source Y axis uses a [`LOGARITHMIC`](axis_config.md#scale-enum) scale, the one scale that produces minor ticks.
 
 ## Related Classes
 

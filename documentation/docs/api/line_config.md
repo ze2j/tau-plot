@@ -20,7 +20,7 @@ The **interpolation mode** decides what is drawn between two consecutive samples
 - [`STEP_BEFORE`](#interpolationmode), [`STEP_AFTER`](#interpolationmode), and [`STEP_MIDDLE`](#interpolationmode) draw a staircase. They differ by where the vertical jump happens.
 - [`SMOOTH_MONOTONE`](#interpolationmode) draws a monotone cubic curve through the samples.
 
-The **gap policy** decides what the curve does at a sample the plot cannot place. A sample is invalid when its X or Y value is `NaN` or infinite. A sample is also invalid when the scale of its axis cannot take the value, as a [`LOGARITHMIC`](axis_config.md#scale) axis cannot take a value at or below zero. [`SKIP`](#gappolicy) cuts the curve at that sample, so the sample before it and the sample after it stay unconnected. [`BRIDGE`](#gappolicy) drops the sample and draws one segment from the sample before it to the sample after it.
+The **gap policy** decides what the curve does at a sample the plot cannot place. A sample is invalid when its X or Y value is `NaN` or infinite. A sample is also invalid when the scale of its axis cannot take the value, as a [`LOGARITHMIC`](axis_config.md#scale-enum) axis cannot take a value at or below zero. [`SKIP`](#gappolicy) cuts the curve at that sample, so the sample before it and the sample after it stay unconnected. [`BRIDGE`](#gappolicy) drops the sample and draws one segment from the sample before it to the sample after it.
 
 [`mode`](#mode) affects the Y domain, and [`stacked_normalization`](#stacked_normalization) and [`stacked_negative_policy`](#stacked_negative_policy) affect it while [`mode`](#mode) is [`STACKED`](#linemode). Changing any of the three triggers a full layout recomputation on the next refresh. Every other property on this class is visual-only and triggers a redraw alone.
 
@@ -109,7 +109,7 @@ Creates a new `TauLineConfig` with all properties set to their built-in defaults
 
 How the curves of the series in the overlay relate to one another. Default is [`INDEPENDENT`](#linemode).
 
-[`STACKED`](#linemode) adds up the values of the series at each X position. It therefore requires a [`SHARED_X`](dataset.md#mode) [`Dataset`](dataset.md), requires every series bound to this overlay to use the same Y axis, and rejects a [`LOGARITHMIC`](axis_config.md#scale) Y axis, on which a running total is not meaningful. Each of the three is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. [`INDEPENDENT`](#linemode) has no dataset or axis constraint.
+[`STACKED`](#linemode) adds up the values of the series at each X position. It therefore requires a [`SHARED_X`](dataset.md#mode) [`Dataset`](dataset.md), requires every series bound to this overlay to use the same Y axis, and rejects a [`LOGARITHMIC`](axis_config.md#scale-enum) Y axis, on which a running total is not meaningful. Each of the three is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. [`INDEPENDENT`](#linemode) has no dataset or axis constraint.
 
 Changing this property triggers a full layout recomputation on the next refresh, since stacking changes the Y domain.
 
@@ -133,7 +133,7 @@ This property is visual-only.
 
 What the curve does at a sample the plot cannot place, for every series in the overlay. Default is [`SKIP`](#gappolicy).
 
-A sample is invalid when its X or Y value is `NaN` or infinite. It is also invalid when the scale of its axis cannot take the value, as a [`LOGARITHMIC`](axis_config.md#scale) axis cannot take a value at or below zero.
+A sample is invalid when its X or Y value is `NaN` or infinite. It is also invalid when the scale of its axis cannot take the value, as a [`LOGARITHMIC`](axis_config.md#scale-enum) axis cannot take a value at or below zero.
 
 This property is visual-only.
 
@@ -169,7 +169,7 @@ Changing this property while [`mode`](#mode) is [`STACKED`](#linemode) triggers 
 
 The maximum distance in pixels between the cursor and a sample for that sample to count as a hit. Default is `10`.
 
-How the distance is measured depends on the active [hover mode](hover_config.md#hovermode) and the [X axis type](axis_config.md#type):
+How the distance is measured depends on the active [hover mode](hover_config.md#hovermode) and the [X axis type](axis_config.md#type-enum):
 
 - In [`NEAREST`](hover_config.md#hovermode) mode, the distance is the 2D Euclidean distance from the cursor to the sample. A sample farther than this value is dropped, and the nearest of the remaining samples is the hit.
 - In [`X_ALIGNED`](hover_config.md#hovermode) mode on a continuous X axis, only the horizontal distance counts. A sample whose X screen position is farther than this value from the target X is dropped. For the samples that remain, the 2D Euclidean distance to the cursor is compared to the same value to set [`SampleHit.contains_pointer`](sample_hit.md#contains_pointer).

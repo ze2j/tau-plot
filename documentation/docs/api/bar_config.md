@@ -27,7 +27,7 @@ The **bar width policy** controls how bar widths are computed:
 - [`AUTO`](#barwidthpolicy) selects [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy) for categorical X axes and [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy) for continuous X axes.
 - [`THEME`](#barwidthpolicy) reads pixel-based constants from the Godot theme via [`TauBarStyle`](bar_style.md).
 - [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy) allocates each bar a fixed portion of the categorical slot. The slot is divided among all series in the group, with [`category_width_fraction`](#category_width_fraction) controlling the total group span and [`intra_group_gap_fraction`](#intra_group_gap_fraction) the spacing between bars. Valid only on categorical X axes.
-- [`DATA_UNITS`](#barwidthpolicy) gives bars a size anchored to the data coordinate system. Width and gap are expressed in X data units on a [linear scale](axis_config.md#scale), or as multiplicative factors on a [logarithmic scale](axis_config.md#scale). Valid only on continuous X axes.
+- [`DATA_UNITS`](#barwidthpolicy) gives bars a size anchored to the data coordinate system. Width and gap are expressed in X data units on a [linear scale](axis_config.md#scale-enum), or as multiplicative factors on a [logarithmic scale](axis_config.md#scale-enum). Valid only on continuous X axes.
 - [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy) adapts bar width to the local density of samples. Each bar or group takes a fraction of the distance to the nearest neighboring X value, so bars stay proportionate across unevenly spaced data. Valid only on continuous X axes.
 
 The width and gap properties of the active policy are checked when the plot is built. A value outside its range is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts, leaving the previous plot untouched. Properties belonging to another policy are not read and not checked.
@@ -79,7 +79,7 @@ Selects the strategy used to compute bar widths and intragroup gaps.
 | `AUTO` | Resolves to [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy) for categorical X axes and [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy) for continuous X axes. |
 | `THEME` | Reads pixel-based width and gap constants from the Godot theme via [`TauBarStyle.bar_width_px`](bar_style.md#bar_width_px) and [`TauBarStyle.bar_intragroup_gap_px`](bar_style.md#bar_intragroup_gap_px). |
 | `CATEGORY_WIDTH_FRACTION` | Derives the bar width from the categorical slot width using [`category_width_fraction`](#category_width_fraction) and [`intra_group_gap_fraction`](#intra_group_gap_fraction). Valid only on categorical X axes. |
-| `DATA_UNITS` | Expresses bar width in X data units. On a [linear scale](axis_config.md#scale), uses [`bar_width_x_units`](#bar_width_x_units) and [`bar_gap_x_units`](#bar_gap_x_units). On a [logarithmic scale](axis_config.md#scale), uses [`bar_width_log_factor`](#bar_width_log_factor) and [`bar_gap_log_factor`](#bar_gap_log_factor). Valid only on continuous X axes. |
+| `DATA_UNITS` | Expresses bar width in X data units. On a [linear scale](axis_config.md#scale-enum), uses [`bar_width_x_units`](#bar_width_x_units) and [`bar_gap_x_units`](#bar_gap_x_units). On a [logarithmic scale](axis_config.md#scale-enum), uses [`bar_width_log_factor`](#bar_width_log_factor) and [`bar_gap_log_factor`](#bar_gap_log_factor). Valid only on continuous X axes. |
 | `NEIGHBOR_SPACING_FRACTION` | Derives the bar width from the local spacing between neighboring X samples, using [`neighbor_spacing_fraction`](#neighbor_spacing_fraction) and [`neighbor_gap_fraction`](#neighbor_gap_fraction). Valid only on continuous X axes. |
 
 ## Constructor
@@ -102,7 +102,7 @@ The arrangement mode for bars from multiple series at the same X position. Defau
 
 [`GROUPED`](#barmode) and [`STACKED`](#barmode) require a [`SHARED_X`](dataset.md#mode)
 [`Dataset`](dataset.md). [`STACKED`](#barmode) additionally requires all bound series to share
-the same Y axis, and that Y axis must use a [`LINEAR`](axis_config.md#scale) scale. An unmet
+the same Y axis, and that Y axis must use a [`LINEAR`](axis_config.md#scale-enum) scale. An unmet
 requirement is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts.
 [`INDEPENDENT`](#barmode) has no dataset or axis constraints.
 
@@ -172,7 +172,7 @@ Only used when the active policy is [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy)
 
 The bar width expressed in X data units, for use on a linear scale. Default is `1.0`.
 
-Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LINEAR`](axis_config.md#scale). Must be at or above `0.0`, and a lower value is a validation error. Bars keep a constant width in data units regardless of zoom or pane size. This property is visual-only.
+Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LINEAR`](axis_config.md#scale-enum). Must be at or above `0.0`, and a lower value is a validation error. Bars keep a constant width in data units regardless of zoom or pane size. This property is visual-only.
 
 ---
 
@@ -182,7 +182,7 @@ Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X sc
 
 The gap between bars in a [`GROUPED`](#barmode) cluster, expressed in X data units, for use on a linear scale. Default is `0.0`.
 
-Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy), the X scale is [`LINEAR`](axis_config.md#scale), and [`mode`](#mode) is [`GROUPED`](#barmode). Must be at or above `0.0`, and a lower value is a validation error. This property is visual-only.
+Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy), the X scale is [`LINEAR`](axis_config.md#scale-enum), and [`mode`](#mode) is [`GROUPED`](#barmode). Must be at or above `0.0`, and a lower value is a validation error. This property is visual-only.
 
 ---
 
@@ -192,7 +192,7 @@ Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy), the X scale
 
 The bar width expressed as a multiplicative factor around the bar's X value, for use on a logarithmic scale. Default is `1.5`.
 
-Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LOGARITHMIC`](axis_config.md#scale). Must be at or above `1.0`, and a lower value is a validation error. A value of `2.0` places the bar edges at `X / sqrt(2)` and `X * sqrt(2)`, giving a consistent relative thickness across decades. `1.0` produces zero-width bars. This property is visual-only.
+Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LOGARITHMIC`](axis_config.md#scale-enum). Must be at or above `1.0`, and a lower value is a validation error. A value of `2.0` places the bar edges at `X / sqrt(2)` and `X * sqrt(2)`, giving a consistent relative thickness across decades. `1.0` produces zero-width bars. This property is visual-only.
 
 ---
 
@@ -202,7 +202,7 @@ Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X sc
 
 The gap between bars in a [`GROUPED`](#barmode) cluster, expressed as a multiplicative factor relative to the bar width, for use on a logarithmic scale. Default is `1.0`.
 
-Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy), the X scale is [`LOGARITHMIC`](axis_config.md#scale), and [`mode`](#mode) is [`GROUPED`](#barmode). Must be at or above `1.0`, and a lower value is a validation error. A value of `1.0` produces no extra gap. This property is visual-only.
+Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy), the X scale is [`LOGARITHMIC`](axis_config.md#scale-enum), and [`mode`](#mode) is [`GROUPED`](#barmode). Must be at or above `1.0`, and a lower value is a validation error. A value of `1.0` produces no extra gap. This property is visual-only.
 
 ---
 
