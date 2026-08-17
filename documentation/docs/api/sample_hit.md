@@ -8,7 +8,7 @@ Read-only data object describing one sample detected near the cursor during hove
 
 ## Description
 
-`SampleHit` is produced by the hover inspection system and carries the identity, values, and screen position of one sample that was found near the cursor.
+`SampleHit` carries the identity, values, and screen position of one sample found near the cursor. The plot builds every instance, and user code only reads them.
 
 Arrays of `SampleHit` objects are delivered through the [`TauPlot.sample_hovered`](tau_plot.md#sample_hovered) and [`TauPlot.sample_clicked`](tau_plot.md#sample_clicked) signals, and are also passed to the [`TauHoverConfig.format_tooltip_text`](hover_config.md#format_tooltip_text) and [`TauHoverConfig.create_tooltip_control`](hover_config.md#create_tooltip_control) callbacks. How many hits an array contains and which samples qualify depend on the active hover mode. See [`TauHoverConfig`](hover_config.md) for a full description of the hover inspection system.
 
@@ -46,11 +46,23 @@ The X value of the hit sample. Holds a `float` when the X axis is [`CONTINUOUS`]
 
 ---
 
-### y_value
+### y_plotted_value
 
-`y_value`: `float`
+`y_plotted_value`: `float`
 
-The Y value of the hit sample.
+The Y position the sample is drawn at, in axis units.
+
+On a [`STACKED`](bar_config.md#barmode) bar overlay or a [`STACKED`](line_config.md#linemode) line overlay this is the cumulative total of the stack up to and including this series, rescaled when [`FRACTION`](tau_plot.md#stackednormalization) or [`PERCENT`](tau_plot.md#stackednormalization) normalization is active. In every other case it equals [`y_raw_value`](#y_raw_value).
+
+---
+
+### y_raw_value
+
+`y_raw_value`: `float`
+
+The Y value the [`Dataset`](dataset.md) holds for the sample, before stacking, normalization, and accumulation.
+
+This is the value the built-in tooltip formatter renders, and the one to report when a tooltip has to answer what this series measured at this X. [`y_plotted_value`](#y_plotted_value) answers where the sample sits on the axis instead.
 
 ---
 
@@ -58,7 +70,7 @@ The Y value of the hit sample.
 
 `screen_position`: `Vector2`
 
-The pixel position of the hit sample in the plot's local coordinate space. For bar overlays this is the top-center of the bar. For scatter overlays this is the center of the marker.
+The pixel position of the hit sample in the plot's local coordinate space. For a [`BAR`](tau_plot.md#paneoverlaytype) overlay this is the center of the bar tip, the edge the bar grows toward. For a [`SCATTER`](tau_plot.md#paneoverlaytype) overlay this is the center of the marker. For a [`LINE`](tau_plot.md#paneoverlaytype) overlay this is the sample position on the curve, never an interpolated point between two samples.
 
 ---
 
@@ -82,7 +94,7 @@ The overlay type that produced this hit.
 
 `distance_px`: `float`
 
-The pixel distance from the cursor to [`screen_position`](#screen_position). Useful for implementing a custom proximity threshold when handling [`sample_hovered`](tau_plot.md#sample_hovered) or [`sample_clicked`](tau_plot.md#sample_clicked).
+The pixel distance from the cursor to [`screen_position`](#screen_position). Useful for a custom proximity threshold applied when handling [`sample_hovered`](tau_plot.md#sample_hovered) or [`sample_clicked`](tau_plot.md#sample_clicked).
 
 ---
 
@@ -90,10 +102,16 @@ The pixel distance from the cursor to [`screen_position`](#screen_position). Use
 
 `contains_pointer`: `bool`
 
-`true` when the cursor falls inside the visual bounds of the sample: the bar rectangle for bar overlays, the marker radius for scatter overlays.
+`true` when the cursor sits inside the hit zone of the sample.
+
+A [`BAR`](tau_plot.md#paneoverlaytype) overlay uses the painted bar rectangle. A [`SCATTER`](tau_plot.md#paneoverlaytype) or [`LINE`](tau_plot.md#paneoverlaytype) overlay has no area to fall inside, so it uses a disc of [`TauScatterConfig.hover_max_distance_px`](scatter_config.md#hover_max_distance_px) or [`TauLineConfig.hover_max_distance_px`](line_config.md#hover_max_distance_px) pixels around [`screen_position`](#screen_position). In [`NEAREST`](hover_config.md#hovermode) mode the flag is always `true`, because that mode discards every sample that fails the same test.
 
 ## Related Classes
 
 * [`TauPlot`](tau_plot.md) Emits [`sample_hovered`](tau_plot.md#sample_hovered) and [`sample_clicked`](tau_plot.md#sample_clicked) carrying arrays of `SampleHit`.
 * [`TauHoverConfig`](hover_config.md) Configures the hover inspection system that produces `SampleHit` instances. Callbacks [`format_tooltip_text`](hover_config.md#format_tooltip_text) and [`create_tooltip_control`](hover_config.md#create_tooltip_control) receive these arrays.
-* [`Dataset`](dataset.md) Source of the series data that [`series_id`](#series_id), [`series_name`](#series_name), and [`sample_index`](#sample_index) refer back to.
+* [`Dataset`](dataset.md) Source of the series data that [`series_id`](#series_id), [`series_name`](#series_name), [`sample_index`](#sample_index), and [`y_raw_value`](#y_raw_value) refer back to.
+* [`TauBarConfig`](bar_config.md) Bar overlay configuration. Its [`mode`](bar_config.md#mode) decides whether [`y_plotted_value`](#y_plotted_value) differs from [`y_raw_value`](#y_raw_value).
+* [`TauScatterConfig`](scatter_config.md) Scatter overlay configuration. Holds the [`hover_max_distance_px`](scatter_config.md#hover_max_distance_px) threshold behind [`contains_pointer`](#contains_pointer).
+* [`TauLineConfig`](line_config.md) Line overlay configuration. Holds the [`hover_max_distance_px`](line_config.md#hover_max_distance_px) threshold behind [`contains_pointer`](#contains_pointer), and the [`mode`](line_config.md#mode) that makes [`y_plotted_value`](#y_plotted_value) cumulative.
+* [`TauXYConfig`](xy_config.md) Holds the [`panes`](xy_config.md#panes) array that [`pane_index`](#pane_index) indexes.

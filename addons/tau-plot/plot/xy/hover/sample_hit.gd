@@ -40,6 +40,7 @@ class SampleHit extends RefCounted:
 	## want to implement a custom distance threshold.
 	var distance_px: float
 
-	## True when the cursor position falls inside the visual bounds of this
-	## sample (the bar rectangle for bars, the marker radius for scatter).
+	## True when the cursor falls inside the hit zone of this sample: the
+	## painted rectangle for bars, a hover_max_distance_px disc around
+	## screen_position for scatter and line, which have no area of their own.
 	var contains_pointer: bool = false

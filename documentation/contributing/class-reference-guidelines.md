@@ -198,18 +198,20 @@ These rules apply to every sentence on every page. They are organized into three
 17. When a property holds a resource that must be reassigned rather than mutated in place, say so. An in-place change to a `Font`, a `StyleBox`, or an array is not detected by change tracking.
 18. State the empty-collection behavior of every array property. An empty cycle falls back to a named constant, and that constant is part of the contract.
 19. A hovered-state property states what it applies to in one sentence, on the property itself: which element takes it, and the one case where nothing takes it. How the plot picks that element is documented once, on `hover_config.md`, and nowhere else. Hit ordering and pointer containment are mechanism, and a page that repeats them ages with the hit tester.
+20. Never assume an axis direction. The X axis is horizontal only by default, [`TauXYConfig.x_axis_id`](xy_config.md#x_axis_id) can put it on the left or the right, and the Y axes turn with it. Name the axis, not the screen direction: a crosshair line runs perpendicular to the X axis rather than vertically, a bar grows along its Y axis rather than upward, and a stack accumulates in the direction of the Y axis. Where a screen direction is unavoidable, as in a pixel offset or a `Vector2`, say which axis it belongs to.
 
 ### Prohibitions
 
-19. No em dash.
-20. No semicolon.
-21. No "you" or "your".
-22. No marketing adjectives: "powerful", "easy", "convenient", "handy", "flexible".
-23. No filler words: "simply", "just", "basically", "note that", "please note".
-24. No passive constructions like "is designed to", "can be used to", "allows you to".
-25. No repetition beyond the boilerplate blocks defined below. Do not restate the summary in the description. Do not re-list properties in prose. Do not explain the same constraint in two places.
-26. No tutorials. A class page is reference, not a guide. Put extended walkthroughs in a separate guide and link to it.
-27. No mention of internal classes. If a class is not in the Public API Inventory above, it does not exist for the reader. Renderers, validators, hit testers, controllers, geometry caches, and state snapshots are internal.
+21. No em dash.
+22. No semicolon.
+23. No "you" or "your".
+24. No marketing adjectives: "powerful", "easy", "convenient", "handy", "flexible".
+25. No filler words: "simply", "just", "basically", "note that", "please note".
+26. No passive constructions like "is designed to", "can be used to", "allows you to".
+27. No repetition beyond the boilerplate blocks defined below. Do not restate the summary in the description. Do not re-list properties in prose. Do not explain the same constraint in two places.
+28. No tutorials. A class page is reference, not a guide. Put extended walkthroughs in a separate guide and link to it.
+29. No mention of internal classes. If a class is not in the Public API Inventory above, it does not exist for the reader. Renderers, validators, hit testers, controllers, geometry caches, and state snapshots are internal.
+30. No "diameter" and no "radius" for a scatter marker. The API calls it size and a marker is not always a disc.
 
 ## Section Rules
 
@@ -565,6 +567,7 @@ Use these terms consistently across all pages. Do not invent synonyms.
 |pane|A rectangular area inside the plot that holds one or more overlays.|
 |overlay|A visual layer in a pane (bar, scatter, or line).|
 |marker|A shape drawn at each scatter sample position.|
+|marker size|The size of a marker, in pixels or in X data units depending on the active size policy. Never diameter, never radius.|
 |tick|A labeled graduation mark on an axis.|
 |ring buffer|A fixed-capacity buffer that drops the oldest value when full.|
 |capacity|The maximum number of values a ring buffer can hold.|
@@ -616,6 +619,7 @@ Accuracy:
 - [ ] On a style class, every valid range matches the bound its setter enforces and states that it applies on assignment, and any disagreement with `@export_range` or the doc comment is reported. A value adjusted where it is drawn is documented as behavior, not as a range.
 - [ ] Every enum table lists every value declared in the source.
 - [ ] Every unit is stated, including units that depend on another property.
+- [ ] No sentence assumes the X axis is horizontal or a Y axis vertical.
 - [ ] Every index names the space it indexes.
 - [ ] Every array property states its empty-collection fallback by name.
 - [ ] Every parameter bullet corresponds to a parameter in the signature above it, and none is missing.

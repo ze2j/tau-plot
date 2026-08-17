@@ -130,7 +130,7 @@ enum BarWidthPolicy
 ##
 ## Only read under [constant BarWidthPolicy.DATA_UNITS] on a logarithmic x
 ## axis. A linear x axis reads [member bar_width_x_units] instead. Must be
-## above [code]1.0[/code].
+## at or above [code]1.0[/code].
 @export var bar_width_log_factor: float = 1.5
 
 ## Gap between two bars of the same group, as a multiplicative factor on the

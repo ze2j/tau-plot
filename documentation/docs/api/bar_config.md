@@ -13,15 +13,14 @@ The [`mode`](#mode) controls how bars from multiple series at the same X positio
 
 - [`GROUPED`](#barmode) places them side by side.
 - [`STACKED`](#barmode) stacks them in the direction of the Y axis so each bar begins where the previous one ended.
-- [`INDEPENDENT`](#barmode) draws each series as if the others do not exist, which causes overlap. 
+- [`INDEPENDENT`](#barmode) draws each series as if the others do not exist, which causes overlap.
 
-[`mode`](#mode) and [`stacked_normalization`](#stacked_normalization) are the only properties that affect layout and domain computation. All other properties on this class are visual-only and trigger a redraw without rebuilding the layout.
+Two properties shape a stack:
 
-The **stacked normalization** only applies when [`mode`](#mode) is [`STACKED`](#barmode):
+- [`stacked_normalization`](#stacked_normalization) sets what each stack is scaled to: the raw sum, `1.0`, or `100.0`.
+- [`stacked_negative_policy`](#stacked_negative_policy) sets how a negative value enters the stack. Bars accept [`DIVERGING`](tau_plot.md#stackednegativepolicy) and [`SKIP_NEGATIVES`](tau_plot.md#stackednegativepolicy). [`SIGNED_SUM`](tau_plot.md#stackednegativepolicy) is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts, because a dip below the previous layer cannot be drawn without overlapping rectangles.
 
-- [`NONE`](#stackednormalization) draws raw stacked sums.
-- [`FRACTION`](#stackednormalization) rescales each stack so the total equals `1.0`.
-- [`PERCENT`](#stackednormalization) rescales so the total equals `100.0`.
+[`StackedNormalization`](tau_plot.md#stackednormalization) and [`StackedNegativePolicy`](tau_plot.md#stackednegativepolicy) are shared with [`TauLineConfig`](line_config.md) and are reached through the [`TauPlot`](tau_plot.md) namespace.
 
 The **bar width policy** controls how bar widths are computed:
 
@@ -31,7 +30,11 @@ The **bar width policy** controls how bar widths are computed:
 - [`DATA_UNITS`](#barwidthpolicy) gives bars a size anchored to the data coordinate system. Width and gap are expressed in X data units on a [linear scale](axis_config.md#scale), or as multiplicative factors on a [logarithmic scale](axis_config.md#scale). Valid only on continuous X axes.
 - [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy) adapts bar width to the local density of samples. Each bar or group takes a fraction of the distance to the nearest neighboring X value, so bars stay proportionate across unevenly spaced data. Valid only on continuous X axes.
 
-Visual appearance beyond width is controlled by [`style`](#style), which holds the `StyleBox`, hover highlight, and pixel-based sizing constants. Per-sample color, alpha, and shape overrides are applied through [`bar_visual_callbacks`](#bar_visual_callbacks) or through [`BarVisualAttributes`](bar_visual_attributes.md) on the series binding.
+The width and gap properties of the active policy are checked when the plot is built. A value outside its range is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts, leaving the previous plot untouched. Properties belonging to another policy are not read and not checked.
+
+[`mode`](#mode) affects layout and domain computation on its own. [`stacked_normalization`](#stacked_normalization) and [`stacked_negative_policy`](#stacked_negative_policy) affect it while [`mode`](#mode) is [`STACKED`](#barmode). Every other property on this class is visual-only and triggers a redraw without rebuilding the layout.
+
+Visual appearance beyond width is controlled by [`style`](#style), which holds the `StyleBox` of a bar, its hovered-state counterpart, and the pixel-based sizing constants. Per-sample color, alpha, and `StyleBox` overrides are applied through [`bar_visual_callbacks`](#bar_visual_callbacks) or through [`BarVisualAttributes`](bar_visual_attributes.md) on the series binding. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for the order the two mechanisms resolve in.
 
 After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change.
 
@@ -49,6 +52,10 @@ pane.y_left_axis = TauAxisConfig.new()
 pane.overlays = [bar_overlay]
 ```
 
+### Notes
+
+1. **Two stacked overlays on one axis must agree.** When a [`STACKED`](#barmode) bar overlay and a [`STACKED`](line_config.md#linemode) line overlay draw against the same Y axis of the same pane, they must declare the same [`stacked_normalization`](#stacked_normalization) and the same [`stacked_negative_policy`](#stacked_negative_policy). Both feed the range of that axis, and a disagreement is a validation error that aborts [`TauPlot.plot_xy()`](tau_plot.md#plot_xy).
+
 ## Enums
 
 ### `BarMode`
@@ -60,18 +67,6 @@ Controls how bars from multiple series at the same X position are arranged relat
 | `GROUPED` | Bars from different series at the same X position are placed side by side within the allocated slot width. |
 | `STACKED` | Bars from different series at the same X position are stacked in the direction of the Y axis, each starting where the previous one ended. |
 | `INDEPENDENT` | Each series is drawn independently of the others. Bars at the same X position overlap. |
-
----
-
-### `StackedNormalization`
-
-Controls how stacked bar totals are scaled. Only applies when [`mode`](#mode) is [`STACKED`](#barmode).
-
-| Value | Meaning |
-|---|---|
-| `NONE` | Bars are drawn using raw data values. The stacked total reflects the actual sum of the series. |
-| `FRACTION` | Each stack is rescaled so the total height equals `1.0`. |
-| `PERCENT` | Each stack is rescaled so the total height equals `100.0`. |
 
 ---
 
@@ -107,20 +102,33 @@ The arrangement mode for bars from multiple series at the same X position. Defau
 
 [`GROUPED`](#barmode) and [`STACKED`](#barmode) require a [`SHARED_X`](dataset.md#mode)
 [`Dataset`](dataset.md). [`STACKED`](#barmode) additionally requires all bound series to share
-the same Y axis, and that Y axis must use a [`LINEAR`](axis_config.md#scale) scale.
+the same Y axis, and that Y axis must use a [`LINEAR`](axis_config.md#scale) scale. An unmet
+requirement is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts.
 [`INDEPENDENT`](#barmode) has no dataset or axis constraints.
 
-Changing this property triggers a full layout recomputation on the next refresh because mode affects the Y domain when stacking is active.
+Changing this property triggers a full layout recomputation on the next refresh, because the mode decides whether the Y domain covers single values or stacked totals.
 
 ---
 
 ### stacked_normalization
 
-`stacked_normalization`: [`StackedNormalization`](#stackednormalization)
+`stacked_normalization`: [`StackedNormalization`](tau_plot.md#stackednormalization)
 
-The normalization applied to stacked bar totals. Default is [`NONE`](#stackednormalization).
+What each stack is scaled to. Default is [`NONE`](tau_plot.md#stackednormalization).
 
-Only used when [`mode`](#mode) is [`STACKED`](#barmode). Changing this property triggers a full layout recomputation on the next refresh because normalization affects the Y domain. Has no effect when [`mode`](#mode) is [`GROUPED`](#barmode) or [`INDEPENDENT`](#barmode).
+Only read when [`mode`](#mode) is [`STACKED`](#barmode), and ignored in the two other modes. While the mode is [`STACKED`](#barmode), changing this property triggers a full layout recomputation on the next refresh, because [`FRACTION`](tau_plot.md#stackednormalization) and [`PERCENT`](tau_plot.md#stackednormalization) pin the Y domain to the normalized total.
+
+---
+
+### stacked_negative_policy
+
+`stacked_negative_policy`: [`StackedNegativePolicy`](tau_plot.md#stackednegativepolicy)
+
+How a negative sample enters a stack. Default is [`SKIP_NEGATIVES`](tau_plot.md#stackednegativepolicy).
+
+Only read when [`mode`](#mode) is [`STACKED`](#barmode), and ignored in the two other modes. [`SIGNED_SUM`](tau_plot.md#stackednegativepolicy) is rejected for bars: it dips a stack below the layer under it, which bar geometry can only draw as overlapping rectangles. Declaring it is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts, whatever the data holds.
+
+While the mode is [`STACKED`](#barmode), changing this property triggers a full layout recomputation on the next refresh, because the policy decides whether the Y domain reaches below zero.
 
 ---
 
@@ -130,11 +138,9 @@ Only used when [`mode`](#mode) is [`STACKED`](#barmode). Changing this property 
 
 The strategy used to compute bar widths. Default is [`AUTO`](#barwidthpolicy).
 
-Determines which set of width and gap properties is active (see [`BarWidthPolicy`](#barwidthpolicy)).
+Determines which set of width and gap properties is active (see [`BarWidthPolicy`](#barwidthpolicy)). Properties that do not belong to the active policy have no effect.
 
-Properties that do not belong to the active policy have no effect. [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy) is only valid for categorical X axes. Using it with a continuous X axis is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. 
-
-[`DATA_UNITS`](#barwidthpolicy) and [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy) are only valid for continuous X axes. Using either with a categorical X axis is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. 
+[`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy) is only valid for categorical X axes. [`DATA_UNITS`](#barwidthpolicy) and [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy) are only valid for continuous X axes. Any other pairing is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. [`AUTO`](#barwidthpolicy) and [`THEME`](#barwidthpolicy) are valid on both axis types.
 
 This property is visual-only and triggers a redraw without rebuilding the layout.
 
@@ -146,7 +152,7 @@ This property is visual-only and triggers a redraw without rebuilding the layout
 
 The fraction of the categorical slot width occupied by the entire group of bars at one X position. Default is `0.9`.
 
-Only used when the active policy is [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy). Valid range is `]0.0, 1.0]`. A value of `0.9` means the group spans 90% of the slot, leaving 10% as inter-group whitespace. In [`GROUPED`](#barmode) mode, individual bar widths are derived so that all bars and their intragroup gaps fit within this fraction. This property is visual-only.
+Only used when the active policy is [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy). Valid range is `]0.0, 1.0]`, and a value outside it is a validation error. A value of `0.9` means the group spans 90% of the slot, leaving 10% as inter-group whitespace. In [`GROUPED`](#barmode) mode, individual bar widths are derived so that all bars and their intragroup gaps fit within this fraction. This property is visual-only.
 
 ---
 
@@ -156,7 +162,7 @@ Only used when the active policy is [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy)
 
 The gap between adjacent bars in a [`GROUPED`](#barmode) cluster, expressed as a fraction of the individual bar width. Default is `0.1`.
 
-Only used when the active policy is [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy). Valid range is `[0.0, 1.0]`. This property is visual-only.
+Only used when the active policy is [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy) and [`mode`](#mode) is [`GROUPED`](#barmode). Valid range is `[0.0, 1.0]`, and a value outside it is a validation error. This property is visual-only.
 
 ---
 
@@ -166,7 +172,7 @@ Only used when the active policy is [`CATEGORY_WIDTH_FRACTION`](#barwidthpolicy)
 
 The bar width expressed in X data units, for use on a linear scale. Default is `1.0`.
 
-Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LINEAR`](axis_config.md#scale). Must be `>= 0`. Bars keep a constant width in data units regardless of zoom or pane size. This property is visual-only.
+Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LINEAR`](axis_config.md#scale). Must be at or above `0.0`, and a lower value is a validation error. Bars keep a constant width in data units regardless of zoom or pane size. This property is visual-only.
 
 ---
 
@@ -176,7 +182,7 @@ Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X sc
 
 The gap between bars in a [`GROUPED`](#barmode) cluster, expressed in X data units, for use on a linear scale. Default is `0.0`.
 
-Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LINEAR`](axis_config.md#scale). Must be `>= 0`. This property is visual-only.
+Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy), the X scale is [`LINEAR`](axis_config.md#scale), and [`mode`](#mode) is [`GROUPED`](#barmode). Must be at or above `0.0`, and a lower value is a validation error. This property is visual-only.
 
 ---
 
@@ -186,7 +192,7 @@ Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X sc
 
 The bar width expressed as a multiplicative factor around the bar's X value, for use on a logarithmic scale. Default is `1.5`.
 
-Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LOGARITHMIC`](axis_config.md#scale). Must be `> 1`. A value of `2.0` places the bar edges at `X / sqrt(2)` and `X * sqrt(2)`, giving a consistent relative thickness across decades. This property is visual-only.
+Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LOGARITHMIC`](axis_config.md#scale). Must be at or above `1.0`, and a lower value is a validation error. A value of `2.0` places the bar edges at `X / sqrt(2)` and `X * sqrt(2)`, giving a consistent relative thickness across decades. `1.0` produces zero-width bars. This property is visual-only.
 
 ---
 
@@ -196,7 +202,7 @@ Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X sc
 
 The gap between bars in a [`GROUPED`](#barmode) cluster, expressed as a multiplicative factor relative to the bar width, for use on a logarithmic scale. Default is `1.0`.
 
-Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X scale is [`LOGARITHMIC`](axis_config.md#scale). Must be `>= 1`. A value of `1.0` produces no extra gap. This property is visual-only.
+Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy), the X scale is [`LOGARITHMIC`](axis_config.md#scale), and [`mode`](#mode) is [`GROUPED`](#barmode). Must be at or above `1.0`, and a lower value is a validation error. A value of `1.0` produces no extra gap. This property is visual-only.
 
 ---
 
@@ -206,7 +212,7 @@ Only used when the active policy is [`DATA_UNITS`](#barwidthpolicy) and the X sc
 
 The fraction of the local spacing between neighboring X samples used as the bar or group width. Default is `0.8`.
 
-Only used when the active policy is [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy). Valid range is `]0.0, 1.0]`. In [`GROUPED`](#barmode) mode this fraction applies to the total group width. In [`STACKED`](#barmode) and [`INDEPENDENT`](#barmode) modes it applies to the individual bar width. Bars automatically become narrower in dense regions and wider in sparse regions. This property is visual-only.
+Only used when the active policy is [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy). Valid range is `]0.0, 1.0]`, and a value outside it is a validation error. In [`GROUPED`](#barmode) mode this fraction applies to the total group width. In [`STACKED`](#barmode) and [`INDEPENDENT`](#barmode) modes it applies to the individual bar width. Bars automatically become narrower in dense regions and wider in sparse regions. This property is visual-only.
 
 ---
 
@@ -216,7 +222,7 @@ Only used when the active policy is [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolic
 
 The gap between bars in a [`GROUPED`](#barmode) cluster, expressed as a fraction of the individual bar width, for use with the [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy) policy. Default is `0.1`.
 
-Only used when the active policy is [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy). Must be `>= 0`. This property is visual-only.
+Only used when the active policy is [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolicy) and [`mode`](#mode) is [`GROUPED`](#barmode). Must be at or above `0.0`, and a lower value is a validation error. This property is visual-only.
 
 ---
 
@@ -224,9 +230,9 @@ Only used when the active policy is [`NEIGHBOR_SPACING_FRACTION`](#barwidthpolic
 
 `style`: [`TauBarStyle`](bar_style.md)
 
-The visual style applied to bars in this overlay: `StyleBox` shape, hover highlight, pixel-based width, and intragroup gap. Default is a freshly constructed [`TauBarStyle`](bar_style.md) with all built-in defaults.
+The visual style applied to bars in this overlay: the `StyleBox` of a bar, the `StyleBox` of the hovered bar, and the pixel width and intragroup gap read under the [`THEME`](#barwidthpolicy) policy. Default is a freshly constructed [`TauBarStyle`](bar_style.md) with all built-in defaults.
 
-Never `null`. Modify properties directly on the instance. Any property left at its built-in default remains overridable by the active Godot theme. Multiple `TauBarConfig` instances can share the same [`TauBarStyle`](bar_style.md) resource.
+Never `null`. Modify properties directly on the instance. Any property left unassigned on this instance can still be set by the active Godot theme. Multiple `TauBarConfig` instances can share the same [`TauBarStyle`](bar_style.md) resource.
 
 ---
 
@@ -236,15 +242,20 @@ Never `null`. Modify properties directly on the instance. Any property left at i
 
 Typed accessor for per-sample visual callbacks on this bar overlay. Default is `null`.
 
-Reads and writes the inherited [`TauPaneOverlayConfig.visual_callbacks`](pane_overlay_config.md#visual_callbacks) property cast to [`BarVisualCallbacks`](bar_visual_callbacks.md). Assigning a non-[`BarVisualCallbacks`](bar_visual_callbacks.md) instance through the base property and then reading `bar_visual_callbacks` returns `null`. Assign a [`BarVisualCallbacks`](bar_visual_callbacks.md) instance here to override color, alpha, or `StyleBox` per sample at draw time. When both this and [`BarVisualAttributes`](bar_visual_attributes.md) buffers are set, buffers take priority over callbacks.
+Reads and writes the inherited [`TauPaneOverlayConfig.visual_callbacks`](pane_overlay_config.md#visual_callbacks) property cast to [`BarVisualCallbacks`](bar_visual_callbacks.md). Assigning a non-[`BarVisualCallbacks`](bar_visual_callbacks.md) instance through the base property and then reading `bar_visual_callbacks` returns `null`. Assign a [`BarVisualCallbacks`](bar_visual_callbacks.md) instance here to override color, alpha, or `StyleBox` per sample at draw time. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for the order a callback resolves in against a [`BarVisualAttributes`](bar_visual_attributes.md) buffer and the style property.
+
+`bar_visual_callbacks` is not serializable. The property is not exported and cannot be saved in a `.tres` resource file. Assign it at runtime only.
 
 ## Related Classes
 
-* [`TauPlot`](tau_plot.md) The plot node. Consumes `TauBarConfig` during layout and rendering.
+* [`TauPlot`](tau_plot.md) The plot node. Consumes `TauBarConfig` during layout and rendering, and holds the [`StackedNormalization`](tau_plot.md#stackednormalization) and [`StackedNegativePolicy`](tau_plot.md#stackednegativepolicy) enums.
 * [`TauPaneOverlayConfig`](pane_overlay_config.md) Base class. Defines [`overlay_type`](pane_overlay_config.md#overlay_type), [`z_order`](pane_overlay_config.md#z_order), [`hoverable`](pane_overlay_config.md#hoverable), and [`visual_callbacks`](pane_overlay_config.md#visual_callbacks).
 * [`TauPaneConfig`](pane_config.md) Holds the overlay in its [`overlays`](pane_config.md#overlays) array.
+* [`TauAxisConfig`](axis_config.md) Configures the axes whose type and scale decide which width policies are valid.
+* [`Dataset`](dataset.md) The data model. Its [`SHARED_X`](dataset.md#mode) mode is required by [`GROUPED`](#barmode) and [`STACKED`](#barmode).
 * [`TauBarStyle`](bar_style.md) Controls visual appearance. Owned by this config via [`style`](#style).
 * [`BarVisualCallbacks`](bar_visual_callbacks.md) Supplies per-sample color, alpha, and `StyleBox` overrides via callbacks.
-* [`BarVisualAttributes`](bar_visual_attributes.md) Supplies per-sample color and alpha overrides via pre-built buffers. Takes priority over [`BarVisualCallbacks`](bar_visual_callbacks.md).
-* [`TauXYStyle`](xy_style.md) Provides the series color palette applied when no per-sample overrides are active.
+* [`BarVisualAttributes`](bar_visual_attributes.md) Supplies per-sample color and alpha overrides via pre-built buffers.
+* [`TauXYStyle`](xy_style.md) Provides the series color cycle applied when no per-sample override supplies a color.
 * [`TauScatterConfig`](scatter_config.md) Sibling overlay configuration for scatter overlays.
+* [`TauLineConfig`](line_config.md) Sibling overlay configuration for line overlays, and the other user of the two stacking enums.

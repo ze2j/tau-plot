@@ -39,7 +39,7 @@ enum MarkerSizePolicy
 ## layer.
 @export var marker_size_policy: MarkerSizePolicy = MarkerSizePolicy.AUTO
 
-## Marker diameter in x data units. Only read under
+## Marker size in x data units. Only read under
 ## [constant MarkerSizePolicy.DATA_UNITS], and not on a categorical x axis,
 ## which has no data span to convert and falls back to
 ## [member TauScatterStyle.marker_sizes_px].
