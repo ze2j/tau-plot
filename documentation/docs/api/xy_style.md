@@ -95,7 +95,7 @@ Creates a `TauXYStyle` holding the built-in default of every property.
 
 `series_colors`: `Array[Color]`
 
-Color of one series. Default is a palette of eight colors opening with `DEFAULT_SERIES_COLOR`.
+Cycle holding the color of each series. Default is a palette of eight colors opening with `DEFAULT_SERIES_COLOR`.
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). An empty array falls back to `DEFAULT_SERIES_COLOR` for every series. See [`TauStyle`](style.md#cycles).
 
@@ -111,7 +111,7 @@ This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_ov
 
 `series_alphas`: `Array[float]`
 
-Opacity of one series, replacing the alpha channel of its [`series_colors`](#series_colors) entry. Default is `[DEFAULT_SERIES_ALPHA]`, fully opaque.
+Cycle holding the opacity of each series, replacing the alpha channel of its [`series_colors`](#series_colors) entry. Default is `[DEFAULT_SERIES_ALPHA]`, fully opaque.
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries outside `0.0` to `1.0` are clamped into that range as the array is stored. An empty array falls back to `DEFAULT_SERIES_ALPHA` for every series. See [`TauStyle`](style.md#cycles).
 

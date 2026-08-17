@@ -10,21 +10,13 @@ Callback-driven per-sample style overrides for [`LINE`](tau_plot.md#paneoverlayt
 
 `LineVisualCallbacks` is the [`LINE`](tau_plot.md#paneoverlaytype) specific subclass of [`VisualCallbacks`](visual_callbacks.md). It carries the two callbacks inherited from that base class, [`color_callback`](visual_callbacks.md#color_callback) and [`alpha_callback`](visual_callbacks.md#alpha_callback), and adds no overlay-specific callbacks of its own.
 
-Assign an instance to [`TauLineConfig.line_visual_callbacks`](line_config.md#line_visual_callbacks). Any other subclass on a line overlay is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. The renderer invokes each valid callback once per sample during the draw pass and applies the returned values on top of the per-series color and alpha resolved from [`TauXYStyle`](xy_style.md).
+Assign an instance to [`TauLineConfig.line_visual_callbacks`](line_config.md#line_visual_callbacks). Any other subclass on a line overlay is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. The plot invokes each valid callback once per sample on each draw pass and applies the returned values on top of the per-series color and alpha resolved from [`TauXYStyle`](xy_style.md).
 
-Each callback is optional. An invalid `Callable` means no callback is active for that property. The renderer falls through to the next resolution step when a callback is absent or when it returns a sentinel value.
-
-The resolution order for each overridable property is:
-
-1. The [`LineVisualAttributes`](line_visual_attributes.md) buffer, if a buffer is set and the sample index is within range.
-2. The corresponding callback on `LineVisualCallbacks`, if the `Callable` is valid.
-3. The resolved per-series value from [`TauXYStyle.series_colors`](xy_style.md#series_colors) and [`TauXYStyle.series_alphas`](xy_style.md#series_alphas).
-
-[`LineVisualAttributes`](line_visual_attributes.md) buffers always take priority over `LineVisualCallbacks` callbacks.
+Each callback is optional. An invalid `Callable` means no override for that property, and the resolved style value applies to every sample of the series. Each callback receives the dataset series index, the logical sample index, and the X and Y values of the sample, as described in [`VisualCallbacks`](visual_callbacks.md).
 
 Both callbacks override the stroke of the curve. The area painted around it takes its color from [`TauLineFill`](line_fill.md) and is left untouched.
 
-Each callback receives `x_value` as a `Variant`. Its concrete type is determined by the [`Dataset.XElementType`](dataset.md#xelementtype) chosen at construction time. When the dataset is built with [`XElementType.NUMERIC`](dataset.md#xelementtype), `x_value` is a `float`. When it is built with [`XElementType.CATEGORY`](dataset.md#xelementtype), `x_value` is a `String`. This is fixed for the lifetime of the [`Dataset`](dataset.md).
+See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for the order a callback resolves in against a [`LineVisualAttributes`](line_visual_attributes.md) buffer and the style property.
 
 ### Example
 
@@ -44,7 +36,7 @@ line_overlay.line_visual_callbacks = callbacks
 
 2. **`y_value` is the value stored in the dataset.** In [`STACKED`](line_config.md#linemode) mode the curve is drawn at the running total, and the callback still receives the value the [`Dataset`](dataset.md) holds, never the running total and never the normalized value.
 
-3. **The color returned here is not always the color drawn.** While at least one sample of the plot is hovered and [`TauHoverConfig.highlight_enabled`](hover_config.md#highlight_enabled) is `true`, every color goes through [`TauHoverConfig.hover_highlight_callback`](hover_config.md#hover_highlight_callback) before it is drawn. That callback receives one color and a `bool` saying whether this sample is the hovered one, and returns the color to draw. By default it brightens the hovered sample and dims every other sample. When no sample is hovered, the color returned here is drawn unchanged. The color of one sample never depends on the color of another.
+3. **The color returned here is not always the color drawn.** While at least one sample of the plot is hovered and [`TauHoverConfig.highlight_enabled`](hover_config.md#highlight_enabled) is `true`, every resolved color passes through [`TauHoverConfig.hover_highlight_callback`](hover_config.md#hover_highlight_callback) before it is drawn, and the emphasized curve also takes [`TauLineStyle.hovered_line_widths_px`](line_style.md#hovered_line_widths_px).
 
 ## Constructor
 
@@ -58,9 +50,10 @@ Creates a new `LineVisualCallbacks` instance with all callbacks set to an invali
 
 ## Related Classes
 
-* [`VisualCallbacks`](visual_callbacks.md) Base class. Defines the inherited [`color_callback`](visual_callbacks.md#color_callback) and [`alpha_callback`](visual_callbacks.md#alpha_callback).
+* [`VisualCallbacks`](visual_callbacks.md) Base class. Defines the inherited [`color_callback`](visual_callbacks.md#color_callback) and [`alpha_callback`](visual_callbacks.md#alpha_callback), the arguments every callback receives, and their sentinels.
 * [`TauLineConfig`](line_config.md) Owns the instance via its [`line_visual_callbacks`](line_config.md#line_visual_callbacks) property.
 * [`LineVisualAttributes`](line_visual_attributes.md) Companion class that overrides the same properties from pre-built buffers rather than callbacks. Buffers take priority over callbacks.
+* [`TauPaneOverlayConfig`](pane_overlay_config.md) Base class of [`TauLineConfig`](line_config.md). Defines how a per-sample override resolves against a buffer and a style property.
 * [`TauLineStyle`](line_style.md) Provides the resolved line style values the callbacks are applied on top of.
 * [`TauLineFill`](line_fill.md) Paints the area around the curve, which the callbacks do not reach.
 * [`TauXYStyle`](xy_style.md) Provides the per-series color and alpha a sample falls back to.

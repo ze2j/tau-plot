@@ -85,7 +85,7 @@ Creates a `TauLineStyle` holding the built-in default of every property.
 
 `line_widths_px`: `Array[float]`
 
-Width of the curve of one series in the normal state, in pixels. Default is `[2.0]`.
+Cycle holding the width of the curve of each series in the normal state, in pixels. Default is `[2.0]`.
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries below `0.0` are raised to `0.0` as the array is stored. An empty array falls back to `2.0` for every series. See [`TauStyle`](style.md#cycles).
 
@@ -97,7 +97,7 @@ An entry of `0` draws no line, see [note 1](#notes).
 
 `hovered_line_widths_px`: `Array[float]`
 
-Width of the two segments adjacent to the hovered sample, in pixels. Default is `[3.0]`.
+Cycle holding the width of the two segments adjacent to the hovered sample, one entry per series, in pixels. Default is `[3.0]`.
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries below `0.0` are raised to `0.0` as the array is stored. An empty array falls back to `0.0` for every series, a sentinel meaning no hover emphasis, which leaves those segments at the [`line_widths_px`](#line_widths_px) width. See [`TauStyle`](style.md#cycles).
 
@@ -111,7 +111,7 @@ The curve running nearest the cursor is the one emphasized, and a series drawn a
 
 `dash_lengths_px`: `Array[int]`
 
-Length of one dash of the curve of one series, with an equal gap between dashes, in pixels. Default is `[0]`.
+Cycle holding the dash length of the curve of each series, with an equal gap between dashes, in pixels. Default is `[0]`.
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries below `0` are raised to `0` as the array is stored. An empty array falls back to `0` for every series. See [`TauStyle`](style.md#cycles).
 
@@ -123,7 +123,7 @@ An entry of `0` draws a solid line.
 
 `fills`: `Array[TauLineFill]`
 
-Area painted around the curve of one series. Default is an empty array, which paints nothing.
+Cycle holding the area painted around the curve of each series. Default is an empty array, which paints nothing.
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). An empty array falls back to a [`TauLineFill`](line_fill.md) at its own built-in defaults for every series. See [`TauStyle`](style.md#cycles).
 

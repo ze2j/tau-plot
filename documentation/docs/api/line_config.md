@@ -119,7 +119,7 @@ Changing this property triggers a full layout recomputation on the next refresh,
 
 `interpolation_modes`: `Array[InterpolationMode]`
 
-What is drawn between two consecutive samples, per series. Default is `[LINEAR]`.
+Cycle holding what is drawn between two consecutive samples of each series. Default is `[LINEAR]`.
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). An empty array falls back to [`LINEAR`](#interpolationmode) for every series. See [`TauStyle`](style.md#cycles).
 

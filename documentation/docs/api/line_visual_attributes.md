@@ -10,11 +10,13 @@ Data-oriented per-sample style overrides for [`LINE`](tau_plot.md#paneoverlaytyp
 
 `LineVisualAttributes` is the [`LINE`](tau_plot.md#paneoverlaytype) specific subclass of [`VisualAttributes`](visual_attributes.md). It carries the two **buffers** inherited from that base class, [`color_buffer`](visual_attributes.md#color_buffer) and [`alpha_buffer`](visual_attributes.md#alpha_buffer), and adds no overlay-specific buffers of its own.
 
-Assign an instance to [`TauXYSeriesBinding.visual_attributes`](xy_series_binding.md#visual_attributes) when the binding targets a [`LINE`](tau_plot.md#paneoverlaytype) overlay. Any other subclass on such a binding is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. The renderer reads the buffers during each draw pass and applies the per-sample values on top of the per-series color and alpha resolved from [`TauXYStyle`](xy_style.md).
+Assign an instance to [`TauXYSeriesBinding.visual_attributes`](xy_series_binding.md#visual_attributes) when the binding targets a [`LINE`](tau_plot.md#paneoverlaytype) overlay. Any other subclass on such a binding is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. The plot reads the buffers on each draw pass and applies the per-sample values on top of the per-series color and alpha resolved from [`TauXYStyle`](xy_style.md).
 
 Each buffer is optional. A `null` buffer means no per-sample override for that property, and the resolved style value applies to every sample in the series. Partial buffers are supported: for any sample index past the end of the buffer, the resolved style value applies.
 
 The two buffers override the stroke of the curve. The area painted around it takes its color from [`TauLineFill`](line_fill.md) and is left untouched.
+
+See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for the order a buffer resolves in against a [`LineVisualCallbacks`](line_visual_callbacks.md) callback and the style property.
 
 ### Example
 
@@ -56,6 +58,7 @@ Creates a new `LineVisualAttributes` instance with all buffers set to `null`.
 * [`TauXYSeriesBinding`](xy_series_binding.md) Owns the instance via its [`visual_attributes`](xy_series_binding.md#visual_attributes) property.
 * [`LineVisualCallbacks`](line_visual_callbacks.md) Companion class that computes the same properties from a callback rather than a buffer. Buffers take priority over callbacks.
 * [`TauLineConfig`](line_config.md) Configures the overlay the buffers are read for.
+* [`TauPaneOverlayConfig`](pane_overlay_config.md) Base class of [`TauLineConfig`](line_config.md). Defines how a per-sample override resolves against a callback and a style property.
 * [`TauLineStyle`](line_style.md) Provides the resolved line style values the buffers are applied on top of.
 * [`TauLineFill`](line_fill.md) Paints the area around the curve, which the buffers do not reach.
 * [`TauXYStyle`](xy_style.md) Provides the per-series color and alpha a sample falls back to.

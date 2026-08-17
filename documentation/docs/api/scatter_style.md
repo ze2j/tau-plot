@@ -86,7 +86,7 @@ Shape drawn at a sample position.
 | `CROSS` | Two diagonal strokes. |
 | `PLUS` | One horizontal and one vertical stroke. |
 | `COUNT` | The number of drawable shapes. Not a shape itself: assigning it is reported and draws a `CIRCLE`, like any other value outside the enum. |
-| `NONE` | Draws nothing, hiding the markers of a series without removing its samples from the dataset. The samples still answer hover. |
+| `NONE` | Draws nothing, hiding the markers of a series without removing its samples from the dataset. A marker that draws nothing answers no hover either, so those samples report no [`SampleHit`](sample_hit.md) and never appear in a tooltip. |
 
 ## Constructor
 
@@ -104,7 +104,7 @@ Creates a `TauScatterStyle` holding the built-in default of every property.
 
 `marker_sizes_px`: `Array[float]`
 
-Size of the marker of one series, in pixels. Default is `[DEFAULT_MARKER_SIZE_PX]`, which is `12.0`.
+Cycle holding the marker size of each series, in pixels. Default is `[DEFAULT_MARKER_SIZE_PX]`, which is `12.0`.
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries below `1.0` are raised to `1.0` as the array is stored. An empty array falls back to `DEFAULT_MARKER_SIZE_PX` for every series. See [`TauStyle`](style.md#cycles).
 
@@ -142,7 +142,7 @@ This property can be overridden per sample. See [`TauPaneOverlayConfig`](pane_ov
 
 `hovered_marker_sizes_px`: `Array[float]`
 
-Size of the hovered marker of one series, in pixels. Default is `[16.0]`.
+Cycle holding the size of the hovered marker of each series, in pixels. Default is `[16.0]`.
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). Entries below `0.0` are raised to `0.0` as the array is stored. An empty array falls back to `0.0` for every series, a sentinel meaning no size change, which leaves the hovered marker at its [`marker_sizes_px`](#marker_sizes_px) size. See [`TauStyle`](style.md#cycles).
 
@@ -176,7 +176,7 @@ The alpha of the resolved series is applied on top of it. A per-sample override 
 
 `marker_shapes`: `Array[MarkerShape]`
 
-Shape of the marker of one series. Default is the seven drawable shapes in declaration order, from [`CIRCLE`](#markershape) to [`PLUS`](#markershape).
+Cycle holding the marker shape of each series. Default is the seven drawable shapes in declaration order, from [`CIRCLE`](#markershape) to [`PLUS`](#markershape).
 
 Read as a cycle: series `i` uses entry `i % size`, where `i` is the series index in the [`Dataset`](dataset.md). An empty array falls back to [`CIRCLE`](#markershape) for every series. See [`TauStyle`](style.md#cycles).
 
