@@ -17,14 +17,14 @@ class_name TauCrosshairStyle extends TauStyle
 @export var color: Color = Color(1.0, 1.0, 1.0, 0.4):
 	set(value):
 		color = value
-		_overridden[&"color"] = true
+		_mark(&"color")
 
 ## Thickness of the crosshair guide lines in pixels. Values below 1 are
 ## clamped to 1.
 @export var thickness_px: int = 1:
 	set(value):
 		thickness_px = maxi(value, 1)
-		_overridden[&"thickness_px"] = true
+		_mark(&"thickness_px")
 
 ## Length in pixels of one dash of the crosshair guide lines, with an equal
 ## gap between dashes. [code]0[/code] draws a solid line. Negative values are
@@ -32,7 +32,7 @@ class_name TauCrosshairStyle extends TauStyle
 @export var dash_px: int = 4:
 	set(value):
 		dash_px = maxi(value, 0)
-		_overridden[&"dash_px"] = true
+		_mark(&"dash_px")
 
 
 #region Internal, not public API, may change without notice.

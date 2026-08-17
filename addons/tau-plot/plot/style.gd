@@ -37,6 +37,14 @@
 ## array afterwards leaves the style alone. Reading the property back gives the
 ## stored array, which the second line above changes in place.
 ##
+## A property holding another resource, such as a [StyleBox], a [Font] or a
+## [Texture2D], follows the same rule. Assign a new one to change it. One
+## changed in place is not marked and not picked up:
+## [codeblock]
+## style.style_box = new_box                # Marked, this wins.
+## style.style_box.bg_color = Color.GREEN   # Avoid, not marked, no repaint.
+## [/codeblock]
+##
 ## [b]Empty values[/b]
 ##
 ## [code]null[/code] and the empty array are values, not a way to defer to the
@@ -171,6 +179,12 @@ static func _floored_ints(p_values: Array[int], p_min: int) -> Array[int]:
 # several properties. Called on the resolved instance at the end of resolve(),
 # never on the user resource, whose properties are still half unset.
 @abstract func validate_resolved() -> void
+
+
+# Records p_property as assigned and notifies the listeners.
+func _mark(p_property: StringName) -> void:
+	_overridden[p_property] = true
+	emit_changed()
 
 
 # Returns true when p_property has been assigned on this resource, whatever the

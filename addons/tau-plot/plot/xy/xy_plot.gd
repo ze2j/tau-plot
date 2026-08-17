@@ -125,6 +125,9 @@ var _line_dirty_panes: Array[bool] = []
 # Hover controller (null when setup() has not been called or hover is not wired)
 var _hover_controller: HoverController = null
 
+# User-provided TauHoverConfig resource (may be null).
+var _hover_config: TauHoverConfig = null
+
 
 ####################################################################################################
 # Public
@@ -261,20 +264,6 @@ func setup(
 			_bar_series_ids_per_pane, _line_series_ids_per_pane, _xy_domain_overrides)
 	_xy_layout = XYLayout.new(_xy_domain)
 
-	# Connect style changed signals for programmatic mutation detection.
-	_disconnect_style_signals()
-	p_xy_config.style.changed.connect(_on_style_changed)
-	for pane_index in range(pane_count):
-		if _bar_config_per_pane[pane_index] != null and not _bar_config_per_pane[pane_index].style.changed.is_connected(_on_style_changed):
-			_bar_config_per_pane[pane_index].style.changed.connect(_on_style_changed)
-		if _scatter_config_per_pane[pane_index] != null and not _scatter_config_per_pane[pane_index].style.changed.is_connected(_on_style_changed):
-			_scatter_config_per_pane[pane_index].style.changed.connect(_on_style_changed)
-		if _line_config_per_pane[pane_index] != null and not _line_config_per_pane[pane_index].style.changed.is_connected(_on_style_changed):
-			_line_config_per_pane[pane_index].style.changed.connect(_on_style_changed)
-		var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
-		if pane_config.style != null and not pane_config.style.changed.is_connected(_on_style_changed):
-			pane_config.style.changed.connect(_on_style_changed)
-
 	# Create the pane stack container (VBox or HBox) based on x axis orientation.
 	var x_is_horizontal := Axis.is_horizontal(p_xy_config.x_axis_id)
 	_clear_pane_containers()
@@ -397,8 +386,9 @@ func setup(
 
 	# Legend
 	_user_legend_style = p_legend_config.style
-	if _user_legend_style != null and not _user_legend_style.changed.is_connected(_on_style_changed):
-		_user_legend_style.changed.connect(_on_style_changed)
+
+	_hover_config = p_hover_config
+	_connect_style_signals()
 
 	# The builder creates the legend, places it in the tree, then resolves
 	# the TauLegendStyle cascade against the in-tree legend (TauLegend type
@@ -495,6 +485,7 @@ func clear() -> void:
 	if _hover_controller != null:
 		_hover_controller.clear()
 		_hover_controller = null
+	_hover_config = null
 
 	_state.reset()
 	_mark_all_dirty()
@@ -896,13 +887,9 @@ func set_legend_config(p_config: TauLegendConfig) -> void:
 
 	# Update style tracking.
 	if _user_legend_style != new_style:
-		# Disconnect old signal.
-		if _user_legend_style != null and _user_legend_style.changed.is_connected(_on_style_changed):
-			_user_legend_style.changed.disconnect(_on_style_changed)
+		_unsubscribe_style(_user_legend_style, _on_style_changed)
 		_user_legend_style = new_style
-		# Connect new signal.
-		if _user_legend_style != null and not _user_legend_style.changed.is_connected(_on_style_changed):
-			_user_legend_style.changed.connect(_on_style_changed)
+		_subscribe_style(_user_legend_style, _on_style_changed)
 
 	# Update position and flow direction.
 	_legend_builder.controller.place(p_config.position)
@@ -915,6 +902,12 @@ func set_hover_enabled(p_enabled: bool) -> void:
 
 
 func set_hover_config(p_config: TauHoverConfig) -> void:
+	for style in _hover_styles():
+		_unsubscribe_style(style, _on_hover_style_changed)
+	_hover_config = p_config
+	for style in _hover_styles():
+		_subscribe_style(style, _on_hover_style_changed)
+
 	if _hover_controller != null:
 		_hover_controller.set_config(p_config)
 
@@ -1092,34 +1085,64 @@ func _reset_dataset() -> void:
 	_dataset = null
 
 
+func _connect_style_signals() -> void:
+	for style in _user_styles():
+		_subscribe_style(style, _on_style_changed)
+	for style in _hover_styles():
+		_subscribe_style(style, _on_hover_style_changed)
+
+
 func _disconnect_style_signals() -> void:
-	if _domain_config != null and _domain_config.style != null:
-		if _domain_config.style.changed.is_connected(_on_style_changed):
-			_domain_config.style.changed.disconnect(_on_style_changed)
-	for bar_cfg in _bar_config_per_pane:
-		if bar_cfg != null and bar_cfg.style != null:
-			if bar_cfg.style.changed.is_connected(_on_style_changed):
-				bar_cfg.style.changed.disconnect(_on_style_changed)
-	for scatter_cfg in _scatter_config_per_pane:
-		if scatter_cfg != null and scatter_cfg.style != null:
-			if scatter_cfg.style.changed.is_connected(_on_style_changed):
-				scatter_cfg.style.changed.disconnect(_on_style_changed)
-	for line_cfg in _line_config_per_pane:
-		if line_cfg != null and line_cfg.style != null:
-			if line_cfg.style.changed.is_connected(_on_style_changed):
-				line_cfg.style.changed.disconnect(_on_style_changed)
-	if _domain_config != null:
-		for pane_config in _domain_config.panes:
-			if pane_config != null and pane_config.style != null:
-				if pane_config.style.changed.is_connected(_on_style_changed):
-					pane_config.style.changed.disconnect(_on_style_changed)
-	if _user_legend_style != null:
-		if _user_legend_style.changed.is_connected(_on_style_changed):
-			_user_legend_style.changed.disconnect(_on_style_changed)
+	for style in _user_styles():
+		_unsubscribe_style(style, _on_style_changed)
+	for style in _hover_styles():
+		_unsubscribe_style(style, _on_hover_style_changed)
+
+
+# Every user style feeding the plot itself, in no particular order. A style
+# resource may be shared between configurations, so the same one can come up
+# twice, and a pane style or a legend style may be null.
+func _user_styles() -> Array[TauStyle]:
+	var styles: Array[TauStyle] = [_domain_config.style, _user_legend_style]
+	for pane_config in _domain_config.panes:
+		styles.append(pane_config.style)
+	for bar_config in _bar_config_per_pane:
+		if bar_config != null:
+			styles.append(bar_config.style)
+	for scatter_config in _scatter_config_per_pane:
+		if scatter_config != null:
+			styles.append(scatter_config.style)
+	for line_config in _line_config_per_pane:
+		if line_config != null:
+			styles.append(line_config.style)
+	return styles
+
+
+# The user styles feeding the hover overlays. They are resolved by the hover
+# controller rather than by a refresh.
+func _hover_styles() -> Array[TauStyle]:
+	if _hover_config == null:
+		return []
+	return [_hover_config.tooltip_style, _hover_config.crosshair_style]
+
+
+func _subscribe_style(p_style: TauStyle, p_handler: Callable) -> void:
+	if p_style != null and not p_style.changed.is_connected(p_handler):
+		p_style.changed.connect(p_handler)
+
+
+func _unsubscribe_style(p_style: TauStyle, p_handler: Callable) -> void:
+	if p_style != null and p_style.changed.is_connected(p_handler):
+		p_style.changed.disconnect(p_handler)
 
 
 func _on_style_changed() -> void:
 	_queue_refresh.call()
+
+
+func _on_hover_style_changed() -> void:
+	_hover_controller.refresh_tooltip_style()
+	_hover_controller.refresh_crosshair_style()
 
 
 func _on_dataset_changed(p_change: DatasetChange) -> void:

@@ -23,14 +23,14 @@ class_name TauXYStyle extends TauStyle
 @export var axis_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		axis_color = value
-		_overridden[&"axis_color"] = true
+		_mark(&"axis_color")
 
 ## Font of the tick labels. Left at [code]null[/code], the tick labels are
 ## drawn in the font Godot uses by default.
 @export var label_font: Font = null:
 	set(value):
 		label_font = value
-		_overridden[&"label_font"] = true
+		_mark(&"label_font")
 
 ## Size in pixels of the tick labels. The theme's default font size applies
 ## unless the theme sets [code]font_size[/code] on the [code]TauPlot[/code]
@@ -38,13 +38,13 @@ class_name TauXYStyle extends TauStyle
 @export var label_font_size: int = 16:
 	set(value):
 		label_font_size = maxi(value, 1)
-		_overridden[&"label_font_size"] = true
+		_mark(&"label_font_size")
 
 ## Color of the tick labels.
 @export var label_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		label_color = value
-		_overridden[&"label_color"] = true
+		_mark(&"label_color")
 
 ## How far a major tick on the x axis protrudes from the axis line, in
 ## pixels, measured perpendicular to that line.
@@ -54,26 +54,26 @@ class_name TauXYStyle extends TauStyle
 @export var x_major_tick_length_px: int = 4:
 	set(value):
 		x_major_tick_length_px = maxi(value, 0)
-		_overridden[&"x_major_tick_length_px"] = true
+		_mark(&"x_major_tick_length_px")
 
 ## Stroke width in pixels of a major tick on the x axis.
 @export var x_major_tick_thickness_px: int = 1:
 	set(value):
 		x_major_tick_thickness_px = maxi(value, 0)
-		_overridden[&"x_major_tick_thickness_px"] = true
+		_mark(&"x_major_tick_thickness_px")
 
 ## How far a major tick on a y axis protrudes from the axis line, in pixels,
 ## measured perpendicular to that line. Applies to every y axis of every pane.
 @export var y_major_tick_length_px: int = 4:
 	set(value):
 		y_major_tick_length_px = maxi(value, 0)
-		_overridden[&"y_major_tick_length_px"] = true
+		_mark(&"y_major_tick_length_px")
 
 ## Stroke width in pixels of a major tick on a y axis.
 @export var y_major_tick_thickness_px: int = 1:
 	set(value):
 		y_major_tick_thickness_px = maxi(value, 0)
-		_overridden[&"y_major_tick_thickness_px"] = true
+		_mark(&"y_major_tick_thickness_px")
 
 ## Length of a minor tick as a fraction of the major tick length of the same
 ## axis. Shared by both axes. Valid range is [code][0.0, 1.0][/code], and
@@ -81,66 +81,66 @@ class_name TauXYStyle extends TauStyle
 @export var minor_tick_length_ratio: float = 0.5:
 	set(value):
 		minor_tick_length_ratio = clampf(value, 0.0, 1.0)
-		_overridden[&"minor_tick_length_ratio"] = true
+		_mark(&"minor_tick_length_ratio")
 
 ## Stroke width in pixels of a minor tick on the x axis.
 @export var x_minor_tick_thickness_px: int = 1:
 	set(value):
 		x_minor_tick_thickness_px = maxi(value, 0)
-		_overridden[&"x_minor_tick_thickness_px"] = true
+		_mark(&"x_minor_tick_thickness_px")
 
 ## Stroke width in pixels of a minor tick on a y axis.
 @export var y_minor_tick_thickness_px: int = 1:
 	set(value):
 		y_minor_tick_thickness_px = maxi(value, 0)
-		_overridden[&"y_minor_tick_thickness_px"] = true
+		_mark(&"y_minor_tick_thickness_px")
 
 ## Gap in pixels between the x axis tick marks and the x tick labels.
 @export var x_tick_x_label_gap_px: int = 4:
 	set(value):
 		x_tick_x_label_gap_px = maxi(value, 0)
-		_overridden[&"x_tick_x_label_gap_px"] = true
+		_mark(&"x_tick_x_label_gap_px")
 
 ## Gap in pixels between the y axis tick marks and the y tick labels.
 @export var y_tick_y_label_gap_px: int = 4:
 	set(value):
 		y_tick_y_label_gap_px = maxi(value, 0)
-		_overridden[&"y_tick_y_label_gap_px"] = true
+		_mark(&"y_tick_y_label_gap_px")
 
 ## Padding in pixels between the left edge of the plot control and the panes,
 ## outside the space the axes reserve for their ticks and labels.
 @export var padding_left_px: int = 4:
 	set(value):
 		padding_left_px = maxi(value, 0)
-		_overridden[&"padding_left_px"] = true
+		_mark(&"padding_left_px")
 
 ## Padding in pixels between the right edge of the plot control and the panes,
 ## outside the space the axes reserve for their ticks and labels.
 @export var padding_right_px: int = 4:
 	set(value):
 		padding_right_px = maxi(value, 0)
-		_overridden[&"padding_right_px"] = true
+		_mark(&"padding_right_px")
 
 ## Padding in pixels between the top edge of the plot control and the panes,
 ## outside the space the axes reserve for their ticks and labels.
 @export var padding_top_px: int = 4:
 	set(value):
 		padding_top_px = maxi(value, 0)
-		_overridden[&"padding_top_px"] = true
+		_mark(&"padding_top_px")
 
 ## Padding in pixels between the bottom edge of the plot control and the panes,
 ## outside the space the axes reserve for their ticks and labels.
 @export var padding_bottom_px: int = 4:
 	set(value):
 		padding_bottom_px = maxi(value, 0)
-		_overridden[&"padding_bottom_px"] = true
+		_mark(&"padding_bottom_px")
 
 ## Gap in pixels between two neighbouring panes, and between the axis titles
 ## that belong to them.
 @export var pane_gap_px: int = 4:
 	set(value):
 		pane_gap_px = maxi(value, 0)
-		_overridden[&"pane_gap_px"] = true
+		_mark(&"pane_gap_px")
 
 ## Color applied when [member series_colors] is empty.
 const DEFAULT_SERIES_COLOR := Color(0.306, 0.475, 0.655)
@@ -160,7 +160,7 @@ const DEFAULT_SERIES_COLOR := Color(0.306, 0.475, 0.655)
 ]:
 	set(value):
 		series_colors = value.duplicate()
-		_overridden[&"series_colors"] = true
+		_mark(&"series_colors")
 
 ## Opacity applied when [member series_alphas] is empty.
 const DEFAULT_SERIES_ALPHA := 1.0
@@ -171,7 +171,7 @@ const DEFAULT_SERIES_ALPHA := 1.0
 @export var series_alphas: Array[float] = [DEFAULT_SERIES_ALPHA]:
 	set(value):
 		series_alphas = _clamped_floats(value, 0.0, 1.0)
-		_overridden[&"series_alphas"] = true
+		_mark(&"series_alphas")
 
 
 #region Internal, not public API, may change without notice.

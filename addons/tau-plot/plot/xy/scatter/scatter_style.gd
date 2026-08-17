@@ -43,7 +43,7 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 @export var marker_sizes_px: Array[float] = [DEFAULT_MARKER_SIZE_PX]:
 	set(value):
 		marker_sizes_px = _floored_floats(value, 1.0)
-		_overridden[&"marker_sizes_px"] = true
+		_mark(&"marker_sizes_px")
 
 ## Thickness in pixels of the outline stroked around every marker.
 ## [code]0[/code] leaves the markers unoutlined. Negative values are clamped
@@ -51,13 +51,13 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 @export var outline_width_px: float = 1.0:
 	set(value):
 		outline_width_px = maxf(value, 0.0)
-		_overridden[&"outline_width_px"] = true
+		_mark(&"outline_width_px")
 
 ## Color of the outline stroked around every marker.
 @export var outline_color: Color = Color(0, 0, 0, 1):
 	set(value):
 		outline_color = value
-		_overridden[&"outline_color"] = true
+		_mark(&"outline_color")
 
 ## Per-series cycle of marker sizes in pixels for the hovered marker. See
 ## [TauStyle] for how a cycle is indexed. An empty array means no size change
@@ -70,20 +70,20 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 @export var hovered_marker_sizes_px: Array[float] = [16.0]:
 	set(value):
 		hovered_marker_sizes_px = _floored_floats(value, 0.0)
-		_overridden[&"hovered_marker_sizes_px"] = true
+		_mark(&"hovered_marker_sizes_px")
 
 ## Thickness in pixels of the outline stroked around the hovered marker.
 ## Negative values are clamped to 0.
 @export var hovered_outline_width_px: float = 2.0:
 	set(value):
 		hovered_outline_width_px = maxf(value, 0.0)
-		_overridden[&"hovered_outline_width_px"] = true
+		_mark(&"hovered_outline_width_px")
 
 ## Color of the outline stroked around the hovered marker.
 @export var hovered_outline_color: Color = Color(1, 1, 1, 1):
 	set(value):
 		hovered_outline_color = value
-		_overridden[&"hovered_outline_color"] = true
+		_mark(&"hovered_outline_color")
 
 ## Per-series cycle of marker shapes. See [TauStyle] for how a cycle is
 ## indexed. An empty array is treated as all series drawn as
@@ -102,7 +102,7 @@ const DEFAULT_MARKER_SIZE_PX := 12.0
 ]:
 	set(value):
 		marker_shapes = value.duplicate()
-		_overridden[&"marker_shapes"] = true
+		_mark(&"marker_shapes")
 
 
 #region Internal, not public API, may change without notice.

@@ -152,6 +152,8 @@ class HoverController extends RefCounted:
 	## Re-resolves the tooltip style. Called when styles change globally.
 	func refresh_tooltip_style() -> void:
 		_resolve_tooltip_style()
+		if _tooltip_pinned != null and _tooltip_pinned.visible:
+			_apply_tooltip_node_style(_tooltip_pinned, true)
 
 
 	## Re-resolves the crosshair style. Called when styles change globally.

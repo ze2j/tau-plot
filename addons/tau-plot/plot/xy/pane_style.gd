@@ -26,20 +26,20 @@ class_name TauPaneStyle extends TauStyle
 @export var x_major_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.15):
 	set(value):
 		x_major_grid_line_color = value
-		_overridden[&"x_major_grid_line_color"] = true
+		_mark(&"x_major_grid_line_color")
 
 ## Thickness in pixels of the X major grid lines.
 @export var x_major_grid_line_thickness_px: int = 1:
 	set(value):
 		x_major_grid_line_thickness_px = maxi(value, 0)
-		_overridden[&"x_major_grid_line_thickness_px"] = true
+		_mark(&"x_major_grid_line_thickness_px")
 
 ## Length in pixels of one dash of the X major grid lines, with an equal gap
 ## between dashes. [code]0[/code] draws solid lines.
 @export var x_major_grid_line_dash_px: int = 0:
 	set(value):
 		x_major_grid_line_dash_px = maxi(value, 0)
-		_overridden[&"x_major_grid_line_dash_px"] = true
+		_mark(&"x_major_grid_line_dash_px")
 
 
 ####################################################################################################
@@ -50,20 +50,20 @@ class_name TauPaneStyle extends TauStyle
 @export var x_minor_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.08):
 	set(value):
 		x_minor_grid_line_color = value
-		_overridden[&"x_minor_grid_line_color"] = true
+		_mark(&"x_minor_grid_line_color")
 
 ## Thickness in pixels of the X minor grid lines.
 @export var x_minor_grid_line_thickness_px: int = 1:
 	set(value):
 		x_minor_grid_line_thickness_px = maxi(value, 0)
-		_overridden[&"x_minor_grid_line_thickness_px"] = true
+		_mark(&"x_minor_grid_line_thickness_px")
 
 ## Length in pixels of one dash of the X minor grid lines, with an equal gap
 ## between dashes. [code]0[/code] draws solid lines.
 @export var x_minor_grid_line_dash_px: int = 0:
 	set(value):
 		x_minor_grid_line_dash_px = maxi(value, 0)
-		_overridden[&"x_minor_grid_line_dash_px"] = true
+		_mark(&"x_minor_grid_line_dash_px")
 
 
 ####################################################################################################
@@ -74,20 +74,20 @@ class_name TauPaneStyle extends TauStyle
 @export var y_major_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.15):
 	set(value):
 		y_major_grid_line_color = value
-		_overridden[&"y_major_grid_line_color"] = true
+		_mark(&"y_major_grid_line_color")
 
 ## Thickness in pixels of the Y major grid lines.
 @export var y_major_grid_line_thickness_px: int = 1:
 	set(value):
 		y_major_grid_line_thickness_px = maxi(value, 0)
-		_overridden[&"y_major_grid_line_thickness_px"] = true
+		_mark(&"y_major_grid_line_thickness_px")
 
 ## Length in pixels of one dash of the Y major grid lines, with an equal gap
 ## between dashes. [code]0[/code] draws solid lines.
 @export var y_major_grid_line_dash_px: int = 0:
 	set(value):
 		y_major_grid_line_dash_px = maxi(value, 0)
-		_overridden[&"y_major_grid_line_dash_px"] = true
+		_mark(&"y_major_grid_line_dash_px")
 
 
 ####################################################################################################
@@ -98,20 +98,20 @@ class_name TauPaneStyle extends TauStyle
 @export var y_minor_grid_line_color: Color = Color(1.0, 1.0, 1.0, 0.08):
 	set(value):
 		y_minor_grid_line_color = value
-		_overridden[&"y_minor_grid_line_color"] = true
+		_mark(&"y_minor_grid_line_color")
 
 ## Thickness in pixels of the Y minor grid lines.
 @export var y_minor_grid_line_thickness_px: int = 1:
 	set(value):
 		y_minor_grid_line_thickness_px = maxi(value, 0)
-		_overridden[&"y_minor_grid_line_thickness_px"] = true
+		_mark(&"y_minor_grid_line_thickness_px")
 
 ## Length in pixels of one dash of the Y minor grid lines, with an equal gap
 ## between dashes. [code]0[/code] draws solid lines.
 @export var y_minor_grid_line_dash_px: int = 0:
 	set(value):
 		y_minor_grid_line_dash_px = maxi(value, 0)
-		_overridden[&"y_minor_grid_line_dash_px"] = true
+		_mark(&"y_minor_grid_line_dash_px")
 
 
 #region Internal, not public API, may change without notice.

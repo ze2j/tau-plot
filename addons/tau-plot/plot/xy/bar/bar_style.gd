@@ -24,7 +24,7 @@ class_name TauBarStyle extends TauStyle
 @export var bar_width_px: int = 64:
 	set(value):
 		bar_width_px = maxi(value, 1)
-		_overridden[&"bar_width_px"] = true
+		_mark(&"bar_width_px")
 
 ## Gap in pixels between two bars of the same group. Only read under
 ## [constant TauBarConfig.BarWidthPolicy.THEME], and only in
@@ -33,7 +33,7 @@ class_name TauBarStyle extends TauStyle
 @export var bar_intragroup_gap_px: int = 0:
 	set(value):
 		bar_intragroup_gap_px = maxi(value, 0)
-		_overridden[&"bar_intragroup_gap_px"] = true
+		_mark(&"bar_intragroup_gap_px")
 
 ## StyleBox drawn for every bar in the normal state. Only [StyleBoxFlat]
 ## and [StyleBoxTexture] are supported.
@@ -50,7 +50,7 @@ class_name TauBarStyle extends TauStyle
 @export var style_box: StyleBox = null:
 	set(value):
 		style_box = value
-		_overridden[&"style_box"] = true
+		_mark(&"style_box")
 
 ## StyleBox drawn for the hovered bar, following the same rules as
 ## [member style_box]. It replaces the StyleBox the bar would otherwise be
@@ -61,7 +61,7 @@ class_name TauBarStyle extends TauStyle
 @export var hovered_style_box: StyleBox = null:
 	set(value):
 		hovered_style_box = value
-		_overridden[&"hovered_style_box"] = true
+		_mark(&"hovered_style_box")
 
 
 #region Internal, not public API, may change without notice.

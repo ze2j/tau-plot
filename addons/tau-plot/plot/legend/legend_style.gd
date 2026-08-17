@@ -24,7 +24,7 @@ class_name TauLegendStyle extends TauStyle
 @export var font: Font = null:
 	set(value):
 		font = value
-		_overridden[&"font"] = true
+		_mark(&"font")
 
 ## Size in pixels of the series names. The theme's default font size applies
 ## unless the theme sets [code]font_size[/code] on the [code]TauLegend[/code]
@@ -32,13 +32,13 @@ class_name TauLegendStyle extends TauStyle
 @export var font_size: int = 16:
 	set(value):
 		font_size = maxi(value, 1)
-		_overridden[&"font_size"] = true
+		_mark(&"font_size")
 
 ## Color of the series names.
 @export var font_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		font_color = value
-		_overridden[&"font_color"] = true
+		_mark(&"font_color")
 
 ## Height in pixels of one legend key, the small picture standing for a
 ## series in one overlay. A key that asks for a wider box than it is tall
@@ -46,27 +46,27 @@ class_name TauLegendStyle extends TauStyle
 @export var key_size_px: int = 12:
 	set(value):
 		key_size_px = maxi(value, 1)
-		_overridden[&"key_size_px"] = true
+		_mark(&"key_size_px")
 
 ## Gap in pixels between two keys of the same entry. A series drawn by
 ## several overlays gets one key per overlay, side by side.
 @export var key_gap_px: int = 2:
 	set(value):
 		key_gap_px = maxi(value, 0)
-		_overridden[&"key_gap_px"] = true
+		_mark(&"key_gap_px")
 
 ## Gap in pixels between the keys of an entry and its series name.
 @export var key_label_gap_px: int = 6:
 	set(value):
 		key_label_gap_px = maxi(value, 0)
-		_overridden[&"key_label_gap_px"] = true
+		_mark(&"key_label_gap_px")
 
 ## Gap in pixels between two legend entries, along the flow direction and
 ## between wrapped rows or columns alike.
 @export var item_gap_px: int = 8:
 	set(value):
 		item_gap_px = maxi(value, 0)
-		_overridden[&"item_gap_px"] = true
+		_mark(&"item_gap_px")
 
 ## StyleBox drawn behind the legend. Its content margins set the padding
 ## between the border and the entries.
@@ -76,7 +76,7 @@ class_name TauLegendStyle extends TauStyle
 @export var background: StyleBox = null:
 	set(value):
 		background = value
-		_overridden[&"background"] = true
+		_mark(&"background")
 
 ## Distance in pixels between the legend and the edges of the data area.
 ## Only read for the [code]INSIDE_*[/code] positions of
@@ -85,7 +85,7 @@ class_name TauLegendStyle extends TauStyle
 @export var margin_px: int = 8:
 	set(value):
 		margin_px = maxi(value, 0)
-		_overridden[&"margin_px"] = true
+		_mark(&"margin_px")
 
 ## Cap in pixels on the legend across its flow direction: the height of a
 ## legend flowing horizontally, the width of one flowing vertically. Entries
@@ -93,7 +93,7 @@ class_name TauLegendStyle extends TauStyle
 @export var max_size_px: int = 0:
 	set(value):
 		max_size_px = maxi(value, 0)
-		_overridden[&"max_size_px"] = true
+		_mark(&"max_size_px")
 
 
 #region Internal, not public API, may change without notice.

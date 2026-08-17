@@ -262,7 +262,6 @@ func _step_test_3() -> void:
 
 	var animated_value := int(clampf(25.0 + 25.0 * sin(_t * 0.7), 0.0, 50.0))
 	bar_config.style.bar_width_px = animated_value
-	plot.refresh_now()
 
 ####################################################################################################
 # Test 4
@@ -336,4 +335,3 @@ func _step_test_4() -> void:
 
 	var animated_value := int(clampf(25.0 + 25.0 * sin(_t * 0.7), 0.0, 50.0))
 	bar_config.style.bar_width_px = animated_value
-	plot.refresh_now()

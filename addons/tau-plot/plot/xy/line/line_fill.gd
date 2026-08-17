@@ -47,7 +47,7 @@ enum FillMode
 @export var fill_mode: FillMode = FillMode.NONE:
 	set(value):
 		fill_mode = value
-		_overridden[&"fill_mode"] = true
+		_mark(&"fill_mode")
 
 
 ## Reference y level for a TO_BASELINE fill, in data units on the series
@@ -59,7 +59,7 @@ enum FillMode
 @export var fill_baseline: float = 0.0:
 	set(value):
 		fill_baseline = value
-		_overridden[&"fill_baseline"] = true
+		_mark(&"fill_baseline")
 
 
 ## Where a value stretch span reads its low and high ends. See
@@ -74,7 +74,7 @@ enum StretchRangePolicy
 @export var stretch_range_policy: StretchRangePolicy = StretchRangePolicy.DOMAIN:
 	set(value):
 		stretch_range_policy = value
-		_overridden[&"stretch_range_policy"] = true
+		_mark(&"stretch_range_policy")
 
 ## Fixed low and high window for a stretch fill, read only when
 ## [member stretch_range_policy] is CUSTOM. [code].x[/code] is the low end and
@@ -91,7 +91,7 @@ enum StretchRangePolicy
 @export var stretch_range: Vector2 = Vector2.ZERO:
 	set(value):
 		stretch_range = value
-		_overridden[&"stretch_range"] = true
+		_mark(&"stretch_range")
 
 
 ## Sentinel value for [member color] meaning "derive from the per-series
@@ -107,7 +107,7 @@ const NO_COLOR: Color = Color(0, 0, 0, 0)
 @export var color: Color = NO_COLOR:
 	set(value):
 		color = value
-		_overridden[&"color"] = true
+		_mark(&"color")
 
 
 ## Multiplier applied to the alpha of the resolved fill, whether that fill
@@ -116,7 +116,7 @@ const NO_COLOR: Color = Color(0, 0, 0, 0)
 @export var alpha: float = 0.5:
 	set(value):
 		alpha = clampf(value, 0.0, 1.0)
-		_overridden[&"alpha"] = true
+		_mark(&"alpha")
 
 
 ## Texture painted over the fill area. When set, it takes the place of
@@ -129,7 +129,7 @@ const NO_COLOR: Color = Color(0, 0, 0, 0)
 @export var texture: Texture2D = null:
 	set(value):
 		texture = value
-		_overridden[&"texture"] = true
+		_mark(&"texture")
 
 
 ## How [member texture] is painted across the fill.
@@ -143,7 +143,7 @@ enum FillTextureMode
 @export var texture_mode: FillTextureMode = FillTextureMode.STRETCH:
 	set(value):
 		texture_mode = value
-		_overridden[&"texture_mode"] = true
+		_mark(&"texture_mode")
 
 
 ## Chooses which measured value picks a stretched texture's color. The texture
@@ -200,7 +200,7 @@ enum FillStretchSpan
 @export var stretch_span: FillStretchSpan = FillStretchSpan.LINE:
 	set(value):
 		stretch_span = value
-		_overridden[&"stretch_span"] = true
+		_mark(&"stretch_span")
 
 
 ## Uniform scale applied to the tile grid in [code]TILE[/code] mode.
@@ -211,7 +211,7 @@ enum FillStretchSpan
 @export var tile_scale: float = 1.0:
 	set(value):
 		tile_scale = value
-		_overridden[&"tile_scale"] = true
+		_mark(&"tile_scale")
 
 
 ## Rotation in degrees of the tile grid in TILE mode, turned around the pane
@@ -220,7 +220,7 @@ enum FillStretchSpan
 @export var tile_rotation_deg: float = 0.0:
 	set(value):
 		tile_rotation_deg = value
-		_overridden[&"tile_rotation_deg"] = true
+		_mark(&"tile_rotation_deg")
 
 
 ## Screen-space translation applied to the tile grid in [code]TILE[/code]
@@ -231,7 +231,7 @@ enum FillStretchSpan
 @export var tile_offset_px: Vector2 = Vector2.ZERO:
 	set(value):
 		tile_offset_px = value
-		_overridden[&"tile_offset_px"] = true
+		_mark(&"tile_offset_px")
 
 
 #region Internal, not public API, may change without notice.

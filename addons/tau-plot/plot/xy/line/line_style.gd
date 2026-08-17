@@ -43,7 +43,7 @@ class_name TauLineStyle extends TauStyle
 @export var line_widths_px: Array[float] = [2.0]:
 	set(value):
 		line_widths_px = _floored_floats(value, 0.0)
-		_overridden[&"line_widths_px"] = true
+		_mark(&"line_widths_px")
 
 ## Per-series cycle of line widths in pixels for the two segments adjacent to
 ## the hovered sample. See [TauStyle] for how a cycle is indexed. An empty
@@ -59,7 +59,7 @@ class_name TauLineStyle extends TauStyle
 @export var hovered_line_widths_px: Array[float] = [3.0]:
 	set(value):
 		hovered_line_widths_px = _floored_floats(value, 0.0)
-		_overridden[&"hovered_line_widths_px"] = true
+		_mark(&"hovered_line_widths_px")
 
 ## Per-series dash length cycle, in pixels. See [TauStyle] for how a cycle is
 ## indexed. An entry of [code]0[/code] produces a solid line for that series.
@@ -69,7 +69,7 @@ class_name TauLineStyle extends TauStyle
 @export var dash_lengths_px: Array[int] = [0]:
 	set(value):
 		dash_lengths_px = _floored_ints(value, 0)
-		_overridden[&"dash_lengths_px"] = true
+		_mark(&"dash_lengths_px")
 
 ## Per-series cycle of [TauLineFill]. See [TauStyle] for how a cycle is
 ## indexed.
@@ -81,13 +81,15 @@ class_name TauLineStyle extends TauStyle
 ## as is, or use a null entry to leave one position to the theme.
 @export var fills: Array[TauLineFill] = []:
 	set(value):
+		_unrelay_fills()
 		# The copy is of the cycle, not of the entries: a TauLineFill assigned
 		# here stays the caller's until _merge_fills() rebuilds it.
 		fills = value.duplicate()
+		_relay_fills()
 		# Not read by the cascade: _merge_fills() runs unconditionally. The flag
 		# only feeds is_equal_to(), so a user first assigning fills registers as
 		# a change.
-		_overridden[&"fills"] = true
+		_mark(&"fills")
 
 
 #region Internal, not public API, may change without notice.
@@ -558,11 +560,17 @@ func make_snapshot() -> TauLineStyle:
 # The entries are rebuilt one by one. Null entries are part of the contract and
 # stay null. The texture stays shared, since it is a user asset compared by
 # identity.
+#
+# Built aside and assigned whole: duplicate() ran the setter with the source's
+# entries, so the copy relays them until the assignment swaps the relays over to
+# its own.
 func _copy_fills_from(p_source: TauLineStyle) -> void:
-	fills.resize(p_source.fills.size())
-	for i in range(fills.size()):
+	var copies: Array[TauLineFill] = []
+	copies.resize(p_source.fills.size())
+	for i in range(copies.size()):
 		var source_fill: TauLineFill = p_source.fills[i]
-		fills[i] = null if source_fill == null else source_fill.make_snapshot()
+		copies[i] = null if source_fill == null else source_fill.make_snapshot()
+	fills = copies
 
 
 # Deep equality between this instance and p_other. Compares every public
@@ -634,6 +642,23 @@ static func _resolve_theme_fill_stretch_span(p_key: StringName, p_value: int) ->
 	return TauLineFill.FillStretchSpan.LINE
 
 
+# A fill has no listener of its own, so its changed signal is forwarded as a
+# change of the style holding it. The same TauLineFill may sit at several
+# positions of the cycle, hence the connection test.
+func _relay_fills() -> void:
+	for fill in fills:
+		if fill != null and not fill.changed.is_connected(emit_changed):
+			fill.changed.connect(emit_changed)
+
+
+# Drops the relays of the cycle being replaced. Called before `fills` is
+# reassigned, never on the incoming array.
+func _unrelay_fills() -> void:
+	for fill in fills:
+		if fill != null and fill.changed.is_connected(emit_changed):
+			fill.changed.disconnect(emit_changed)
+
+
 # Grows `fills` to at least p_min_size entries, filling any new slots with
 # default-constructed TauLineFill instances.
 #
@@ -643,6 +668,7 @@ static func _resolve_theme_fill_stretch_span(p_key: StringName, p_value: int) ->
 func _ensure_fills_min_size(p_min_size: int) -> void:
 	while fills.size() < p_min_size:
 		fills.append(TauLineFill.new())
+	_relay_fills()
 
 
 # Merges the themed cycle already in `fills` with p_user_fills into the

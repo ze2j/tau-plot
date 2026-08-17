@@ -192,5 +192,3 @@ func _setup_test_4() -> void:
 
 func _step_test_4() -> void:
 	_scrolling_fill.tile_offset_px = Vector2(-_t * TILE_SCROLL_SPEED_PX, 0.0)
-	# FIXME: no effect
-	%TestPlot4.queue_refresh()

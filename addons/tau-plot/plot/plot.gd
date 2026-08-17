@@ -159,6 +159,12 @@ func _init() -> void:
 
 func _notification(what: int) -> void:
 	match what:
+		NOTIFICATION_ENTER_TREE:
+			# Entering at the size it already had raises no
+			# NOTIFICATION_RESIZED, so a request made outside the tree is run
+			# here.
+			if _pending_refresh:
+				_refresh_next_frame()
 		NOTIFICATION_RESIZED:
 			_refresh()
 		NOTIFICATION_THEME_CHANGED:
@@ -215,9 +221,10 @@ func queue_refresh():
 	if _pending_refresh:
 		return # Already scheduled
 	_pending_refresh = true
-	# Wait one frame to allow label visibility changes to propagate through layout system.
-	await get_tree().process_frame
-	_refresh()
+	# Outside the tree there is no frame to wait for and nothing to lay out.
+	# NOTIFICATION_ENTER_TREE runs the pending request.
+	if is_inside_tree():
+		_refresh_next_frame()
 
 
 func reset():
@@ -234,6 +241,13 @@ func _refresh() -> void:
 	_pending_refresh = false
 	if _xy_plot != null:
 		_xy_plot.refresh(global_position, _effective_legend_config().position)
+
+
+# Waits one frame to let label visibility changes propagate through the layout
+# system, then runs the pending refresh.
+func _refresh_next_frame() -> void:
+	await get_tree().process_frame
+	_refresh()
 
 
 func _effective_legend_config() -> TauLegendConfig:

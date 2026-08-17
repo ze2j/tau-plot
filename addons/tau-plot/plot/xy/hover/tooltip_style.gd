@@ -21,7 +21,7 @@ class_name TauTooltipStyle extends TauStyle
 @export var style_box: StyleBox = null:
 	set(value):
 		style_box = value
-		_overridden[&"style_box"] = true
+		_mark(&"style_box")
 
 ## Background for the pinned tooltip. Allows a visual distinction
 ## between pinned and transient tooltips (for example a slightly more
@@ -30,14 +30,14 @@ class_name TauTooltipStyle extends TauStyle
 @export var pinned_style_box: StyleBox = null:
 	set(value):
 		pinned_style_box = value
-		_overridden[&"pinned_style_box"] = true
+		_mark(&"pinned_style_box")
 
 ## Font of the tooltip text. Left at [code]null[/code], the text is drawn in
 ## the font Godot uses by default.
 @export var font: Font = null:
 	set(value):
 		font = value
-		_overridden[&"font"] = true
+		_mark(&"font")
 
 ## Size in pixels of the tooltip text. The theme's default font size applies
 ## unless the theme sets [code]font_size[/code] on the [code]TauTooltip[/code]
@@ -45,31 +45,31 @@ class_name TauTooltipStyle extends TauStyle
 @export var font_size: int = 16:
 	set(value):
 		font_size = maxi(value, 1)
-		_overridden[&"font_size"] = true
+		_mark(&"font_size")
 
 ## Tooltip text color.
 @export var font_color: Color = Color(1.0, 1.0, 1.0, 1.0):
 	set(value):
 		font_color = value
-		_overridden[&"font_color"] = true
+		_mark(&"font_color")
 
 ## Padding inside the tooltip popup (px).
 @export var padding_px: int = 8:
 	set(value):
 		padding_px = maxi(value, 0)
-		_overridden[&"padding_px"] = true
+		_mark(&"padding_px")
 
 ## Offset from the anchor point (data point or cursor) in pixels.
 @export var offset_px: Vector2i = Vector2i(12, -12):
 	set(value):
 		offset_px = value
-		_overridden[&"offset_px"] = true
+		_mark(&"offset_px")
 
 ## Maximum tooltip width before text wraps (px). 0 = no limit.
 @export var max_width_px: int = 300:
 	set(value):
 		max_width_px = maxi(value, 0)
-		_overridden[&"max_width_px"] = true
+		_mark(&"max_width_px")
 
 
 #region Internal, not public API, may change without notice.

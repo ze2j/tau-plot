@@ -7,23 +7,16 @@ Root node for creating and displaying plots.
 
 ## Description
 
-`TauPlot` is the root node for creating and displaying plots. Add it to your scene, then call a plot-type method to build and display a plot.
+`TauPlot` is the root node for creating and displaying plots. Add it to the scene, then call a plot-type method to build and display a plot.
 
 Before a plot is created, all provided inputs are validated. This helps catch misconfiguration early and report it through user-friendly warnings or errors.
 
-Once created, a plot remains live. It listens to the dataset and refreshes automatically when the data changes. Configuration and style objects can also be modified at runtime, but require [`queue_refresh()`](#queue_refresh) or [`refresh_now()`](#refresh_now) to apply. Refreshes are incremental and avoid rebuilding the whole plot when possible.
+Once created, a plot remains live. It listens to the dataset and refreshes automatically when the data changes. Configuration objects can also be modified at runtime, but require [`queue_refresh()`](#queue_refresh) or [`refresh_now()`](#refresh_now) to apply. A [`TauStyle`](style.md) resource is the exception, and applies on assignment. Refreshes are incremental and avoid rebuilding the whole plot when possible.
 
 All plot types share the same high-level container behavior and optional interaction systems:
 
 - a **legend**, enabled by default, whose visibility is controlled through [`legend_enabled`](#legend_enabled) and whose placement, flow direction, and appearance are controlled through [`legend_config`](#legend_config)
-- a **hover inspection** system, disabled by default, which can provide tooltips, highlighting, and sample interaction signals
-
-When [`hover_enabled`](#hover_enabled) is `true`, the plot can detect hovered samples, display tooltips, highlight data, and emit interaction signals. Use [`hover_config`](#hover_config) to configure the built-in behavior, or disable the built-in tooltip and drive your own UI from the interaction signals:
-
-- [`sample_hovered`](#sample_hovered)
-- [`sample_hover_exited`](#sample_hover_exited)
-- [`sample_clicked`](#sample_clicked)
-- [`sample_click_dismissed`](#sample_click_dismissed)
+- a **hover inspection** system, enabled by default, which can provide tooltips, highlighting, and sample interaction signals
 
 ### XY plots
 
@@ -40,23 +33,23 @@ An XY plot is organized around one shared **X axis**. This axis spans the whole 
 - when the X axis is on the top or bottom edge, panes are stacked vertically
 - when the X axis is on the left or right edge, panes are stacked horizontally
 
-A plot may contain one or more **panes**. Most XY plots need only one pane, but multiple panes are useful when different series should not share the same Y scale, such as a price series above a volume series.
+A plot may contain one or more **panes**. Most XY plots need only one pane. Several panes keep apart series that should not share a Y scale, such as a price series above a volume series.
 
-Each pane contains one or more **overlays**, which are the visual layers that render the data, such as bars or scatter points. A pane also manages its own Y axes independently from the other panes.
+Each pane contains one or more **overlays**, which are the visual layers that render the data, such as bars, lines, or scatter points. A pane also manages its own Y axes independently from the other panes.
 
-Each pane can expose up to two **Y axes**, placed on the two edges orthogonal to the X axis. For example, if the X axis is on the bottom, the pane may use a left Y axis, a right Y axis, or both. This allows series with very different value ranges to be displayed in the same pane without sharing the same scale.
+Each pane can expose up to two **Y axes**, placed on the two edges orthogonal to the X axis. For example, if the X axis is on the bottom, the pane may use a left Y axis, a right Y axis, or both. Series with very different value ranges then share a pane without sharing a scale.
 
 A series can be bound once or multiple times depending on the intended visualization. See [`TauXYSeriesBinding`](xy_series_binding.md) for the supported binding rules.
 
-By default, **domains** and **ticks** are computed automatically. Each axis scans the data, applies configurable padding, and selects readable tick positions that fit without overlap. When automatic bounds are not desired, [`TauAxisConfig.range_override_enabled`](axis_config.md#range_override_enabled) can be used to force a fixed range.
+By default, **domains** and **ticks** are computed automatically. Each axis scans the data, applies configurable padding, and selects readable tick positions that fit without overlap. When automatic bounds are not wanted, [`TauAxisConfig.range_override_enabled`](axis_config.md#range_override_enabled) forces a fixed range.
 
-After [`plot_xy()`](#plot_xy) succeeds, the plot listens to the dataset and refreshes automatically whenever the data changes. The configuration and style objects can also be modified at runtime. In that case, call [`queue_refresh()`](#queue_refresh) to apply the changes.
+After [`plot_xy()`](#plot_xy) succeeds, the plot listens to the dataset and refreshes automatically whenever the data changes. Mutating a configuration property afterwards requires [`queue_refresh()`](#queue_refresh), a style property does not.
 
 ### Hover inspection
 
 When [`hover_enabled`](#hover_enabled) is `true`, the plot can detect hovered samples, show tooltips, and emit interaction signals.
 
-Use [`hover_config`](#hover_config) to customize the built-in behavior, or leave the tooltip disabled and drive your own UI using:
+Use [`hover_config`](#hover_config) to customize the built-in behavior, or disable the built-in tooltip and drive a custom UI from:
 
 - [`sample_hovered`](#sample_hovered)
 - [`sample_hover_exited`](#sample_hover_exited)
@@ -65,56 +58,56 @@ Use [`hover_config`](#hover_config) to customize the built-in behavior, or leave
 
 ### Quick usage
 
-1. Add a `TauPlot` node to your scene.
+1. Add a `TauPlot` node to the scene.
 2. Build a [`Dataset`](dataset.md).
-3. Build an [`TauXYConfig`](xy_config.md).
+3. Build a [`TauXYConfig`](xy_config.md).
 4. Create one [`TauXYSeriesBinding`](xy_series_binding.md) per plotted series.
 5. Call [`plot_xy()`](#plot_xy).
 
 ### Example
 
 ```gdscript
-	var dataset := TauPlot.Dataset.make_shared_x_categorical(
-		PackedStringArray(["Revenue", "Costs"]),
-		PackedStringArray(["Q1", "Q2", "Q3", "Q4"]),
-		[
-			PackedFloat64Array([120.0, 135.0, 148.0, 160.0]),
-			PackedFloat64Array([90.0, 95.0, 100.0, 108.0]),
-		]
-	)
+var dataset := TauPlot.Dataset.make_shared_x_categorical(
+	PackedStringArray(["Revenue", "Costs"]),
+	PackedStringArray(["Q1", "Q2", "Q3", "Q4"]),
+	[
+		PackedFloat64Array([120.0, 135.0, 148.0, 160.0]),
+		PackedFloat64Array([90.0, 95.0, 100.0, 108.0]),
+	]
+)
 
-	var x_axis := TauAxisConfig.new()
-	x_axis.type = TauAxisConfig.Type.CATEGORICAL
+var x_axis := TauAxisConfig.new()
+x_axis.type = TauAxisConfig.Type.CATEGORICAL
 
-	var y_axis := TauAxisConfig.new()
-	y_axis.title = "EUR"
+var y_axis := TauAxisConfig.new()
+y_axis.title = "EUR"
 
-	var bar_overlay_config := TauBarConfig.new()
+var bar_overlay_config := TauBarConfig.new()
 
-	var pane := TauPaneConfig.new()
-	pane.y_left_axis = y_axis
-	pane.overlays = [bar_overlay_config]
+var pane := TauPaneConfig.new()
+pane.y_left_axis = y_axis
+pane.overlays = [bar_overlay_config]
 
-	var config := TauXYConfig.new()
-	config.x_axis = x_axis
-	config.panes = [pane]
+var config := TauXYConfig.new()
+config.x_axis = x_axis
+config.panes = [pane]
 
-	var b0 := TauXYSeriesBinding.new()
-	b0.series_id = dataset.get_series_id_by_index(0)
-	b0.pane_index = 0
-	b0.overlay_type = TauXYSeriesBinding.PaneOverlayType.BAR
-	b0.y_axis_id = TauPlot.AxisId.LEFT
+var b0 := TauXYSeriesBinding.new()
+b0.series_id = dataset.get_series_id_by_index(0)
+b0.pane_index = 0
+b0.overlay_type = TauXYSeriesBinding.PaneOverlayType.BAR
+b0.y_axis_id = TauPlot.AxisId.LEFT
 
-	var b1 := TauXYSeriesBinding.new()
-	b1.series_id = dataset.get_series_id_by_index(1)
-	b1.pane_index = 0
-	b1.overlay_type = TauXYSeriesBinding.PaneOverlayType.BAR
-	b1.y_axis_id = TauPlot.AxisId.LEFT
+var b1 := TauXYSeriesBinding.new()
+b1.series_id = dataset.get_series_id_by_index(1)
+b1.pane_index = 0
+b1.overlay_type = TauXYSeriesBinding.PaneOverlayType.BAR
+b1.y_axis_id = TauPlot.AxisId.LEFT
 
-	var bindings: Array[TauXYSeriesBinding] = [b0, b1]
+var bindings: Array[TauXYSeriesBinding] = [b0, b1]
 
-	$MyPlot.title = "Quick Start Example"
-	$MyPlot.plot_xy(dataset, config, bindings)
+$MyPlot.title = "Quick Start Example"
+$MyPlot.plot_xy(dataset, config, bindings)
 ```
 
 ### Common workflows
@@ -123,7 +116,10 @@ Use [`hover_config`](#hover_config) to customize the built-in behavior, or leave
 Mutate the [`Dataset`](dataset.md). The plot refreshes automatically when the dataset emits [`changed`](dataset.md#changed).
 
 **Change plot configuration at runtime**  
-Mutate the objects passed to [`plot_xy()`](#plot_xy), then call [`queue_refresh()`](#queue_refresh).
+Mutate a configuration property on the objects passed to [`plot_xy()`](#plot_xy), then call [`queue_refresh()`](#queue_refresh).
+
+**Change the appearance at runtime**  
+Assign a property on a [`TauStyle`](style.md) resource. The plot redraws on its own.
 
 **Replace the current plot**  
 Call [`plot_xy()`](#plot_xy) again. The current plot is cleared automatically before the new one is built.
@@ -197,6 +193,8 @@ Identifies the visual layer type used to render series data inside a pane.
 
 Sets what each stack of a stacking overlay is scaled to.
 
+Two stacking overlays drawing against the same Y axis of the same pane must declare the same value, see [`TauBarConfig`](bar_config.md#notes) note 1.
+
 | Value | Meaning |
 |---|---|
 | `NONE` | Stacks the raw values. The top of each stack is their sum. |
@@ -208,6 +206,8 @@ Sets what each stack of a stacking overlay is scaled to.
 ### `StackedNegativePolicy`
 
 Sets how a negative value enters a stack.
+
+Two stacking overlays drawing against the same Y axis of the same pane must declare the same value, see [`TauBarConfig`](bar_config.md#notes) note 1.
 
 | Value | Meaning |
 |---|---|
@@ -261,7 +261,7 @@ Emitted when a pinned tooltip is dismissed by clicking on empty space or by pres
 
 `title`: `String`
 
-Sets the title displayed above the plot. Supports BBCode. Defaults to `""`, which hides the title. Updates immediately when the node is inside the scene tree.
+Sets the title displayed above the plot. Supports BBCode. Defaults to `""`, which hides the title. Applies immediately. Safe to set after [`plot_xy()`](#plot_xy).
 
 ---
 
@@ -285,7 +285,7 @@ Configuration for the hover inspection system. Controls hover mode, tooltip, cro
 
 `legend_enabled`: `bool`
 
-Controls legend visibility. When `true`, the legend renders using the settings in [`legend_config`](#legend_config). When `false`, the legend is hidden. Defaults to `true`.
+Controls legend visibility. When `true`, the legend renders using the settings in [`legend_config`](#legend_config). When `false`, the legend is hidden. Defaults to `true`. Safe to set after [`plot_xy()`](#plot_xy).
 
 ---
 
@@ -307,13 +307,15 @@ plot_xy(p_dataset: Dataset, p_xy_config: TauXYConfig, p_series_bindings: Array[T
 
 Builds and displays an XY plot.
 
-Validates all inputs before making any change (see [Note 2](#notes)). On success, tears down any active plot, builds renderers, axes, panes, the legend, and the hover controller, subscribes to `p_dataset.`[`changed`](dataset.md#changed), and schedules the first render. The plot keeps references to the provided parameters. Mutating them after plotting is supported, but requires [`queue_refresh()`](#queue_refresh) or [`refresh_now()`](#refresh_now) to apply the changes.
+Validates all inputs before making any change (see [Note 2](#notes)). On success, tears down any active plot, builds renderers, axes, panes, the legend, and the hover controller, subscribes to `p_dataset.`[`changed`](dataset.md#changed) and to the [`TauStyle`](style.md) resources reachable from `p_xy_config`, and schedules the first render. The plot keeps references to the provided parameters. Mutating a configuration property after plotting is supported, but requires [`queue_refresh()`](#queue_refresh) or [`refresh_now()`](#refresh_now) to apply the change.
+
+Can be called before the node enters the scene tree. The first render then happens on entry.
 
 **Parameters**
 
 * `p_dataset: Dataset` The data model. The plot holds a reference and subscribes to its [`changed`](dataset.md#changed) signal for the lifetime of this plot. Must not be `null`.
-* `p_xy_config: TauXYConfig` Defines the X axis, pane layout, overlay configurations, and visual settings. Must not be `null`.
-* `p_series_bindings: Array[TauXYSeriesBinding]` One entry per series-to-pane mapping. Each entry specifies a [`series_id`](xy_series_binding.md#series_id), a [`pane_index`](xy_series_binding.md#pane_index), an [`overlay_type`](xy_series_binding.md#overlay_type), and a [`y_axis_id`](xy_series_binding.md#y_axis_id). Must not be `null`.
+* `p_xy_config: TauXYConfig` Defines the X axis, pane layout, overlay configurations, and visual settings. Must not be `null`, and its [`x_axis`](xy_config.md#x_axis) must not be `null` either.
+* `p_series_bindings: Array[TauXYSeriesBinding]` One entry per series-to-pane mapping. Each entry specifies a [`series_id`](xy_series_binding.md#series_id), a [`pane_index`](xy_series_binding.md#pane_index), an [`overlay_type`](xy_series_binding.md#overlay_type), and a [`y_axis_id`](xy_series_binding.md#y_axis_id). Must not be `null` and must hold at least one entry.
 
 ---
 
@@ -337,7 +339,9 @@ queue_refresh() -> void
 
 Schedules a render update for the next frame.
 
-If a refresh is already pending, does nothing. Call this after mutating configuration or style properties on the objects passed to [`plot_xy()`](#plot_xy) to apply the changes.
+If a refresh is already pending, does nothing. Call this after mutating a configuration property on the objects passed to [`plot_xy()`](#plot_xy) to apply the change.
+
+On a node outside the scene tree, the request is held and the render happens when the node enters the tree.
 
 ---
 
@@ -357,6 +361,7 @@ Forces an immediate refresh in the current frame. Use this only when the plot ne
 * [`TauLegendConfig`](legend_config.md) Configures the legend system, assigned to [`legend_config`](#legend_config).
 * [`TauHoverConfig`](hover_config.md) Configures the hover inspection system, assigned to [`hover_config`](#hover_config).
 * [`SampleHit`](sample_hit.md) Carried by [`sample_hovered`](#sample_hovered) and [`sample_clicked`](#sample_clicked) to describe a sample hovered by the mouse.
+* [`TauStyle`](style.md) Base class of the style resources, holding the resolution rules every one of them follows.
 * [`TauLegendStyle`](legend_style.md) Controls visual appearance of the legend, owned by [`TauLegendConfig.style`](legend_config.md#style).
 * [`TauPaneConfig`](pane_config.md) One entry in [`TauXYConfig.panes`](xy_config.md#panes), defining a pane's axes and overlay configurations.
 * [`TauAxisConfig`](axis_config.md) Configures an individual axis: type, scale, domain, ticks, and title.
