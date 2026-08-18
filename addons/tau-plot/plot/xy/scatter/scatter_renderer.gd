@@ -159,6 +159,7 @@ class ScatterRenderer extends Control:
 
 			var entry := _get_or_create_entry(series_id)
 			entry.mmi.visible = true
+			_apply_data_area_clip(entry.mmi, pane_rect)
 
 			# Set child draw order so later draw_rank renders on top.
 			if entry.mmi.get_index() != draw_rank:
@@ -305,6 +306,13 @@ class ScatterRenderer extends Control:
 		add_child(mmi)
 		_series_cache[p_series_id] = entry
 		return entry
+
+
+	# Confines the markers to the data area.
+	func _apply_data_area_clip(p_mmi: MultiMeshInstance2D, p_pane_rect: Rect2) -> void:
+		var canvas_item := p_mmi.get_canvas_item()
+		RenderingServer.canvas_item_set_custom_rect(canvas_item, true, p_pane_rect)
+		RenderingServer.canvas_item_set_clip(canvas_item, true)
 
 
 	func _resize_entry(p_entry: _SeriesRenderEntry, p_new_capacity: int) -> void:

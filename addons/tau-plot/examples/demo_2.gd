@@ -495,7 +495,7 @@ func _process_demo_2(delta: float) -> void:
 const PERF_FRAME_COUNT := 600
 
 # Refresh rate the capture is vsynced to, and the floor of the frame rate pane.
-const PERF_VSYNC_FPS := 60.0
+const PERF_VSYNC_FPS := 120.0
 const PERF_FPS_FLOOR := 45.0
 
 # Axis title, floor and top of the y axis, preferred tick count, and the budget

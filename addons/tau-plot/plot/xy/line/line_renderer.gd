@@ -227,6 +227,7 @@ class LineRenderer extends Control:
 		# which needs texture repeat enabled on the canvas item. The default
 		# clamp would fold the whole tile grid into a single stretched copy.
 		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		clip_contents = true
 		queue_redraw()
 
 
@@ -323,6 +324,8 @@ class LineRenderer extends Control:
 		if pane_rect.size.x <= 0.0 or pane_rect.size.y <= 0.0:
 			return
 
+		_apply_data_area_clip(pane_rect)
+
 		var stacked_values: StackedSeriesValues = null
 		if _line_config.mode == TauLineConfig.LineMode.STACKED:
 			stacked_values = StackedSeriesValues.new(_dataset, _line_series_ids,
@@ -333,6 +336,11 @@ class LineRenderer extends Control:
 		for draw_rank in range(draw_order.size()):
 			var series_index: int = draw_order[draw_rank]
 			_draw_series(series_index, stacked_values)
+
+
+	# Confines the ink to the data areal.
+	func _apply_data_area_clip(p_pane_rect: Rect2) -> void:
+		RenderingServer.canvas_item_set_custom_rect(get_canvas_item(), true, p_pane_rect)
 
 
 	# Routes a series to the x layout that resolves its parameter axis, then the
