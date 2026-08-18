@@ -215,6 +215,8 @@ What the two ends mean follows the span that reads them. For [`VALUE_Y`](#fillst
 
 Two cases raise an error, see [note 2](#notes): the two ends being equal, which leaves no range to measure against, and [`VALUE_X`](#fillstretchspan) on a [categorical](axis_config.md#type-enum) X axis, which has no continuous X to place the ends on. Both fall back to reading the middle of the texture, so the area comes out in one flat color.
 
+A negative end under [`MAGNITUDE`](#fillstretchspan) raises a warning, see [note 2](#notes). A distance has no sign, so the end is read as its absolute value.
+
 ---
 
 ### color

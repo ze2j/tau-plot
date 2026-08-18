@@ -277,6 +277,8 @@ func validate_resolved() -> void:
 			push_warning("TauLineFill: CUSTOM stretch_range_policy is set but this fill never reads it, use DOMAIN or give the fill a VALUE_X, VALUE_Y or MAGNITUDE span")
 		elif stretch_range.x == stretch_range.y:
 			push_error("TauLineFill: CUSTOM stretch_range is zero width (stretch_range.x == stretch_range.y), no gradient to draw")
+		elif stretch_span == FillStretchSpan.MAGNITUDE and (stretch_range.x < 0.0 or stretch_range.y < 0.0):
+			push_warning("TauLineFill: MAGNITUDE stretch_span measures a distance from fill_baseline, so a negative stretch_range end reads as its absolute value, got %s" % stretch_range)
 
 	if texture_mode == FillTextureMode.TILE and texture != null and tile_scale <= 0.0:
 		push_warning("TauLineFill: tile_scale is %s, the tiled texture is not painted" % tile_scale)

@@ -25,7 +25,7 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
-columns = 3
+columns = 2
 
 [node name="DemoPlot1" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
@@ -58,51 +58,6 @@ script = ExtResource("3_77ugr")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="DemoPlot4" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("3_77ugr")
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="DemoPlot5" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("3_77ugr")
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="DemoPlot6" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("3_77ugr")
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="DemoPlot7" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("3_77ugr")
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="DemoPlot8" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("3_77ugr")
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="DemoPlot9" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3

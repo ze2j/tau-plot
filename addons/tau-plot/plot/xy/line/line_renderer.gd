@@ -108,7 +108,9 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   The strip is built from the rendered edges (after interpolation has
 #   materialized any synthetic vertices), one quad per pair of neighbouring
 #   columns, with a crossing point inserted wherever the band flips sign so the
-#   straddling column closes cleanly. The whole strip is emitted in one
+#   straddling column closes cleanly. A column carries more than two levels
+#   where a STRETCH range end cuts across the band, so no quad mixes a
+#   saturated corner with an unsaturated one. The whole strip is emitted in one
 #   canvas_item_add_triangle_array call. The line itself is one draw call per
 #   contiguous run.
 #   The strip does not need the stroke it is paired with: at width 0 the fill
@@ -133,7 +135,9 @@ const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_seri
 #   is then multiplied by TauLineFill.alpha.
 # - The strip carries a per-vertex UV array driven by
 #   TauLineFill.texture_mode. STRETCH samples the texture once across a
-#   chosen span. TILE samples the texture at native pixel size on screen,
+#   chosen span, and cuts the strip at the ends of that span so the color
+#   stays a function of the measured value alone where the band reaches
+#   outside it. TILE samples the texture at native pixel size on screen,
 #   with a square-pixel-correct grid rotated around the pane center and
 #   translated in screen pixels, independent of pane shape.
 # - A fill mixes themed fields with user fields, so the constraints between
@@ -960,14 +964,15 @@ class LineRenderer extends Control:
 	#
 	# Two parameter sets coexist, selected by TauLineFill.texture_mode:
 	#   - STRETCH samples the texture once across the span. half_texel gives
-	#     the clamp bounds that reproduce clamped sampling without relying on
-	#     the node's texture_repeat. range_px0 and range_px1 are the value
-	#     span's two ends in axis pixels, read off the span's own axis (.x for
+	#     the margin that reproduces clamped sampling without relying on the
+	#     node's texture_repeat. range_px0 and range_px1 are the value span's
+	#     two ends in axis pixels, read off the span's own axis (.x for
 	#     VALUE_X, .y for VALUE_Y and MAGNITUDE). baseline_px is the origin
-	#     MAGNITUDE measures from. degenerate flags a DOMAIN range that
-	#     collapsed to a point on flat data, so the builder samples the texture
-	#     middle instead of dividing by a zero span. LINE ignores every value
-	#     field.
+	#     MAGNITUDE measures from. cut_levels_y and cut_columns_x are the axis
+	#     coordinates where the texture coordinate saturates, the places the
+	#     strip has to be cut. degenerate flags a DOMAIN range that collapsed
+	#     to a point on flat data, so the builder samples the texture middle
+	#     instead of dividing by a zero span. LINE ignores every value field.
 	#   - TILE samples the texture in screen pixels around pane_center.
 	#     rotation_cos and rotation_sin hold cos/sin of -rotation_deg, so
 	#     the per-vertex math runs the standard rotation formula on the
@@ -986,6 +991,13 @@ class LineRenderer extends Control:
 		var range_px1: float = 0.0
 		var baseline_px: float = 0.0
 		var degenerate: bool = false
+
+		# Axis-space coordinates where the stretch coordinate reaches a range
+		# end, sorted ascending. cut_levels_y runs across the band, so it adds
+		# levels to a column. cut_columns_x runs along the strip, so it adds
+		# columns. Empty unless the span saturates on that axis.
+		var cut_levels_y: PackedFloat64Array = PackedFloat64Array()
+		var cut_columns_x: PackedFloat64Array = PackedFloat64Array()
 
 		# TILE
 		var pane_center: Vector2 = Vector2.ZERO
@@ -1045,6 +1057,8 @@ class LineRenderer extends Control:
 	# degenerate range so the builder can fall back to the texture middle.
 	# Mapping both MAGNITUDE ends upward from the baseline keeps them symmetric
 	# on a linear scale and never asks a log axis for a value it cannot take.
+	# The range ends are recorded a second time as cut coordinates, on the axis
+	# they run across, for the strip builder to split the geometry there.
 	func _resolve_stretch_uv_context(p_ctx: _FillUVContext, p_fill: TauLineFill, p_y_axis_id: AxisId) -> void:
 		p_ctx.half_texel = Vector2(0.5, 0.5) / p_ctx.texture.get_size()
 		var span: TauLineFill.FillStretchSpan = p_fill.stretch_span
@@ -1073,6 +1087,39 @@ class LineRenderer extends Control:
 		# range on flat data and a zero width CUSTOM window both land here and
 		# sample the texture middle.
 		p_ctx.degenerate = p_ctx.range_px0 == p_ctx.range_px1
+		if p_ctx.degenerate:
+			return
+
+		# Past a range end the texture coordinate saturates, so it stops being
+		# the straight line in the measured value that a triangle blend can
+		# reproduce. Recording the ends lets the strip builder cut there and
+		# keep every triangle wholly inside or wholly outside the range.
+		match span:
+			TauLineFill.FillStretchSpan.VALUE_X:
+				p_ctx.cut_columns_x = _sorted_cuts(PackedFloat64Array([p_ctx.range_px0, p_ctx.range_px1]))
+			TauLineFill.FillStretchSpan.VALUE_Y:
+				p_ctx.cut_levels_y = _sorted_cuts(PackedFloat64Array([p_ctx.range_px0, p_ctx.range_px1]))
+			TauLineFill.FillStretchSpan.MAGNITUDE:
+				# A distance from the baseline, so each end saturates on both
+				# sides of it. The low end's own pair brackets the baseline,
+				# where the distance folds, so the fold never lands inside a
+				# sub-band that still varies.
+				p_ctx.cut_levels_y = _sorted_cuts(PackedFloat64Array([
+					p_ctx.baseline_px - p_ctx.range_px1,
+					p_ctx.baseline_px - p_ctx.range_px0,
+					p_ctx.baseline_px + p_ctx.range_px0,
+					p_ctx.baseline_px + p_ctx.range_px1]))
+
+
+	# Sorts the cut coordinates ascending and drops the duplicates, so two range
+	# ends landing on one coordinate cost a single cut.
+	static func _sorted_cuts(p_values: PackedFloat64Array) -> PackedFloat64Array:
+		p_values.sort()
+		var cuts := PackedFloat64Array()
+		for v in p_values:
+			if cuts.is_empty() or cuts[cuts.size() - 1] != v:
+				cuts.append(v)
+		return cuts
 
 
 	# Resolves the value window for a value span in data units. CUSTOM returns
@@ -1100,17 +1147,23 @@ class LineRenderer extends Control:
 
 
 	# Builds one UV per strip point for a STRETCH fill. p_axis_points is the
-	# strip in axis space: even index 2k sits on the line, odd index 2k+1 on the
-	# baseline side.
+	# strip in axis space, laid out column by column: within a column, level 0
+	# sits on the line and the last level on the baseline side.
 	#
-	# LINE reads that parity, the line at the texture top and the baseline at
-	# its bottom. The value spans read the vertex on the span's own axis (.x for
-	# VALUE_X, .y for VALUE_Y and MAGNITUDE), turn it into a fraction between the
-	# two range ends, then clamp to the half-texel margin so sampling matches a
-	# clamped texture regardless of the node's texture_repeat. The vertical spans
-	# invert the fraction so the higher value reads the texture top. A degenerate
-	# value range samples the texture middle everywhere, the honest look when
-	# there is no room for a gradient.
+	# LINE reads that layout, the line at the texture top and the baseline at
+	# its bottom. It never cuts the band, so its columns hold two levels and the
+	# vertex parity tells the two edges apart. The value spans read the vertex on
+	# the span's own axis (.x for VALUE_X, .y for VALUE_Y and MAGNITUDE) and turn
+	# it into a fraction between the two range ends, inverted by the vertical
+	# spans so the higher value reads the texture top. The fraction is saturated
+	# outside the range, then remapped into the half-texel margin so sampling
+	# matches a clamped texture regardless of the node's texture_repeat. The
+	# remap keeps the mapping straight over the whole range, where a clamp would
+	# flatten it in a sliver at each end. Saturating per corner is only faithful
+	# because the strip is cut at the range ends, so a triangle never mixes a
+	# saturated corner with an unsaturated one. A degenerate value range samples
+	# the texture middle everywhere, the honest look when there is no room for a
+	# gradient.
 	func _build_strip_uvs_stretch(p_axis_points: PackedVector2Array, p_fill: TauLineFill, p_fill_uv_ctx: _FillUVContext) -> PackedVector2Array:
 		var count: int = p_axis_points.size()
 		var uvs := PackedVector2Array()
@@ -1134,18 +1187,18 @@ class LineRenderer extends Control:
 		match p_fill.stretch_span:
 			TauLineFill.FillStretchSpan.VALUE_X:
 				for k in range(count):
-					var t: float = clampf((p_axis_points[k].x - range_px0) / span, hx, 1.0 - hx)
-					uvs[k] = Vector2(t, 0.5)
+					var raw: float = clampf((p_axis_points[k].x - range_px0) / span, 0.0, 1.0)
+					uvs[k] = Vector2(hx + (1.0 - 2.0 * hx) * raw, 0.5)
 			TauLineFill.FillStretchSpan.VALUE_Y:
 				for k in range(count):
-					var t: float = clampf(1.0 - (p_axis_points[k].y - range_px0) / span, hy, 1.0 - hy)
-					uvs[k] = Vector2(0.5, t)
+					var raw: float = clampf(1.0 - (p_axis_points[k].y - range_px0) / span, 0.0, 1.0)
+					uvs[k] = Vector2(0.5, hy + (1.0 - 2.0 * hy) * raw)
 			TauLineFill.FillStretchSpan.MAGNITUDE:
 				var baseline_px: float = p_fill_uv_ctx.baseline_px
 				for k in range(count):
 					var m: float = absf(p_axis_points[k].y - baseline_px)
-					var t: float = clampf(1.0 - (m - range_px0) / span, hy, 1.0 - hy)
-					uvs[k] = Vector2(0.5, t)
+					var raw: float = clampf(1.0 - (m - range_px0) / span, 0.0, 1.0)
+					uvs[k] = Vector2(0.5, hy + (1.0 - 2.0 * hy) * raw)
 
 		return uvs
 
@@ -1237,21 +1290,28 @@ class LineRenderer extends Control:
 	# is the synthesized flat baseline for TO_BASELINE and the layer below's top
 	# for STACKED; both reach here as an index-aligned polyline.
 	#
-	# The LINE stretch span fades by band fraction and needs near-rectangular
-	# columns to stay accurate, so both edges are densified first. Every other
-	# span is affine-exact at the original resolution and skips densification.
+	# The edges are prepared in three steps before the strip is built, each
+	# preserving the index alignment:
+	#
+	# - The LINE stretch span fades by band fraction and needs near-rectangular
+	#   columns to stay accurate, so both edges are densified. Every other span
+	#   is affine-exact at the original resolution and skips this.
+	# - The band is closed wherever it flips sign, so no column straddles the
+	#   point where the two edges meet.
+	# - A column is cut wherever a STRETCH range end crosses the strip, so no
+	#   quad straddles the place the texture coordinate saturates.
 	func _draw_fill(p_upper: PackedVector2Array, p_lower: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_fill_uv_ctx: _FillUVContext) -> void:
 		if p_upper.size() < 2:
 			return
 
-		var upper: PackedVector2Array = p_upper
-		var lower: PackedVector2Array = p_lower
+		var edges: Array[PackedVector2Array] = [p_upper, p_lower]
 		if _fill_needs_subdivision(p_fill):
-			var dense := _densify_fill_edges(p_upper, p_lower)
-			upper = dense[0]
-			lower = dense[1]
+			edges = _densify_fill_edges(edges[0], edges[1])
+		edges = _insert_band_crossings(edges[0], edges[1])
+		if not p_fill_uv_ctx.cut_columns_x.is_empty():
+			edges = _insert_cut_columns(edges[0], edges[1], p_fill_uv_ctx.cut_columns_x)
 
-		_build_fill_strip(upper, lower, p_fill, p_fill_color, p_fill_uv_ctx)
+		_build_fill_strip(edges[0], edges[1], p_fill, p_fill_color, p_fill_uv_ctx)
 
 
 	# True for a textured LINE stretch span, the only fill whose fade is
@@ -1301,86 +1361,123 @@ class LineRenderer extends Control:
 		return clampi(ceili(p_upper0.distance_to(p_upper1) / _FILL_LINE_SLICE_PX), 1, _FILL_LINE_MAX_SLICES)
 
 
-	# Band height at one column, the gap between the paired upper and lower edge
-	# points along the y (value) axis. The strip is built in axis space, so the
-	# value always lies on .y.
+	# Height of the band, or of one sub-band, at a single column: the gap between
+	# the two paired points along the y (value) axis. The strip is built in axis
+	# space, so the value always lies on .y.
 	func _band_height(p_upper: Vector2, p_lower: Vector2) -> float:
 		return absf(p_upper.y - p_lower.y)
+
+
+	# Returns the two edges with a crossing point inserted between every pair of
+	# neighbouring columns whose band flips sign, that is where the edges meet.
+	# The same point lands on both edges, so the straddling column collapses to
+	# a triangle on each side with no self crossing and no same-side split.
+	#
+	# Detection runs on the axis-space edges, so the synthetic vertices from step
+	# interpolation and the sub-samples from SMOOTH_MONOTONE are treated
+	# uniformly.
+	func _insert_band_crossings(p_upper: PackedVector2Array, p_lower: PackedVector2Array) -> Array[PackedVector2Array]:
+		var upper := PackedVector2Array()
+		var lower := PackedVector2Array()
+		upper.append(p_upper[0])
+		lower.append(p_lower[0])
+		for i in range(1, p_upper.size()):
+			var prev_side: int = _band_side(p_upper[i - 1], p_lower[i - 1])
+			var v_side: int = _band_side(p_upper[i], p_lower[i])
+			if prev_side != 0 and v_side != 0 and prev_side != v_side:
+				var cross: Vector2 = _band_crossing(p_upper[i - 1], p_lower[i - 1], p_upper[i], p_lower[i])
+				upper.append(cross)
+				lower.append(cross)
+			upper.append(p_upper[i])
+			lower.append(p_lower[i])
+		return [upper, lower]
+
+
+	# Returns the two edges with a column inserted wherever a cut coordinate
+	# falls strictly between two neighbouring columns, so no quad straddles a
+	# range end running along the strip. Both edges are cut with the same
+	# interpolation factor, so the paired vertices stay index-aligned.
+	static func _insert_cut_columns(p_upper: PackedVector2Array, p_lower: PackedVector2Array, p_cuts: PackedFloat64Array) -> Array[PackedVector2Array]:
+		var upper := PackedVector2Array()
+		var lower := PackedVector2Array()
+		upper.append(p_upper[0])
+		lower.append(p_lower[0])
+		for i in range(1, p_upper.size()):
+			var x0: float = p_upper[i - 1].x
+			var x1: float = p_upper[i].x
+			for c in _cuts_between(p_cuts, x0, x1):
+				var f: float = (c - x0) / (x1 - x0)
+				upper.append(p_upper[i - 1].lerp(p_upper[i], f))
+				lower.append(p_lower[i - 1].lerp(p_lower[i], f))
+			upper.append(p_upper[i])
+			lower.append(p_lower[i])
+		return [upper, lower]
+
+
+	# The cuts strictly inside the interval, in the order the interval travels.
+	# Both traversal directions are accepted because the strip never assumes one.
+	static func _cuts_between(p_cuts: PackedFloat64Array, p_from: float, p_to: float) -> PackedFloat64Array:
+		var lo: float = minf(p_from, p_to)
+		var hi: float = maxf(p_from, p_to)
+		var hits := PackedFloat64Array()
+		for c in p_cuts:
+			if c > lo and c < hi:
+				hits.append(c)
+		if p_to < p_from:
+			hits.reverse()
+		return hits
 
 
 	# Builds the strip of columns between the upper and lower edges and emits it
 	# in one canvas_item_add_triangle_array call. Both edges are in axis space
 	# and index-aligned, sharing one .x per vertex; the strip is built there
-	# (value on .y) and mapped to screen space just before the draw call. Each
-	# pair of neighbouring vertices spans one column, a quad between the two
-	# edges split into two triangles. A crossing point is inserted wherever the
-	# band flips sign, that is where the edges meet, so the straddling column
-	# collapses to a triangle on each side with no self crossing, and no
-	# same-side split is needed.
+	# (value on .y) and mapped to screen space just before the draw call.
 	#
-	# Crossing detection runs on the axis-space edges, so the synthetic vertices
-	# from step interpolation and the sub-samples from SMOOTH_MONOTONE are
-	# treated uniformly. The same crossing point lands on both edges, so the
-	# column there closes cleanly. Both traversal directions are accepted
-	# because the builder never assumes one.
+	# A column is the slice of band at one .x, cut into sub-bands by its levels,
+	# and a quad between two neighbouring columns at the same level is split into
+	# two triangles. Two levels, the two edges, is the plain case. A STRETCH
+	# range end that cuts across the band adds one level, which is what keeps a
+	# triangle from mixing a saturated corner with an unsaturated one and the
+	# color a function of the measured value alone.
+	#
+	# The edges arrive prepared by _draw_fill(), so no column here straddles a
+	# band sign flip or a range end running along the strip.
 	func _build_fill_strip(p_upper: PackedVector2Array, p_lower: PackedVector2Array, p_fill: TauLineFill, p_fill_color: Color, p_fill_uv_ctx: _FillUVContext) -> void:
-		var n: int = p_upper.size()
-		if n < 2:
-			return
+		var cuts := _reachable_cut_levels(p_upper, p_lower, p_fill_uv_ctx.cut_levels_y)
+		var levels: int = 2 + cuts.size()
+		var m: int = p_upper.size()
 
-		# Insert a crossing point between every pair of neighbouring columns
-		# whose band flips sign. The same point lands on both edges, so each
-		# column stays single sided and the strip needs no same-side splitting.
-		var top := PackedVector2Array()
-		var bottom := PackedVector2Array()
-		top.append(p_upper[0])
-		bottom.append(p_lower[0])
-		for i in range(1, n):
-			var prev_side: int = _band_side(p_upper[i - 1], p_lower[i - 1])
-			var v_side: int = _band_side(p_upper[i], p_lower[i])
-			if prev_side != 0 and v_side != 0 and prev_side != v_side:
-				var cross: Vector2 = _band_crossing(p_upper[i - 1], p_lower[i - 1], p_upper[i], p_lower[i])
-				top.append(cross)
-				bottom.append(cross)
-			top.append(p_upper[i])
-			bottom.append(p_lower[i])
-
-		# Even vertex 2k rides the upper edge, odd vertex 2k+1 the lower edge.
-		# The UV builder relies on this parity to tell the two strip edges apart.
-		var m: int = top.size()
+		# Vertex k * levels + j sits on column k at level j, level 0 on the
+		# upper edge and the last one on the lower edge. The UV builder relies
+		# on that layout to tell the two strip edges apart.
+		#
+		# Each cut is clamped into the column's own band, so a cut the column
+		# does not reach collapses onto the edge it passed and leaves an empty
+		# sub-band there. Every column then carries the same level count and
+		# neighbouring columns stay index-aligned, the same trick
+		# _band_crossing() uses to keep a column single sided.
+		var cut_count: int = cuts.size()
 		var points := PackedVector2Array()
-		points.resize(2 * m)
+		points.resize(levels * m)
 		for k in range(m):
-			points[2 * k] = top[k]
-			points[2 * k + 1] = bottom[k]
+			var x: float = p_upper[k].x
+			var upper_y: float = p_upper[k].y
+			var lower_y: float = p_lower[k].y
+			var base: int = k * levels
+			points[base] = Vector2(x, upper_y)
+			points[base + levels - 1] = Vector2(x, lower_y)
+			var lo: float = minf(upper_y, lower_y)
+			var hi: float = maxf(upper_y, lower_y)
+			var descending: bool = upper_y > lower_y
+			for j in range(cut_count):
+				var cut: float = cuts[cut_count - 1 - j] if descending else cuts[j]
+				points[base + 1 + j] = Vector2(x, clampf(cut, lo, hi))
 
 		var colors := PackedColorArray()
-		colors.resize(2 * m)
+		colors.resize(points.size())
 		colors.fill(p_fill_color)
 
-		var indices := PackedInt32Array()
-		indices.resize(6 * (m - 1))
-		for k in range(m - 1):
-			var base: int = 6 * k
-			# Split each column from its shorter side so the taller wedge keeps
-			# its whole line edge on the texture's line end. A rising and a
-			# falling wedge then read the same LINE fade, and a column that
-			# closes collapses to a single triangle without dropping the line
-			# edge.
-			if _band_height(top[k], bottom[k]) <= _band_height(top[k + 1], bottom[k + 1]):
-				indices[base] = 2 * k
-				indices[base + 1] = 2 * k + 2
-				indices[base + 2] = 2 * k + 3
-				indices[base + 3] = 2 * k
-				indices[base + 4] = 2 * k + 3
-				indices[base + 5] = 2 * k + 1
-			else:
-				indices[base] = 2 * k
-				indices[base + 1] = 2 * k + 2
-				indices[base + 2] = 2 * k + 1
-				indices[base + 3] = 2 * k + 2
-				indices[base + 4] = 2 * k + 3
-				indices[base + 5] = 2 * k + 1
+		var indices := _build_strip_indices(points, m, levels)
 
 		# The strip was built in axis space. Map it to screen space for the draw
 		# call. STRETCH UVs read the axis-space vertices (value on .y), while
@@ -1399,6 +1496,61 @@ class LineRenderer extends Control:
 			tex_rid = p_fill_uv_ctx.texture.get_rid()
 
 		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, screen_points, colors, uvs, PackedInt32Array(), PackedFloat32Array(), tex_rid)
+
+
+	# Drops the cut levels no column of this strip reaches. Such a level clamps
+	# onto a column edge everywhere, so it would only add an empty sub-band to
+	# every column. A band that stays inside its range therefore costs the same
+	# two levels per column as before.
+	static func _reachable_cut_levels(p_upper: PackedVector2Array, p_lower: PackedVector2Array, p_cuts: PackedFloat64Array) -> PackedFloat64Array:
+		if p_cuts.is_empty():
+			return p_cuts
+
+		var lo: float = INF
+		var hi: float = -INF
+		for k in range(p_upper.size()):
+			lo = minf(lo, minf(p_upper[k].y, p_lower[k].y))
+			hi = maxf(hi, maxf(p_upper[k].y, p_lower[k].y))
+
+		var reachable := PackedFloat64Array()
+		for c in p_cuts:
+			if c > lo and c < hi:
+				reachable.append(c)
+		return reachable
+
+
+	# Two triangles per sub-band quad, walking the columns and the levels within
+	# each. Every quad is split from its shorter side so the taller wedge keeps
+	# its whole line edge on the texture's line end. A rising and a falling wedge
+	# then read the same LINE fade, and a sub-band that closes collapses to a
+	# single triangle without dropping the line edge.
+	func _build_strip_indices(p_points: PackedVector2Array, p_column_count: int, p_levels: int) -> PackedInt32Array:
+		var sub_bands: int = p_levels - 1
+		var indices := PackedInt32Array()
+		indices.resize(6 * sub_bands * (p_column_count - 1))
+		var w: int = 0
+		for k in range(p_column_count - 1):
+			for j in range(sub_bands):
+				var a: int = k * p_levels + j
+				var b: int = a + 1
+				var c: int = a + p_levels
+				var d: int = c + 1
+				if _band_height(p_points[a], p_points[b]) <= _band_height(p_points[c], p_points[d]):
+					indices[w] = a
+					indices[w + 1] = c
+					indices[w + 2] = d
+					indices[w + 3] = a
+					indices[w + 4] = d
+					indices[w + 5] = b
+				else:
+					indices[w] = a
+					indices[w + 1] = c
+					indices[w + 2] = b
+					indices[w + 3] = c
+					indices[w + 4] = d
+					indices[w + 5] = b
+				w += 6
+		return indices
 
 
 	# Sign of the band at one column, sign(upper.y - lower.y) along the y (value)
