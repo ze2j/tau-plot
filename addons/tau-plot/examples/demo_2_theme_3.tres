@@ -1,0 +1,50 @@
+[gd_resource type="Theme" load_steps=4 format=3 uid="uid://d3rgq8nvs5huw"]
+
+[sub_resource type="Gradient" id="budget_gradient"]
+offsets = PackedFloat32Array(0, 0.16, 0.4, 0.68, 0.88, 1)
+colors = PackedColorArray(0.9, 0.16, 0.14, 1, 0.9, 0.16, 0.14, 1, 0.95, 0.62, 0.15, 1, 0.72, 0.78, 0.22, 1, 0.3, 0.68, 0.34, 1, 0.16, 0.44, 0.3, 1)
+
+[sub_resource type="GradientTexture2D" id="budget_texture"]
+gradient = SubResource("budget_gradient")
+width = 1
+height = 256
+fill_to = Vector2(0, 1)
+
+[sub_resource type="StyleBoxFlat" id="panel_bg"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.055, 0.065, 0.085, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[resource]
+TauAxisTitle/base_type = &"RichTextLabel"
+TauAxisTitle/colors/default_color = Color(0.68, 0.73, 0.79, 1)
+TauAxisTitle/font_sizes/normal_font_size = 10
+TauLine/base_type = &"Control"
+TauLine/constants/line_fill_alpha_percent_0 = 95
+TauLine/constants/line_fill_mode_0 = 1
+TauLine/constants/line_fill_texture_mode_0 = 0
+TauLine/constants/line_fill_texture_stretch_span_0 = 1
+TauLine/icons/line_fill_texture_0 = SubResource("budget_texture")
+TauPane/base_type = &"Control"
+TauPane/colors/pane_x_major_grid_line_color = Color(1, 1, 1, 0.055)
+TauPane/colors/pane_y_major_grid_line_color = Color(1, 1, 1, 0.055)
+TauPlot/base_type = &"PanelContainer"
+TauPlot/colors/font_color = Color(0.5, 0.55, 0.62, 1)
+TauPlot/colors/series_color_0 = Color(0.95, 0.97, 0.98, 1)
+TauPlot/colors/xy_axis_color = Color(0.32, 0.36, 0.42, 1)
+TauPlot/constants/series_alpha_percent_0 = 100
+TauPlot/constants/xy_padding_bottom = 6
+TauPlot/constants/xy_padding_left = 6
+TauPlot/constants/xy_padding_right = 6
+TauPlot/constants/xy_padding_top = 6
+TauPlot/constants/xy_pane_gap = 3
+TauPlot/font_sizes/font_size = 9
+TauPlot/styles/panel = SubResource("panel_bg")
+TauPlotTitle/base_type = &"RichTextLabel"
+TauPlotTitle/colors/default_color = Color(0.78, 0.82, 0.88, 1)

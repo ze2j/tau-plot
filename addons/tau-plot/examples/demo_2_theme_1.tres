@@ -1,0 +1,128 @@
+[gd_resource type="Theme" load_steps=9 format=3 uid="uid://jsm3gqqupy7o"]
+
+[sub_resource type="StyleBoxFlat" id="legend_bg"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.06, 0.08, 0.13, 0.8)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="Gradient" id="terrain_gradient"]
+offsets = PackedFloat32Array(0, 0.1136, 0.2045, 0.3182, 0.4545, 0.6364, 0.8182, 1)
+colors = PackedColorArray(0.97, 0.98, 1, 1, 0.85, 0.86, 0.88, 1, 0.63, 0.61, 0.6, 1, 0.62, 0.51, 0.4, 1, 0.74, 0.64, 0.44, 1, 0.64, 0.65, 0.38, 1, 0.48, 0.58, 0.3, 1, 0.32, 0.46, 0.25, 1)
+
+[sub_resource type="GradientTexture2D" id="terrain_texture"]
+gradient = SubResource("terrain_gradient")
+width = 1
+height = 256
+fill_to = Vector2(0, 1)
+
+[sub_resource type="Gradient" id="fog_gradient"]
+offsets = PackedFloat32Array(0, 0.38931298, 0.5547074, 0.82188296)
+colors = PackedColorArray(0.8, 0.87, 0.94, 0, 0.8075, 0.87875, 0.95, 0.19607843, 0.86, 0.91, 0.96, 0.88, 0.9, 0.94, 0.98, 0.95)
+
+[sub_resource type="GradientTexture2D" id="fog_texture"]
+gradient = SubResource("fog_gradient")
+width = 1
+height = 256
+fill_to = Vector2(0, 1)
+
+[sub_resource type="StyleBoxFlat" id="panel_bg"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.07, 0.09, 0.15, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="tooltip_pinned_sb"]
+bg_color = Color(0.06, 0.08, 0.13, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.35, 0.2, 0.5)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="tooltip_sb"]
+bg_color = Color(0.06, 0.08, 0.13, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.35, 0.2, 0.35)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[resource]
+TauAxisTitle/base_type = &"RichTextLabel"
+TauAxisTitle/colors/default_color = Color(0.72, 0.78, 0.85, 1)
+TauCrosshair/base_type = &"Control"
+TauCrosshair/colors/crosshair_color = Color(0.95, 0.35, 0.2, 0.5)
+TauCrosshair/constants/crosshair_dash = 3
+TauLegend/base_type = &"PanelContainer"
+TauLegend/colors/font_color = Color(0.72, 0.78, 0.85, 1)
+TauLegend/font_sizes/font_size = 10
+TauLegend/styles/legend_background = SubResource("legend_bg")
+TauLine/base_type = &"Control"
+TauLine/constants/line_dash_px_0 = 0
+TauLine/constants/line_dash_px_1 = 0
+TauLine/constants/line_fill_alpha_percent_0 = 100
+TauLine/constants/line_fill_alpha_percent_1 = 100
+TauLine/constants/line_fill_mode_0 = 1
+TauLine/constants/line_fill_mode_1 = 1
+TauLine/constants/line_fill_texture_mode_0 = 0
+TauLine/constants/line_fill_texture_mode_1 = 0
+TauLine/constants/line_fill_texture_stretch_span_0 = 1
+TauLine/constants/line_fill_texture_stretch_span_1 = 1
+TauLine/constants/line_hovered_width_px_0 = 1
+TauLine/constants/line_hovered_width_px_1 = 0
+TauLine/constants/line_width_px_0 = 1
+TauLine/constants/line_width_px_1 = 0
+TauLine/icons/line_fill_texture_0 = SubResource("terrain_texture")
+TauLine/icons/line_fill_texture_1 = SubResource("fog_texture")
+TauPane/base_type = &"Control"
+TauPane/colors/pane_y_major_grid_line_color = Color(1, 1, 1, 0.05)
+TauPane/constants/pane_y_major_grid_line_dash = 2
+TauPlot/base_type = &"PanelContainer"
+TauPlot/colors/font_color = Color(0.72, 0.78, 0.85, 1)
+TauPlot/colors/series_color_0 = Color(0.28, 0.3, 0.3, 1)
+TauPlot/colors/series_color_1 = Color(0.8, 0.87, 0.94, 1)
+TauPlot/colors/series_color_2 = Color(0.86, 0.16, 0.13, 1)
+TauPlot/colors/xy_axis_color = Color(0.35, 0.42, 0.5, 1)
+TauPlot/constants/series_alpha_percent_0 = 100
+TauPlot/constants/xy_padding_bottom = 6
+TauPlot/constants/xy_padding_left = 6
+TauPlot/constants/xy_padding_right = 6
+TauPlot/constants/xy_padding_top = 6
+TauPlot/constants/xy_pane_gap = 6
+TauPlot/font_sizes/font_size = 10
+TauPlot/styles/panel = SubResource("panel_bg")
+TauPlotTitle/base_type = &"RichTextLabel"
+TauPlotTitle/colors/default_color = Color(0.72, 0.78, 0.85, 1)
+TauScatter/base_type = &"Control"
+TauScatter/colors/scatter_hovered_outline_color = Color(1, 0.97, 0.9, 1)
+TauScatter/colors/scatter_outline_color = Color(1, 0.97, 0.9, 0.9)
+TauScatter/constants/scatter_hovered_marker_size_px_0 = 22
+TauScatter/constants/scatter_hovered_outline_width_px = 3
+TauScatter/constants/scatter_marker_shape_0 = 4
+TauScatter/constants/scatter_marker_size_px_0 = 14
+TauScatter/constants/scatter_outline_width_px = 2
+TauTooltip/base_type = &"Control"
+TauTooltip/colors/font_color = Color(0.97, 0.72, 0.55, 1)
+TauTooltip/constants/font_size = 11
+TauTooltip/constants/tooltip_padding = 7
+TauTooltip/styles/tooltip_pinned_style_box = SubResource("tooltip_pinned_sb")
+TauTooltip/styles/tooltip_style_box = SubResource("tooltip_sb")

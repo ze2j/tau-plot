@@ -30,7 +30,7 @@ func _ready() -> void:
 	# matching the X axis unit directly.
 	x_axis.domain_padding_mode = TauAxisConfig.DomainPaddingMode.DATA_UNITS
 	x_axis.domain_padding_min = 0.0
-	x_axis.domain_padding_max = 0.0
+	x_axis.domain_padding_max = 2.0
 
 	var y_axis := TauAxisConfig.new()
 	y_axis.title = "Value"
