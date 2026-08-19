@@ -38,7 +38,7 @@ An instance is assigned at runtime only. `VisualCallbacks` is a `RefCounted` and
 
 2. **Alpha sentinel value.** A negative return is treated as unset. That sample falls through to the next resolution step, so a fully transparent sample is returned as `0.0` rather than as a negative value.
 
-3. **Hover highlighting runs after the override.** While at least one sample of the plot is hovered and [`TauHoverConfig.highlight_enabled`](hover_config.md#highlight_enabled) is `true`, every resolved color passes through [`TauHoverConfig.hover_highlight_callback`](hover_config.md#hover_highlight_callback) before it is drawn, and the emphasized sample also takes the hovered-state properties of its style. A returned value decides the color a sample starts from, not always the color it ends up drawn in.
+3. **Hover highlighting runs after the override.** The highlight can change the color a sample is drawn with while the cursor is over its pane. A returned value decides the color a sample starts from, not always the color it ends up drawn in. See [`TauHoverConfig`](hover_config.md).
 
 ## Properties
 
@@ -84,5 +84,5 @@ func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> 
 * [`Dataset`](dataset.md) The data model. Supplies the series index, the sample index, and the X and Y values a callback receives.
 * [`SampleHit`](sample_hit.md) Reports the same raw Y value a callback receives, through [`y_raw_value`](sample_hit.md#y_raw_value).
 * [`TauXYStyle`](xy_style.md) Provides the per-series color and alpha a sample falls back to.
-* [`TauHoverConfig`](hover_config.md) Holds the highlight callback a resolved color is routed through while a sample is hovered.
+* [`TauHoverConfig`](hover_config.md) Controls the highlight, which can change the color a sample is drawn with.
 * [`TauPlot`](tau_plot.md) The plot node. Invokes every valid callback once per sample on each draw pass.

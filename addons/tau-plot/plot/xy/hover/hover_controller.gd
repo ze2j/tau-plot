@@ -14,8 +14,8 @@ const LineRenderer := preload("res://addons/tau-plot/plot/xy/line/line_renderer.
 
 ## Handles input dispatch, hover mode resolution, hit aggregation across
 ## overlays, tooltip lifecycle (create/position/show/hide/destroy), and
-## signal emission. Works exclusively through the OverlayHitTester interface
-## and never inspects overlay internals directly.
+## signal emission. Hit testing goes exclusively through the OverlayHitTester
+## interface.
 class HoverController extends RefCounted:
 	# External references (provided via setup).
 	var _plot: PanelContainer = null
@@ -537,9 +537,19 @@ class HoverController extends RefCounted:
 
 	## Update the renderers hover state based on the current set of hits.
 	## Each renderer receives set_hover_state with the hit that belongs to it
-	## (matched by pane index and overlay type). If a renderer has no hit, it
-	## still receives p_active = true so that the color callback dims its samples,
-	## but p_series_id = -1 so no sample gets hovered-state style properties.
+	## (matched by pane index and overlay type).
+	##
+	## Two rules decide who is left out of the pass:
+	## - A non-hoverable overlay is cleared. It produces no hit by construction,
+	##   so keeping it in could only ever dim it, never emphasize it.
+	## - A pane whose overlays produced no emphasized sample is cleared whole.
+	##   Dimming is a focus effect, and there is nothing to focus on. Without
+	##   this, a cursor resting inside the pane but outside every bar or marker
+	##   would fade the pane for as long as it stays there.
+	##
+	## A hoverable overlay in a pane that does have an emphasized sample, but
+	## none of its own, receives p_active = true with p_series_id = -1: its
+	## samples dim in favour of the overlay carrying the emphasis.
 	##
 	## For GROUPED bars in X_ALIGNED mode, the entire group at the hovered
 	## sample index is highlighted together via set_hover_state_group.
@@ -594,10 +604,15 @@ class HoverController extends RefCounted:
 				if existing == null or hit.distance_px < existing.distance_px:
 					line_hits_by_pane[hit.pane_index] = hit
 
+		var emphasized_panes := _collect_emphasized_panes(bar_hits_by_pane, scatter_hits_by_pane, line_hits_by_pane, bar_sample_index_by_pane)
+
 		for pane_index: int in range(_bar_renderers.size()):
 			var renderer: BarRenderer = _bar_renderers[pane_index]
 			if renderer == null:
 				continue  # Pane has no bar overlay.
+			if not renderer.get_config().hoverable or not emphasized_panes.has(pane_index):
+				renderer.set_hover_state(false, -1, -1, Callable())
+				continue
 
 			# Use group highlight for GROUPED bars in X_ALIGNED mode.
 			if _is_grouped_bar_x_aligned(pane_index):
@@ -617,6 +632,9 @@ class HoverController extends RefCounted:
 			var renderer: ScatterRenderer = _scatter_renderers[pane_index]
 			if renderer == null:
 				continue  # Pane has no scatter overlay.
+			if not renderer.get_config().hoverable or not emphasized_panes.has(pane_index):
+				renderer.set_hover_state(false, -1, -1, Callable())
+				continue
 			var hit: SampleHit = scatter_hits_by_pane.get(pane_index)
 			if hit != null:
 				renderer.set_hover_state(true, hit.series_id, hit.sample_index, highlight_cb)
@@ -627,11 +645,38 @@ class HoverController extends RefCounted:
 			var renderer: LineRenderer = _line_renderers[pane_index]
 			if renderer == null:
 				continue  # Pane has no line overlay.
+			if not renderer.get_config().hoverable or not emphasized_panes.has(pane_index):
+				renderer.set_hover_state(false, -1, -1, Callable())
+				continue
 			var hit: SampleHit = line_hits_by_pane.get(pane_index)
 			if hit != null:
 				renderer.set_hover_state(true, hit.series_id, hit.sample_index, highlight_cb)
 			else:
 				renderer.set_hover_state(true, -1, -1, highlight_cb)
+
+
+	## Returns the set of pane indices where at least one overlay ends up with
+	## an emphasized sample, keyed by pane index. GROUPED bars in X_ALIGNED
+	## mode count through their sample index, since the group is emphasized
+	## without any of its hits containing the pointer.
+	func _collect_emphasized_panes(
+			p_bar_hits_by_pane: Dictionary[int, SampleHit],
+			p_scatter_hits_by_pane: Dictionary[int, SampleHit],
+			p_line_hits_by_pane: Dictionary[int, SampleHit],
+			p_bar_sample_index_by_pane: Dictionary[int, int]) -> Dictionary[int, bool]:
+		var emphasized: Dictionary[int, bool] = {}
+
+		for pane_index: int in p_bar_hits_by_pane:
+			emphasized[pane_index] = true
+		for pane_index: int in p_scatter_hits_by_pane:
+			emphasized[pane_index] = true
+		for pane_index: int in p_line_hits_by_pane:
+			emphasized[pane_index] = true
+		for pane_index: int in p_bar_sample_index_by_pane:
+			if _is_grouped_bar_x_aligned(pane_index):
+				emphasized[pane_index] = true
+
+		return emphasized
 
 
 	## Clears hover state on all bar, scatter, and line renderers,

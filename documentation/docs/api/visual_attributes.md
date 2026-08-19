@@ -29,7 +29,7 @@ An instance is assigned at runtime only. `VisualAttributes` is a `RefCounted` an
 
 2. **Alpha sentinel value.** A negative entry is treated as unset. That sample falls through to the next resolution step, so a fully transparent sample is written as `0.0` rather than as a negative value.
 
-3. **Hover highlighting runs after the override.** While at least one sample of the plot is hovered and [`TauHoverConfig.highlight_enabled`](hover_config.md#highlight_enabled) is `true`, every resolved color passes through [`TauHoverConfig.hover_highlight_callback`](hover_config.md#hover_highlight_callback) before it is drawn, and the emphasized sample also takes the hovered-state properties of its style. A buffer entry decides the color a sample starts from, not always the color it ends up drawn in.
+3. **Hover highlighting runs after the override.** The highlight can change the color a sample is drawn with while the cursor is over its pane. A buffer entry decides the color a sample starts from, not always the color it ends up drawn in. See [`TauHoverConfig`](hover_config.md).
 
 ## Properties
 
@@ -65,5 +65,5 @@ An entry overrides the alpha of the sample at the same index, taking priority ov
 * [`Float32Buffer`](float32_buffer.md) Ring buffer storing `float` values (32-bit), used by [`alpha_buffer`](#alpha_buffer).
 * [`Dataset`](dataset.md) The data model. Its logical sample index is the index a buffer is read by.
 * [`TauXYStyle`](xy_style.md) Provides the per-series color and alpha a sample falls back to.
-* [`TauHoverConfig`](hover_config.md) Holds the highlight callback a resolved color is routed through while a sample is hovered.
+* [`TauHoverConfig`](hover_config.md) Controls the highlight, which can change the color a sample is drawn with.
 * [`TauPlot`](tau_plot.md) The plot node. Reads the buffers of every binding it received on each draw pass.

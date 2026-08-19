@@ -15,7 +15,13 @@ The **hover mode** controls which samples are collected when the cursor moves ov
 - [`X_ALIGNED`](#hovermode) collects all samples at the nearest X position across every overlay in the pane. For [`PER_SERIES_X`](dataset.md#mode) datasets, only series that have a data point at the globally nearest X are included (see the [enum table](#hovermode) for details).
 - [`AUTO`](#hovermode) resolves the mode per pane by a vote. Each [`hoverable`](pane_overlay_config.md#hoverable) overlay in the pane states a preferred mode: [`X_ALIGNED`](#hovermode) for a [`BAR`](tau_plot.md#paneoverlaytype) or [`LINE`](tau_plot.md#paneoverlaytype) overlay, [`NEAREST`](#hovermode) for a [`SCATTER`](tau_plot.md#paneoverlaytype) overlay. Unanimity wins. A disagreement resolves to [`NEAREST`](#hovermode), and so does a pane holding no hoverable overlay.
 
-The **highlight** sub-system emphasizes the hovered samples while the cursor stays over a pane. [`highlight_enabled`](#highlight_enabled) toggles it. It acts in two ways. Every sample of every overlay passes through [`hover_highlight_callback`](#hover_highlight_callback), which returns the color to draw, so the samples that are not hovered can be dimmed. The emphasized sample of an overlay also takes the hovered-state properties of that overlay's style: [`TauBarStyle.hovered_style_box`](bar_style.md#hovered_style_box), [`TauScatterStyle.hovered_marker_sizes_px`](scatter_style.md#hovered_marker_sizes_px) with [`hovered_outline_width_px`](scatter_style.md#hovered_outline_width_px) and [`hovered_outline_color`](scatter_style.md#hovered_outline_color), and [`TauLineStyle.hovered_line_widths_px`](line_style.md#hovered_line_widths_px).
+The **highlight** sub-system emphasizes the hovered samples while the cursor stays over a pane. [`highlight_enabled`](#highlight_enabled) toggles it. It changes the drawing in two ways.
+
+First, the emphasized sample of an overlay takes the hovered-state properties of that overlay's style: [`TauBarStyle.hovered_style_box`](bar_style.md#hovered_style_box), [`TauScatterStyle.hovered_marker_sizes_px`](scatter_style.md#hovered_marker_sizes_px) with [`hovered_outline_width_px`](scatter_style.md#hovered_outline_width_px) and [`hovered_outline_color`](scatter_style.md#hovered_outline_color), and [`TauLineStyle.hovered_line_widths_px`](line_style.md#hovered_line_widths_px).
+
+Second, the plot changes the color of every sample of the pane. By default it brightens the emphasized sample and dims the other ones. [`hover_highlight_callback`](#hover_highlight_callback) replaces that default. When it is set, the plot calls it once per sample and draws the color it returns.
+
+The highlight only affects the pane under the cursor. The other panes keep their normal colors. Inside that pane, the highlight runs only when one of its overlays has an emphasized sample. When none has, every sample keeps its normal color, and the tooltip still lists its hits. An overlay whose [`hoverable`](pane_overlay_config.md#hoverable) is `false` stays out of the highlight and keeps its normal colors.
 
 At most one sample per overlay and per pane is emphasized, picked from the hits the hover mode collected:
 
@@ -133,7 +139,7 @@ When `false`, every sample draws with its normal resolved color and style whatev
 
 An optional callback that returns the draw color of each sample from its hover state. Default is an invalid `Callable`.
 
-When invalid, the built-in behavior applies: the emphasized sample is brightened and every other sample is dimmed. When valid, the callback replaces that behavior for the color, and the hovered-state style properties still apply. It is only invoked when [`highlight_enabled`](#highlight_enabled) is `true` and at least one sample is currently hovered. The callback signature is:
+When invalid, the built-in behavior applies: the emphasized sample is brightened, and the alpha channel of every other sample is multiplied by `0.7`, so a series already translucent stays behind an opaque one. When valid, the callback replaces that behavior for the color, and the hovered-state style properties still apply. It is invoked once per sample of every [`hoverable`](pane_overlay_config.md#hoverable) overlay of the pane under the cursor, while [`highlight_enabled`](#highlight_enabled) is `true` and a sample of that pane is emphasized. The callback signature is:
 
 ```gdscript
 func(color: Color, hovered: bool) -> Color
@@ -243,7 +249,7 @@ func(hits: Array[SampleHit]) -> Control
 * [`TauPlot`](tau_plot.md) The plot node. Accepts `TauHoverConfig` via [`hover_config`](tau_plot.md#hover_config) and activates the system when [`hover_enabled`](tau_plot.md#hover_enabled) is `true`.
 * [`SampleHit`](sample_hit.md) Describes one hovered sample. Passed to [`format_tooltip_text`](#format_tooltip_text) and [`create_tooltip_control`](#create_tooltip_control).
 * [`Dataset`](dataset.md) The data model. Its [mode](dataset.md#mode) decides how many series [`X_ALIGNED`](#hovermode) collects at one X position.
-* [`TauPaneOverlayConfig`](pane_overlay_config.md) Base class of the overlay configurations. Its [`hoverable`](pane_overlay_config.md#hoverable) flag takes an overlay out of hit testing and out of the [`AUTO`](#hovermode) vote.
+* [`TauPaneOverlayConfig`](pane_overlay_config.md) Base class of the overlay configurations. Its [`hoverable`](pane_overlay_config.md#hoverable) flag takes an overlay out of hit testing, out of the highlight, and out of the [`AUTO`](#hovermode) vote.
 * [`TauBarConfig`](bar_config.md) Bar overlay configuration. Its [`mode`](bar_config.md#mode) decides whether bars are emphasized one at a time or as a group.
 * [`TauScatterConfig`](scatter_config.md) Scatter overlay configuration. Holds the [`hover_max_distance_px`](scatter_config.md#hover_max_distance_px) gate applied to markers.
 * [`TauLineConfig`](line_config.md) Line overlay configuration. Holds the [`hover_max_distance_px`](line_config.md#hover_max_distance_px) gate applied to curve samples.

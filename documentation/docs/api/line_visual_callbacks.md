@@ -36,8 +36,6 @@ line_overlay.line_visual_callbacks = callbacks
 
 2. **`y_value` is the value stored in the dataset.** In [`STACKED`](line_config.md#linemode) mode the curve is drawn at the running total, and the callback still receives the value the [`Dataset`](dataset.md) holds, never the running total and never the normalized value.
 
-3. **The color returned here is not always the color drawn.** While at least one sample of the plot is hovered and [`TauHoverConfig.highlight_enabled`](hover_config.md#highlight_enabled) is `true`, every resolved color passes through [`TauHoverConfig.hover_highlight_callback`](hover_config.md#hover_highlight_callback) before it is drawn, and the emphasized curve also takes [`TauLineStyle.hovered_line_widths_px`](line_style.md#hovered_line_widths_px).
-
 ## Constructor
 
 ### `new()`
@@ -57,7 +55,6 @@ Creates a new `LineVisualCallbacks` instance with all callbacks set to an invali
 * [`TauLineStyle`](line_style.md) Provides the resolved line style values the callbacks are applied on top of.
 * [`TauLineFill`](line_fill.md) Paints the area around the curve, which the callbacks do not reach.
 * [`TauXYStyle`](xy_style.md) Provides the per-series color and alpha a sample falls back to.
-* [`TauHoverConfig`](hover_config.md) Holds the highlight callback the resolved color is routed through while a sample is hovered.
 * [`BarVisualCallbacks`](bar_visual_callbacks.md) Sibling subclass for [`BAR`](tau_plot.md#paneoverlaytype) overlays.
 * [`ScatterVisualCallbacks`](scatter_visual_callbacks.md) Sibling subclass for [`SCATTER`](tau_plot.md#paneoverlaytype) overlays.
 * [`Dataset`](dataset.md) The data model. Supplies the sample index and the X and Y values each callback receives.

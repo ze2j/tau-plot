@@ -9,6 +9,7 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 const LineHitRecord := preload("res://addons/tau-plot/plot/xy/line/line_hit_record.gd").LineHitRecord
 const LineLegendKey := preload("res://addons/tau-plot/plot/xy/line/line_legend_key.gd").LineLegendKey
 const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_series_values.gd").StackedSeriesValues
+const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highlight.gd").HoverHighlight
 
 
 # Draws line overlays from an XYLayout + Dataset.
@@ -1943,11 +1944,7 @@ class LineRenderer extends Control:
 		if not _highlight_active:
 			return p_color
 		var is_hovered: bool = (p_series_id == _hovered_series_id) and (p_sample_index == _hovered_sample_index)
-		if _hover_highlight_callback.is_valid():
-			return _hover_highlight_callback.call(p_color, is_hovered)
-		if is_hovered:
-			return p_color.lightened(0.15)
-		return Color(p_color, 0.5)
+		return HoverHighlight.resolve(p_color, is_hovered, _hover_highlight_callback)
 
 
 	func _resolve_sample_color_only(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:

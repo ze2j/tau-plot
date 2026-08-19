@@ -8,6 +8,7 @@ const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const ScatterVisualAttributes := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
 const MarkerShape := preload("res://addons/tau-plot/plot/xy/scatter/scatter_style.gd").MarkerShape
+const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highlight.gd").HoverHighlight
 
 const SCATTER_SHADER: Shader = preload("res://addons/tau-plot/plot/xy/scatter/scatter.gdshader")
 
@@ -567,13 +568,7 @@ class ScatterRenderer extends Control:
 		if not _highlight_active:
 			return p_color
 		var is_hovered := p_series_id == _hovered_series_id and p_sample_index == _hovered_sample_index
-		if _hover_highlight_callback.is_valid():
-			return _hover_highlight_callback.call(p_color, is_hovered)
-		# Built-in default: brighten hovered, dim non-hovered.
-		if is_hovered:
-			return p_color.lightened(0.15)
-		else:
-			return Color(p_color, 0.5)
+		return HoverHighlight.resolve(p_color, is_hovered, _hover_highlight_callback)
 
 
 	####################################################################################################

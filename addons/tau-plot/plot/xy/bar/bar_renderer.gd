@@ -9,6 +9,7 @@ const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attribut
 const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
 const BarHitRecord := preload("res://addons/tau-plot/plot/xy/bar/bar_hit_record.gd").BarHitRecord
 const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_series_values.gd").StackedSeriesValues
+const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highlight.gd").HoverHighlight
 
 
 # Draws bar overlays from a XYLayout + Dataset.
@@ -323,13 +324,7 @@ class BarRenderer extends Control:
 			is_hovered = p_sample_index == _hovered_sample_index
 		else:
 			is_hovered = p_series_id == _hovered_series_id and p_sample_index == _hovered_sample_index
-		if _hover_highlight_callback.is_valid():
-			return _hover_highlight_callback.call(p_color, is_hovered)
-		# Built-in default: brighten hovered, dim non-hovered.
-		if is_hovered:
-			return p_color.lightened(0.15)
-		else:
-			return Color(p_color, 0.5)
+		return HoverHighlight.resolve(p_color, is_hovered, _hover_highlight_callback)
 
 
 	## Resolves the StyleBox for a given bar sample. Checks the callback first,
