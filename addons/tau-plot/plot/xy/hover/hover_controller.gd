@@ -10,6 +10,7 @@ const PaneRenderer := preload("res://addons/tau-plot/plot/xy/pane_renderer.gd").
 const BarRenderer := preload("res://addons/tau-plot/plot/xy/bar/bar_renderer.gd").BarRenderer
 const ScatterRenderer := preload("res://addons/tau-plot/plot/xy/scatter/scatter_renderer.gd").ScatterRenderer
 const LineRenderer := preload("res://addons/tau-plot/plot/xy/line/line_renderer.gd").LineRenderer
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 
 
 ## Handles input dispatch, hover mode resolution, hit aggregation across
@@ -385,7 +386,33 @@ class HoverController extends RefCounted:
 					continue
 				hits.append_array(hit_tester.collect_hits_at_continuous_x(nearest_x_val, p_local_pos))
 
+		_promote_primary_hit(hits)
 		return hits
+
+
+	## Moves the primary hit to index 0. The primary hit is the sample the
+	## pointer sits inside, the closest one when several qualify, and the
+	## closest sample overall when the pointer sits inside none.
+	func _promote_primary_hit(p_hits: Array[SampleHit]) -> void:
+		var primary_index := -1
+		var primary_hit: SampleHit = null
+
+		for i: int in range(p_hits.size()):
+			var hit: SampleHit = p_hits[i]
+			if primary_hit == null or _wins_primary_slot(hit, primary_hit):
+				primary_index = i
+				primary_hit = hit
+
+		if primary_index > 0:
+			p_hits.remove_at(primary_index)
+			p_hits.insert(0, primary_hit)
+
+
+	## Ranks two hits for the primary slot: containment first, distance second.
+	func _wins_primary_slot(p_hit: SampleHit, p_current: SampleHit) -> bool:
+		if p_hit.contains_pointer != p_current.contains_pointer:
+			return p_hit.contains_pointer
+		return p_hit.distance_px < p_current.distance_px
 
 
 	####################################################################
@@ -461,14 +488,17 @@ class HoverController extends RefCounted:
 
 		# X pixel: snapped to the hovered data point's screen position.
 		# For GROUPED bars, snap to the category/data center instead of
-		# the individual bar's offset position.
+		# the individual bar's offset position. The primary hit may belong to
+		# any overlay of the pane, so the category comes from a bar hit.
+		var grouped_bar_hit: SampleHit = _find_first_bar_hit(p_hits) if _is_grouped_bar_x_aligned(p_active_pane) else null
+
 		var x_px: float
-		if _is_grouped_bar_x_aligned(p_active_pane):
+		if grouped_bar_hit != null:
 			var x_config := _layout.domain.config.x_axis
 			if x_config.type == TauAxisConfig.Type.CATEGORICAL:
-				x_px = _layout.map_x_category_center_to_px(p_active_pane, primary_hit.sample_index)
+				x_px = _layout.map_x_category_center_to_px(p_active_pane, grouped_bar_hit.sample_index)
 			else:
-				x_px = _layout.map_x_to_px(p_active_pane, float(primary_hit.x_value))
+				x_px = _layout.map_x_to_px(p_active_pane, float(grouped_bar_hit.x_value))
 		elif x_is_horizontal:
 			x_px = primary_hit.screen_position.x
 		else:
@@ -585,7 +615,6 @@ class HoverController extends RefCounted:
 		# even without contains_pointer, tells us the hovered category).
 		var bar_sample_index_by_pane: Dictionary[int, int] = {}
 
-		const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 		for hit: SampleHit in p_hits:
 			if hit.overlay_type == PaneOverlayType.BAR:
 				if not bar_sample_index_by_pane.has(hit.pane_index):
@@ -867,34 +896,25 @@ class HoverController extends RefCounted:
 	## since screen Y grows downward).
 	## Returns Vector2.INF if no bar hits are found.
 	func _compute_grouped_bar_anchor(p_hits: Array, p_pane_index: int) -> Vector2:
-		const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+		var first_bar_hit: SampleHit = _find_first_bar_hit(p_hits)
+		if first_bar_hit == null:
+			return Vector2.INF
 
 		var min_y_px: float = INF  # Smallest screen Y = top of tallest bar.
-		var has_bar_hit := false
-		var first_bar_hit: SampleHit = null
 
-		for hit in p_hits:
-			var sample_hit: SampleHit = hit as SampleHit
-			if sample_hit == null:
+		for hit: SampleHit in p_hits:
+			if hit.overlay_type != PaneOverlayType.BAR:
 				continue
-			if sample_hit.overlay_type != PaneOverlayType.BAR:
-				continue
-			if not has_bar_hit:
-				first_bar_hit = sample_hit
-				has_bar_hit = true
 
 			# screen_position.y holds the bar tip pixel in pane-local space.
 			var x_is_horizontal: bool = _layout._x_is_horizontal
 			var bar_tip_y: float
 			if x_is_horizontal:
-				bar_tip_y = sample_hit.screen_position.y
+				bar_tip_y = hit.screen_position.y
 			else:
-				bar_tip_y = sample_hit.screen_position.x
+				bar_tip_y = hit.screen_position.x
 			if bar_tip_y < min_y_px:
 				min_y_px = bar_tip_y
-
-		if not has_bar_hit:
-			return Vector2.INF
 
 		# X: use the category center, not any individual bar's offset position.
 		# For categorical axes, map the sample_index back to the category center.
@@ -915,6 +935,14 @@ class HoverController extends RefCounted:
 			pane_local = Vector2(min_y_px, center_x_px)
 
 		return _pane_to_plot_local(p_pane_index, pane_local)
+
+
+	## Returns the first BAR hit of the array, or null when it holds none.
+	func _find_first_bar_hit(p_hits: Array) -> SampleHit:
+		for hit: SampleHit in p_hits:
+			if hit.overlay_type == PaneOverlayType.BAR:
+				return hit
+		return null
 
 
 	## Positions the tooltip at the mouse cursor (FOLLOW_MOUSE mode).

@@ -1,4 +1,5 @@
 const SampleHit := preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const OverlayHitTester := preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis_assignment.gd").SeriesAxisAssignment
 
@@ -60,25 +61,50 @@ class HoverFormatter extends RefCounted:
 		return line1 + "\ny: " + y_str
 
 
-	## Formats multiple hits (X_ALIGNED style):
+	## Formats multiple hits (X_ALIGNED style). One shared x value gets a
+	## heading of its own:
 	## "x_value"
 	## "Series1: y1"
 	## "Series2: y2"
+	##
+	## Otherwise each line carries its own x instead:
+	## "Series1 (x1): y1"
+	## "Series2 (x2): y2"
 	func _format_multi_hit(p_hits: Array) -> String:
 		if p_hits.is_empty():
 			return ""
 
-		var first_hit: SampleHit = p_hits[0]
-		var x_str := _format_hit_x_value(first_hit)
 		var lines: PackedStringArray = PackedStringArray()
-		if not x_str.is_empty():
-			lines.append(x_str)
+
+		if _share_one_x_value(p_hits):
+			var x_str := _format_hit_x_value(p_hits[0])
+			if not x_str.is_empty():
+				lines.append(x_str)
+			for hit in p_hits:
+				lines.append(hit.series_name + ": " + _format_hit_y_value(hit))
+			return "\n".join(lines)
 
 		for hit in p_hits:
-			var y_str := _format_hit_y_value(hit)
-			lines.append(hit.series_name + ": " + y_str)
+			var x_str := _format_hit_x_value(hit)
+			var label: String = hit.series_name
+			if not x_str.is_empty():
+				label += " (" + x_str + ")"
+			lines.append(label + ": " + _format_hit_y_value(hit))
 
 		return "\n".join(lines)
+
+
+	## Returns true when every hit sits at the same x value. Categorical x
+	## always does, since the hits come from one resolved category.
+	func _share_one_x_value(p_hits: Array) -> bool:
+		var first_hit: SampleHit = p_hits[0]
+		if first_hit.x_value is String:
+			return true
+
+		for hit: SampleHit in p_hits:
+			if not OverlayHitTester.x_values_match(hit.x_value, first_hit.x_value):
+				return false
+		return true
 
 
 	func _format_hit_x_value(p_hit: SampleHit) -> String:

@@ -97,7 +97,7 @@ The maximum distance in pixels from the cursor to a marker center for the marker
 
 In [`NEAREST`](hover_config.md#hovermode) mode the threshold is a 2D distance gate in pane-local screen space. Markers farther than this from the cursor are excluded, and the closest of the remaining markers becomes the hit.
 
-In [`X_ALIGNED`](hover_config.md#hovermode) mode on a [`CONTINUOUS`](axis_config.md#type-enum) X axis the threshold is an X-only pixel gate. Markers whose X screen position differs from the hovered X position by more than this are excluded. The same threshold is then compared against the 2D distance of each remaining marker to set [`SampleHit.contains_pointer`](sample_hit.md#contains_pointer).
+In [`X_ALIGNED`](hover_config.md#hovermode) mode on a [`CONTINUOUS`](axis_config.md#type-enum) X axis, the overlay picks the X position where it has markers closest to the hovered X position, and reports the markers there. It reports nothing when that position is farther than this distance from the hovered X position. Only the distance along the X axis counts here. The same threshold is then compared with the 2D distance between the cursor and each reported marker, which sets [`SampleHit.contains_pointer`](sample_hit.md#contains_pointer).
 
 In [`X_ALIGNED`](hover_config.md#hovermode) mode on a [`CATEGORICAL`](axis_config.md#type-enum) X axis the threshold gates nothing. Every marker at the hovered category is collected, and the threshold only sets [`SampleHit.contains_pointer`](sample_hit.md#contains_pointer).
 

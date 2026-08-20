@@ -29,6 +29,10 @@ func _process(delta: float) -> void:
 # The terrain is resampled every 500 m from published waypoint altitudes and
 # roughened, so it reads at the resolution of a track while every named
 # altitude stays exact.
+#
+# The waypoints sit in a scatter overlay above the terrain line, at a much
+# coarser resolution. Hovering near one reads two positions at once: the
+# altitude under the cursor, and the named altitude a few hundred metres away.
 ####################################################################################################
 
 func _setup_demo_1(plot: TauPlot) -> void:
@@ -160,13 +164,17 @@ func _setup_demo_1(plot: TauPlot) -> void:
 	hover.crosshair_mode = TauHoverConfig.CrosshairMode.X_ONLY
 	hover.format_tooltip_text = func(hits: Array[TauPlot.SampleHit]) -> String:
 		var terrain_text := ""
+		var waypoint_text := ""
 		for hit in hits:
 			var km: float = hit.x_value
-			if hit.series_id == waypoint_id:
-				return "[b]%s[/b]\n%d m at %.0f km" % [waypoints[hit.sample_index][0], int(hit.y_raw_value), km]
 			if hit.series_id == terrain_id:
 				terrain_text = "%d m at %.1f km" % [int(hit.y_raw_value), km]
-		return terrain_text
+			elif hit.series_id == waypoint_id:
+				waypoint_text = "[b]%s[/b]  %d m at %.1f km" % [waypoints[hit.sample_index][0], int(hit.y_raw_value), km]
+
+		if waypoint_text.is_empty():
+			return terrain_text
+		return terrain_text + "\n" + waypoint_text
 	hover.hover_highlight_callback = func(color: Color, hovered: bool) -> Color:
 		return color.lightened(0.4) if hovered else color
 

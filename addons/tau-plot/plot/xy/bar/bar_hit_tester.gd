@@ -66,20 +66,22 @@ class BarHitTester extends OverlayHitTester:
 		return hits
 
 
-	func collect_hits_at_continuous_x(p_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
+	func collect_hits_at_continuous_x(p_anchor_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
+		var anchor_x_px: float = _layout.map_x_to_px(_pane_index, p_anchor_x_value)
+		var nearest: Dictionary = find_nearest_x(anchor_x_px)
+		if nearest.is_empty():
+			return []
+
+		var own_x_value: float = nearest["x_value"]
 		var hits: Array[SampleHit] = []
 		for record: BarHitRecord in _bar_renderer.get_hit_records():
-			if not OverlayHitTester.x_values_match(record.x_value, p_x_value):
+			if not OverlayHitTester.x_values_match(record.x_value, own_x_value):
 				continue
 			hits.append(_build_hit(record, p_local_pos, record.rect.has_point(p_local_pos)))
 		return hits
 
 
-	## Empty for categorical x: this path is for continuous x only.
 	func find_nearest_x(p_along_x_px: float) -> Dictionary:
-		if _layout.domain.config.x_axis.type == TauAxisConfig.Type.CATEGORICAL:
-			return {}
-
 		var best_px := INF
 		var best_val: float = 0.0
 		var found := false

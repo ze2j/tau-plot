@@ -32,6 +32,8 @@ The **bar width policy** controls how bar widths are computed:
 
 The width and gap properties of the active policy are checked when the plot is built. A value outside its range is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts, leaving the previous plot untouched. Properties belonging to another policy are not read and not checked.
 
+A bar overlay has no hover distance threshold. In [`X_ALIGNED`](hover_config.md#hovermode) mode it reports the bars of the column closest to the hovered X position, whatever the distance. Which of them the cursor actually sits inside is reported by [`SampleHit.contains_pointer`](sample_hit.md#contains_pointer).
+
 [`mode`](#mode) affects layout and domain computation on its own. [`stacked_normalization`](#stacked_normalization) and [`stacked_negative_policy`](#stacked_negative_policy) affect it while [`mode`](#mode) is [`STACKED`](#barmode). Every other property on this class is visual-only and triggers a redraw without rebuilding the layout.
 
 Visual appearance beyond width is controlled by [`style`](#style), which holds the `StyleBox` of a bar, its hovered-state counterpart, and the pixel-based sizing constants. Per-sample color, alpha, and `StyleBox` overrides are applied through [`bar_visual_callbacks`](#bar_visual_callbacks) or through [`BarVisualAttributes`](bar_visual_attributes.md) on the series binding. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for the order the two mechanisms resolve in.
@@ -253,6 +255,8 @@ Reads and writes the inherited [`TauPaneOverlayConfig.visual_callbacks`](pane_ov
 * [`TauPaneConfig`](pane_config.md) Holds the overlay in its [`overlays`](pane_config.md#overlays) array.
 * [`TauAxisConfig`](axis_config.md) Configures the axes whose type and scale decide which width policies are valid.
 * [`Dataset`](dataset.md) The data model. Its [`SHARED_X`](dataset.md#mode) mode is required by [`GROUPED`](#barmode) and [`STACKED`](#barmode).
+* [`TauHoverConfig`](hover_config.md) Holds the hover mode the bars of a column are collected under.
+* [`SampleHit`](sample_hit.md) One reported hit, carrying [`contains_pointer`](sample_hit.md#contains_pointer).
 * [`TauBarStyle`](bar_style.md) Controls visual appearance. Owned by this config via [`style`](#style).
 * [`BarVisualCallbacks`](bar_visual_callbacks.md) Supplies per-sample color, alpha, and `StyleBox` overrides via callbacks.
 * [`BarVisualAttributes`](bar_visual_attributes.md) Supplies per-sample color and alpha overrides via pre-built buffers.

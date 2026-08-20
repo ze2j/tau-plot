@@ -116,35 +116,31 @@ class ScatterHitTester extends OverlayHitTester:
 		return hits
 
 
-	## Collects all scatter points at a continuous x value (X_ALIGNED mode).
-	## Only includes points whose x pixel position is within
-	## hover_max_distance_px of the target and whose x value is close
-	## enough numerically.
+	## Collects the scatter points at the x value of this overlay closest to
+	## the anchor (X_ALIGNED mode). Answers nothing when that x value sits
+	## farther than hover_max_distance_px from the anchor.
 	##
-	## p_x_value: the continuous x data value to collect hits at.
+	## p_anchor_x_value: the continuous x data value to snap to.
 	## p_local_pos: pointer position in pane-local screen coordinates.
-	func collect_hits_at_continuous_x(p_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
+	func collect_hits_at_continuous_x(p_anchor_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
+		var anchor_x_px := _layout.map_x_to_px(_pane_index, p_anchor_x_value)
+		var nearest: Dictionary = find_nearest_x(anchor_x_px)
+		if nearest.is_empty():
+			return []
+
 		var max_dist_x: float = float(_scatter_config.hover_max_distance_px)
+		if absf(nearest["x_px"] - anchor_x_px) > max_dist_x:
+			return []
+
+		var own_x_value: float = nearest["x_value"]
 		var hits: Array[SampleHit] = []
 		var cache_size: int = _scatter_renderer.get_hover_cache_size()
-		var x_is_horizontal: bool = _layout._x_is_horizontal
-
-		var target_x_px := _layout.map_x_to_px(_pane_index, p_x_value)
 
 		for i in range(cache_size):
-			var screen_pos: Vector2 = _scatter_renderer.get_hover_screen_position(i)
-			var marker_x_px: float = screen_pos.x if x_is_horizontal else screen_pos.y
-			var x_dist := absf(marker_x_px - target_x_px)
-
-			if x_dist > max_dist_x:
+			if not OverlayHitTester.x_values_match(_scatter_renderer.get_hover_x_value(i), own_x_value):
 				continue
 
-			# Verify the x value is numerically close to the target.
-			var cached_x = _scatter_renderer.get_hover_x_value(i)
-			if cached_x is float:
-				if not OverlayHitTester.x_values_match(cached_x, p_x_value):
-					continue
-
+			var screen_pos: Vector2 = _scatter_renderer.get_hover_screen_position(i)
 			var dx := p_local_pos.x - screen_pos.x
 			var dy := p_local_pos.y - screen_pos.y
 			var dist := sqrt(dx * dx + dy * dy)
@@ -170,33 +166,25 @@ class ScatterHitTester extends OverlayHitTester:
 	## cache. Iterates all cached screen positions to find the closest x
 	## coordinate to the given axis-logical x pixel.
 	##
-	## p_along_x_px: pointer position projected onto the data x axis,
-	##   in pixels from the pane origin along that axis direction.
-	##   When x is horizontal this equals screen x. When x is vertical
-	##   this equals screen y.
+	## p_along_x_px: position projected onto the data x axis, in pixels
+	##   from the pane origin along that axis direction. When x is
+	##   horizontal this equals screen x. When x is vertical this equals
+	##   screen y.
 	##
 	## Returns { "x_px": float, "x_value": float } or empty dict if
 	## no data is available.
 	func find_nearest_x(p_along_x_px: float) -> Dictionary:
-		var cache_size: int = _scatter_renderer.get_hover_cache_size()
-		if cache_size <= 0:
-			return {}
-
 		var x_is_horizontal: bool = _layout._x_is_horizontal
 		var best_px := INF
 		var best_val: float = 0.0
 		var found := false
 
-		for i in range(cache_size):
+		for i in range(_scatter_renderer.get_hover_cache_size()):
 			var screen_pos: Vector2 = _scatter_renderer.get_hover_screen_position(i)
 			var x_px: float = screen_pos.x if x_is_horizontal else screen_pos.y
 			if absf(p_along_x_px - x_px) < absf(p_along_x_px - best_px):
 				best_px = x_px
-				var x_val = _scatter_renderer.get_hover_x_value(i)
-				if x_val is float:
-					best_val = x_val
-				else:
-					best_val = float(x_val)
+				best_val = _scatter_renderer.get_hover_x_value(i)
 				found = true
 
 		if not found:

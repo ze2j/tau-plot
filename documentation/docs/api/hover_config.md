@@ -12,7 +12,7 @@ Configures the hover inspection system: hover mode, highlight, tooltip, and cros
 The **hover mode** controls which samples are collected when the cursor moves over a pane:
 
 - [`NEAREST`](#hovermode) collects the single closest sample across all overlays in the pane.
-- [`X_ALIGNED`](#hovermode) collects all samples at the nearest X position across every overlay in the pane. For [`PER_SERIES_X`](dataset.md#mode) datasets, only series that have a data point at the globally nearest X are included (see the [enum table](#hovermode) for details).
+- [`X_ALIGNED`](#hovermode) collects samples by X position. The plot first finds the X position closest to the cursor in the pane. This is the hovered X position, and it can come from any overlay. Each overlay then picks, among the X positions where it has samples, the one closest to the hovered X position, and reports the samples there. Overlays that use the same X values all pick the same position, which is the usual case. See the [enum table](#hovermode) for how near that position has to be, and for [`PER_SERIES_X`](dataset.md#mode) datasets.
 - [`AUTO`](#hovermode) resolves the mode per pane by a vote. Each [`hoverable`](pane_overlay_config.md#hoverable) overlay in the pane states a preferred mode: [`X_ALIGNED`](#hovermode) for a [`BAR`](tau_plot.md#paneoverlaytype) or [`LINE`](tau_plot.md#paneoverlaytype) overlay, [`NEAREST`](#hovermode) for a [`SCATTER`](tau_plot.md#paneoverlaytype) overlay. Unanimity wins. A disagreement resolves to [`NEAREST`](#hovermode), and so does a pane holding no hoverable overlay.
 
 The **highlight** sub-system emphasizes the hovered samples while the cursor stays over a pane. [`highlight_enabled`](#highlight_enabled) toggles it. It changes the drawing in two ways.
@@ -35,13 +35,13 @@ The **tooltip** sub-system renders a popup near the hovered position. [`tooltip_
 - When `true`, the built-in popup is rendered. Its content is determined in priority order:
   - [`create_tooltip_control`](#create_tooltip_control), when set, supplies a `Control` node placed inside the popup as its content, replacing the default text and giving full control over layout and presentation.
   - [`format_tooltip_text`](#format_tooltip_text), when set and [`create_tooltip_control`](#create_tooltip_control) is not, supplies a BBCode string rendered inside the popup.
-  - When neither callback is set, the built-in formatter renders the hits after deduplicating them by [`series_id`](sample_hit.md#series_id) and [`sample_index`](sample_hit.md#sample_index). A single hit renders as the series name followed by the X value in parentheses, then a second line holding `y: ` and the Y value. Several hits render the X value on the first line, then one line per hit holding the series name and its Y value. The Y value is [`SampleHit.y_raw_value`](sample_hit.md#y_raw_value), so a stacked overlay reports what the dataset holds rather than the cumulative top.
+  - When neither callback is set, the built-in formatter renders the hits after deduplicating them by [`series_id`](sample_hit.md#series_id) and [`sample_index`](sample_hit.md#sample_index). A single hit renders as the series name followed by the X value in parentheses, then a second line holding `y: ` and the Y value. Several hits sharing the same X value render that value on the first line, then one line per hit holding the series name and its Y value. Several hits with different X values render no first line. Each line then holds the series name, its X value in parentheses, and its Y value. The Y value is [`SampleHit.y_raw_value`](sample_hit.md#y_raw_value), so a stacked overlay reports what the dataset holds rather than the cumulative top.
 
 The popup exists in two states: a **transient** state that follows or anchors near the cursor, and a **pinned** state that a click leaves in place. A click on empty space or the Escape key dismisses a pinned popup. Visual properties for both states are controlled through [`tooltip_style`](#tooltip_style).
 
 [`tooltip_position_mode`](#tooltip_position_mode) controls whether the popup anchors to the data point or follows the cursor. [`tooltip_precision_digits`](#tooltip_precision_digits) sets the number of significant digits used when the built-in formatter renders numeric values.
 
-The **crosshair** sub-system draws guide lines across the pane at the hovered position. [`crosshair_mode`](#crosshair_mode) selects which lines are drawn. Visual properties are set on [`crosshair_style`](#crosshair_style).
+The **crosshair** sub-system draws guide lines across the pane at the hovered position. [`crosshair_mode`](#crosshair_mode) selects which lines are drawn. The X line snaps to the first hit of the array, and the Y line follows the cursor. Visual properties are set on [`crosshair_style`](#crosshair_style).
 
 [`tooltip_style`](#tooltip_style) and [`crosshair_style`](#crosshair_style) are created automatically when `TauHoverConfig` is instantiated, so they are never `null`.
 
@@ -75,7 +75,7 @@ Controls which samples are collected when the cursor moves over a pane.
 |---|---|
 | `AUTO` | The mode is resolved per pane by a vote between the hoverable overlays it contains. Bar and line overlays prefer `X_ALIGNED`, scatter overlays prefer `NEAREST`. A disagreement, or a pane with no hoverable overlay, resolves to `NEAREST`. |
 | `NEAREST` | The single closest sample across all overlays in the pane is collected. |
-| `X_ALIGNED` | All samples at the nearest X position across every overlay in the pane are collected. For [`SHARED_X`](dataset.md#mode) datasets every series has a value at that position, so all series appear in the tooltip. For [`PER_SERIES_X`](dataset.md#mode) datasets the nearest X is found across all series, and only series that have a data point at that exact X are included. Two X values count as equal when their relative difference is at or below `1e-9`. In practice this means most hover events on a `PER_SERIES_X` dataset produce a single-series tooltip, but when two series happen to share the same X value both appear. |
+| `X_ALIGNED` | Samples are collected by X position. The plot finds the X position closest to the cursor in the pane, which can come from any overlay. This is the hovered X position. Each overlay then picks, among the X positions where it has samples, the one closest to the hovered X position, and reports the samples there. A [`SCATTER`](tau_plot.md#paneoverlaytype) or [`LINE`](tau_plot.md#paneoverlaytype) overlay reports nothing when the position it picked is farther than its `hover_max_distance_px` from the hovered X position. A [`BAR`](tau_plot.md#paneoverlaytype) overlay has no such threshold and always reports the column it picked. Inside one overlay, every series with a sample at the picked X value is reported. Two X values count as equal when their relative difference is at or below `1e-9`. For [`SHARED_X`](dataset.md#mode) datasets every series of the overlay has a value there, so all of them appear. For [`PER_SERIES_X`](dataset.md#mode) datasets most hover events produce a single-series tooltip, but when two series happen to share the same X value both appear. |
 
 ---
 
@@ -98,7 +98,7 @@ Controls where the tooltip popup is anchored.
 
 | Value | Meaning |
 |---|---|
-| `SNAP_TO_POINT` | The tooltip anchors to the hovered data point with an offset defined by [`TauTooltipStyle.offset_px`](tooltip_style.md#offset_px). For [`GROUPED`](bar_config.md#barmode) bars in [`X_ALIGNED`](#hovermode) mode, the anchor sits at the category center along the X axis and at the tip of the tallest bar along the Y axis. |
+| `SNAP_TO_POINT` | The tooltip anchors to the first hit of the array, which is the sample the cursor is on, or the closest sample when the cursor is on none. The offset is defined by [`TauTooltipStyle.offset_px`](tooltip_style.md#offset_px). For [`GROUPED`](bar_config.md#barmode) bars in [`X_ALIGNED`](#hovermode) mode, the anchor sits at the category center along the X axis and at the tip of the tallest bar along the Y axis. |
 | `FOLLOW_MOUSE` | The tooltip follows the cursor with the same offset. |
 
 ## Constructor

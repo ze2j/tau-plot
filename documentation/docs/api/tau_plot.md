@@ -223,7 +223,7 @@ Two stacking overlays drawing against the same Y axis of the same pane must decl
 signal sample_hovered(hits: Array[SampleHit])
 ```
 
-Emitted when the mouse moves over one or more samples. `hits` contains one [`SampleHit`](sample_hit.md) per detected sample. In [`NEAREST`](hover_config.md#hovermode) mode the array contains one entry. In [`X_ALIGNED`](hover_config.md#hovermode) mode it may contain one entry per series at the nearest X position. For [`PER_SERIES_X`](dataset.md#mode) datasets, only series that have a data point at the globally nearest X value are included, so the array often contains a single entry. Requires [`hover_enabled`](#hover_enabled) to be `true`.
+Emitted when the mouse moves over one or more samples. `hits` contains one [`SampleHit`](sample_hit.md) per detected sample, and its first entry is the sample the cursor is on, or the closest sample when the cursor is on none. In [`NEAREST`](hover_config.md#hovermode) mode the array contains one entry. In [`X_ALIGNED`](hover_config.md#hovermode) mode it may contain one entry per series, and overlays that do not use the same X values report at different X positions. For [`PER_SERIES_X`](dataset.md#mode) datasets, an overlay only includes the series that have a data point at the X position it reports, so the array often contains a single entry. Requires [`hover_enabled`](#hover_enabled) to be `true`.
 
 ---
 

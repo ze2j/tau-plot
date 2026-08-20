@@ -96,24 +96,21 @@ class LineHitTester extends OverlayHitTester:
 		return hits
 
 
-	func collect_hits_at_continuous_x(p_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
-		var x_is_horizontal: bool = _layout._x_is_horizontal
-		var target_x_px: float = _layout.map_x_to_px(_pane_index, p_x_value)
+	func collect_hits_at_continuous_x(p_anchor_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
+		var anchor_x_px: float = _layout.map_x_to_px(_pane_index, p_anchor_x_value)
+		var nearest: Dictionary = find_nearest_x(anchor_x_px)
+		if nearest.is_empty():
+			return []
+
 		var max_dist_x: float = float(_line_config.hover_max_distance_px)
+		if absf(nearest["x_px"] - anchor_x_px) > max_dist_x:
+			return []
+
+		var own_x_value: float = nearest["x_value"]
 		var hits: Array[SampleHit] = []
-
 		for record: LineHitRecord in _line_renderer.get_hit_records():
-			var sample_x_px: float = record.screen_position.x if x_is_horizontal else record.screen_position.y
-			var x_dist: float = absf(sample_x_px - target_x_px)
-			if x_dist > max_dist_x:
+			if not OverlayHitTester.x_values_match(record.x_value, own_x_value):
 				continue
-
-			# Reject records whose x value drifts numerically from the target.
-			# The pixel gate above is necessary but not sufficient for sparse
-			# datasets where two distinct samples can map to nearby pixels.
-			if record.x_value is float:
-				if not OverlayHitTester.x_values_match(record.x_value, p_x_value):
-					continue
 
 			var dx: float = p_local_pos.x - record.screen_position.x
 			var dy: float = p_local_pos.y - record.screen_position.y
@@ -135,10 +132,7 @@ class LineHitTester extends OverlayHitTester:
 			var x_px: float = record.screen_position.x if x_is_horizontal else record.screen_position.y
 			if absf(p_along_x_px - x_px) < absf(p_along_x_px - best_px):
 				best_px = x_px
-				if record.x_value is float:
-					best_val = record.x_value
-				else:
-					best_val = float(record.x_value)
+				best_val = record.x_value
 				found = true
 
 		if not found:

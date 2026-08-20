@@ -172,7 +172,7 @@ The maximum distance in pixels between the cursor and a sample for that sample t
 How the distance is measured depends on the active [hover mode](hover_config.md#hovermode) and the [X axis type](axis_config.md#type-enum):
 
 - In [`NEAREST`](hover_config.md#hovermode) mode, the distance is the 2D Euclidean distance from the cursor to the sample. A sample farther than this value is dropped, and the nearest of the remaining samples is the hit.
-- In [`X_ALIGNED`](hover_config.md#hovermode) mode on a continuous X axis, only the horizontal distance counts. A sample whose X screen position is farther than this value from the target X is dropped. For the samples that remain, the 2D Euclidean distance to the cursor is compared to the same value to set [`SampleHit.contains_pointer`](sample_hit.md#contains_pointer).
+- In [`X_ALIGNED`](hover_config.md#hovermode) mode on a continuous X axis, the overlay picks the X position where it has samples closest to the hovered X position, and reports the samples there. It reports nothing when that position is farther than this distance from the hovered X position. Only the distance along the X axis counts here. The same value is then compared with the 2D Euclidean distance between the cursor and each reported sample, which sets [`SampleHit.contains_pointer`](sample_hit.md#contains_pointer).
 - In [`X_ALIGNED`](hover_config.md#hovermode) mode on a categorical X axis, no sample is dropped. Every sample at the matching category is reported, and the value only sets [`SampleHit.contains_pointer`](sample_hit.md#contains_pointer), which drives the visual hover emphasis.
 
 This property is visual-only.
