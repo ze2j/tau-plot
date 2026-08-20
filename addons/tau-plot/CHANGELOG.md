@@ -33,6 +33,9 @@
 - Hovering a pane no longer dims the other panes of the plot. The highlight is scoped to the pane under the cursor.
 - A pane is dimmed only while one of its overlays has an emphasized sample.
 - The built-in highlight default, used when TauHoverConfig.hover_highlight_callback is unset, multiplies the alpha of a non-emphasized sample by 0.7 instead of forcing it to 0.5.
+- The first hit of `sample_hovered` and `sample_clicked` is now the sample closest to the cursor, instead of the first overlay that answered. The `SNAP_TO_POINT` tooltip anchor follows it.
+- The X crosshair line is drawn at the hovered X position instead of at the hovered sample.
+- The built-in tooltip prints the X value on each line when the hits do not share the same X value.
 
 ### Fixed
 
@@ -40,6 +43,8 @@
 - The five ring buffer classes, `ColorBuffer`, `Float32Buffer`, `Float64Buffer`, `Int32Buffer` and `StringBuffer`, drop the write when `set_value()` is called on an empty buffer or outside `[0; size()[`. Before: the write landed on logical index `0` and silently overwrote the oldest sample. After: nothing is written and the error is pushed. `set_values()` is unaffected, it already validated its range.
 - TODO Fix z_order for scatter overlays. Was binding order.
 - An overlay with TauPaneOverlayConfig.hoverable = false no longer dims when the cursor enters its pane.
+- `X_ALIGNED` hover on a continuous X axis now reports every overlay of the pane. An overlay sampled more coarsely than its neighbours was almost never included, and its `hover_max_distance_px` had no effect.
+
 
 ## v0.1.2 - 2026-05-01
 

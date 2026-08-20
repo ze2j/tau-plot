@@ -41,7 +41,7 @@ The popup exists in two states: a **transient** state that follows or anchors ne
 
 [`tooltip_position_mode`](#tooltip_position_mode) controls whether the popup anchors to the data point or follows the cursor. [`tooltip_precision_digits`](#tooltip_precision_digits) sets the number of significant digits used when the built-in formatter renders numeric values.
 
-The **crosshair** sub-system draws guide lines across the pane at the hovered position. [`crosshair_mode`](#crosshair_mode) selects which lines are drawn. The X line snaps to the first hit of the array, and the Y line follows the cursor. Visual properties are set on [`crosshair_style`](#crosshair_style).
+The **crosshair** sub-system draws guide lines across the pane at the hovered position. [`crosshair_mode`](#crosshair_mode) selects which lines are drawn. The X line marks the hovered X position, so it marks a column rather than a sample. The Y line follows the cursor. Visual properties are set on [`crosshair_style`](#crosshair_style).
 
 [`tooltip_style`](#tooltip_style) and [`crosshair_style`](#crosshair_style) are created automatically when `TauHoverConfig` is instantiated, so they are never `null`.
 
@@ -86,7 +86,7 @@ Controls which crosshair guide lines are drawn at the hovered position.
 | Value | Meaning |
 |---|---|
 | `NONE` | No crosshair lines are drawn. |
-| `X_ONLY` | One line is drawn at the hovered X position, running across the pane perpendicular to the X axis. |
+| `X_ONLY` | One line is drawn at the hovered X position, running across the pane perpendicular to the X axis. In [`X_ALIGNED`](#hovermode) mode it is drawn on every pane, so the panes can be read against the same column. |
 | `Y_ONLY` | One line is drawn at the hovered Y position, running across the pane perpendicular to the Y axis. |
 | `BOTH` | Both lines are drawn. |
 

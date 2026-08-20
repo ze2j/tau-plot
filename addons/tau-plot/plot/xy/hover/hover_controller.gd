@@ -34,6 +34,9 @@ class HoverController extends RefCounted:
 	var _hover_config: TauHoverConfig = null
 	var _current_hits: Array[SampleHit] = []
 	var _current_pane: int = -1
+	# X pixel of the position the current hits were collected at, along the
+	# data x axis. In X_ALIGNED this is the column shared by the whole pane.
+	var _hovered_x_px: float = 0.0
 	var _pinned_hits: Array[SampleHit] = []
 
 	# Tooltip state.
@@ -238,7 +241,7 @@ class HoverController extends RefCounted:
 		_current_hits = hits
 		_current_pane = p_pane_index
 		_show_transient_tooltip(hits, p_pane_index)
-		_show_crosshairs(hits, p_pane_index, p_local_pos)
+		_show_crosshairs(p_pane_index, p_local_pos)
 		_update_renderers_hover_state(hits)
 		_plot.sample_hovered.emit(hits)
 
@@ -318,9 +321,11 @@ class HoverController extends RefCounted:
 				best_dist_sq = d_sq
 				best_hit = hit
 
-		if best_hit != null:
-			return [best_hit]
-		return []
+		if best_hit == null:
+			return []
+
+		_hovered_x_px = best_hit.screen_position.x if _layout._x_is_horizontal else best_hit.screen_position.y
+		return [best_hit]
 
 
 	## Collects all samples at the nearest x position across all hoverable
@@ -354,6 +359,7 @@ class HoverController extends RefCounted:
 				return []
 
 			var x_value: Variant = categories[category_index]
+			_hovered_x_px = _layout.map_x_category_center_to_px(p_pane_index, category_index)
 
 			for hit_tester: OverlayHitTester in hit_testers:
 				if not hit_tester.is_hoverable():
@@ -380,6 +386,8 @@ class HoverController extends RefCounted:
 
 			if not found:
 				return []
+
+			_hovered_x_px = _layout.map_x_to_px(p_pane_index, nearest_x_val)
 
 			for hit_tester: OverlayHitTester in hit_testers:
 				if not hit_tester.is_hoverable():
@@ -474,35 +482,19 @@ class HoverController extends RefCounted:
 
 	## Shows crosshair lines on all panes with multi-pane synchronization.
 	##
-	## The x crosshair line appears on ALL panes (snapped to the hovered
-	## data point's x pixel position). The y crosshair line appears only
-	## on the active pane (following the raw mouse y position).
-	func _show_crosshairs(p_hits: Array[SampleHit], p_active_pane: int, p_local_pos: Vector2) -> void:
+	## The x crosshair line appears on ALL panes, at the position the hits
+	## were collected at. The y crosshair line appears only on the active
+	## pane (following the raw mouse y position).
+	##
+	## The x line marks a column, not a sample.
+	func _show_crosshairs(p_active_pane: int, p_local_pos: Vector2) -> void:
 		var configured_mode: CrosshairMode = _get_crosshair_mode()
 		if configured_mode == CrosshairMode.NONE:
 			_hide_all_crosshairs()
 			return
 
 		var x_is_horizontal: bool = _layout._x_is_horizontal
-		var primary_hit: SampleHit = p_hits[0]
-
-		# X pixel: snapped to the hovered data point's screen position.
-		# For GROUPED bars, snap to the category/data center instead of
-		# the individual bar's offset position. The primary hit may belong to
-		# any overlay of the pane, so the category comes from a bar hit.
-		var grouped_bar_hit: SampleHit = _find_first_bar_hit(p_hits) if _is_grouped_bar_x_aligned(p_active_pane) else null
-
-		var x_px: float
-		if grouped_bar_hit != null:
-			var x_config := _layout.domain.config.x_axis
-			if x_config.type == TauAxisConfig.Type.CATEGORICAL:
-				x_px = _layout.map_x_category_center_to_px(p_active_pane, grouped_bar_hit.sample_index)
-			else:
-				x_px = _layout.map_x_to_px(p_active_pane, float(grouped_bar_hit.x_value))
-		elif x_is_horizontal:
-			x_px = primary_hit.screen_position.x
-		else:
-			x_px = primary_hit.screen_position.y
+		var x_px: float = _hovered_x_px
 
 		# Y pixel: raw mouse position.
 		var y_px: float

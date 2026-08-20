@@ -12,7 +12,7 @@ Read-only data object describing one sample detected near the cursor during hove
 
 Arrays of `SampleHit` objects are delivered through the [`TauPlot.sample_hovered`](tau_plot.md#sample_hovered) and [`TauPlot.sample_clicked`](tau_plot.md#sample_clicked) signals, and are also passed to the [`TauHoverConfig.format_tooltip_text`](hover_config.md#format_tooltip_text) and [`TauHoverConfig.create_tooltip_control`](hover_config.md#create_tooltip_control) callbacks. How many hits an array contains and which samples qualify depend on the active hover mode. See [`TauHoverConfig`](hover_config.md) for a full description of the hover inspection system.
 
-The first hit of an array is the sample the cursor is on. When the cursor is on no sample, it is the closest one. The plot uses it to place the tooltip and the X crosshair line.
+The first hit of an array is the sample the cursor is on. When the cursor is on no sample, it is the closest one. The plot uses it to place the tooltip.
 
 ## Properties
 
