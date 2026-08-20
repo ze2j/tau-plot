@@ -1,10 +1,10 @@
 [gd_scene load_steps=6 format=3 uid="uid://ds4eiobf8014a"]
 
 [ext_resource type="Script" uid="uid://h65encvxiqxp" path="res://addons/tau-plot/examples/demo_2.gd" id="1_t0jaf"]
-[ext_resource type="Theme" uid="uid://jsm3gqqupy7o" path="res://addons/tau-plot/examples/demo_2_theme_1.tres" id="2_t0jaf"]
+[ext_resource type="Theme" uid="uid://jsm3gqqupy7o" path="res://addons/tau-plot/examples/demo_2/demo_1_theme.tres" id="2_t0jaf"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="3_77ugr"]
-[ext_resource type="Theme" uid="uid://0woixbsv7lf8" path="res://addons/tau-plot/examples/demo_2_theme_2.tres" id="4_ow04m"]
-[ext_resource type="Theme" uid="uid://d3rgq8nvs5huw" path="res://addons/tau-plot/examples/demo_2_theme_3.tres" id="5_ppkl2"]
+[ext_resource type="Theme" uid="uid://0woixbsv7lf8" path="res://addons/tau-plot/examples/demo_2/demo_2_theme.tres" id="4_ow04m"]
+[ext_resource type="Theme" uid="uid://d3rgq8nvs5huw" path="res://addons/tau-plot/examples/demo_2/demo_3_theme.tres" id="5_ppkl2"]
 
 [node name="Demo" type="VBoxContainer"]
 anchors_preset = 15
@@ -17,7 +17,7 @@ script = ExtResource("1_t0jaf")
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "TauPlot Demo"
+text = "TauPlot Demo 2"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
