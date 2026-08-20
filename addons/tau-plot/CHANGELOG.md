@@ -1,5 +1,46 @@
 # CHANGELOG
 
+## v0.2.0 - 2026-??-??
+
+### Breaking changes
+
+- `ColorBuffer.new()` no longer accepts a default value. Before: `ColorBuffer.new(1024, Color.RED)`. After: `ColorBuffer.new(1024)`. The parameter was accepted but never used, and the four sibling buffer classes never had it, so any call passing it now fails to compile.
+- TODO (#30) A color callback returning `ColorBuffer.NO_COLOR` now leaves the sample to the next
+  resolution step instead of painting it. Affects `color_callback` on every overlay and
+  `outline_color_callback` on scatter. Set the alpha channel to `1` in the callback to
+  stay clear of that value, the returned alpha is discarded anyway.
+- TODO callbacks parameters raw and plotted
+- TODO override detection on assignment (new) vs default value comparisons (old)
+- TODO TauXYStyle: series_alpha: float => series_alphas: Array[float] + theme keys
+- TODO TauScatterStyle: marker_size_px => marker_sizes_px + theme keys
+- TODO TauScatterStyle: hovered_marker_size_px => hovered_marker_sizes_px + theme keys
+- TODO: TauPlot.hover_enabled is now true by default
+
+### Added
+
+- TODO line overlay
+- `DatasetChange`, the payload of `Dataset.changed`, is now public and documented.
+- `StackedNormalization` and `StackedNegativePolicy` added to `TauPlot` namespace.
+- TODO Report what the resolved style cannot draw
+
+### Changed
+
+- `TauBarConfig.neighbor_spacing_fraction` now rejects `0.0`. The valid range is `]0.0, 1.0]`, which the property documentation always stated, and the validator now enforces it. Under `BarWidthPolicy.NEIGHBOR_SPACING_FRACTION`, `plot_xy()` reports a validation error and builds no plot when the value is `0.0`. It was previously accepted and drew bars one pixel wide. Negative values were already rejected and are unaffected.
+- TODO style changes are now detected by the plot. Calling queue_refresh is no longer necessary and even superflous.
+- TODO Enforce at most one overlay of each type per pane. Was documented but not enforced.
+- Legend text now resolves its font through the `TauLegend` type variation rather than through the `Label` type.
+- A style property assigned a value outside its documented range is now clamped whatever path it arrives by.
+- Hovering a pane no longer dims the other panes of the plot. The highlight is scoped to the pane under the cursor.
+- A pane is dimmed only while one of its overlays has an emphasized sample.
+- The built-in highlight default, used when TauHoverConfig.hover_highlight_callback is unset, multiplies the alpha of a non-emphasized sample by 0.7 instead of forcing it to 0.5.
+
+### Fixed
+
+- The five ring buffer classes, `ColorBuffer`, `Float32Buffer`, `Float64Buffer`, `Int32Buffer` and `StringBuffer`, return a defined constant when `get_value()` is called on an empty buffer or outside `[0; size()[`. Before: an arbitrary stored element, whichever value the ring held at that moment. After: `ColorBuffer.NO_COLOR`, `0.0`, `0.0`, `-1` and `""` respectively. The pushed error is unchanged.
+- The five ring buffer classes, `ColorBuffer`, `Float32Buffer`, `Float64Buffer`, `Int32Buffer` and `StringBuffer`, drop the write when `set_value()` is called on an empty buffer or outside `[0; size()[`. Before: the write landed on logical index `0` and silently overwrote the oldest sample. After: nothing is written and the error is pushed. `set_values()` is unaffected, it already validated its range.
+- TODO Fix z_order for scatter overlays. Was binding order.
+- An overlay with TauPaneOverlayConfig.hoverable = false no longer dims when the cursor enters its pane.
+
 ## v0.1.2 - 2026-05-01
 
 ### Added
