@@ -169,6 +169,9 @@ class XYPlotValidator extends RefCounted:
 				p_result.add_error("XYPlotValidator: pane %d: pane config is null" % pane_index)
 				continue
 
+			if pane_cfg.stretch_ratio <= 0.0:
+				p_result.add_error("XYPlotValidator: pane %d: stretch_ratio is %f, expected a value greater than 0" % [pane_index, pane_cfg.stretch_ratio])
+
 			var seen_types := {}
 			for overlay_cfg in pane_cfg.overlays:
 				if overlay_cfg == null:

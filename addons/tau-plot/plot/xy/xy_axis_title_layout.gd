@@ -86,21 +86,21 @@ class XYAxisTitleLayout extends RefCounted:
 
 
 	## Updates title control insets so labels align with the data area rectangles.
-	func update_insets(p_xy_layout: XYLayout, p_pane_containers: Array) -> void:
+	func update_insets(p_xy_layout: XYLayout, p_panes: Array) -> void:
 		if p_xy_layout == null:
 			return
 		var pane_count := p_xy_layout.pane_layouts.size()
 		for i in range(pane_count):
-			if i >= p_pane_containers.size() or p_pane_containers[i] == null:
+			if i >= p_panes.size() or p_panes[i] == null:
 				continue
 			var pane_rect: Rect2 = p_xy_layout.pane_layouts[i].pane_rect
-			var pane_container: Control = p_pane_containers[i]
+			var pane: Control = p_panes[i]
 
 			# Convert data area edges to global coordinates so insets are correct
 			# regardless of nesting depth relative to each title container.
-			var data_left_global := pane_container.global_position.x + pane_rect.position.x
+			var data_left_global := pane.global_position.x + pane_rect.position.x
 			var data_right_global := data_left_global + pane_rect.size.x
-			var data_top_global := pane_container.global_position.y + pane_rect.position.y
+			var data_top_global := pane.global_position.y + pane_rect.position.y
 			var data_bottom_global := data_top_global + pane_rect.size.y
 
 			# Left/Right containers stack vertically, so insets are top and bottom.
@@ -110,6 +110,18 @@ class XYAxisTitleLayout extends RefCounted:
 			# Top/Bottom containers stack horizontally, so insets are left and right.
 			_apply_horizontal_insets(_titles_top, i, data_left_global, data_right_global)
 			_apply_horizontal_insets(_titles_bottom, i, data_left_global, data_right_global)
+
+
+	## Sets the stretch ratio of the four title controls of one pane.
+	## Each edge container splits its length between its controls by stretch
+	## ratio, so a title only sits next to its pane while the two ratios match.
+	## [param p_pane_index] Zero-based pane index.
+	## [param p_stretch_ratio] The stretch ratio of the pane.
+	func set_stretch_ratio_for_pane(p_pane_index: int, p_stretch_ratio: float) -> void:
+		_titles_left[p_pane_index].size_flags_stretch_ratio = p_stretch_ratio
+		_titles_right[p_pane_index].size_flags_stretch_ratio = p_stretch_ratio
+		_titles_top[p_pane_index].size_flags_stretch_ratio = p_stretch_ratio
+		_titles_bottom[p_pane_index].size_flags_stretch_ratio = p_stretch_ratio
 
 
 	## Updates the separation theme override on all four title containers.

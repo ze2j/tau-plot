@@ -31,6 +31,11 @@ class _PaneState extends RefCounted:
 	var right_min_label_spacing_px: int = -1
 	var right_inverted: int = -1
 
+	# Stretch ratio applied to the pane. Kept here rather than read back from
+	# the Control, whose float is narrower than this one and would never
+	# compare equal to the config value it came from.
+	var stretch_ratio: float = -1.0
+
 
 	func reset() -> void:
 		y_axis_domains.clear()
@@ -54,6 +59,8 @@ class _PaneState extends RefCounted:
 		right_overlap_strategy = -1
 		right_min_label_spacing_px = -1
 		right_inverted = -1
+
+		stretch_ratio = -1.0
 
 
 # Snapshot of the state that _refresh() uses for change detection between frames.
@@ -358,6 +365,14 @@ class XYState extends RefCounted:
 		if prev == null or p_grid_line_config == null:
 			return true
 		return not p_grid_line_config.is_equal_to(prev)
+
+
+	func save_stretch_ratio_for_pane(p_pane_index: int, p_stretch_ratio: float) -> void:
+		pane_states[p_pane_index].stretch_ratio = p_stretch_ratio
+
+
+	func has_stretch_ratio_changed_for_pane(p_pane_index: int, p_stretch_ratio: float) -> bool:
+		return pane_states[p_pane_index].stretch_ratio != p_stretch_ratio
 
 	# ==================================================================================
 	# Style snapshots

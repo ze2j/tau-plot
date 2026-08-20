@@ -22,7 +22,7 @@ class HoverController extends RefCounted:
 	var _plot: PanelContainer = null
 	var _layout: XYLayout = null
 	var _domain_config: TauXYConfig = null
-	var _pane_containers: Array[Container] = []
+	var _panes: Array[Container] = []
 	var _pane_renderers: Array[PaneRenderer] = []
 	var _bar_renderers: Array[BarRenderer] = []
 	var _scatter_renderers: Array[ScatterRenderer] = []
@@ -60,7 +60,7 @@ class HoverController extends RefCounted:
 			p_plot: Control,
 			p_layout: XYLayout,
 			p_domain_config: TauXYConfig,
-			p_pane_containers: Array[Container],
+			p_panes: Array[Container],
 			p_pane_renderers: Array[PaneRenderer],
 			p_bar_renderers: Array[BarRenderer],
 			p_scatter_renderers: Array[ScatterRenderer],
@@ -73,7 +73,7 @@ class HoverController extends RefCounted:
 		_plot = p_plot
 		_layout = p_layout
 		_domain_config = p_domain_config
-		_pane_containers = p_pane_containers
+		_panes = p_panes
 		_pane_renderers = p_pane_renderers
 		_bar_renderers = p_bar_renderers
 		_scatter_renderers = p_scatter_renderers
@@ -106,7 +106,7 @@ class HoverController extends RefCounted:
 		_plot = null
 		_layout = null
 		_domain_config = null
-		_pane_containers = []
+		_panes = []
 		_pane_renderers = []
 		_bar_renderers = []
 		_scatter_renderers = []
@@ -459,13 +459,13 @@ class HoverController extends RefCounted:
 
 
 	## Creates one CrosshairOverlay per pane and adds it as the last child
-	## of each pane container so it draws on top of all data renderers.
+	## of each pane so it draws on top of all data renderers.
 	func _create_crosshair_overlays() -> void:
 		_crosshair_overlays.clear()
-		for pane_index: int in range(_pane_containers.size()):
+		for pane_index: int in range(_panes.size()):
 			var overlay := CrosshairOverlay.new()
 			overlay.name = "CrosshairOverlay_%d" % pane_index
-			_pane_containers[pane_index].add_child(overlay)
+			_panes[pane_index].add_child(overlay)
 			overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_crosshair_overlays.append(overlay)
 
@@ -730,7 +730,7 @@ class HoverController extends RefCounted:
 	## to the TauPlot root PanelContainer).
 	func _pane_to_plot_local(p_pane_index: int, p_local_pos: Vector2) -> Vector2:
 		# Convert from pane-local to global, then from global to plot-local.
-		var global_pos := _pane_containers[p_pane_index].global_position + p_local_pos
+		var global_pos := _panes[p_pane_index].global_position + p_local_pos
 		return global_pos - _plot.global_position
 
 

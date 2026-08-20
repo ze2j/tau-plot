@@ -2,7 +2,7 @@
 ## hovered data position within a single pane.
 ##
 ## One instance per pane, created by HoverController and added as the last
-## child of each pane container so it draws on top of all data renderers.
+## child of each pane so it draws on top of all data renderers.
 ## mouse_filter = MOUSE_FILTER_IGNORE so input passes through to PaneRenderer.
 ##
 ## The HoverController sets position properties and calls queue_redraw().

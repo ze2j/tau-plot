@@ -1,7 +1,7 @@
 # Owns the full lifecycle of an XY plot: setup, per-frame refresh, and teardown.
 #
 # Attached to the xy_plot.tscn scene (root VBoxContainer). Manages the dataset,
-# domain, layout, pane containers, renderers, dirty flags, and change detection
+# domain, layout, panes, renderers, dirty flags, and change detection
 # state. Delegates axis title management to XYAxisTitleLayout and legend
 # management to XYLegendBuilder.
 
@@ -26,6 +26,7 @@ const StackedPinnedRange := preload("res://addons/tau-plot/plot/xy/stacked_pinne
 const StackedNormalization := preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
 const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
+const PaneStack := preload("res://addons/tau-plot/plot/xy/pane_stack.gd").PaneStack
 const XYAxisTitleLayout := preload("res://addons/tau-plot/plot/xy/xy_axis_title_layout.gd").XYAxisTitleLayout
 const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const VisualCallbacks := preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
@@ -76,11 +77,11 @@ var _bar_renderers: Array[BarRenderer] = []			# Elements may be null, one per pa
 var _scatter_renderers: Array[ScatterRenderer] = []	# Elements may be null, one per pane
 var _line_renderers: Array[LineRenderer] = []		# Elements may be null, one per pane
 
-# The BoxContainer that holds all pane containers.
-var _pane_stack: BoxContainer = null
+# The PaneStack that holds all panes.
+var _pane_stack: PaneStack = null
 
-# Per-pane containers (nodes inside _pane_stack)
-var _pane_containers: Array[Container] = []			# Elements are never null, one per pane
+# Pane nodes (children of _pane_stack)
+var _panes: Array[Container] = []			# Elements are never null, one per pane
 
 # Per-pane series partitioning
 var _bar_series_ids_per_pane: Array[PackedInt64Array] = []
@@ -264,12 +265,12 @@ func setup(
 			_bar_series_ids_per_pane, _line_series_ids_per_pane, _xy_domain_overrides)
 	_xy_layout = XYLayout.new(_xy_domain)
 
-	# Create the pane stack container (VBox or HBox) based on x axis orientation.
+	# Create the pane stack, stacking along the direction the x axis implies.
 	var x_is_horizontal := Axis.is_horizontal(p_xy_config.x_axis_id)
-	_clear_pane_containers()
+	_clear_panes()
 	_create_pane_stack(x_is_horizontal)
 
-	# Create pane containers dynamically inside _pane_stack
+	# Create panes dynamically inside _pane_stack
 	_pane_renderers.clear()
 	_bar_renderers.clear()
 	_scatter_renderers.clear()
@@ -287,7 +288,7 @@ func setup(
 	_resolved_bar_styles.resize(pane_count)
 	_resolved_scatter_styles.resize(pane_count)
 	_resolved_line_styles.resize(pane_count)
-	_pane_containers.resize(pane_count)
+	_panes.resize(pane_count)
 
 	# Resolve TauXYStyle cascade once against the TauPlot root so that theme
 	# lookups use the TauPlot type variation.
@@ -297,19 +298,19 @@ func setup(
 	for pane_index in range(pane_count):
 		var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
 
-		# Create MarginContainer for this pane
-		var pane_container := MarginContainer.new()
-		pane_container.name = "PaneContainer_%d" % pane_index
-		pane_container.clip_contents = true
-		pane_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		pane_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		pane_container.size_flags_stretch_ratio = pane_config.stretch_ratio
-		_pane_stack.add_child(pane_container)
-		_pane_containers[pane_index] = pane_container
+		# Create the MarginContainer that holds the renderers of this pane
+		var pane := MarginContainer.new()
+		pane.name = "Pane_%d" % pane_index
+		pane.clip_contents = true
+		pane.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		pane.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pane.size_flags_stretch_ratio = pane_config.stretch_ratio
+		_pane_stack.add_child(pane)
+		_panes[pane_index] = pane
 
 		# Create PaneRenderer for this pane.
 		var pane_renderer := PaneRenderer.new(pane_index, _xy_layout)
-		pane_container.add_child(pane_renderer)
+		pane.add_child(pane_renderer)
 		pane_renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		_pane_renderers[pane_index] = pane_renderer
 		pane_renderer.set_resolved_xy_style(_resolved_xy_style)
@@ -321,7 +322,7 @@ func setup(
 		pane_renderer.set_resolved_pane_style(resolved_style)
 		pane_renderer.set_grid_line_config(pane_config.grid_line)
 
-		# Overlay renderers are siblings under the pane container and paint in
+		# Overlay renderers are siblings under the pane and paint in
 		# child order, so the creation order below is the paint order: bars,
 		# then lines, then scatter. It goes from the widest footprint to the
 		# narrowest, so a marker is never buried under a line fill.
@@ -334,7 +335,7 @@ func setup(
 				_series_assignment,
 				pane_index, bar_va_per_pane[pane_index],
 				_bar_series_ids_per_pane[pane_index])
-			pane_container.add_child(bar_renderer)
+			pane.add_child(bar_renderer)
 			bar_renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_bar_renderers[pane_index] = bar_renderer
 
@@ -352,7 +353,7 @@ func setup(
 				_series_assignment,
 				pane_index, line_va_per_pane[pane_index],
 				_line_series_ids_per_pane[pane_index])
-			pane_container.add_child(line_renderer)
+			pane.add_child(line_renderer)
 			line_renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_line_renderers[pane_index] = line_renderer
 
@@ -370,7 +371,7 @@ func setup(
 				_series_assignment,
 				pane_index, scatter_va_per_pane[pane_index],
 				_scatter_series_ids_per_pane[pane_index])
-			pane_container.add_child(scatter_renderer)
+			pane.add_child(scatter_renderer)
 			scatter_renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_scatter_renderers[pane_index] = scatter_renderer
 
@@ -380,6 +381,12 @@ func setup(
 			_resolved_scatter_styles[pane_index] = resolved_scatter_style
 			scatter_renderer.set_resolved_scatter_style(resolved_scatter_style)
 			scatter_renderer.set_resolved_xy_style(_resolved_xy_style)
+
+	# PaneStack reads one reservation per child, so it needs a full set before
+	# its first sort. The measured values come with the first layout.
+	var initial_reservations := PackedFloat32Array()
+	initial_reservations.resize(pane_count)
+	_pane_stack.set_reservations(initial_reservations)
 
 	# Axis titles
 	_axis_title_layout.build(p_xy_config, _series_assignment)
@@ -403,6 +410,11 @@ func setup(
 
 	# Initialize state for per-pane tracking
 	_state.init_panes(pane_count)
+
+	# The panes were created with these ratios, so the first refresh has
+	# nothing to apply.
+	for pane_index in range(pane_count):
+		_state.save_stretch_ratio_for_pane(pane_index, p_xy_config.panes[pane_index].stretch_ratio)
 
 	# Mark everything dirty for initial plot
 	_mark_all_dirty()
@@ -444,14 +456,14 @@ func setup(
 	_hover_controller = HoverController.new()
 	_hover_controller.setup(
 		_plot, _xy_layout, _domain_config,
-		_pane_containers, _pane_renderers,
+		_panes, _pane_renderers,
 		_bar_renderers, _scatter_renderers, _line_renderers,
 		_resolved_xy_style, formatter, hit_testers_per_pane,
 		p_hover_enabled, p_hover_config)
 
 
 func clear() -> void:
-	_clear_pane_containers()
+	_clear_panes()
 	_destroy_pane_stack()
 	if _axis_title_layout != null:
 		_axis_title_layout.clear()
@@ -503,7 +515,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	if _xy_domain_overrides == null:
 		return
 
-	var pane_count := _pane_containers.size()
+	var pane_count := _panes.size()
 	if pane_count == 0:
 		return
 
@@ -512,10 +524,10 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	var pane_view_rects: Array[Rect2] = []
 	var pane_positions: Array[Vector2] = []
 	for i in range(pane_count):
-		if _pane_containers[i] != null:
-			var r := Rect2(Vector2.ZERO, _pane_containers[i].size)
+		if _panes[i] != null:
+			var r := Rect2(Vector2.ZERO, _panes[i].size)
 			pane_view_rects.append(r)
-			pane_positions.append(_pane_containers[i].position)
+			pane_positions.append(_panes[i].position)
 			if r.size.x > 0.0 and r.size.y > 0.0:
 				any_valid_rect = true
 		else:
@@ -741,6 +753,21 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		var pane_config: TauPaneConfig = _domain_config.panes[pane_index]
 		var needs_re_resolve := _styles_dirty
 
+		# stretch_ratio changes. plot_xy() rejects a value below or equal to
+		# zero, a runtime change does not go through it. The rejected value is
+		# saved so the error is reported once and not on every refresh.
+		var stretch_ratio := pane_config.stretch_ratio
+		if _state.has_stretch_ratio_changed_for_pane(pane_index, stretch_ratio):
+			_state.save_stretch_ratio_for_pane(pane_index, stretch_ratio)
+			if stretch_ratio > 0.0:
+				_panes[pane_index].size_flags_stretch_ratio = stretch_ratio
+				_axis_title_layout.set_stretch_ratio_for_pane(pane_index, stretch_ratio)
+				# The new ratio resizes the panes, so the pane rects have to be
+				# computed again.
+				_queue_refresh.call()
+			else:
+				push_error("TauPaneConfig.stretch_ratio of pane %d is %f, expected a value greater than 0. The pane keeps its previous ratio." % [pane_index, stretch_ratio])
+
 		# TauGridLineConfig changes (enabled flags, y_axis selection).
 		if _state.has_grid_line_config_changed_for_pane(pane_index, pane_config.grid_line):
 			_state.save_grid_line_config_for_pane(pane_index, pane_config.grid_line)
@@ -836,7 +863,11 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	# Step 7: Update layout (ticks and plot rect) if needed
 	if _ticks_dirty or _pane_rect_dirty:
 		_update_xy_layout(pane_view_rects, pane_positions)
-		_axis_title_layout.update_insets(_xy_layout, _pane_containers)
+		if _pane_stack.set_reservations(_collect_stack_reservations()):
+			# The panes are about to be resized, so the pane rects computed
+			# above are already out of date.
+			_queue_refresh.call()
+		_axis_title_layout.update_insets(_xy_layout, _panes)
 		_pane_rect_dirty = false
 		_ticks_dirty = false
 
@@ -1172,7 +1203,7 @@ func _has_any_data_renderer() -> bool:
 	return false
 
 
-func _clear_pane_containers() -> void:
+func _clear_panes() -> void:
 	for renderer in _pane_renderers:
 		if renderer != null and is_instance_valid(renderer):
 			renderer.queue_free()
@@ -1194,23 +1225,20 @@ func _clear_pane_containers() -> void:
 	_line_renderers.clear()
 
 	if _pane_stack != null:
-		for container in _pane_containers:
-			if container != null and is_instance_valid(container):
-				_pane_stack.remove_child(container)
-				container.queue_free()
-	_pane_containers.clear()
+		for pane in _panes:
+			if pane != null and is_instance_valid(pane):
+				_pane_stack.remove_child(pane)
+				pane.queue_free()
+	_panes.clear()
 
 
 func _create_pane_stack(p_x_is_horizontal: bool) -> void:
 	_destroy_pane_stack()
-	if p_x_is_horizontal:
-		_pane_stack = VBoxContainer.new()
-	else:
-		_pane_stack = HBoxContainer.new()
+	_pane_stack = PaneStack.new()
+	_pane_stack.vertical = p_x_is_horizontal
 	_pane_stack.name = "PaneStack"
 	_pane_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_pane_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_pane_stack.add_theme_constant_override(&"separation", 0)
 	# Insert right after %LeftAxisTitles so the order is Left | Panes | Right.
 	%LeftAxisTitles.add_sibling(_pane_stack)
 
@@ -1232,12 +1260,22 @@ func _update_xy_layout(p_pane_view_rects: Array[Rect2], p_pane_positions: Array[
 
 	# Apply pane gap from style to the pane stack and title containers.
 	var gap := _resolved_xy_style.pane_gap_px
-	_pane_stack.add_theme_constant_override(&"separation", gap)
+	_pane_stack.separation = gap
 	_axis_title_layout.update_separation(gap)
 
 	_xy_layout.set_pane_view_rects(p_pane_view_rects)
 	_xy_layout.set_pane_positions_in_stack(p_pane_positions)
 	_xy_layout.update()
+
+
+# Returns the space each pane reserves along the stacking direction, in pane
+# order.
+func _collect_stack_reservations() -> PackedFloat32Array:
+	var reservations := PackedFloat32Array()
+	reservations.resize(_xy_layout.pane_layouts.size())
+	for i in range(reservations.size()):
+		reservations[i] = _xy_layout.pane_layouts[i].stack_reservation_px
+	return reservations
 
 
 func _apply_stacking_domain_overrides_y() -> void:

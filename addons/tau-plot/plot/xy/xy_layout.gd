@@ -21,8 +21,8 @@ class XYLayout extends RefCounted:
 
 	## Per-pane layout outputs computed by [method update].
 	class PaneLayout extends RefCounted:
-		## The final data-area rectangle for this pane, in pane-container-local
-		## pixel coordinates.
+		## The final data-area rectangle for this pane, in pane-local pixel
+		## coordinates.
 		var pane_rect: Rect2 = Rect2()
 
 		## Tick sequences for y axes on this pane, keyed by [enum AxisId].
@@ -37,6 +37,11 @@ class XYLayout extends RefCounted:
 
 		## True when this pane draws the secondary x axis.
 		var draws_secondary_x: bool = false
+
+		## Space this pane reserves along the stacking direction, in pixels.
+		## It is the part of the view rect that [member pane_rect] does not
+		## cover along that direction.
+		var stack_reservation_px: float = 0.0
 
 	## Array of per-pane layout results, one per pane.
 	## Rebuilt by [method update].
@@ -67,9 +72,9 @@ class XYLayout extends RefCounted:
 	var _secondary_x_domain_min: float = 0.0
 	var _secondary_x_domain_max: float = 1.0
 
-	## Per-pane view rectangles (the full container area before insets).
+	## Per-pane view rectangles (the full pane area before insets).
 	## Set via [method set_pane_view_rects] before calling [method update].
-	## Each rect has origin (0,0) and the size of the pane container.
+	## Each rect has origin (0,0) and the size of the pane.
 	var _pane_view_rects: Array[Rect2] = []
 
 	## Per-pane positions in PaneStack-local coordinates.
@@ -97,7 +102,7 @@ class XYLayout extends RefCounted:
 
 	## Sets the per-pane view rectangles. Must be called before [method update].
 	## [param p_rects] One Rect2 per pane, each with origin (0,0) and the pane
-	##   container's pixel size.
+	##   pane's pixel size.
 	func set_pane_view_rects(p_rects: Array[Rect2]) -> void:
 		_pane_view_rects = p_rects
 
@@ -105,7 +110,7 @@ class XYLayout extends RefCounted:
 	## Sets the per-pane positions in PaneStack-local coordinates.
 	## Must be called before [method update].
 	## [param p_positions] One Vector2 per pane, the position of each pane
-	##   container within the PaneStack BoxContainer.
+	##   pane within the PaneStack.
 	func set_pane_positions_in_stack(p_positions: Array[Vector2]) -> void:
 		_pane_positions_in_stack = p_positions
 
@@ -239,7 +244,7 @@ class XYLayout extends RefCounted:
 		return pane_layouts[p_pane_index]
 
 
-	## Returns the pane data-area rectangle in pane-container-local pixels.
+	## Returns the pane data-area rectangle in pane-local pixels.
 	## [param p_pane_index] Zero-based pane index. Returns empty Rect2 if out of range.
 	func get_pane_rect(p_pane_index: int = 0) -> Rect2:
 		if p_pane_index < 0 or p_pane_index >= pane_layouts.size():
@@ -926,6 +931,11 @@ class XYLayout extends RefCounted:
 				var extra_right := maxf(y_half - right_r - float(style.padding_right_px), 0.0)
 				pane_pos.x += extra_left
 				pane_size.x -= extra_left + extra_right
+
+			# Read from the size computed above, so the two cannot disagree.
+			# Taken before the clamp, since a pane with no room left still
+			# reserves the same space.
+			pane_layouts[i].stack_reservation_px = (full.size.y - pane_size.y) if _x_is_horizontal else (full.size.x - pane_size.x)
 
 			pane_size.x = max(pane_size.x, 0.0)
 			pane_size.y = max(pane_size.y, 0.0)

@@ -39,6 +39,7 @@ const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 ## Stretch ratio of this pane compared to the others. Works like
 ## [member Control.size_flags_stretch_ratio]. Three panes with weights
 ## [code]2, 1, 1[/code] produce a 50%/25%/25% split.
+## Must be greater than [code]0.0[/code].
 @export var stretch_ratio: float = 1.0
 
 ## If [code]true[/code], the two y axes are adjusted so that

@@ -44,7 +44,14 @@
 - TODO Fix z_order for scatter overlays. Was binding order.
 - An overlay with TauPaneOverlayConfig.hoverable = false no longer dims when the cursor enters its pane.
 - `X_ALIGNED` hover on a continuous X axis now reports every overlay of the pane. An overlay sampled more coarsely than its neighbours was almost never included, and its `hover_max_distance_px` had no effect.
-
+- `xy_padding_top` and `xy_padding_bottom` were applied to every pane instead of
+  once to the plot. Multi pane plots gain the padding they wasted, and the space
+  between two panes is now `xy_pane_gap` alone. A theme that used the padding to
+  separate panes has to raise `xy_pane_gap`.
+- Panes with the same `stretch_ratio` came out at different sizes, because the
+  pane drawing the shared X axis paid for the tick marks and tick labels out of
+  its own space. Every pane now gets a drawing area proportional to its
+  `stretch_ratio`, whichever pane carries the axis.
 
 ## v0.1.2 - 2026-05-01
 
