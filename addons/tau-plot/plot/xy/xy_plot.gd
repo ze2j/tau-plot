@@ -49,6 +49,11 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 const LineHitTester := preload("res://addons/tau-plot/plot/xy/line/line_hit_tester.gd").LineHitTester
 
 
+# Maximum number of rounds needed to make the layout converge.
+# A second round is needed when measuring the labels, changes what a pane reserves.
+# A third has never been observed to change anything.
+const _LAYOUT_ROUNDS_MAX := 2
+
 # External references (provided via setup)
 var _plot: PanelContainer = null
 var _queue_refresh: Callable
@@ -762,9 +767,10 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 			if stretch_ratio > 0.0:
 				_panes[pane_index].size_flags_stretch_ratio = stretch_ratio
 				_axis_title_layout.set_stretch_ratio_for_pane(pane_index, stretch_ratio)
-				# The new ratio resizes the panes, so the pane rects have to be
-				# computed again.
-				_queue_refresh.call()
+				# The new ratio resizes the panes, so the pane rects are
+				# computed again in this same pass.
+				_pane_rect_dirty = true
+				_mark_visual_dirty()
 			else:
 				push_error("TauPaneConfig.stretch_ratio of pane %d is %f, expected a value greater than 0. The pane keeps its previous ratio." % [pane_index, stretch_ratio])
 
@@ -862,11 +868,27 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 	# Step 7: Update layout (ticks and plot rect) if needed
 	if _ticks_dirty or _pane_rect_dirty:
-		_update_xy_layout(pane_view_rects, pane_positions)
-		if _pane_stack.set_reservations(_collect_stack_reservations()):
-			# The panes are about to be resized, so the pane rects computed
-			# above are already out of date.
-			_queue_refresh.call()
+		# The reservations are measured from the layout, and the layout is
+		# computed from the extents the reservations produce. The round runs
+		# again when the measurement moved them, so the panes are never drawn
+		# against a set of reservations they are not sized for.
+		for round_index in _LAYOUT_ROUNDS_MAX:
+			# The pane nodes still carry the sizes of the last sort, and the
+			# ratios set above are about to change them. Laying out against the
+			# sizes the stack is going to apply keeps the drawing and the nodes
+			# in step.
+			var sorted_rects := _pane_stack.compute_child_rects()
+			var layout_view_rects: Array[Rect2] = []
+			var layout_positions: Array[Vector2] = []
+			for rect in sorted_rects:
+				layout_view_rects.append(Rect2(Vector2.ZERO, rect.size))
+				layout_positions.append(rect.position)
+			_update_xy_layout(layout_view_rects, layout_positions)
+			if not _pane_stack.set_reservations(_collect_stack_reservations()):
+				break
+			if round_index == _LAYOUT_ROUNDS_MAX - 1:
+				# Still moving at the last round, so the next frame finishes it.
+				_queue_refresh.call()
 		_axis_title_layout.update_insets(_xy_layout, _panes)
 		_pane_rect_dirty = false
 		_ticks_dirty = false

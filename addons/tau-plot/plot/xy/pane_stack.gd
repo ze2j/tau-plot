@@ -50,8 +50,18 @@ class PaneStack extends Container:
 			_sort_panes()
 
 
-	func _sort_panes() -> void:
+	## Returns the rect of every pane, in PaneStack-local coordinates and in
+	## child order.
+	##
+	## The sort applies exactly these rects, so a caller that needs the pane
+	## geometry reads it here rather than from the pane nodes, which still
+	## carry the sizes of the previous sort.
+	func compute_child_rects() -> Array[Rect2]:
 		var count := get_child_count()
+		var rects: Array[Rect2] = []
+		rects.resize(count)
+		if count == 0:
+			return rects
 
 		var reserved_total := 0.0
 		var ratio_total := 0.0
@@ -79,7 +89,15 @@ class PaneStack extends Container:
 			var start := roundf(offset)
 			var end := roundf(offset + pane_extent)
 			if vertical:
-				fit_child_in_rect(child, Rect2(0.0, start, size.x, end - start))
+				rects[i] = Rect2(0.0, start, size.x, end - start)
 			else:
-				fit_child_in_rect(child, Rect2(start, 0.0, end - start, size.y))
+				rects[i] = Rect2(start, 0.0, end - start, size.y)
 			offset += pane_extent + float(separation)
+
+		return rects
+
+
+	func _sort_panes() -> void:
+		var rects := compute_child_rects()
+		for i in range(rects.size()):
+			fit_child_in_rect(get_child(i), rects[i])
