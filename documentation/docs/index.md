@@ -4,10 +4,11 @@
 
 ## Key characteristics
 
-- **Bar and scatter overlays** in any combination, with grouped, stacked, or independent bar modes.
+- **Bar, line, and scatter overlays** in any combination. Bars can be grouped, stacked, or independent, lines can be independent or stacked, both support optional normalization, and a line can carry a flat or textured area fill.
+- **Axes** can be categorical or continuous, linear or logarithmic, inverted, and placed on any edge. A pane can carry two Y axes with optional alignment at zero, and a secondary X axis shows the same range in another unit through a custom transform.
 - **Automatic tick and label generation with overlap prevention.** Ticks and labels adapt to the available space so they stay readable at any size, with no manual tuning required. The preferred tick count, overlap strategy, and minimum spacing are configurable, and the axis domain can be overridden with a fixed range when needed.
 - **Real-time streaming** through ring-buffer datasets that drop the oldest samples automatically.
-- **Multi-pane layouts** for displaying series with different Y scales (e.g. price above volume).
+- **Multi-pane layouts** for displaying series with different Y scales (for example, price above volume).
 - **Per-sample styling** via attribute buffers or callbacks for color, alpha, marker shape, and more.
 - **Full Godot theme integration** with a three-layer cascade (built-in defaults, theme, code overrides) across every visual property.
 - **Hover inspection** with tooltip, crosshair, highlight, and interaction signals.
@@ -49,7 +50,7 @@
 
 ![Example 8](assets/frame_profile.png)
 /// caption
-**Example 8**: Eight panes sharing one gradient texture through per-pane stretch ranges.
+**Example 8**: Seven panes sharing one gradient texture through per-pane stretch ranges.
 ///
 
 ## Installation
@@ -134,12 +135,13 @@ A complete, runnable version of this example is available [here](https://github.
 - [Getting Started](getting-started.md) walks through building your first plot step by step.
 - [API Reference](api/index.md) covers every class, property, enum, and signal.
 - [Runtime Configuration Change Limitations](runtime-configuration-change-limitations.md) lists the configuration properties that can be changed after the plot is built.
-- The [**demo**](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/demo.gd) is an advanced example with nine plots showcasing theme customization and per-sample styling through attribute buffers and callbacks.
+- [`demo_1.gd`](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/demo_1.gd) is an advanced example with nine plots showing theme customization and per-sample styling through attribute buffers and callbacks.
+- [`demo_2.gd`](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/demo_2.gd) is an advanced example with three plots showing line overlays with textured area fills, a real-time sweep, and a multi-pane layout.
 - [Tests](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/tests) can provide good examples of how to use some features.
 
 ## Stability
 
-The API may change between releases until version 1.0 is reached. Breaking changes will be documented in the changelog. Backward compatibility is taken seriously and disruption will be kept to a minimum, but at this stage correctness and design quality take priority over freezing the API.
+The API may change between releases until version 1.0 is reached. Breaking changes will be documented in the [changelog](https://github.com/ze2j/tau-plot/blob/main/addons/tau-plot/CHANGELOG.md). Backward compatibility is taken seriously and disruption will be kept to a minimum, but at this stage correctness and design quality take priority over freezing the API.
 
 If you encounter a bug, please open an issue on the [GitHub repository](https://github.com/ze2j/tau-plot/issues). Feedback from early adopters directly shapes the road to a stable 1.0.
 
@@ -151,8 +153,11 @@ Contributions are welcome. See [`CONTRIBUTING.md`](https://github.com/ze2j/tau-p
 
 The following features are planned for upcoming releases:
 
-- **Line and area overlays** for XY plots.
 - **Interactive legend** with click-to-toggle series visibility.
+- **Zoom and pan** with the mouse wheel and drag.
+- **Data labels**, showing the value of each sample next to it.
+- **Minor tick generation** on linear scales.
+- **Symmetric logarithmic (symlog)** axis scale.
 - **Pie and radar** plot types.
 
 ## License

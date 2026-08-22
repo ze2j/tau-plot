@@ -237,7 +237,7 @@ const ECG_PULSE_TRANSIT := 0.20
 # One breath, 15 per minute.
 const ECG_RESP_PERIOD := 4.0
 
-# Peak swing of the RR interval across a breath.
+# Peak swing of the RR interval across a breath, as a fraction of ECG_BEAT_PERIOD.
 const ECG_RSA_DEPTH := 0.06
 
 const ECG_TRAIL_MIN_ALPHA := 0.35
@@ -489,17 +489,17 @@ func _process_demo_2(delta: float) -> void:
 ####################################################################################################
 # DEMO 3 -- Frame Profile
 #
-# Seven of Godot's own monitors over one ten second capture, one pane each. The
+# Seven of Godot's own monitors over one five second capture, one pane each. The
 # timing panes and the memory panes are on unrelated scales, which is why every
 # pane carries its own y axis and reads its name and unit off the axis title.
 #
 # One gradient serves all seven. Each fill stretches it over the budget of its
 # own pane, so a color always means the same thing: how much of that budget the
-# frame spent. A 1 ms navigation spike reads red at the same point of its budget
-# as a 300 MB texture load reads of its own.
+# frame spent. A 1 ms navigation spike reads at the same point of the gradient
+# as a 192 MB texture load reads of its own budget.
 ####################################################################################################
 
-# Ten seconds at 60 fps.
+# Five seconds at the vsync rate below.
 const PERF_FRAME_COUNT := 600
 
 # Refresh rate the capture is vsynced to, and the floor of the frame rate pane.
@@ -535,7 +535,8 @@ const PERF_REPATH_FRAMES: Array[int] = [150, 232, 305, 306, 362, 470]
 # the swap. Held constant so the frame rate follows the monitors that are shown.
 const PERF_RENDER_OVERHEAD_MS := 3.1
 
-# Nominal physics cost of the scene, the level the physics band is anchored at.
+# Physics budget, the level the physics band is anchored at. Same value as the
+# budget of the Physics row of PERF_MONITORS.
 const PERF_PHYSICS_BUDGET_MS := 4.0
 
 const PERF_PILEUP_FIRST_FRAME := 300
@@ -560,7 +561,7 @@ func _perf_pileup(p_frame: int) -> float:
 # One capture, in the order of PERF_MONITORS. A level streams in: texture and
 # video memory climb in steps, buffer memory follows, process time spikes on
 # every allocation batch, navigation spikes on a repath, and a physics pile-up
-# around frame 300 drags the frame rate under the vsync cap.
+# around frame 300 drags the frame rate far below the vsync cap.
 #
 # The frame rate is derived from the timing monitors rather than authored, so
 # the dip lands on the frames that pay for it.
