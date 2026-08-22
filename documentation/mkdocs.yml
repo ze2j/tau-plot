@@ -5,6 +5,7 @@ site_url: https://ze2j.github.io/tau-plot/
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Known Limitations: runtime-configuration-change-limitations.md
   - API Reference:
       - Overview: api/index.md
       - TauPlot: api/tau_plot.md

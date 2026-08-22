@@ -37,6 +37,21 @@
 **Example 5**: Logarithmic scale with legend inside (right).
 ///
 
+![Example 6](assets/mont_blanc.png)
+/// caption
+**Example 6**: Textured area fill with a custom stretch range on an altitude profile.
+///
+
+![Example 7](assets/patient_monitor.webp)
+/// caption
+**Example 7**: Sweeping real-time trace with a per-sample alpha trail over two panes.
+///
+
+![Example 8](assets/frame_profile.png)
+/// caption
+**Example 8**: Eight panes sharing one gradient texture through per-pane stretch ranges.
+///
+
 ## Installation
 
 TauPlot requires **Godot 4.5** or later.
@@ -118,6 +133,7 @@ A complete, runnable version of this example is available [here](https://github.
 
 - [Getting Started](getting-started.md) walks through building your first plot step by step.
 - [API Reference](api/index.md) covers every class, property, enum, and signal.
+- [Runtime Configuration Change Limitations](runtime-configuration-change-limitations.md) lists the configuration properties that can be changed after the plot is built.
 - The [**demo**](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/demo.gd) is an advanced example with nine plots showcasing theme customization and per-sample styling through attribute buffers and callbacks.
 - [Tests](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/tests) can provide good examples of how to use some features.
 

@@ -17,6 +17,15 @@ TauPlot is built for in-game analytics, telemetry overlays, scientific plots, se
 <p align="center">
   <img src="documentation/docs/assets/msft.png" alt="MSFT multi-pane" />
 </p>
+<p align="center">
+  <img src="documentation/docs/assets/mont_blanc.png" alt="Mont Blanc altitude profile" />
+</p>
+<p align="center">
+  <img src="documentation/docs/assets/patient_monitor.webp" alt="Patient monitor sweep" />
+</p>
+<p align="center">
+  <img src="documentation/docs/assets/frame_profile.png" alt="Frame profile multi-pane" />
+</p>
 
 ## Features
 

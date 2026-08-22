@@ -6,7 +6,13 @@ func _ready() -> void:
 	# its own X values. Notice that Paris only has 5 readings while the
 	# others have 6. That is fine with PER_SERIES_X.
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(
-		PackedStringArray(["Tokyo", "Paris", "Cairo"]),
+		# Series names
+		PackedStringArray(
+		[
+			"Tokyo",
+			"Paris",
+			"Cairo"
+		]),
 		# X values: temperature in °C for each city
 		[
 			PackedFloat64Array([5.0, 10.0, 15.0, 20.0, 25.0, 30.0]),

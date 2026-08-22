@@ -19,7 +19,7 @@ A **secondary X axis** can be added on the edge opposite the primary. It is disp
 
 [`style`](#style) is created automatically at construction and is never `null`. All other properties default to `null` or an empty array. Two of them must be assigned before the config reaches [`plot_xy()`](tau_plot.md#plot_xy): [`x_axis`](#x_axis) takes the [`TauAxisConfig`](axis_config.md) of the primary X axis, and [`panes`](#panes) takes at least one [`TauPaneConfig`](pane_config.md). Leaving either at its default is a validation error.
 
-After [`plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to the `TauXYConfig` instance. Mutating it at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the changes.
+After [`plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to the `TauXYConfig` instance. Mutating it at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the changes. Runtime mutation is not yet supported by every property: see [Runtime Configuration Change Limitations](../runtime-configuration-change-limitations.md).
 
 ### Example
 

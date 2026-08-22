@@ -26,7 +26,7 @@ The **gap policy** decides what the curve does at a sample the plot cannot place
 
 Line width, dash pattern, hover emphasis, and the area painted around each curve are controlled by [`style`](#style). Per-sample color and alpha overrides are supplied through [`line_visual_callbacks`](#line_visual_callbacks) or through [`LineVisualAttributes`](line_visual_attributes.md) on the series binding. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for how the two mechanisms resolve against each other and against the style.
 
-After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change.
+After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change. Runtime mutation is not yet supported by every property: see [Runtime Configuration Change Limitations](../runtime-configuration-change-limitations.md).
 
 ### Example
 

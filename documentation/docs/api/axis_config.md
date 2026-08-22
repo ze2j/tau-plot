@@ -29,7 +29,7 @@ The **domain** is the data range visible on the axis. By default it is computed 
 
 The **title** is displayed next to the axis. It supports BBCode and is hidden when the string is empty. [`title_orientation`](#title_orientation), [`title_alignment`](#title_alignment), and [`title_text_alignment`](#title_text_alignment) control how the title is laid out relative to the axis.
 
-After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to every `TauAxisConfig` instance it received. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change.
+After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to every `TauAxisConfig` instance it received. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change. Runtime mutation is not yet supported by every property: see [Runtime Configuration Change Limitations](../runtime-configuration-change-limitations.md).
 
 ### Example
 

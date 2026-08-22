@@ -21,7 +21,7 @@ Hover hit testing is gated by [`hover_max_distance_px`](#hover_max_distance_px).
 
 Visual appearance is controlled by [`style`](#style), which holds the marker size and shape cycles, the outline, and the hovered-state size, outline width, and outline color. Per-sample color, alpha, size, shape, outline color, and outline width overrides are applied through [`scatter_visual_callbacks`](#scatter_visual_callbacks) or through [`ScatterVisualAttributes`](scatter_visual_attributes.md) on the series binding. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for the order the two mechanisms resolve in.
 
-After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change.
+After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change. Runtime mutation is not yet supported by every property: see [Runtime Configuration Change Limitations](../runtime-configuration-change-limitations.md).
 
 ### Example
 

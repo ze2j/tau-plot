@@ -45,6 +45,8 @@ The **crosshair** sub-system draws guide lines across the pane at the hovered po
 
 [`tooltip_style`](#tooltip_style) and [`crosshair_style`](#crosshair_style) are created automatically when `TauHoverConfig` is instantiated, so they are never `null`.
 
+After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change. Runtime mutation is not yet supported by every property: see [Runtime Configuration Change Limitations](../runtime-configuration-change-limitations.md).
+
 ### Example
 
 ```gdscript

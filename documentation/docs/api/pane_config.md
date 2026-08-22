@@ -24,7 +24,7 @@ Visual appearance is controlled by [`style`](#style). Grid lines are the horizon
 
 When a pane carries two Y axes, [`align_y_axes_at_zero`](#align_y_axes_at_zero) optionally adjusts one or both domains so that the value zero aligns at the same pixel position on both sides of the pane.
 
-After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to every `TauPaneConfig` instance it received. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change.
+After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to every `TauPaneConfig` instance it received. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change. Runtime mutation is not yet supported by every property: see [Runtime Configuration Change Limitations](../runtime-configuration-change-limitations.md).
 
 ### Example
 

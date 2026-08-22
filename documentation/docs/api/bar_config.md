@@ -38,7 +38,7 @@ A bar overlay has no hover distance threshold. In [`X_ALIGNED`](hover_config.md#
 
 Visual appearance beyond width is controlled by [`style`](#style), which holds the `StyleBox` of a bar, its hovered-state counterpart, and the pixel-based sizing constants. Per-sample color, alpha, and `StyleBox` overrides are applied through [`bar_visual_callbacks`](#bar_visual_callbacks) or through [`BarVisualAttributes`](bar_visual_attributes.md) on the series binding. See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for the order the two mechanisms resolve in.
 
-After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change.
+After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change. Runtime mutation is not yet supported by every property: see [Runtime Configuration Change Limitations](../runtime-configuration-change-limitations.md).
 
 ### Example
 
