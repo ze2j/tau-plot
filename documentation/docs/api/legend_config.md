@@ -13,13 +13,17 @@ The **position** controls where the legend appears relative to the plot area. `O
 
 The **flow direction** controls whether legend items are arranged in a row or a column. [`AUTO`](#flowdirection) derives the direction from [`position`](#position): `OUTSIDE_LEFT` and `OUTSIDE_RIGHT` use vertical flow, all other positions use horizontal flow. See [`FlowDirection`](#flowdirection) for details.
 
-Visual appearance is controlled by [`style`](#style), which holds font properties, key sizing, spacing, background, and margins. The style follows the standard three-layer cascade: built-in defaults, then Godot theme values, then user overrides. Any property left at its built-in default on the style resource remains overridable by the active Godot theme.
+Which series the legend lists is not decided here. The legend holds one entry per series, ordered by dataset series index, and [`TauXYSeriesBinding.show_in_legend`](xy_series_binding.md#show_in_legend) carries one flag per binding. A series appears as soon as one of its bindings opts in, and contributes one key per opted-in binding. A series whose bindings all opt out gets no entry.
+
+Visual appearance is controlled by [`style`](#style), which holds font properties, key sizing, spacing, background, and margins. Each of its properties resolves through the cascade described in [`TauStyle`](style.md#three-layer-cascade).
 
 After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change.
 
 ### Example
 
 ```gdscript
+# A legend floating over the top right corner of the plot area, so it costs
+# the plot no space, with one item per row.
 var legend := TauLegendConfig.new()
 legend.position = TauLegendConfig.Position.INSIDE_TOP_RIGHT
 legend.flow_direction = TauLegendConfig.FlowDirection.VERTICAL
@@ -99,10 +103,12 @@ The direction in which legend items are arranged. Default is [`AUTO`](#flowdirec
 
 The visual style applied to the legend: font, key size, spacing, background, and margins. Default is a freshly constructed [`TauLegendStyle`](legend_style.md) with all built-in defaults.
 
-Never `null`. Modify properties directly on the instance. Any property left at its built-in default remains overridable by the active Godot theme. Multiple `TauLegendConfig` instances can share the same [`TauLegendStyle`](legend_style.md) resource.
+Never `null`. Modify properties directly on the instance. Any property left unassigned on this instance can still be set by the active Godot theme. Multiple `TauLegendConfig` instances can share the same [`TauLegendStyle`](legend_style.md) resource.
 
 ## Related Classes
 
 * [`TauPlot`](tau_plot.md) The plot node. Accepts `TauLegendConfig` via [`legend_config`](tau_plot.md#legend_config) and controls visibility via [`legend_enabled`](tau_plot.md#legend_enabled).
 * [`TauLegendStyle`](legend_style.md) Controls the visual appearance of the legend, assigned to [`style`](#style).
+* [`TauXYSeriesBinding`](xy_series_binding.md) Decides through [`show_in_legend`](xy_series_binding.md#show_in_legend) which series the legend lists.
+* [`TauStyle`](style.md) Base class of [`TauLegendStyle`](legend_style.md). Defines the cascade its properties resolve through.
 * [`TauXYConfig`](xy_config.md) Top-level XY plot configuration. Sibling configuration object passed alongside `TauLegendConfig` to the plot.

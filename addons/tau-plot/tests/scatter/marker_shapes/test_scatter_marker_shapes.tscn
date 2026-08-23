@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://d4dulh2ud002o" path="res://addons/tau-plot/tests/scatter/marker_shapes/test_scatter_marker_shapes.gd" id="1_iydsv"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_qmhjx"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="Scatters" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -31,7 +31,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_qmhjx")
-title = "CIRCLE for series A, default shape for series B (SQUARE)"
+title = "CIRCLE for series A, SQUARE for series B"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -41,7 +41,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_qmhjx")
-title = "SQUARE for series A, default shape for series B (SQUARE)"
+title = "SQUARE for series A, SQUARE for series B"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -51,7 +51,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_qmhjx")
-title = "TRIANGLE_UP for series A, default shape for series B (SQUARE)"
+title = "TRIANGLE_UP for series A, SQUARE for series B"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -61,7 +61,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_qmhjx")
-title = "TRIANGLE_DOWN for series A, default shape for series B (SQUARE)"
+title = "TRIANGLE_DOWN for series A, SQUARE for series B"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -71,7 +71,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_qmhjx")
-title = "DIAMOND for series A, default shape for series B (SQUARE)"
+title = "DIAMOND for series A, SQUARE for series B"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
@@ -81,7 +81,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_qmhjx")
-title = "CROSS for series A, default shape for series B (SQUARE)"
+title = "CROSS for series A, SQUARE for series B"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
@@ -91,7 +91,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_qmhjx")
-title = "PLUS for series A, default shape for series B (SQUARE)"
+title = "PLUS for series A, SQUARE for series B"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
@@ -101,5 +101,5 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_qmhjx")
-title = "NONE for series A, default shape for series B (SQUARE)"
+title = "NONE for series A, SQUARE for series B"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

@@ -50,7 +50,7 @@ func _ready() -> void:
 	_setup_test_8()
 
 
-func _make_plot(p_plot: TauPlot, p_marker_shape: TauScatterStyle.MarkerShape, p_title: String):
+func _make_plot(p_plot: TauPlot, p_marker_shapes: Array[TauScatterStyle.MarkerShape], p_title: String):
 	var series_names := PackedStringArray(["A", "B"])
 
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
@@ -66,7 +66,7 @@ func _make_plot(p_plot: TauPlot, p_marker_shape: TauScatterStyle.MarkerShape, p_
 	left_axis.scale = TauAxisConfig.Scale.LINEAR
 
 	var scatter_config := TauScatterConfig.new()
-	scatter_config.style.marker_shapes[0] = p_marker_shape
+	scatter_config.style.marker_shapes = p_marker_shapes
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = left_axis
@@ -95,53 +95,53 @@ func _make_plot(p_plot: TauPlot, p_marker_shape: TauScatterStyle.MarkerShape, p_
 ####################################################################################################
 
 func _setup_test_1() -> void:
-	_make_plot(%TestPlot1, TauScatterStyle.MarkerShape.CIRCLE, "CIRCLE for series A, default shape for series B (SQUARE)")
+	_make_plot(%TestPlot1, [TauScatterStyle.MarkerShape.CIRCLE, TauScatterStyle.MarkerShape.SQUARE], "CIRCLE for series A, SQUARE for series B")
 
 ####################################################################################################
 # Test 2
 ####################################################################################################
 
 func _setup_test_2() -> void:
-	_make_plot(%TestPlot2, TauScatterStyle.MarkerShape.SQUARE, "SQUARE for series A, default shape for series B (SQUARE)")
+	_make_plot(%TestPlot2, [TauScatterStyle.MarkerShape.SQUARE], "SQUARE for series A, SQUARE for series B")
 
 ####################################################################################################
 # Test 3
 ####################################################################################################
 
 func _setup_test_3() -> void:
-	_make_plot(%TestPlot3, TauScatterStyle.MarkerShape.TRIANGLE_UP, "TRIANGLE_UP for series A, default shape for series B (SQUARE)")
+	_make_plot(%TestPlot3, [TauScatterStyle.MarkerShape.TRIANGLE_UP, TauScatterStyle.MarkerShape.SQUARE], "TRIANGLE_UP for series A, SQUARE for series B")
 
 ####################################################################################################
 # Test 4
 ####################################################################################################
 
 func _setup_test_4() -> void:
-	_make_plot(%TestPlot4, TauScatterStyle.MarkerShape.TRIANGLE_DOWN, "TRIANGLE_DOWN for series A, default shape for series B (SQUARE)")
+	_make_plot(%TestPlot4, [TauScatterStyle.MarkerShape.TRIANGLE_DOWN, TauScatterStyle.MarkerShape.SQUARE], "TRIANGLE_DOWN for series A, SQUARE for series B")
 
 ####################################################################################################
 # Test 5
 ####################################################################################################
 
 func _setup_test_5() -> void:
-	_make_plot(%TestPlot5, TauScatterStyle.MarkerShape.DIAMOND, "DIAMOND for series A, default shape for series B (SQUARE)")
+	_make_plot(%TestPlot5, [TauScatterStyle.MarkerShape.DIAMOND, TauScatterStyle.MarkerShape.SQUARE], "DIAMOND for series A, SQUARE for series B")
 
 ####################################################################################################
 # Test 6
 ####################################################################################################
 
 func _setup_test_6() -> void:
-	_make_plot(%TestPlot6, TauScatterStyle.MarkerShape.CROSS, "CROSS for series A, default shape for series B (SQUARE)")
+	_make_plot(%TestPlot6, [TauScatterStyle.MarkerShape.CROSS, TauScatterStyle.MarkerShape.SQUARE], "CROSS for series A, SQUARE for series B")
 
 ####################################################################################################
 # Test 7
 ####################################################################################################
 
 func _setup_test_7() -> void:
-	_make_plot(%TestPlot7, TauScatterStyle.MarkerShape.PLUS, "PLUS for series A, default shape for series B (SQUARE)")
+	_make_plot(%TestPlot7, [TauScatterStyle.MarkerShape.PLUS, TauScatterStyle.MarkerShape.SQUARE], "PLUS for series A, SQUARE for series B")
 
 ####################################################################################################
 # Test 8
 ####################################################################################################
 
 func _setup_test_8() -> void:
-	_make_plot(%TestPlot8, TauScatterStyle.MarkerShape.NONE, "NONE for series A, default shape for series B (SQUARE)")
+	_make_plot(%TestPlot8, [TauScatterStyle.MarkerShape.NONE, TauScatterStyle.MarkerShape.SQUARE], "NONE for series A, SQUARE for series B")

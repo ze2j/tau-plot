@@ -3,26 +3,20 @@
 !!! info ""
     **Inherits:** [`VisualCallbacks`](visual_callbacks.md)  
     **Namespace:** [`TauPlot`](tau_plot.md)
-    
+
 Callback-driven per-sample style overrides for [`SCATTER`](tau_plot.md#paneoverlaytype) overlays.
 
 ## Description
 
 `ScatterVisualCallbacks` is the [`SCATTER`](tau_plot.md#paneoverlaytype) specific subclass of [`VisualCallbacks`](visual_callbacks.md). It carries the two callbacks inherited from that base class, [`color_callback`](visual_callbacks.md#color_callback) and [`alpha_callback`](visual_callbacks.md#alpha_callback), and adds four scatter-specific callbacks: [`size_callback`](#size_callback), [`shape_callback`](#shape_callback), [`outline_color_callback`](#outline_color_callback), and [`outline_width_callback`](#outline_width_callback).
 
-Assign an instance to [`TauScatterConfig.scatter_visual_callbacks`](scatter_config.md#scatter_visual_callbacks). The renderer invokes each valid callback once per sample during the draw pass and applies the returned values on top of the values resolved from [`TauScatterStyle`](scatter_style.md) and [`TauXYStyle`](xy_style.md).
+Assign an instance to [`TauScatterConfig.scatter_visual_callbacks`](scatter_config.md#scatter_visual_callbacks). Any other subclass on a scatter overlay is a validation error and [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) aborts. The plot invokes each valid callback once per sample on each draw pass and applies the returned values on top of the values resolved from [`TauScatterStyle`](scatter_style.md) and [`TauXYStyle`](xy_style.md).
 
-Each callback is optional. An invalid `Callable` means no callback is active for that property. The renderer falls through to the next resolution step when a callback is absent or when it returns a sentinel value.
+Each callback is optional. An invalid `Callable` means no override for that property, and the resolved style value applies to every sample of the series. Each callback receives the dataset series index, the logical sample index, and the X and Y values of the sample, as described in [`VisualCallbacks`](visual_callbacks.md).
 
-The resolution order for each overridable property is:
+The emphasized marker takes the hovered-state properties of [`TauScatterStyle`](scatter_style.md), so [`size_callback`](#size_callback), [`outline_color_callback`](#outline_color_callback), and [`outline_width_callback`](#outline_width_callback) shape every marker except that one.
 
-1. The [`VisualAttributes`](visual_attributes.md) buffer, if a buffer is set and the sample index is within range.
-2. The corresponding callback on `ScatterVisualCallbacks`, if the `Callable` is valid.
-3. The resolved style value from the [three-layer cascade](scatter_style.md#three-layer-cascade) (theme then built-in default).
-
-[`ScatterVisualAttributes`](scatter_visual_attributes.md) buffers always take priority over `ScatterVisualCallbacks` callbacks.
-
-Each callback receives `x_value` as a `Variant`. Its concrete type is determined by the [`Dataset.XElementType`](dataset.md#xelementtype) chosen at construction time. When the dataset is built with [`XElementType.NUMERIC`](dataset.md#xelementtype), `x_value` is a `float`. When it is built with [`XElementType.CATEGORY`](dataset.md#xelementtype), `x_value` is a `String`. This is fixed for the lifetime of the [`Dataset`](dataset.md).
+See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for the order a callback resolves in against a [`ScatterVisualAttributes`](scatter_visual_attributes.md) buffer and the style property.
 
 ### Example
 
@@ -33,10 +27,11 @@ var callbacks := TauPlot.ScatterVisualCallbacks.new()
 callbacks.size_callback = func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> float:
     return 8.0 + abs(y_value) * 2.0
 
-callbacks.shape_callback = func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> ScatterStyle.MarkerShape:
-    return ScatterStyle.MarkerShape.DIAMOND if abs(y_value) > 10.0 else ScatterStyle.MarkerShape.CIRCLE
+callbacks.shape_callback = func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> TauScatterStyle.MarkerShape:
+    return TauScatterStyle.MarkerShape.DIAMOND if abs(y_value) > 10.0 else TauScatterStyle.MarkerShape.CIRCLE
 
-scatter_config.scatter_visual_callbacks = callbacks
+var scatter_overlay := TauScatterConfig.new()
+scatter_overlay.scatter_visual_callbacks = callbacks
 ```
 
 ## Constructor
@@ -55,15 +50,17 @@ Creates a new `ScatterVisualCallbacks` instance with all callbacks set to an inv
 
 `size_callback`: `Callable`
 
-The per-sample marker size callback. Default is an invalid `Callable`.
+Callback computing the marker size of one sample. Default is an invalid `Callable`.
 
-If invalid, the marker size for every sample comes from the three-layer cascade via [`TauScatterStyle.marker_size_px`](scatter_style.md#marker_size_px). If valid, the callback is invoked once per sample. A return value of `0.0` or greater overrides the marker size in pixels of that sample. A negative return value is treated as unset and falls through to the cascade-resolved [`TauScatterStyle.marker_size_px`](scatter_style.md#marker_size_px). The callback signature is:
+The return value overrides the size of the marker, taking priority over [`TauScatterStyle.marker_sizes_px`](scatter_style.md#marker_sizes_px). A negative return is treated as unset. The unit follows the active [`TauScatterConfig.marker_size_policy`](scatter_config.md#marker_size_policy): pixels under [`THEME`](scatter_config.md#markersizepolicy), X data units under [`DATA_UNITS`](scatter_config.md#markersizepolicy), where the drawn size then changes with the X domain. The callback signature is:
 
 ```gdscript
 func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> float
 ```
 
-`x_value` holds the sample's X value. Its concrete type depends on how the [`Dataset`](dataset.md) was built: `float` for [`XElementType.NUMERIC`](dataset.md#xelementtype) datasets, `String` for [`XElementType.CATEGORY`](dataset.md#xelementtype) datasets.
+The resolved pixel size is raised to `1.0`, so a return of `0.0` draws a one pixel marker rather than hiding one. Hide a marker through [`shape_callback`](#shape_callback) instead.
+
+Under [`DATA_UNITS`](scatter_config.md#markersizepolicy) on a [categorical](axis_config.md#type-enum) X axis there is no data span to convert, and the return value is discarded: the size comes from [`TauScatterStyle.marker_sizes_px`](scatter_style.md#marker_sizes_px), with no error and no warning.
 
 ---
 
@@ -71,15 +68,15 @@ func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> 
 
 `shape_callback`: `Callable`
 
-The per-sample marker shape callback. Default is an invalid `Callable`.
+Callback computing the marker shape of one sample. Default is an invalid `Callable`.
 
-If invalid, the shape for every sample comes from the three-layer cascade via [`TauScatterStyle.marker_shapes`](scatter_style.md#marker_shapes). If valid, the callback is invoked once per sample. A return value that is a valid [`MarkerShape`](scatter_style.md#markershape) enum value overrides the shape of that marker. A return value of `-1` is treated as unset and falls through to the cascade-resolved [`TauScatterStyle.marker_shapes`](scatter_style.md#marker_shapes). The callback signature is:
+The return value overrides the shape of the marker, taking priority over [`TauScatterStyle.marker_shapes`](scatter_style.md#marker_shapes). A negative return is treated as unset. Any other value outside [`TauScatterStyle.MarkerShape`](scatter_style.md#markershape) draws a [`CIRCLE`](scatter_style.md#markershape) with no message, since the callback runs once per sample. The callback signature is:
 
 ```gdscript
-func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> ScatterStyle.MarkerShape
+func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> TauScatterStyle.MarkerShape
 ```
 
-`x_value` holds the sample's X value. Its concrete type depends on how the [`Dataset`](dataset.md) was built: `float` for [`XElementType.NUMERIC`](dataset.md#xelementtype) datasets, `String` for [`XElementType.CATEGORY`](dataset.md#xelementtype) datasets.
+A return of [`NONE`](scatter_style.md#markershape) draws nothing for that sample. A sample that draws nothing is also left out of hover hit testing, so it reports no [`SampleHit`](sample_hit.md) and never appears in a tooltip.
 
 ---
 
@@ -87,15 +84,15 @@ func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> 
 
 `outline_color_callback`: `Callable`
 
-The per-sample outline color callback. Default is an invalid `Callable`.
+Callback computing the color of the outline stroked around one marker. Default is an invalid `Callable`.
 
-If invalid, the outline color for every sample comes from the three-layer cascade via [`TauScatterStyle.outline_color`](scatter_style.md#outline_color). If valid, the callback is invoked once per sample. A return value other than `Color(0, 0, 0, 0)` overrides the outline color of that marker. A return value of `Color(0, 0, 0, 0)` is treated as unset and falls through to the cascade-resolved [`TauScatterStyle.outline_color`](scatter_style.md#outline_color). `Color(0, 0, 0, 0)` is therefore not a valid override outline color. The callback signature is:
+The return value overrides the outline color of the marker, taking priority over [`TauScatterStyle.outline_color`](scatter_style.md#outline_color). A return of [`ColorBuffer.NO_COLOR`](color_buffer.md) is treated as unset, see [note 1](visual_callbacks.md#notes) on the base class. The callback signature is:
 
 ```gdscript
 func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> Color
 ```
 
-`x_value` holds the sample's X value. Its concrete type depends on how the [`Dataset`](dataset.md) was built: `float` for [`XElementType.NUMERIC`](dataset.md#xelementtype) datasets, `String` for [`XElementType.CATEGORY`](dataset.md#xelementtype) datasets.
+The resolved alpha of the sample is applied on top of the returned color, so a marker and its outline fade together.
 
 ---
 
@@ -103,20 +100,25 @@ func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> 
 
 `outline_width_callback`: `Callable`
 
-The per-sample outline width callback. Default is an invalid `Callable`.
+Callback computing the thickness in pixels of the outline stroked around one marker. Default is an invalid `Callable`.
 
-If invalid, the outline width for every sample comes from the three-layer cascade via [`TauScatterStyle.outline_width_px`](scatter_style.md#outline_width_px). If valid, the callback is invoked once per sample. A return value of `0.0` or greater overrides the outline stroke width in pixels of that marker, where `0.0` disables the outline for that sample. A negative return value is treated as unset and falls through to the cascade-resolved [`TauScatterStyle.outline_width_px`](scatter_style.md#outline_width_px). The callback signature is:
+The return value overrides the outline width of the marker, taking priority over [`TauScatterStyle.outline_width_px`](scatter_style.md#outline_width_px). A negative return is treated as unset. Valid override values are `0.0` or greater, where `0.0` leaves that marker unoutlined, and the drawn outline never exceeds half the resolved marker size. The callback signature is:
 
 ```gdscript
 func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> float
 ```
 
-`x_value` holds the sample's X value. Its concrete type depends on how the [`Dataset`](dataset.md) was built: `float` for [`XElementType.NUMERIC`](dataset.md#xelementtype) datasets, `String` for [`XElementType.CATEGORY`](dataset.md#xelementtype) datasets.
-
 ## Related Classes
 
-* [`VisualCallbacks`](visual_callbacks.md) Base class. Defines the inherited [`color_callback`](visual_callbacks.md#color_callback) and [`alpha_callback`](visual_callbacks.md#alpha_callback).
-* [`TauScatterConfig`](scatter_config.md) Owns the instance via its [`scatter_visual_callbacks`](scatter_config.md#scatter_visual_callbacks) property.
-* [`ScatterVisualAttributes`](scatter_visual_attributes.md) Companion class that overrides the same properties from pre-built buffers rather than callbacks. Buffers take priority over callbacks.
-* [`TauScatterStyle`](scatter_style.md) Provides the resolved scatter style values that callbacks override.
+* [`VisualCallbacks`](visual_callbacks.md) Base class. Defines the inherited [`color_callback`](visual_callbacks.md#color_callback) and [`alpha_callback`](visual_callbacks.md#alpha_callback), the arguments every callback receives, and their sentinels.
+* [`TauScatterConfig`](scatter_config.md) Owns the instance via its [`scatter_visual_callbacks`](scatter_config.md#scatter_visual_callbacks) property. Its [`marker_size_policy`](scatter_config.md#marker_size_policy) decides the unit a [`size_callback`](#size_callback) returns.
+* [`ScatterVisualAttributes`](scatter_visual_attributes.md) Companion class that reads the same properties from pre-built buffers rather than computing them. Buffers take priority over callbacks.
+* [`TauScatterStyle`](scatter_style.md) Provides the resolved scatter style values the callbacks are applied on top of, including the hovered-state properties that win over them.
+* [`TauPaneOverlayConfig`](pane_overlay_config.md) Base class of [`TauScatterConfig`](scatter_config.md). Defines how a per-sample override resolves against a buffer and a style property.
+* [`TauAxisConfig`](axis_config.md) Configures the X axis whose type decides whether a [`DATA_UNITS`](scatter_config.md#markersizepolicy) size is converted or discarded.
+* [`SampleHit`](sample_hit.md) Reports one hovered sample. A marker hidden through [`shape_callback`](#shape_callback) produces none.
+* [`ColorBuffer`](color_buffer.md) Declares the [`NO_COLOR`](color_buffer.md) sentinel a color callback returns to override nothing.
 * [`BarVisualCallbacks`](bar_visual_callbacks.md) Sibling subclass for [`BAR`](tau_plot.md#paneoverlaytype) overlays.
+* [`LineVisualCallbacks`](line_visual_callbacks.md) Sibling subclass for [`LINE`](tau_plot.md#paneoverlaytype) overlays.
+* [`TauXYStyle`](xy_style.md) Provides the per-series color and alpha a sample falls back to.
+* [`Dataset`](dataset.md) The data model. Supplies the series index, the sample index, and the X and Y values a callback receives.

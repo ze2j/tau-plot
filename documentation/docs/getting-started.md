@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide teaches you how to build XY plots with TauPlot, one step at a time. Each section introduces a new concept and builds on the previous one. By the end you will know how to create bar and scatter plots, combine them, use multiple panes, customize the look, add interactivity, and stream live data.
+This guide teaches you how to build XY plots with TauPlot, one step at a time. Each section introduces a new concept and builds on the previous one. By the end you will know how to create bar, line, area, and scatter plots, combine them, use multiple panes, customize the look, add interactivity, stream live data, and animate a plot at runtime.
 
 !!! tip "Prerequisites"
     TauPlot requires **Godot 4.5** or later. Make sure the plugin is enabled in **Project > Project Settings > Plugins**. See the [installation instructions](index.md#installation) if needed.
@@ -16,11 +16,11 @@ TauPlot lets you build XY plots from a few simple building blocks.
 
 A **series** is a named sequence of (X, Y) data points. For example, the monthly temperatures of a city form one series. A plot can display one series or many at once.
 
-A **dataset** is the container that holds all your series. You create it, fill it with numbers, and hand it to the plot. There are two flavors: in a [`SHARED_X`](api/dataset.md#mode) dataset every series uses the same X values (good when all series are measured at the same positions), and in a [`PER_SERIES_X`](api/dataset.md#mode) dataset each series has its own X values (good when each group of points has different positions). You describe a dataset with a [`Dataset`](api/dataset.md) object.
+A **dataset** is the container that holds all your series. You create it, fill it with values, and hand it to the plot. There are two flavors: in a [`SHARED_X`](api/dataset.md#mode) dataset every series uses the same X values, and in a [`PER_SERIES_X`](api/dataset.md#mode) dataset each series has its own X values. You describe a dataset with a [`Dataset`](api/dataset.md) object.
 
 A **pane** is a rectangular drawing area inside the plot. It has its own Y axis (or two) and its own visual layers. Most plots need only one pane, but you can stack several when your series have very different scales. You describe a pane with a [`TauPaneConfig`](api/pane_config.md).
 
-An **overlay** is a visual layer inside a pane that actually draws the data points. A bar overlay draws bars. A scatter overlay draws markers. A single pane can contain both at once. You describe a bar overlay with a [`TauBarConfig`](api/bar_config.md) and a scatter overlay with a [`TauScatterConfig`](api/scatter_config.md).
+An **overlay** is a visual layer inside a pane that actually draws the data points. A bar overlay draws bars. A scatter overlay draws markers. A line overlay draws curves, and can paint the area between these curves and a baseline, which is how you get an area chart. A single pane can contain all three at once. You describe a bar overlay with a [`TauBarConfig`](api/bar_config.md), a scatter overlay with a [`TauScatterConfig`](api/scatter_config.md), and a line overlay with a [`TauLineConfig`](api/line_config.md).
 
 An **axis** defines how values map to positions on the screen. A categorical axis shows labels like "Jan", "Feb", "Mar". A continuous axis shows a numeric range. You describe an axis with a [`TauAxisConfig`](api/axis_config.md).
 
@@ -30,7 +30,7 @@ Finally, the [**TauPlot node**](api/tau_plot.md) is the Godot `Control` you add 
 
 The workflow is always the same:
 
-1. Create a [`Dataset`](api/dataset.md) with your numbers.
+1. Create a [`Dataset`](api/dataset.md) with your data.
 2. Describe the plot structure with a [`TauXYConfig`](api/xy_config.md) (axes, panes, overlays).
 3. Create [`TauXYSeriesBinding`](api/xy_series_binding.md) objects to connect series to visuals.
 4. Call [`plot_xy()`](api/tau_plot.md#plot_xy).
@@ -39,7 +39,7 @@ The workflow is always the same:
 
 The [quick start](index.md#quick-start) on the home page shows a categorical bar plot. Here you will create a scatter plot with numeric data on both axes.
 
-A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_2.tscn).
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started/getting_started_2.gd).
 
 ```gdscript
 extends CenterContainer
@@ -50,7 +50,13 @@ func _ready() -> void:
 	# its own X values. Notice that Paris only has 5 readings while the
 	# others have 6. That is fine with PER_SERIES_X.
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(
-		PackedStringArray(["Tokyo", "Paris", "Cairo"]),
+		# Series names
+		PackedStringArray(
+		[
+			"Tokyo",
+			"Paris",
+			"Cairo"
+		]),
 		# X values: temperature in °C for each city
 		[
 			PackedFloat64Array([5.0, 10.0, 15.0, 20.0, 25.0, 30.0]),
@@ -116,7 +122,7 @@ func _ready() -> void:
 
 A pane can host several overlay types at once. Here we use bars for the actual sales and scatter markers for the targets, both in the same pane.
 
-A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_3.tscn).
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started/getting_started_3.gd).
 
 ```gdscript
 extends CenterContainer
@@ -178,11 +184,107 @@ func _ready() -> void:
 **Example 3**: Bars and scatter markers combined in one pane.
 ///
 
-## 4. Horizontal bars
+## 4. Line and area plots
 
-Every example so far uses the default layout where the X axis sits at the bottom and bars grow upward. To produce horizontal bars, you move the X axis to a side edge by setting [`x_axis_id`](api/xy_config.md#x_axis_id) to `LEFT`. The categories then run vertically on the left edge and the bars grow horizontally. Because the axes swap positions, the Y axis configuration must be assigned to the matching edge slot on the pane (here `y_bottom_axis`), and the binding must target the same edge (`TauPlot.AxisId.BOTTOM`). Apart from those adjustments, the dataset and the overlay work exactly the same way as in a vertical bar chart.
+A line overlay draws one curve per series, through the samples of that series in X order. The shape a curve takes between two samples is its **interpolation mode**: a straight segment, a stair, or a smooth bend. The mode is chosen per series, through an array holding one entry per series. Arrays read this way are called [cycles](api/style.md#cycles), and the dash length and the fill of the curves work the same way. A fill paints the area between a curve and a flat baseline, which is how you get an area chart. The baseline is a reference level rather than the bottom of the axis, so a curve crossing it is filled on both sides and the band reads as the distance from that level. The example below fills with a flat color, while the [Alpine Profile](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/demo_2.gd) and [Frame Profile](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/demo_2.gd) plots of `demo_2.gd` fill with a texture.
 
-A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_4.tscn).
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started/getting_started_4.gd).
+
+```gdscript
+extends CenterContainer
+
+func _ready() -> void:
+	# One reading per hour, at the same hours for the three series.
+	var hours := PackedFloat64Array([
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+		12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+	])
+	var setpoint := PackedFloat64Array([
+		17.0, 17.0, 17.0, 17.0, 17.0, 17.0, 20.5, 20.5, 20.5, 18.0, 18.0, 18.0,
+		18.0, 18.0, 18.0, 18.0, 18.0, 21.0, 21.0, 21.0, 21.0, 21.0, 17.0, 17.0,
+	])
+	var room := PackedFloat64Array([
+		17.4, 17.2, 17.1, 17.0, 17.0, 16.9, 17.3, 19.1, 20.3, 20.1, 19.2, 18.5,
+		18.2, 18.1, 18.3, 18.4, 18.3, 18.9, 20.2, 20.9, 21.0, 20.8, 19.9, 18.6,
+	])
+	var outdoor := PackedFloat64Array([
+		4.0, 3.5, 3.1, 2.8, 2.6, 2.9, 3.8, 5.2, 7.0, 8.8, 10.3, 11.6,
+		12.5, 13.1, 13.4, 13.0, 12.1, 10.6, 9.0, 7.6, 6.5, 5.7, 5.0, 4.4,
+	])
+
+	var dataset := TauPlot.Dataset.make_shared_x_continuous(
+		PackedStringArray(["Setpoint", "Room", "Outdoor"]),
+		hours,
+		[setpoint, room, outdoor] as Array[PackedFloat64Array]
+	)
+
+	var x_axis := TauAxisConfig.new()
+	x_axis.title = "Hour"
+	x_axis.tick_count_preferred = 7
+
+	var y_axis := TauAxisConfig.new()
+	y_axis.title = "Temperature (°C)"
+
+	var line_cfg := TauLineConfig.new()
+
+	# The first cycle: the interpolation mode is the shape of a curve between
+	# two samples. One entry per series, in dataset order.
+	line_cfg.interpolation_modes = [
+		# setpoint holds its value until the next change.
+		TauLineConfig.InterpolationMode.STEP_AFTER,
+		# room temperature moves slowly and never jumps.
+		TauLineConfig.InterpolationMode.SMOOTH_MONOTONE,
+		# outdoor temperature is unknown between two readings:
+		# a straight segment says all you know.
+		TauLineConfig.InterpolationMode.LINEAR,
+	]
+
+	# Another cycle: dash length in pixels, with a gap of the same length
+	# between two dashes. 0 draws a solid line.
+	line_cfg.style.dash_lengths_px = [6, 0, 0]
+
+	# The area between the curve and the baseline.
+	var area := TauLineFill.new()
+	area.fill_mode = TauLineFill.FillMode.TO_BASELINE
+	area.fill_baseline = 10.0
+	area.color = Color(0.2, 0.7, 0.55)
+	area.alpha = 0.25
+
+	# fills is a cycle as well: it takes one entry per series.
+	# Only the outdoor temperature curve is filled.
+	line_cfg.style.fills = [null, null, area]
+
+	var pane := TauPaneConfig.new()
+	pane.y_left_axis = y_axis
+	pane.overlays = [line_cfg]
+
+	var config := TauXYConfig.new()
+	config.x_axis = x_axis
+	config.panes = [pane]
+
+	var bindings: Array[TauXYSeriesBinding] = []
+	for i in dataset.get_series_count():
+		var b := TauXYSeriesBinding.new()
+		b.series_id = dataset.get_series_id_by_index(i)
+		b.pane_index = 0
+		b.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
+		b.y_axis_id = TauPlot.AxisId.LEFT
+		bindings.append(b)
+
+	$MyPlot.title = "Thermostat"
+	$MyPlot.plot_xy(dataset, config, bindings)
+```
+
+![Getting started 4](assets/getting_started_4.png)
+/// caption
+**Example 4**: One line overlay holding three interpolation modes, a dashed curve, and an area fill.
+///
+
+## 5. Horizontal bars
+
+The bar charts of the previous sections all grow upward, with the X axis running along the bottom edge, which is the default layout. To produce horizontal bars, you move the X axis to a side edge by setting [`x_axis_id`](api/xy_config.md#x_axis_id) to `LEFT`. The categories then run vertically on the left edge and the bars grow horizontally. Because the axes swap positions, the Y axis configuration must be assigned to the matching edge slot on the pane (here `y_bottom_axis`), and the binding must target the same edge (`TauPlot.AxisId.BOTTOM`). Apart from those adjustments, the dataset and the overlay work exactly the same way as in a vertical bar chart.
+
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started/getting_started_5.gd).
 
 ```gdscript
 extends CenterContainer
@@ -203,7 +305,7 @@ func _ready() -> void:
 	x_axis.type = TauAxisConfig.Type.CATEGORICAL
 	# We want the most spoken language to be displayed at the top.
 	x_axis.inverted = true
-	# We don't want to skip any labels.
+	# We do not want to skip any labels.
 	x_axis.overlap_strategy = TauAxisConfig.OverlapStrategy.NONE
 
 	# The Y axis shows the number of speakers in millions.
@@ -239,16 +341,16 @@ func _ready() -> void:
 	$MyPlot.plot_xy(dataset, config, bindings)
 ```
 
-![Getting started 4](assets/getting_started_4.png)
+![Getting started 5](assets/getting_started_5.png)
 /// caption
-**Example 4**: Horizontal bar chart using `x_axis_id = LEFT`.
+**Example 5**: Horizontal bar chart using `x_axis_id = LEFT`.
 ///
 
-## 5. Multi-pane layouts
+## 6. Multi-pane layouts
 
 When two series have very different Y scales, putting them in the same pane would squash one of them against the axis. You can give each series its own pane instead. Both panes share the same X axis, but they have independent Y axes and independent vertical space.
 
-A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_5.tscn).
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started/getting_started_6.gd).
 
 ```gdscript
 extends CenterContainer
@@ -337,16 +439,16 @@ func _ready() -> void:
 	$MyPlot.plot_xy(dataset, config, bindings)
 ```
 
-![Getting started 5](assets/getting_started_5.png)
+![Getting started 6](assets/getting_started_6.png)
 /// caption
-**Example 5**: Two panes with different Y scales sharing the same X axis.
+**Example 6**: Two panes with different Y scales sharing the same X axis.
 ///
 
-## 6. Styling basics
+## 7. Styling basics
 
 TauPlot resolves every visual property through a three-layer cascade: built-in defaults, then Godot theme values, then code overrides. You do not need to learn theming to get started. Setting properties directly on the style objects is the simplest way and always takes the highest priority.
 
-A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_6.tscn).
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started/getting_started_7.gd).
 
 ```gdscript
 extends CenterContainer
@@ -393,15 +495,14 @@ func _ready() -> void:
 	config.x_axis = x_axis
 	config.panes = [pane]
 
-	# The series color palette lives on the plot-wide style. Colors are
-	# assigned to series in order. series_alpha controls the opacity of
-	# all series uniformly.
+	# The series color palette lives on the plot-wide style.
+	# Colors and alphas are assigned to series in order.
 	config.style.series_colors = [
 		Color(0.85, 0.20, 0.20),
 		Color(1.0, 0.60, 0.10),
 		Color(0.95, 0.85, 0.20),
 	]
-	config.style.series_alpha = 0.9
+	config.style.series_alphas = [0.9, 0.6, 0.8]
 
 	var bindings: Array[TauXYSeriesBinding] = []
 	for i in dataset.get_series_count():
@@ -421,46 +522,59 @@ func _ready() -> void:
 	$MyPlot.plot_xy(dataset, config, bindings)
 ```
 
-![Getting started 6](assets/getting_started_6.png)
+![Getting started 7](assets/getting_started_7.png)
 /// caption
-**Example 6**: Custom colors, rounded bar corners, grid lines, and legend inside the plot area.
+**Example 7**: Custom colors, rounded bar corners, grid lines, and legend inside the plot area.
 ///
 
 ### More styling options
 
-The example above covers the most common tweaks. Here are a few more properties you can set the same way.
+The example above touches two style resources: [`TauXYStyle`](api/xy_style.md) on `config.style`, which covers the plot as a whole, and [`TauBarStyle`](api/bar_style.md) on `bar_cfg.style`, which covers the bars. Every overlay carries its own style the same way. A style property holding one value per series is a [cycle](api/style.md#cycles): series `i` takes entry `i % size`, and a cycle shorter than the number of series is read again from its first entry. A cycle holding a single entry therefore applies that entry to every series.
 
-**Scatter marker shapes** are cycled across series. Change the palette on [`TauScatterStyle.marker_shapes`](api/scatter_style.md#marker_shapes):
+**Scatter markers** take their shape, their size, and their outline from [`TauScatterStyle`](api/scatter_style.md):
 
 ```gdscript
-scatter_cfg.style.marker_size_px = 10.0
-scatter_cfg.style.outline_width_px = 1.5
+var scatter_cfg := TauScatterConfig.new()
+
+# Four series come out circle, diamond, circle, diamond, all 10 pixels wide.
 scatter_cfg.style.marker_shapes = [
 	TauScatterStyle.MarkerShape.CIRCLE,
 	TauScatterStyle.MarkerShape.DIAMOND,
-	TauScatterStyle.MarkerShape.TRIANGLE_UP,
 ]
+scatter_cfg.style.marker_sizes_px = [10.0]
+scatter_cfg.style.outline_width_px = 1.5
 ```
 
-See [`TauScatterStyle`](api/scatter_style.md) for the full list of visual properties.
-
-**Legend flow direction** can be forced to vertical or horizontal with [`TauLegendConfig.flow_direction`](api/legend_config.md#flow_direction):
+**Bars** take their shape from a `StyleBox` on [`TauBarStyle`](api/bar_style.md), and the hovered bar can take a second one:
 
 ```gdscript
-legend.flow_direction = TauLegendConfig.FlowDirection.VERTICAL
+var bar_cfg := TauBarConfig.new()
+
+# A StyleBox is authored as if the bar grew upward. The plot remaps it to the
+# direction the bar actually grows in.
+var hovered_box := StyleBoxFlat.new()
+hovered_box.border_width_top = 3
+bar_cfg.style.hovered_style_box = hovered_box
 ```
 
-**Hiding the legend** entirely with [`TauPlot.legend_enabled`](api/tau_plot.md#legend_enabled):
+**Curves** take their width, their dash length, and their fill from [`TauLineStyle`](api/line_style.md). [Section 4](#4-line-and-area-plots) sets the last two:
 
 ```gdscript
-$MyPlot.legend_enabled = false
+var line_cfg := TauLineConfig.new()
+
+# The first series is drawn thin, the second one thick.
+line_cfg.style.line_widths_px = [1.0, 3.0]
+# Width of the two segments around the hovered sample, for every series.
+line_cfg.style.hovered_line_widths_px = [5.0]
 ```
 
-## 7. Hover, tooltip, and signals
+The rest of the plot is styled the same way: [`TauXYStyle`](api/xy_style.md) for the plot as a whole, [`TauPaneStyle`](api/pane_style.md) for the panes, [`TauLegendStyle`](api/legend_style.md) for the legend, [`TauTooltipStyle`](api/tooltip_style.md) for the hover tooltip, and [`TauCrosshairStyle`](api/crosshair_style.md) for the crosshair lines.
 
-[`TauPlot`](api/tau_plot.md) has a built-in hover inspection system. When activated, it highlights the hovered sample, shows a tooltip, and can draw crosshair guide lines. It also emits signals so you can build your own interactions on top.
+## 8. Hover, tooltip, and signals
 
-A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_7.tscn).
+[`TauPlot`](api/tau_plot.md) has a built-in hover inspection system, and it runs by default. It highlights the hovered sample, shows a tooltip, and can draw crosshair guide lines. It also emits signals so you can build your own interactions on top. [`hover_enabled`](api/tau_plot.md#hover_enabled) is the switch that turns the whole system off.
+
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started/getting_started_8.gd).
 
 ```gdscript
 extends CenterContainer
@@ -510,13 +624,15 @@ func _ready() -> void:
 		b.y_axis_id = TauPlot.AxisId.LEFT
 		bindings.append(b)
 
-	# Activate the hover system and configure it.
+	# The hover system is already running. This configures it.
 	var hover := TauHoverConfig.new()
 
 	# X_ALIGNED collects all series at the nearest X position, which is the
-	# natural behavior for time series. NEAREST would pick the single closest
-	# sample instead, which works better for pure scatter plots. AUTO picks
-	# between the two automatically based on what overlays the pane contains.
+	# natural behavior for time series. NEAREST picks the single closest
+	# sample instead, which works better for pure scatter plots. AUTO resolves
+	# the mode per pane by a vote: bar and line overlays ask for X_ALIGNED,
+	# scatter overlays ask for NEAREST, unanimity wins, and a disagreement
+	# falls back to NEAREST.
 	hover.hover_mode = TauHoverConfig.HoverMode.X_ALIGNED
 
 	# Draw a vertical guide line at the hovered X position.
@@ -529,11 +645,10 @@ func _ready() -> void:
 	hover.format_tooltip_text = func(hits: Array[TauPlot.SampleHit]) -> String:
 		var lines := PackedStringArray()
 		for hit in hits:
-			lines.append("[b]%s[/b]: %.0f MB" % [hit.series_name, hit.y_value])
+			lines.append("[b]%s[/b]: %.0f MB" % [hit.series_name, hit.y_raw_value])
 		return "\n".join(lines)
 
 	$MyPlot.title = "Daily Network Traffic"
-	$MyPlot.hover_enabled = true
 	$MyPlot.hover_config = hover
 	$MyPlot.plot_xy(dataset, config, bindings)
 
@@ -544,25 +659,23 @@ func _ready() -> void:
 
 
 func _on_hovered(hits: Array[TauPlot.SampleHit]) -> void:
-	print("Hovered: %s = %.0f" % [hits[0].series_name, hits[0].y_value])
+	print("Hovered: %s = %.0f" % [hits[0].series_name, hits[0].y_raw_value])
 
 
 func _on_clicked(hits: Array[TauPlot.SampleHit]) -> void:
 	print("Clicked: %s" % hits[0].series_name)
 ```
 
-![Getting started 7](assets/getting_started_7.png)
+![Getting started 8](assets/getting_started_8.png)
 /// caption
-**Example 7**: Hover tooltip, crosshair, and highlight on a scatter plot.
+**Example 8**: Hover tooltip, crosshair, and highlight on a scatter plot.
 ///
 
-See [`TauHoverConfig`](api/hover_config.md) for all the options, and [`SampleHit`](api/sample_hit.md) for the data carried by each hover event. The four signals are documented on [`TauPlot`](api/tau_plot.md): [`sample_hovered`](api/tau_plot.md#sample_hovered), [`sample_hover_exited`](api/tau_plot.md#sample_hover_exited), [`sample_clicked`](api/tau_plot.md#sample_clicked), and [`sample_click_dismissed`](api/tau_plot.md#sample_click_dismissed).
+## 9. Real-time streaming
 
-## 8. Real-time streaming
+[`Dataset`](api/dataset.md) uses ring buffers internally. When the buffer is full, appending a new sample automatically drops the oldest one. This makes TauPlot a good fit for live dashboards where you only care about the most recent data. The example below appends. A live plot can also be built the other way, by writing over the values of a dataset of fixed length, which is what the Patient Monitor plot of [`demo_2.gd`](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/demo_2.gd) does with a sweeping cursor.
 
-[`Dataset`](api/dataset.md) uses ring buffers internally. When the buffer is full, appending a new sample automatically drops the oldest one. This makes TauPlot a good fit for live dashboards where you only care about the most recent data.
-
-A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started_8.tscn).
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started/getting_started_9.gd).
 
 ```gdscript
 extends CenterContainer
@@ -597,7 +710,7 @@ func _ready() -> void:
 	# matching the X axis unit directly.
 	x_axis.domain_padding_mode = TauAxisConfig.DomainPaddingMode.DATA_UNITS
 	x_axis.domain_padding_min = 0.0
-	x_axis.domain_padding_max = 0.0
+	x_axis.domain_padding_max = 1.0
 
 	var y_axis := TauAxisConfig.new()
 	y_axis.title = "Value"
@@ -641,23 +754,135 @@ func _process(delta: float) -> void:
 	_dataset.append_shared_sample(_elapsed, PackedFloat64Array([a, b]))
 ```
 
-![Getting started 8](assets/getting_started_8.png)
+![Getting started 9](assets/getting_started_9.webp)
 /// caption
-**Example 8**: Live streaming scatter plot with a 200-sample ring buffer.
+**Example 9**: Live streaming scatter plot with a 200-sample ring buffer.
 ///
 
-See [`Dataset.new()`](api/dataset.md#new) for the constructor and [`append_shared_sample()`](api/dataset.md#append_shared_sample) for the streaming method.
+## 10. Animating a plot at runtime
+
+After [`plot_xy()`](api/tau_plot.md#plot_xy) succeeds, the plot holds a reference to the configuration objects and to the style resources it received. Both support mutation at runtime, under two different rules. The plot watches a [`TauStyle`](api/style.md) resource and applies every assignment on its own. It does not watch a configuration object. Mutating one requires a call to [`queue_refresh()`](api/tau_plot.md#queue_refresh) to apply the change. Runtime mutation is not yet supported by every configuration property: see [Runtime Configuration Change Limitations](runtime-configuration-change-limitations.md). The example below animates one property of each kind when the scene opens.
+
+A complete, runnable version of this example is available [here](https://github.com/ze2j/tau-plot/tree/main/addons/tau-plot/examples/getting_started/getting_started_10.gd).
+
+```gdscript
+extends CenterContainer
+
+# Stretch ratios of the response time pane.
+const INITIAL_STRETCH_RATIO := 0.05
+const FINAL_STRETCH_RATIO := 3.0
+
+# Alphas of the response time series.
+const INITIAL_ALPHA := 0.0
+const FINAL_ALPHA := 0.9
+
+const ANIMATION_DURATION := 1.1
+
+const REQUESTS_ALPHA := 1.0
+const REQUESTS_STRETCH_RATIO := 3.0
+
+var _config: TauXYConfig
+var _response_time_pane: TauPaneConfig
+
+
+func _ready() -> void:
+	# One hour of a web service, one reading per minute.
+	var minutes := PackedFloat64Array()
+	var response_time := PackedFloat64Array()
+	var requests := PackedFloat64Array()
+	for i in 60:
+		var minute := float(i)
+		minutes.append(minute)
+		response_time.append(120.0 + 45.0 * sin(minute * 0.31) + 18.0 * cos(minute * 0.13))
+		requests.append(420.0 + 3.0 * minute + 90.0 * sin(minute * 0.22))
+
+	var dataset := TauPlot.Dataset.make_shared_x_continuous(
+		PackedStringArray(["Response time (ms)", "Requests per minute"]),
+		minutes,
+		[response_time, requests] as Array[PackedFloat64Array]
+	)
+
+	var x_axis := TauAxisConfig.new()
+	x_axis.title = "Minute"
+
+	# The response time pane starts nearly closed.
+	_response_time_pane = TauPaneConfig.new()
+	_response_time_pane.y_left_axis = TauAxisConfig.new()
+	_response_time_pane.overlays = [TauLineConfig.new()]
+	_response_time_pane.stretch_ratio = INITIAL_STRETCH_RATIO
+
+	# The requests pane sits at the bottom.
+	var requests_pane := TauPaneConfig.new()
+	requests_pane.y_left_axis = TauAxisConfig.new()
+	requests_pane.overlays = [TauLineConfig.new()]
+	requests_pane.stretch_ratio = REQUESTS_STRETCH_RATIO
+
+	_config = TauXYConfig.new()
+	_config.x_axis = x_axis
+	_config.panes = [_response_time_pane, requests_pane]
+
+	# series_alphas is a cycle, one entry per series. The first entry is the
+	# response time series, which starts fully transparent.
+	_config.style.series_alphas = [INITIAL_ALPHA, REQUESTS_ALPHA]
+
+	var b_response_time := TauXYSeriesBinding.new()
+	b_response_time.series_id = dataset.get_series_id_by_index(0)
+	b_response_time.pane_index = 0
+	b_response_time.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
+	b_response_time.y_axis_id = TauPlot.AxisId.LEFT
+
+	var b_requests := TauXYSeriesBinding.new()
+	b_requests.series_id = dataset.get_series_id_by_index(1)
+	b_requests.pane_index = 1
+	b_requests.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
+	b_requests.y_axis_id = TauPlot.AxisId.LEFT
+
+	var bindings: Array[TauXYSeriesBinding] = [b_response_time, b_requests]
+
+	$MyPlot.title = "Web Service Health"
+
+	var legend_config := TauLegendConfig.new()
+	legend_config.position = TauLegendConfig.Position.OUTSIDE_RIGHT
+	$MyPlot.legend_config = legend_config
+
+	$MyPlot.plot_xy(dataset, _config, bindings)
+
+	# The response time pane opens while its series fades in.
+	var tween := create_tween()
+	tween.set_parallel()
+	tween.tween_method(_open_response_time_to, INITIAL_STRETCH_RATIO, FINAL_STRETCH_RATIO, ANIMATION_DURATION)
+	tween.tween_method(_fade_response_time_to, INITIAL_ALPHA, FINAL_ALPHA, ANIMATION_DURATION)
+
+
+func _open_response_time_to(ratio: float) -> void:
+	# The plot must be refreshed explicitly after a configuration object is mutated.
+	_response_time_pane.stretch_ratio = ratio
+	$MyPlot.queue_refresh()
+
+
+func _fade_response_time_to(alpha: float) -> void:
+	# Style resource mutations are detected by the plot, which refreshes on its own.
+	_config.style.series_alphas = [alpha, REQUESTS_ALPHA]
+```
+
+![Getting started 10](assets/getting_started_10.webp)
+/// caption
+**Example 10**: A pane stretch ratio and a series opacity animated together as the scene opens.
+///
 
 ## Next steps
 
 This guide covered the most common workflows. The [API Reference](api/index.md) documents every class, property, and signal. Here are some starting points for more advanced topics:
 
 - **Stacked and normalized bars**: [`TauBarConfig.mode`](api/bar_config.md#mode), [`TauBarConfig.stacked_normalization`](api/bar_config.md#stacked_normalization)
+- **Stacked and normalized lines**: [`TauLineConfig.mode`](api/line_config.md#mode), [`TauLineConfig.stacked_normalization`](api/line_config.md#stacked_normalization), [`TauLineConfig.stacked_negative_policy`](api/line_config.md#stacked_negative_policy)
+- **Area fills, flat or textured**: [`TauLineFill`](api/line_fill.md), held in [`TauLineStyle.fills`](api/line_style.md#fills)
+- **Interpolation and gaps**: [`TauLineConfig.interpolation_modes`](api/line_config.md#interpolation_modes), [`TauLineConfig.gap_policy`](api/line_config.md#gap_policy)
 - **Logarithmic scales**: [`TauAxisConfig.scale`](api/axis_config.md#scale)
 - **Fixed axis range**: [`TauAxisConfig.range_override_enabled`](api/axis_config.md#range_override_enabled)
-- **Per-sample visual overrides (data-driven)**: [`ScatterVisualAttributes`](api/scatter_visual_attributes.md), [`BarVisualAttributes`](api/bar_visual_attributes.md)
-- **Per-sample visual overrides (code-driven)**: [`ScatterVisualCallbacks`](api/scatter_visual_callbacks.md), [`BarVisualCallbacks`](api/bar_visual_callbacks.md)
-- **Godot theme integration**: every style class documents its theme keys, see for example [`TauBarStyle`](api/bar_style.md#theming) and [`TauScatterStyle`](api/scatter_style.md#theming)
+- **Per-sample visual overrides (data-driven)**: [`ScatterVisualAttributes`](api/scatter_visual_attributes.md), [`BarVisualAttributes`](api/bar_visual_attributes.md), [`LineVisualAttributes`](api/line_visual_attributes.md)
+- **Per-sample visual overrides (code-driven)**: [`ScatterVisualCallbacks`](api/scatter_visual_callbacks.md), [`BarVisualCallbacks`](api/bar_visual_callbacks.md), [`LineVisualCallbacks`](api/line_visual_callbacks.md)
+- **Godot theme integration**: every style class documents its theme keys, see for example [`TauBarStyle`](api/bar_style.md#theming), [`TauScatterStyle`](api/scatter_style.md#theming), and [`TauLineStyle`](api/line_style.md#theming)
 - **Secondary X axis**: [`TauXYConfig.secondary_x_axis`](api/xy_config.md#secondary_x_axis)
 - **Dual Y axes with zero alignment**: [`TauPaneConfig.align_y_axes_at_zero`](api/pane_config.md#align_y_axes_at_zero)
 - **Dataset mutation**: adding, removing, and reordering series at runtime on [`Dataset`](api/dataset.md)

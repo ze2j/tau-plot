@@ -5,23 +5,29 @@
 class_name TauPlot extends PanelContainer
 
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const DatasetChange := preload("res://addons/tau-plot/model/dataset_change.gd").DatasetChange
 
-const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const StackedNormalization := preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
+
+const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
-const ScatterVisualAttributes = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
+const ScatterVisualAttributes := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
+const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
 
-const VisualCallbacks = preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
+const VisualCallbacks := preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
 const BarVisualCallbacks := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_callbacks.gd").BarVisualCallbacks
-const ScatterVisualCallbacks = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
+const ScatterVisualCallbacks := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
+const LineVisualCallbacks := preload("res://addons/tau-plot/plot/xy/line/line_visual_callbacks.gd").LineVisualCallbacks
 
-const SampleHit = preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const SampleHit := preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
 
-const ColorBuffer = preload("res://addons/tau-plot/model/color_buffer.gd").ColorBuffer
-const Float32Buffer = preload("res://addons/tau-plot/model/float32_buffer.gd").Float32Buffer
+const ColorBuffer := preload("res://addons/tau-plot/model/color_buffer.gd").ColorBuffer
+const Float32Buffer := preload("res://addons/tau-plot/model/float32_buffer.gd").Float32Buffer
 const Float64Buffer := preload("res://addons/tau-plot/model/float64_buffer.gd").Float64Buffer
-const Int32Buffer = preload("res://addons/tau-plot/model/int32_buffer.gd").Int32Buffer
+const Int32Buffer := preload("res://addons/tau-plot/model/int32_buffer.gd").Int32Buffer
 const StringBuffer := preload("res://addons/tau-plot/model/string_buffer.gd").StringBuffer
 
 const _XYPlotValidator := preload("res://addons/tau-plot/plot/xy/xy_plot_validator.gd").XYPlotValidator
@@ -62,7 +68,7 @@ const _XYPlotScene := preload("res://addons/tau-plot/plot/xy/xy_plot.tscn")
 			return
 		legend_config = value
 		if _xy_plot != null:
-			_xy_plot.set_legend_config(legend_config)
+			_xy_plot.set_legend_config(_effective_legend_config())
 			queue_refresh()
 
 
@@ -110,6 +116,10 @@ signal sample_click_dismissed()
 
 var _pending_refresh := false
 
+# Stands in for legend_config when the user leaves it unset, so the plot
+# internals always read a config. Its defaults are the documented ones.
+var _default_legend_config := TauLegendConfig.new()
+
 # Child nodes
 var _plot_title: RichTextLabel
 var _plot_vbox: VBoxContainer
@@ -149,6 +159,12 @@ func _init() -> void:
 
 func _notification(what: int) -> void:
 	match what:
+		NOTIFICATION_ENTER_TREE:
+			# Entering at the size it already had raises no
+			# NOTIFICATION_RESIZED, so a request made outside the tree is run
+			# here.
+			if _pending_refresh:
+				_refresh_next_frame()
 		NOTIFICATION_RESIZED:
 			_refresh()
 		NOTIFICATION_THEME_CHANGED:
@@ -179,7 +195,7 @@ func plot_xy(p_dataset: Dataset, p_xy_config: TauXYConfig, p_series_bindings: Ar
 	_xy_plot.setup(
 		self, queue_refresh,
 		p_dataset, p_xy_config, p_series_bindings,
-		legend_enabled, legend_config,
+		legend_enabled, _effective_legend_config(),
 		hover_enabled, hover_config)
 
 	# Title is driven by the exported property.
@@ -205,9 +221,10 @@ func queue_refresh():
 	if _pending_refresh:
 		return # Already scheduled
 	_pending_refresh = true
-	# Wait one frame to allow label visibility changes to propagate through layout system.
-	await get_tree().process_frame
-	_refresh()
+	# Outside the tree there is no frame to wait for and nothing to lay out.
+	# NOTIFICATION_ENTER_TREE runs the pending request.
+	if is_inside_tree():
+		_refresh_next_frame()
 
 
 func reset():
@@ -223,8 +240,18 @@ func reset():
 func _refresh() -> void:
 	_pending_refresh = false
 	if _xy_plot != null:
-		var pos := legend_config.position if legend_config != null else TauLegendConfig.Position.OUTSIDE_TOP
-		_xy_plot.refresh(global_position, pos)
+		_xy_plot.refresh(global_position, _effective_legend_config().position)
+
+
+# Waits one frame to let label visibility changes propagate through the layout
+# system, then runs the pending refresh.
+func _refresh_next_frame() -> void:
+	await get_tree().process_frame
+	_refresh()
+
+
+func _effective_legend_config() -> TauLegendConfig:
+	return legend_config if legend_config != null else _default_legend_config
 
 
 func _reset_active_plot() -> void:

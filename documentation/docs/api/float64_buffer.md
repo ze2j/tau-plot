@@ -12,6 +12,8 @@ Ring buffer that stores `float` values (64-bit) with a fixed capacity.
 
 All read and write operations use **logical indices**. Index `0` refers to the oldest value currently in the buffer. Index [`size()`](#size)` - 1` refers to the most recently appended one. Logical indices shift when the buffer wraps: after a new value is appended into a full buffer, every index decreases by one.
 
+The buffer holds no readable value outside `[0, `[`size()`](#size)` - 1]`. Capacity bounds how many values the buffer can hold at once, and appending is the only operation that raises [`size()`](#size).
+
 The buffer is pre-allocated at construction and does not resize unless [`set_capacity()`](#set_capacity) is called explicitly.
 
 ### Example
@@ -20,15 +22,15 @@ The buffer is pre-allocated at construction and does not resize unless [`set_cap
 # Ring buffer with a capacity of 512 floats (64-bit).
 var y_vals := TauPlot.Float64Buffer.new(512)
 
-# Append one float
+# Append one float.
 y_vals.append_value(3.14159265358979)
 ```
 
 ### Notes
 
-1. **Default value fills unused slots.** At construction and after [`clear()`](#clear), every slot is filled with `p_default_value`. Default: `0.0`.
+1. **A new buffer is empty.** Construction allocates the slots and stores no value, so [`size()`](#size) is `0` and every read fails until the first append. [`clear()`](#clear) returns the buffer to that state.
 
-2. **Out-of-range access logs an error.** [`get_value()`](#get_value), [`set_value()`](#set_value), and [`set_values()`](#set_values) log an error and return early when the buffer is empty or the index is out of range.
+2. **Out-of-range access logs an error.** [`set_value()`](#set_value) and [`set_values()`](#set_values) log an error and write nothing when the buffer is empty or the index is out of range. [`get_value()`](#get_value) reports the same failure through its return value.
 
 3. **[`append_value()`](#append_value) and [`append_values()`](#append_values) always succeed.** They never reject input. When the buffer is full, the oldest value is silently overwritten. The return value indicates how many existing values were overwritten.
 
@@ -40,12 +42,11 @@ y_vals.append_value(3.14159265358979)
 Float64Buffer.new(p_capacity: int) -> Float64Buffer
 ```
 
-Creates an empty buffer with the given capacity. The buffer is ready to use immediately after construction.
+Creates an empty buffer with the given capacity.
 
 **Parameters**
 
-* `p_capacity: int` Maximum number of `float` values the buffer can hold. Values below `1` are clamped to `1`.
-* `p_default_value: float` Value used to fill unused slots at construction and after [`clear()`](#clear). Default: `0.0`.
+* `p_capacity: int` Maximum number of `float` values (64-bit) the buffer can hold. Values below `1` are clamped to `1`.
 
 ## Methods
 
@@ -79,7 +80,9 @@ Returns the number of values currently stored. Always between `0` and [`get_capa
 get_value(p_logical_index: int) -> float
 ```
 
-Returns the `float` at the given logical index. Index `0` is the oldest value in the buffer, [`size()`](#size)` - 1` is the most recent. Logs an error and returns `0.0` if the buffer is empty or the index is out of range.
+Returns the `float` at the given logical index. Index `0` is the oldest value in the buffer, [`size()`](#size)` - 1` is the most recent.
+
+Reading an empty buffer, or a logical index below `0` or at or above [`size()`](#size), pushes an error and returns `0.0`.
 
 **Parameters**
 
@@ -139,7 +142,7 @@ Appends one `float` to the buffer. If the buffer is full, the oldest value is ov
 append_values(p_values: PackedFloat64Array) -> int
 ```
 
-Appends multiple `float` values to the buffer. If the buffer does not have enough free slots, the oldest values are overwritten. Returns the number of existing values overwritten. Returns `0` immediately if `p_values` is empty.
+Appends multiple `float` values (64-bit) to the buffer. If the buffer does not have enough free slots, the oldest values are overwritten. Returns the number of existing values overwritten. Returns `0` immediately if `p_values` is empty.
 
 **Parameters**
 
@@ -155,7 +158,7 @@ Appends multiple `float` values to the buffer. If the buffer does not have enoug
 set_capacity(p_capacity: int) -> void
 ```
 
-Resizes the buffer to the new capacity. Values below `1` are clamped to `1`. If the new capacity is smaller than the current sample count, the oldest values are dropped. If the new capacity is greater, existing values are preserved, new slots are pre-filled with the default value set at construction, and [`size()`](#size) is unchanged. Does nothing if the new capacity equals the current one.
+Resizes the buffer to the new capacity. Values below `1` are clamped to `1`. If the new capacity is below [`size()`](#size), the oldest values are dropped and [`size()`](#size) becomes the new capacity. If it is above, every stored value is preserved and [`size()`](#size) is unchanged. Does nothing if the new capacity equals the current one.
 
 **Parameters**
 
@@ -171,7 +174,7 @@ Resizes the buffer to the new capacity. Values below `1` are clamped to `1`. If 
 clear() -> void
 ```
 
-Removes all stored values. The buffer capacity is unchanged. All slots are refilled with the `p_default_value` set at construction.
+Removes all stored values. [`size()`](#size) becomes `0` and the capacity is unchanged.
 
 ## Related Classes
 

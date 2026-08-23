@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://bfytr6v8kt1u3"]
+
+[ext_resource type="Script" uid="uid://1tn2f2raeha3" path="res://addons/tau-plot/examples/getting_started/getting_started_7.gd" id="1_3fay5"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_e3ple"]
+
+[node name="GettingStarted7" type="CenterContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_3fay5")
+
+[node name="MyPlot" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(600, 400)
+layout_mode = 2
+theme_type_variation = &"TauPlot"
+script = ExtResource("2_e3ple")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"

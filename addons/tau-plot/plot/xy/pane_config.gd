@@ -11,7 +11,7 @@
 ## with a price pane and a volume pane).
 class_name TauPaneConfig extends Resource
 
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
 ## Y axis displayed on the bottom edge, or [code]null[/code] if unused.
 @export var y_bottom_axis: TauAxisConfig = null
@@ -39,6 +39,7 @@ const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 ## Stretch ratio of this pane compared to the others. Works like
 ## [member Control.size_flags_stretch_ratio]. Three panes with weights
 ## [code]2, 1, 1[/code] produce a 50%/25%/25% split.
+## Must be greater than [code]0.0[/code].
 @export var stretch_ratio: float = 1.0
 
 ## If [code]true[/code], the two y axes are adjusted so that
@@ -60,11 +61,9 @@ const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 @export var align_y_axes_at_zero: bool = false
 
 
-####################################################################################################
-# Helpers
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 
 
 func get_y_axis_config(p_axis_id: AxisId) -> TauAxisConfig:
@@ -84,6 +83,8 @@ func get_y_axis_config(p_axis_id: AxisId) -> TauAxisConfig:
 
 func get_overlay_config(p_overlay_type: PaneOverlayType) -> TauPaneOverlayConfig:
 	for overlay_config in overlays:
-		if overlay_config != null and overlay_config.overlay_type == p_overlay_type:
+		if overlay_config.overlay_type == p_overlay_type:
 			return overlay_config
 	return null
+
+#endregion

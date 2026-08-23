@@ -5,7 +5,8 @@ const BarVisualCallbacks := preload("res://addons/tau-plot/plot/xy/bar/bar_visua
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`
-#          and, if applicable, in `has_layout_affecting_change()`.
+#          and, if applicable, in `has_layout_affecting_change()`. `style` is the
+#          one exception, see the note above `is_equal_to()`.
 ################################################################################################
 
 ## Theme-driven visual and spacing parameters for bars.
@@ -13,18 +14,44 @@ const BarVisualCallbacks := preload("res://addons/tau-plot/plot/xy/bar/bar_visua
 ## Properties set this way are automatically guarded from theme overwriting.
 @export var style: TauBarStyle = TauBarStyle.new()
 
+## How the bars of several series are arranged.
 enum BarMode
 {
+	## Bars sit side by side inside the x position, sharing its width.
 	GROUPED,
+
+	## Bars are stacked on top of one another, each starting where the
+	## previous series ended.
 	STACKED,
+
+	## Bars are drawn at full width at the x position and overlap, each series
+	## starting from the baseline.
 	INDEPENDENT
 }
+
+## Arrangement of the bars of several series. See [enum BarMode].
+## A single-series overlay draws the same way in all three modes.
 @export var mode: BarMode = BarMode.GROUPED
 
-const StackedNormalization = preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+const StackedNormalization := preload("res://addons/tau-plot/plot/xy/stacked_normalization.gd").StackedNormalization
+
+## What each stack is scaled to in [constant BarMode.STACKED]. See
+## [enum StackedNormalization]. Ignored in the other bar modes.
 @export var stacked_normalization: StackedNormalization = StackedNormalization.NONE
 
+const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 
+## How negative values are handled in STACKED mode:
+## - SKIP_NEGATIVES (default) drops negative samples entirely from the stack.
+## - DIVERGING splits each X into an upper stack of positive values and
+## a lower stack of negative values, both anchored at zero.
+## - SIGNED_SUM is not a valid choice for bars: bar geometry cannot represent a
+## downward dip without overlapping rectangles. Setting it produces a validation
+## error.
+@export var stacked_negative_policy: StackedNegativePolicy = StackedNegativePolicy.SKIP_NEGATIVES
+
+
+## Where the bar width and the gaps between bars come from.
 enum BarWidthPolicy
 {
 	AUTO,                       ## Uses the library default width policy for the active X axis type:
@@ -36,34 +63,60 @@ enum BarWidthPolicy
 	NEIGHBOR_SPACING_FRACTION   ## Width derived from local neighbor spacing (CONTINUOUS X axis type only).
 }
 
-# If type == CATEGORICAL, allowed: AUTO, THEME, CATEGORY_WIDTH_FRACTION.
-# If type == CONTINUOUS,  allowed: AUTO, THEME, DATA_UNITS, NEIGHBOR_SPACING_FRACTION.
+## Where the bar width and the gaps between bars come from. See
+## [enum BarWidthPolicy].
+##
+## Which policies a pane accepts depends on the type of its x axis. A
+## categorical x axis accepts AUTO, THEME and CATEGORY_WIDTH_FRACTION. A
+## continuous one accepts AUTO, THEME, DATA_UNITS and
+## NEIGHBOR_SPACING_FRACTION. Any other combination is a validation error.
+##
+## The policy also decides whether the width is theme-driven.
+## [constant BarWidthPolicy.THEME] reads [member TauBarStyle.bar_width_px] and
+## [member TauBarStyle.bar_intragroup_gap_px], both resolved through the style
+## cascade described in [TauStyle], so a theme can set them. Every other
+## policy derives the width and the gap from properties of this config, which
+## have no theme layer.
 @export var bar_width_policy: BarWidthPolicy = BarWidthPolicy.AUTO
 
 ####################################################################################################
 # CATEGORY_WIDTH_FRACTION policy (CATEGORICAL X axis type only)
 ####################################################################################################
 
-# Fraction of the category slot width used by the entire group
-# For a single series, this is the bar width.
-@export_range(0.01, 1.00, 0.01) var category_width_fraction: float = 0.9    # Must in ]0; 1]
+## Share of a category slot taken up by the whole group of bars drawn at that
+## category, the rest being left as whitespace between categories. With a
+## single series this is the bar width itself.
+##
+## Only read under [constant BarWidthPolicy.CATEGORY_WIDTH_FRACTION]. Valid
+## range is [code]]0.0, 1.0][/code].
+@export_range(0.01, 1.00, 0.01) var category_width_fraction: float = 0.9
 
-# Gap between bars inside a group, expressed as a fraction of bar width.
-# Bar width is derived so that all bars and gaps fit within the category_width_fraction.
-@export_range(0.00, 1.00, 0.01) var intra_group_gap_fraction: float = 0.1   # Must in [0; 1]
+## Gap between two bars of the same group, as a share of one bar width. The
+## bar width is derived so that the bars and the gaps together fill the span
+## set by [member category_width_fraction].
+##
+## Only read under [constant BarWidthPolicy.CATEGORY_WIDTH_FRACTION], and
+## only in [constant BarMode.GROUPED]. Valid range is
+## [code][0.0, 1.0][/code].
+@export_range(0.00, 1.00, 0.01) var intra_group_gap_fraction: float = 0.1
 
 ####################################################################################################
 # DATA_UNITS policy (LINEAR X scale only)
 ####################################################################################################
 
-# Bar width expressed in X data units.
-# Visible effect: bars keep a constant width in "real" X units across the plot.
-# Must be >= 0.
+## Bar width in x data units, so bars keep the same width in data terms
+## wherever they sit on the axis.
+##
+## Only read under [constant BarWidthPolicy.DATA_UNITS] on a linear x axis. A
+## logarithmic x axis reads [member bar_width_log_factor] instead. Must be at
+## or above [code]0.0[/code].
 @export var bar_width_x_units: float = 1.0
 
-# Extra spacing between bars inside a GROUPED cluster, expressed in X data units.
-# Visible effect: increases or decreases the whitespace between series bars at the same X.
-# Must be >= 0.
+## Gap between two bars of the same group, in x data units.
+##
+## Only read under [constant BarWidthPolicy.DATA_UNITS] on a linear x axis,
+## and only in [constant BarMode.GROUPED]. Must be at or above
+## [code]0.0[/code].
 @export var bar_gap_x_units: float = 0.0
 
 
@@ -71,18 +124,21 @@ enum BarWidthPolicy
 # DATA_UNITS policy (LOGARITHMIC X scale only)
 ####################################################################################################
 
-# Bar width expressed as a multiplicative factor around the bar's X value.
-# Visible effect: bars have a consistent relative thickness everywhere on a log axis
-# (same visual width at X = 1, 10, 100, etc.).
-# Example: 2.0 means the bar spans from X/sqrt(2) to X*sqrt(2).
-# Must be > 1.
+## Bar width as a multiplicative factor around the x value of the bar, so
+## bars keep the same on-screen width across decades. [code]2.0[/code] spans
+## from [code]x / sqrt(2)[/code] to [code]x * sqrt(2)[/code].
+##
+## Only read under [constant BarWidthPolicy.DATA_UNITS] on a logarithmic x
+## axis. A linear x axis reads [member bar_width_x_units] instead. Must be
+## at or above [code]1.0[/code].
 @export var bar_width_log_factor: float = 1.5
 
-# Extra spacing between bars inside a GROUPED cluster, expressed as a multiplicative
-# factor relative to the bar width on a log axis.
-# Visible effect: increases or decreases the whitespace between series bars at the same X,
-# consistently across decades.
-# Must be >= 1.
+## Gap between two bars of the same group, as a multiplicative factor on the
+## bar width, so the gap stays even across decades.
+##
+## Only read under [constant BarWidthPolicy.DATA_UNITS] on a logarithmic x
+## axis, and only in [constant BarMode.GROUPED]. [code]1.0[/code] leaves no
+## gap. Must be at or above [code]1.0[/code].
 @export var bar_gap_log_factor: float = 1.0
 
 
@@ -90,20 +146,19 @@ enum BarWidthPolicy
 # NEIGHBOR_SPACING_FRACTION policy (continuous X only)
 ####################################################################################################
 
-# Fraction of the local spacing between neighboring X samples used as the bar width
-# (STACKED / INDEPENDENT) or as the total group width (GROUPED).
-# Visible effect: bars automatically become thinner in dense regions and thicker in
-# sparse regions.
-# Must be in ]0, 1].
-@export_range(0.01, 1.00) var neighbor_spacing_fraction: float = 0.8
+## Share of the distance to the nearest neighbouring x sample taken up by the
+## bar, or by the whole group in [constant BarMode.GROUPED]. Bars thin out
+## where the samples crowd together and widen where they spread apart.
+##
+## Only read under [constant BarWidthPolicy.NEIGHBOR_SPACING_FRACTION]. Valid
+## range is [code]]0.0, 1.0][/code].
+@export_range(0.01, 1.00, 0.01) var neighbor_spacing_fraction: float = 0.8
 
-# Extra spacing between bars inside a GROUPED cluster, expressed as a fraction of the
-# individual bar width.
-# For interior points, spacing is the minimum distance to the previous or next X value.
-# For edge points, spacing is the distance to the single neighboring X value.
-# Visible effect: increases or decreases the whitespace between series bars at the same X
-# while still adapting to local sample spacing.
-# Must be >= 0.
+## Gap between two bars of the same group, as a share of one bar width, so
+## the gap follows the local sample spacing the same way the width does.
+##
+## Only read under [constant BarWidthPolicy.NEIGHBOR_SPACING_FRACTION], and
+## only in [constant BarMode.GROUPED]. Must be at or above [code]0.0[/code].
 @export var neighbor_gap_fraction: float = 0.1
 
 
@@ -120,9 +175,7 @@ var bar_visual_callbacks: BarVisualCallbacks:
 		visual_callbacks = value
 
 
-####################################################################################################
-# Helpers
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
 func _init() -> void:
 	overlay_type = PaneOverlayType.BAR
@@ -138,6 +191,9 @@ func get_resolved_bar_width_policy(p_axis_type: TauAxisConfig.Type) -> BarWidthP
 	return BarWidthPolicy.NEIGHBOR_SPACING_FRACTION
 
 
+# `style` is left out on purpose. A style resource carries its own equality and
+# emits `changed` when mutated, so style changes are diffed and re-resolved on
+# their own. Comparing it here would only repeat that work.
 func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauBarConfig
 	if other == null:
@@ -149,6 +205,8 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	if mode != other.mode:
 		return false
 	if stacked_normalization != other.stacked_normalization:
+		return false
+	if stacked_negative_policy != other.stacked_negative_policy:
 		return false
 
 	if bar_width_policy != other.bar_width_policy:
@@ -180,17 +238,16 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 # Returns true if the change between this and p_other affects layout/domain.
 # Returns false if the change only affects visual appearance.
 #
-# Only mode and stacked_normalization affect the domain (stacking changes Y
-# bounds via _apply_bar_domain_overrides_y). All width, gap, and spacing
-# properties are visual-only: they control how bars are drawn within a fixed
-# domain but do not feed into domain or tick computation.
+# mode, stacked_normalization, and stacked_negative_policy affect the domain:
+# stacking changes Y bounds, normalization pins the range, and the negative
+# policy decides whether the lower half-axis exists. All width, gap, and
+# spacing properties are visual-only: they control how bars are drawn within
+# a fixed domain but do not feed into domain or tick computation.
 func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauBarConfig
-	if other == null:
-		return false
 
-	if not super.has_layout_affecting_change(other):
-		return false
+	if super.has_layout_affecting_change(other):
+		return true
 
 	if mode != other.mode:
 		return true
@@ -198,4 +255,9 @@ func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 	if mode == BarMode.STACKED and stacked_normalization != other.stacked_normalization:
 		return true
 
+	if mode == BarMode.STACKED and stacked_negative_policy != other.stacked_negative_policy:
+		return true
+
 	return false
+
+#endregion

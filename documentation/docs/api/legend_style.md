@@ -1,57 +1,29 @@
 # TauLegendStyle
 
 !!! info ""
-    **Inherits:** `Resource`  
+    **Inherits:** [`TauStyle`](style.md)
 
 Controls the visual appearance of the legend.
 
 ## Description
 
-`TauLegendStyle` controls the appearance of the legend rendered by `TauPlot`.
+The legend lists one entry per visible series. An entry holds a **key strip** and a **label**: the strip carries one key per overlay the series is drawn by, and the label carries the series name. A series drawn as bars and as markers therefore shows two keys before its name.
 
-The legend shows one item per visible series. Each item contains:
+Which series appear is decided by [`TauXYSeriesBinding.show_in_legend`](xy_series_binding.md#show_in_legend), one flag per binding. `TauLegendStyle` controls what an entry looks like: the font of the label, the size of a key, the gaps inside and between entries, the panel behind the whole legend, and the cap past which entries are reached by scrolling.
 
-* a **key strip**, which displays one key for each [`overlay_type`](tau_plot.md#paneoverlaytype) used by the series
-* a **label**, which displays the series name
-
-For example, if one series is drawn both as bars and as scatter markers, its legend item shows **two keys** before the label.
+`TauLegendStyle` lives on [`TauLegendConfig.style`](legend_config.md#style). It is created with [`TauLegendConfig`](legend_config.md) and is never `null`. Several [`TauLegendConfig`](legend_config.md) instances can share the same instance.
 
 ### Three-layer cascade
 
-Each property's final value is resolved through the following cascade, in order:
+Each property is resolved in three layers: the built-in default, then the value the active Godot theme names, then the value assigned on this instance. A property counts as overridden as soon as it is assigned, whatever the value, and for an array property only assigning a new array counts.
 
-1. **Built-in default**  
-    The final value starts from the built-in default.
-
-2. **Theme value**  
-    If the active Godot theme defines a matching legend property, that value replaces the built-in default.
-
-3. **User override**  
-    If the property is explicitly set on the `TauLegendStyle` instance, that value overrides both the theme and the built-in default.
-
-In short:
-
-- the last layer that provides a value wins
-- the Godot theme is suited for **project-wide styling**
-- `TauLegendStyle` is suited for **per-plot styling**
-
-**Override detection limitation**
-
-A property is considered overridden only when its value differs from the corresponding built-in default constant.
-
-As a result, assigning a property to exactly its built-in default value does **not** force it to override the theme.
-
-Example:
-
-* built-in default `font_size` is `14`
-* the theme sets `font_size` to `18`
-* setting `style.font_size = 14` does **not** override the theme
+See [`TauStyle`](style.md#three-layer-cascade) for the cascade and [`TauStyle`](style.md#theme-keys) for the grammar of the keys listed in [Theming](#theming).
 
 ### Theming
 
-`TauLegendStyle` reads theme values from the `TauLegend` **theme type variation**. Its base type is `PanelContainer`.
+`TauLegendStyle` reads its keys from the `TauLegend` **theme type variation**, whose base type is `PanelContainer`.
 
-A theme resource using `TauLegend` must therefore include a base type declaration:
+A theme resource using `TauLegend` must include a base type declaration:
 
 ```gdscript
 [resource]
@@ -63,24 +35,34 @@ The following theme entries are used:
 
 | Theme property | Description |
 | --- | --- |
-| `font`: `Font` | Maps to [`font`](#font) |
-| `font_size`: `int` | Maps to [`font_size`](#font_size) |
-| `font_color`: `Color` | Maps to [`font_color`](#font_color) |
-| `legend_key_size_px`: `int` | Maps to [`key_size_px`](#key_size_px) |
-| `legend_key_gap_px`: `int` | Maps to [`key_gap_px`](#key_gap_px) |
-| `legend_key_label_gap_px`: `int` | Maps to [`key_label_gap_px`](#key_label_gap_px) |
-| `legend_item_gap_px`: `int` | Maps to [`item_gap_px`](#item_gap_px) |
-| `legend_background`: `StyleBox` | Maps to [`background`](#background) |
-| `legend_margin_px`: `int` | Maps to [`margin_px`](#margin_px) |
-| `legend_max_size_px`: `int` | Maps to [`max_size_px`](#max_size_px) |
+| `font`: `Font` | Maps to [`font`](#font). |
+| `font_size`: `int` | Maps to [`font_size`](#font_size). |
+| `font_color`: `Color` | Maps to [`font_color`](#font_color). |
+| `legend_key_size_px`: `int` | Maps to [`key_size_px`](#key_size_px). |
+| `legend_key_gap_px`: `int` | Maps to [`key_gap_px`](#key_gap_px). |
+| `legend_key_label_gap_px`: `int` | Maps to [`key_label_gap_px`](#key_label_gap_px). |
+| `legend_item_gap_px`: `int` | Maps to [`item_gap_px`](#item_gap_px). |
+| `legend_background`: `StyleBox` | Maps to [`background`](#background). |
+| `legend_margin_px`: `int` | Maps to [`margin_px`](#margin_px). |
+| `legend_max_size_px`: `int` | Maps to [`max_size_px`](#max_size_px). |
+
+The plot draws one legend, so no key takes a pane index.
 
 ### Side effects
 
-Some property changes trigger a full layout recomputation. Others only trigger a redraw.
+**Layout-affecting**, triggering a layout recomputation and a redraw: [`font`](#font), [`font_size`](#font_size), [`key_size_px`](#key_size_px), [`key_gap_px`](#key_gap_px), [`key_label_gap_px`](#key_label_gap_px), [`item_gap_px`](#item_gap_px), [`background`](#background), [`margin_px`](#margin_px), [`max_size_px`](#max_size_px).
 
-**Layout-affecting** (trigger both layout and redraw): [`font`](#font), [`font_size`](#font_size), [`key_size_px`](#key_size_px), [`key_gap_px`](#key_gap_px), [`key_label_gap_px`](#key_label_gap_px), [`item_gap_px`](#item_gap_px), [`background`](#background), [`margin_px`](#margin_px), [`max_size_px`](#max_size_px).
+**Visual-only**, triggering a redraw alone: [`font_color`](#font_color).
 
-**Visual-only** (trigger redraw only): [`font_color`](#font_color).
+### Example
+
+```gdscript
+var legend := TauLegendConfig.new()
+
+legend.style.key_size_px = 16
+legend.style.font_size = 12
+legend.style.item_gap_px = 12
+```
 
 ## Constructor
 
@@ -90,7 +72,7 @@ Some property changes trigger a full layout recomputation. Others only trigger a
 TauLegendStyle.new() -> TauLegendStyle
 ```
 
-Creates a new `TauLegendStyle` with all properties set to their built-in defaults. Properties left at their defaults remain theme-overridable.
+Creates a `TauLegendStyle` holding the built-in default of every property.
 
 ## Properties
 
@@ -98,9 +80,13 @@ Creates a new `TauLegendStyle` with all properties set to their built-in default
 
 `font`: `Font`
 
-The font used to render series labels in the legend. Default is `null`.
+Font of the series names. Default is `null`.
 
-If `null`, the plot reads the font from the Godot theme entry `font` on the `TauLegend` type variation. If the theme does not define it either, Godot's built-in default font applies.
+The font comes from the `font` theme property of the `TauLegend` type variation when the theme sets it, and from the font Godot uses by default otherwise.
+
+A font assigned here replaces the themed one. Assigning `null` is an assignment like any other: it drops the themed font, and the series names are drawn in the font Godot uses by default.
+
+Assign a new `Font` rather than mutating the one already assigned. A change made in place is not detected and the plot keeps the previous resolution.
 
 ---
 
@@ -108,7 +94,13 @@ If `null`, the plot reads the font from the Godot theme entry `font` on the `Tau
 
 `font_size`: `int`
 
-The font size in pixels used for series labels. Default is `14`.
+Size in pixels of the series names. Default is `16`.
+
+The size comes from the `font_size` theme property of the `TauLegend` type variation when the theme sets it, and from the theme's own default font size otherwise. In a stock project that default is `16`.
+
+A size assigned here replaces the themed one.
+
+Values below `1` are raised to `1` on assignment.
 
 ---
 
@@ -116,7 +108,7 @@ The font size in pixels used for series labels. Default is `14`.
 
 `font_color`: `Color`
 
-The color used to render series labels. Default is `Color(1, 1, 1, 1)`.
+Color of the series names. Default is `Color(1, 1, 1, 1)`.
 
 ---
 
@@ -124,7 +116,11 @@ The color used to render series labels. Default is `Color(1, 1, 1, 1)`.
 
 `key_size_px`: `int`
 
-The side length in pixels of each key in the key strip. Default is `12`.
+Height in pixels of one legend key. Default is `12`.
+
+A key keeps its aspect ratio, so this height scales the whole key.
+
+Values below `1` are raised to `1` on assignment.
 
 ---
 
@@ -132,9 +128,11 @@ The side length in pixels of each key in the key strip. Default is `12`.
 
 `key_gap_px`: `int`
 
-The pixel gap between adjacent keys within the same key strip. Default is `2`.
+Gap in pixels between two keys of the same entry. Default is `2`.
 
-This applies only when a series is bound to more than one [overlay type](tau_plot.md#paneoverlaytype).
+Only visible on a series drawn by more than one overlay, which is the one case where an entry carries several keys.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -142,7 +140,9 @@ This applies only when a series is bound to more than one [overlay type](tau_plo
 
 `key_label_gap_px`: `int`
 
-The pixel gap between the key strip and the series label. Default is `6`.
+Gap in pixels between the key strip of an entry and its series name. Default is `6`.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -150,9 +150,9 @@ The pixel gap between the key strip and the series label. Default is `6`.
 
 `item_gap_px`: `int`
 
-The pixel gap between separate legend items in the legend `FlowContainer`. Default is `8`.
+Gap in pixels between two legend entries. Default is `8`.
 
-This value is applied as both the horizontal and vertical separation of the container.
+Applies along the flow direction and between wrapped rows or columns alike. Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -160,9 +160,9 @@ This value is applied as both the horizontal and vertical separation of the cont
 
 `background`: `StyleBox`
 
-The `StyleBox` drawn behind the legend. Default is `null` and fallbacks to a fully transparent `StyleBoxFlat` with 8-pixel content margins on all sides is used.
+`StyleBox` drawn behind the legend. Its content margins set the padding between its border and the entries. Default is `null`, resolving to a fully transparent `StyleBoxFlat` with an 8 pixel content margin on all sides.
 
-Assigning any non-null `StyleBox` replaces the background entirely, including that transparent fallback.
+Assign a new `StyleBox` rather than mutating the one already assigned. A change made in place is not detected and the plot keeps the previous resolution.
 
 ---
 
@@ -170,9 +170,11 @@ Assigning any non-null `StyleBox` replaces the background entirely, including th
 
 `margin_px`: `int`
 
-The pixel inset from the data area edge when the legend uses an `INSIDE_*` position. Default is `8`.
+Distance in pixels between the legend and the edges of the data area. Default is `8`.
 
-For corner positions, this applies on both axes. For edge-centered positions, it applies only on the perpendicular axis.
+Only read for the `INSIDE_*` values of [`TauLegendConfig.position`](legend_config.md#position), where the legend floats over the data area. A corner position applies it in both directions, an edge-centered position in the perpendicular direction alone.
+
+Values below `0` are raised to `0` on assignment.
 
 ---
 
@@ -180,21 +182,20 @@ For corner positions, this applies on both axes. For edge-centered positions, it
 
 `max_size_px`: `int`
 
-The maximum size in pixels along the cross-axis of the legend flow direction. Default is `0`.
+Cap in pixels on the legend across its flow direction: the height of a legend flowing horizontally, the width of one flowing vertically. Default is `0`.
 
-A value of `0` disables the constraint.
-
-For horizontal flow (`OUTSIDE_TOP`, `OUTSIDE_BOTTOM`, `INSIDE_TOP`, `INSIDE_BOTTOM`), this limits the height.
-
-For vertical flow (`OUTSIDE_LEFT`, `OUTSIDE_RIGHT`, `INSIDE_LEFT`, `INSIDE_RIGHT`), this limits the width.
-
-When the content exceeds this limit, the legend becomes scrollable along the cross-axis.
+`0` applies no cap. Entries past the cap are reached by scrolling. Values below `0` are raised to `0` on assignment.
 
 ## Related Classes
 
-* [`TauPlot`](tau_plot.md) The plot node. Accepts `TauLegendConfig` via [`legend_config`](tau_plot.md#legend_config).
-* [`TauLegendConfig`](xy_style.md) Owns the `TauLegendStyle` instance via its [`style`](legend_config.md#style) property.
-* [`TauXYStyle`](xy_style.md) Sibling style resource for the whole plot.
-* [`TauPaneStyle`](pane_style.md) Sibling style resource of individual panes.
-* [`TauTooltipStyle`](tooltip_style.md) Sibling style resource of the hover tooltip.
-* [`TauCrosshairStyle`](crosshair_style.md) Sibling style resource of the hover crosshair.
+* [`TauStyle`](style.md) Base class. Defines the cascade, the cycle indexing, and the theme key grammar.
+* [`TauLegendConfig`](legend_config.md) Owns the `TauLegendStyle` instance through its [`style`](legend_config.md#style) property. Its [`position`](legend_config.md#position) decides the flow direction the size cap applies across.
+* [`TauXYSeriesBinding`](xy_series_binding.md) Decides through [`show_in_legend`](xy_series_binding.md#show_in_legend) whether a series contributes an entry.
+* [`TauPlot`](tau_plot.md) The plot node. Accepts a [`TauLegendConfig`](legend_config.md) through [`legend_config`](tau_plot.md#legend_config), resolves the cascade, and holds the Godot theme the second layer reads.
+* [`TauXYStyle`](xy_style.md) Sibling style resource for the plot as a whole.
+* [`TauPaneStyle`](pane_style.md) Sibling style resource for the contents of one pane.
+* [`TauBarStyle`](bar_style.md) Sibling style resource for bar overlays.
+* [`TauScatterStyle`](scatter_style.md) Sibling style resource for scatter overlays.
+* [`TauLineStyle`](line_style.md) Sibling style resource for line overlays.
+* [`TauTooltipStyle`](tooltip_style.md) Sibling style resource for the hover tooltip.
+* [`TauCrosshairStyle`](crosshair_style.md) Sibling style resource for the hover crosshair.

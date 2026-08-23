@@ -3,8 +3,10 @@
 ## Each callback is optional (invalid Callable = no callback for that property).
 @abstract class VisualCallbacks extends RefCounted:
 	# Signature: func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> Color
+	# Return ColorBuffer.NO_COLOR to leave the sample to the next resolution step.
 	var color_callback: Callable = Callable()
 
 	# Signature: func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> float
 	# Return value should be in range [0.0, 1.0].
+	# Return a negative value to leave the sample to the next resolution step.
 	var alpha_callback: Callable = Callable()

@@ -1,9 +1,9 @@
 # Dependencies
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
-const ScatterVisualAttributes = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
-const ScatterVisualCallbacks = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
-const ValidationResult = preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const ScatterVisualAttributes := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
+const ScatterVisualCallbacks := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
+const ValidationResult := preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
 
 
 ## Validates that the scatter overlay configuration for a single pane is
@@ -35,9 +35,6 @@ class ScatterValidator extends RefCounted:
 				return
 
 		var pane_cfg := p_domain_cfg.panes[p_pane_index]
-		if pane_cfg == null:
-			p_result.add_error("ScatterValidator: pane %d: pane config is null" % p_pane_index)
-			return
 
 		var scatter_config := pane_cfg.get_overlay_config(PaneOverlayType.SCATTER) as TauScatterConfig
 		if scatter_config == null:

@@ -1,0 +1,124 @@
+[gd_scene load_steps=12 format=3 uid="uid://dgvb3c2v6bjvw"]
+
+[ext_resource type="Script" uid="uid://mu568prosw6u" path="res://addons/tau-plot/examples/demo_1.gd" id="1_vu5ge"]
+[ext_resource type="Theme" uid="uid://d226pmiov3uo2" path="res://addons/tau-plot/examples/demo_1/demo_1_theme.tres" id="2_hckf2"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="3_l16rl"]
+[ext_resource type="Theme" uid="uid://bkvpytuae237j" path="res://addons/tau-plot/examples/demo_1/demo_2_theme.tres" id="4_enypp"]
+[ext_resource type="Theme" uid="uid://cr376gm2pr7m8" path="res://addons/tau-plot/examples/demo_1/demo_3_theme.tres" id="5_tdu8e"]
+[ext_resource type="Theme" uid="uid://b5no6dim1ybuy" path="res://addons/tau-plot/examples/demo_1/demo_4_theme.tres" id="6_nrg1o"]
+[ext_resource type="Theme" uid="uid://d0fsymjc1i03v" path="res://addons/tau-plot/examples/demo_1/demo_5_theme.tres" id="7_t4eiu"]
+[ext_resource type="Theme" uid="uid://c5rvjilrswo3c" path="res://addons/tau-plot/examples/demo_1/demo_6_theme.tres" id="8_eiibn"]
+[ext_resource type="Theme" uid="uid://d0i8t7e3y08lg" path="res://addons/tau-plot/examples/demo_1/demo_7_theme.tres" id="9_u6cn0"]
+[ext_resource type="Theme" uid="uid://mth7t8od1rd1" path="res://addons/tau-plot/examples/demo_1/demo_8_theme.tres" id="10_aqj67"]
+[ext_resource type="Theme" uid="uid://bcreqdyaytb5h" path="res://addons/tau-plot/examples/demo_1/demo_9_theme.tres" id="11_ifyyt"]
+
+[node name="Demo" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_vu5ge")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "TauPlot Demo 1"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 3
+
+[node name="DemoPlot1" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("2_hckf2")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_l16rl")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot2" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("4_enypp")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_l16rl")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot3" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("5_tdu8e")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_l16rl")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot4" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("6_nrg1o")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_l16rl")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot5" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("7_t4eiu")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_l16rl")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot6" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("8_eiibn")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_l16rl")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot7" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("9_u6cn0")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_l16rl")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot8" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("10_aqj67")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_l16rl")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot9" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("11_ifyyt")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_l16rl")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"

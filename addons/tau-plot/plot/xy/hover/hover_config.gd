@@ -69,7 +69,11 @@ var hover_highlight_callback: Callable = Callable()
 ## decimal places. The displayed precision adapts to the domain: a span
 ## of 0.001 with 3 digits shows ~6 decimal places, while a span of 1000
 ## with 3 digits shows ~0.
-@export_range(1, 15) var tooltip_precision_digits: int = 3
+##
+## Clamped to [code][1, 15][/code] on assignment.
+@export_range(1, 15) var tooltip_precision_digits: int = 3:
+	set(value):
+		tooltip_precision_digits = clampi(value, 1, 15)
 
 ## Visual styling for the tooltip popup.
 ## Resolved through the standard defaults > theme > user-override cascade.

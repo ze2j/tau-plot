@@ -13,7 +13,7 @@ const AxisDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").AxisDo
 const XYDomainOverrides := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").XYDomainOverrides
 const YDomainOverride := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").YDomainOverride
 const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis_assignment.gd").SeriesAxisAssignment
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
 
 class DatasetChangeAnalyzer extends RefCounted:
@@ -113,9 +113,9 @@ class DatasetChangeAnalyzer extends RefCounted:
 					if axis_domain.config != null and axis_domain.config.range_override_enabled:
 						continue
 
-					# Bar stacking override (FRACTION/PERCENT) pins the range on the target axis.
-					var pane_override: YDomainOverride = p_domain_overrides.y_domain_overrides[pane_idx]
-					if pane_override.force_y_range and pane_override.target_y_axis_id == y_axis_id:
+					# A stacking override (FRACTION/PERCENT) on this axis pins the range.
+					var pane_override: YDomainOverride = p_domain_overrides.get_override(pane_idx, y_axis_id)
+					if pane_override != null and pane_override.force_y_range:
 						continue
 
 					# include_zero could shift bounds even if the new values are in range.
@@ -137,8 +137,8 @@ class DatasetChangeAnalyzer extends RefCounted:
 		p_recompute_min: float,
 		p_recompute_max: float
 	) -> bool:
-		var start_idx := p_change.start_index
-		var end_idx := p_change.end_index_exclusive
+		var start_idx := p_change.start_sample_index
+		var end_idx := p_change.end_sample_index_exclusive
 
 		if p_dataset.get_mode() == Dataset.Mode.SHARED_X:
 			for i in range(start_idx, end_idx):
@@ -166,8 +166,8 @@ class DatasetChangeAnalyzer extends RefCounted:
 		p_change: DatasetChange,
 		p_axis_domain: AxisDomain
 	) -> bool:
-		var start_idx := p_change.start_index
-		var end_idx := p_change.end_index_exclusive
+		var start_idx := p_change.start_sample_index
+		var end_idx := p_change.end_sample_index_exclusive
 		var count := p_dataset.get_series_sample_count(p_series_id)
 
 		var effective_end := min(end_idx, count)

@@ -1,9 +1,9 @@
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
-const SampleHit = preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
-const HoverMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
-const OverlayHitTester = preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const SampleHit := preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const HoverMode := preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
+const OverlayHitTester := preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 const BarRenderer := preload("res://addons/tau-plot/plot/xy/bar/bar_renderer.gd").BarRenderer
 const BarHitRecord := preload("res://addons/tau-plot/plot/xy/bar/bar_hit_record.gd").BarHitRecord
 
@@ -35,7 +35,7 @@ class BarHitTester extends OverlayHitTester:
 		return _bar_config.hoverable
 
 
-	func get_preferred_hover_mode() -> int:
+	func get_preferred_hover_mode() -> HoverMode:
 		return HoverMode.X_ALIGNED
 
 
@@ -66,28 +66,28 @@ class BarHitTester extends OverlayHitTester:
 		return hits
 
 
-	func collect_hits_at_continuous_x(p_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
+	func collect_hits_at_continuous_x(p_anchor_x_value: float, p_local_pos: Vector2) -> Array[SampleHit]:
+		var anchor_x_px: float = _layout.map_x_to_px(_pane_index, p_anchor_x_value)
+		var nearest: Dictionary = find_nearest_x(anchor_x_px)
+		if nearest.is_empty():
+			return []
+
+		var own_x_value: float = nearest["x_value"]
 		var hits: Array[SampleHit] = []
 		for record: BarHitRecord in _bar_renderer.get_hit_records():
-			if not OverlayHitTester.x_values_match(record.x_value, p_x_value):
+			if not OverlayHitTester.x_values_match(record.x_value, own_x_value):
 				continue
 			hits.append(_build_hit(record, p_local_pos, record.rect.has_point(p_local_pos)))
 		return hits
 
 
-	## Empty for categorical x: this path is for continuous x only.
 	func find_nearest_x(p_along_x_px: float) -> Dictionary:
-		if _layout.domain.config.x_axis.type == TauAxisConfig.Type.CATEGORICAL:
-			return {}
-
-		# TODO: drop x_is_horizontal once XYLayout exposes a logical-x projector.
-		var x_is_horizontal: bool = _layout._x_is_horizontal
 		var best_px := INF
 		var best_val: float = 0.0
 		var found := false
 
 		for record: BarHitRecord in _bar_renderer.get_hit_records():
-			var anchor_along_x: float = record.anchor.x if x_is_horizontal else record.anchor.y
+			var anchor_along_x: float = _layout.map_screen_to_point(record.anchor).x
 			if absf(p_along_x_px - anchor_along_x) < absf(p_along_x_px - best_px):
 				best_px = anchor_along_x
 				best_val = record.x_value
@@ -108,7 +108,8 @@ class BarHitTester extends OverlayHitTester:
 		hit.series_name = _dataset.get_series_name(p_record.series_id)
 		hit.sample_index = p_record.sample_index
 		hit.x_value = p_record.x_value
-		hit.y_value = p_record.y_value
+		hit.y_plotted_value = p_record.y_plotted_value
+		hit.y_raw_value = p_record.y_raw_value
 		hit.screen_position = p_record.anchor
 		hit.pane_index = _pane_index
 		hit.overlay_type = PaneOverlayType.BAR

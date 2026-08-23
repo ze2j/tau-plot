@@ -1,26 +1,49 @@
 ## Scatter-overlay specific rendering config.
 class_name TauScatterConfig extends TauPaneOverlayConfig
 
-const ScatterVisualCallbacks = preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
+const ScatterVisualCallbacks := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_callbacks.gd").ScatterVisualCallbacks
 
 ################################################################################################
 # WARNING: Any new member added to this class must be reflected in `is_equal_to()`
-#          and, if applicable, in `has_layout_affecting_change()`.
+#          and, if applicable, in `has_layout_affecting_change()`. `style` is the
+#          one exception, see the note above `is_equal_to()`.
 ################################################################################################
 
 ## Theme-driven visual and sizing parameters for scatter markers.
-## Never null. Modify properties directly: scatter_config.style.marker_size_px = 8.0.
+## Never null. Modify properties directly: scatter_config.style.marker_sizes_px = [8.0].
 ## Properties set this way are automatically guarded from theme overwriting.
 @export var style: TauScatterStyle = TauScatterStyle.new()
 
+## Where the marker size comes from.
 enum MarkerSizePolicy
 {
-	AUTO,           ## Resolves to THEME
-	THEME,          ## Uses theme constants if provided, otherwise TauScatterStyle defaults
-	DATA_UNITS      ## Size expressed in X data units
+	## Resolves to THEME.
+	AUTO,
+
+	## Size in pixels, read from [member TauScatterStyle.marker_sizes_px].
+	THEME,
+
+	## Size in x data units, read from [member marker_size_data_units], so
+	## markers grow and shrink with the zoom level.
+	DATA_UNITS
 }
+
+## Where the marker size comes from. See [enum MarkerSizePolicy].
+##
+## The policy also decides whether the size is theme-driven.
+## [constant MarkerSizePolicy.THEME] reads
+## [member TauScatterStyle.marker_sizes_px], which is resolved through the
+## style cascade described in [TauStyle], so a theme can set it.
+## [constant MarkerSizePolicy.DATA_UNITS] reads
+## [member marker_size_data_units], a property of this config with no theme
+## layer.
 @export var marker_size_policy: MarkerSizePolicy = MarkerSizePolicy.AUTO
-@export var marker_size_data_units: float = 1.0   # Used when policy is DATA_UNITS
+
+## Marker size in x data units. Only read under
+## [constant MarkerSizePolicy.DATA_UNITS], and not on a categorical x axis,
+## which has no data span to convert and falls back to
+## [member TauScatterStyle.marker_sizes_px].
+@export var marker_size_data_units: float = 1.0
 
 ## Maximum pixel distance from the cursor to a scatter marker center
 ## for the marker to be considered a hit.
@@ -54,9 +77,7 @@ var scatter_visual_callbacks: ScatterVisualCallbacks:
 		visual_callbacks = value
 
 
-####################################################################################################
-# Helpers
-####################################################################################################
+#region Internal, not public API, may change without notice.
 
 func _init() -> void:
 	overlay_type = PaneOverlayType.SCATTER
@@ -68,6 +89,9 @@ func get_resolved_marker_size_policy() -> MarkerSizePolicy:
 	return MarkerSizePolicy.THEME
 
 
+# `style` is left out on purpose. A style resource carries its own equality and
+# emits `changed` when mutated, so style changes are diffed and re-resolved on
+# their own. Comparing it here would only repeat that work.
 func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauScatterConfig
 	if other == null:
@@ -94,10 +118,10 @@ func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 # into domain or tick computation.
 func has_layout_affecting_change(p_other: TauPaneOverlayConfig) -> bool:
 	var other := p_other as TauScatterConfig
-	if other == null:
-		return false
 
-	if not super.has_layout_affecting_change(other):
-		return false
+	if super.has_layout_affecting_change(other):
+		return true
 
 	return false
+
+#endregion

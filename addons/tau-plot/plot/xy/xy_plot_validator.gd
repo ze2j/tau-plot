@@ -2,9 +2,10 @@
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const BarValidator := preload("res://addons/tau-plot/plot/xy/bar/bar_validator.gd").BarValidator
 const ScatterValidator := preload("res://addons/tau-plot/plot/xy/scatter/scatter_validator.gd").ScatterValidator
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const ValidationResult = preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
+const LineValidator := preload("res://addons/tau-plot/plot/xy/line/line_validator.gd").LineValidator
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const ValidationResult := preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
 
 ## Validates that the configuration passed to plot_xy() is internally consistent.
 ##
@@ -53,6 +54,14 @@ class XYPlotValidator extends RefCounted:
 		# Delegates to BarValidator, ScatterValidator, etc. for overlay-specific
 		# checks (bar width policy, stacked bar y-axis, marker size, visual types).
 		_validate_renderer_specific_constraints(p_dataset, p_xy_config, p_series_bindings, p_result)
+		if p_result.has_errors():
+			return false
+
+		# -- Cross-overlay stacking constraints --
+		# When two stacked overlays share a Y axis in the same pane, their
+		# stacked normalization and negative policy must agree because both
+		# contribute to the same axis range computation.
+		_validate_cross_overlay_stacking(p_xy_config, p_series_bindings, p_result)
 		if p_result.has_errors():
 			return false
 
@@ -146,9 +155,32 @@ class XYPlotValidator extends RefCounted:
 	# Pane configs
 	####################################################################################################
 
+	## Structural checks on the pane list: at least one pane, no null pane, and
+	## at most one overlay of each type per pane. TauPaneConfig resolves an
+	## overlay type to the first matching entry, so a second entry of that type
+	## would be read by nothing and the misconfiguration would go unnoticed.
 	static func _validate_pane_configs(p_xy_config: TauXYConfig, p_result: ValidationResult) -> void:
 		if p_xy_config.panes.is_empty():
 			p_result.add_error("XYPlotValidator: TauXYConfig.panes is empty")
+
+		for pane_index in range(p_xy_config.panes.size()):
+			var pane_cfg: TauPaneConfig = p_xy_config.panes[pane_index]
+			if pane_cfg == null:
+				p_result.add_error("XYPlotValidator: pane %d: pane config is null" % pane_index)
+				continue
+
+			if pane_cfg.stretch_ratio <= 0.0:
+				p_result.add_error("XYPlotValidator: pane %d: stretch_ratio is %f, expected a value greater than 0" % [pane_index, pane_cfg.stretch_ratio])
+
+			var seen_types := {}
+			for overlay_cfg in pane_cfg.overlays:
+				if overlay_cfg == null:
+					p_result.add_error("XYPlotValidator: pane %d: overlays holds a null entry" % pane_index)
+					continue
+				if overlay_cfg.overlay_type in seen_types:
+					p_result.add_error("XYPlotValidator: pane %d: overlays holds more than one config of overlay_type %d" % [pane_index, int(overlay_cfg.overlay_type)])
+					continue
+				seen_types[overlay_cfg.overlay_type] = true
 
 
 	####################################################################################################
@@ -165,6 +197,7 @@ class XYPlotValidator extends RefCounted:
 		for pane_index in range(p_xy_config.panes.size()):
 			var pane: TauPaneConfig = p_xy_config.panes[pane_index]
 			if pane == null:
+				# Reported by _validate_pane_configs, which runs in the same phase.
 				continue
 			if pane.y_bottom_axis != null:
 				_validate_axis_range_override(pane.y_bottom_axis, "pane %d y_bottom_axis" % pane_index, p_result)
@@ -225,9 +258,6 @@ class XYPlotValidator extends RefCounted:
 				continue
 
 			var pane_cfg: TauPaneConfig = p_xy_config.panes[binding.pane_index]
-			if pane_cfg == null:
-				p_result.add_error("XYPlotValidator: p_series_bindings[%d] (series_id %d) references pane_index %d, but that pane is null" % [i, binding.series_id, binding.pane_index])
-				continue
 
 			# Y axis orthogonal to x axis
 			if not Axis.are_orthogonal(p_xy_config.x_axis_id, binding.y_axis_id):
@@ -263,6 +293,7 @@ class XYPlotValidator extends RefCounted:
 		# Group series by overlay type and pane
 		var bar_bindings_by_pane: Dictionary[int, Array] = {}   # Array[TauXYSeriesBinding]. FIXME Godot 4.5 does not support nested typed collections.
 		var scatter_bindings_by_pane: Dictionary[int, Array] = {} # Array[TauXYSeriesBinding]. FIXME Godot 4.5 does not support nested typed collections.
+		var line_bindings_by_pane: Dictionary[int, Array] = {} # Array[TauXYSeriesBinding]. FIXME Godot 4.5 does not support nested typed collections.
 
 		for binding in p_series_bindings:
 			match binding.overlay_type:
@@ -274,6 +305,10 @@ class XYPlotValidator extends RefCounted:
 					if not scatter_bindings_by_pane.has(binding.pane_index):
 						scatter_bindings_by_pane[binding.pane_index] = []
 					scatter_bindings_by_pane[binding.pane_index].append(binding)
+				TauXYSeriesBinding.PaneOverlayType.LINE:
+					if not line_bindings_by_pane.has(binding.pane_index):
+						line_bindings_by_pane[binding.pane_index] = []
+					line_bindings_by_pane[binding.pane_index].append(binding)
 				_:
 					p_result.add_error("XYPlotValidator: unsupported overlay_type %d" % int(binding.overlay_type))
 
@@ -286,6 +321,87 @@ class XYPlotValidator extends RefCounted:
 			var scatter_overlay_bindings: Array[TauXYSeriesBinding] = []
 			scatter_overlay_bindings.assign(scatter_bindings_by_pane[pane_index])
 			ScatterValidator.validate(p_dataset, p_xy_config, pane_index, scatter_overlay_bindings, p_result)
+
+		for pane_index in line_bindings_by_pane:
+			var line_overlay_bindings: Array[TauXYSeriesBinding] = []
+			line_overlay_bindings.assign(line_bindings_by_pane[pane_index])
+			LineValidator.validate(p_dataset, p_xy_config, pane_index, line_overlay_bindings, p_result)
+
+
+	####################################################################################################
+	# Cross-overlay stacking constraints
+	####################################################################################################
+
+	## Two stacked overlays sharing the same Y axis in the same pane both feed
+	## the axis range computation. They must therefore agree on
+	## [code]stacked_normalization[/code] (the pinned range vs data-derived
+	## range cannot coexist) and on [code]stacked_negative_policy[/code] (the
+	## range computation depends on a single coherent policy).
+	static func _validate_cross_overlay_stacking(p_xy_config: TauXYConfig, p_series_bindings: Array[TauXYSeriesBinding], p_result: ValidationResult) -> void:
+		# For each pane, resolve the y axis used by each stacked overlay.
+		# Only stacked overlays whose bindings are non-empty are considered:
+		# without bindings there is no axis to clash on.
+		var stacked_axis_by_pane_bar: Dictionary[int, AxisId] = {}
+		var stacked_axis_by_pane_line: Dictionary[int, AxisId] = {}
+
+		for binding in p_series_bindings:
+			match binding.overlay_type:
+				TauXYSeriesBinding.PaneOverlayType.BAR:
+					if not stacked_axis_by_pane_bar.has(binding.pane_index):
+						var bar_cfg := _get_stacked_bar_config(p_xy_config, binding.pane_index)
+						if bar_cfg != null:
+							stacked_axis_by_pane_bar[binding.pane_index] = binding.y_axis_id
+				TauXYSeriesBinding.PaneOverlayType.LINE:
+					if not stacked_axis_by_pane_line.has(binding.pane_index):
+						var line_cfg := _get_stacked_line_config(p_xy_config, binding.pane_index)
+						if line_cfg != null:
+							stacked_axis_by_pane_line[binding.pane_index] = binding.y_axis_id
+
+		# A clash exists when both a bar and a line stacked overlay land on the
+		# same axis in the same pane. The renderer-specific phase has already
+		# enforced "all stacked series of one overlay share a single axis", so
+		# the axis recorded above is unambiguous for each (pane, overlay) pair.
+		for pane_index in stacked_axis_by_pane_bar:
+			if not stacked_axis_by_pane_line.has(pane_index):
+				continue
+			var bar_axis: AxisId = stacked_axis_by_pane_bar[pane_index]
+			var line_axis: AxisId = stacked_axis_by_pane_line[pane_index]
+			if bar_axis != line_axis:
+				continue
+
+			var pane_cfg: TauPaneConfig = p_xy_config.panes[pane_index]
+			var bar_cfg := pane_cfg.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.BAR) as TauBarConfig
+			var line_cfg := pane_cfg.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.LINE) as TauLineConfig
+
+			if bar_cfg.stacked_normalization != line_cfg.stacked_normalization:
+				p_result.add_error("XYPlotValidator: pane %d, axis %s: stacked BAR and stacked LINE declare different stacked_normalization (BAR=%d, LINE=%d)" % [pane_index, Axis.as_string(bar_axis), int(bar_cfg.stacked_normalization), int(line_cfg.stacked_normalization)])
+
+			if bar_cfg.stacked_negative_policy != line_cfg.stacked_negative_policy:
+				p_result.add_error("XYPlotValidator: pane %d, axis %s: stacked BAR and stacked LINE declare different stacked_negative_policy (BAR=%d, LINE=%d)" % [pane_index, Axis.as_string(bar_axis), int(bar_cfg.stacked_negative_policy), int(line_cfg.stacked_negative_policy)])
+
+
+	## Returns the bar overlay config for the pane if it is in STACKED mode,
+	## null otherwise.
+	static func _get_stacked_bar_config(p_xy_config: TauXYConfig, p_pane_index: int) -> TauBarConfig:
+		var pane_cfg: TauPaneConfig = p_xy_config.panes[p_pane_index]
+		var bar_cfg := pane_cfg.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.BAR) as TauBarConfig
+		if bar_cfg == null:
+			return null
+		if bar_cfg.mode != TauBarConfig.BarMode.STACKED:
+			return null
+		return bar_cfg
+
+
+	## Returns the line overlay config for the pane if it is in STACKED mode,
+	## null otherwise.
+	static func _get_stacked_line_config(p_xy_config: TauXYConfig, p_pane_index: int) -> TauLineConfig:
+		var pane_cfg: TauPaneConfig = p_xy_config.panes[p_pane_index]
+		var line_cfg := pane_cfg.get_overlay_config(TauXYSeriesBinding.PaneOverlayType.LINE) as TauLineConfig
+		if line_cfg == null:
+			return null
+		if line_cfg.mode != TauLineConfig.LineMode.STACKED:
+			return null
+		return line_cfg
 
 
 	####################################################################################################

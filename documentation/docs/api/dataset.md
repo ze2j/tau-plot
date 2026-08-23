@@ -10,8 +10,9 @@ Holds all X and Y sample data for one or more named series and notifies the plot
 
 `Dataset` is the data model of [`TauPlot`](tau_plot.md). It carries all sample values passed to a plot via
 [`TauPlot.plot_xy()`](tau_plot.md#plot_xy). Every mutation
-emits the [`changed`](#changed) signal, which the plot uses internally to trigger the minimum
-required update. Callers never need to refresh the plot manually after modifying a dataset.
+emits the [`changed`](#changed) signal with a [`DatasetChange`](dataset_change.md) describing what moved, which the plot
+uses internally to trigger the minimum required update. Callers never need to refresh the plot
+manually after modifying a dataset.
 
 A dataset holds one or more **series**. Each series has a name, a stable integer ID assigned
 at creation, and a pair of X and Y ring buffers. The series name appears in the legend. The
@@ -39,22 +40,20 @@ only the most recent N samples are displayed.
 ### Example
 
 ```gdscript
-# Two data series and three categories on the shared X axis.
-# SHARED_X means both series share the same X labels ("Jan", "Feb", "Mar").
-var dataset := TauPlot.Dataset.make_shared_x_categorical(
-    PackedStringArray(["Series A", "Series B"]),
-    PackedStringArray(["Jan", "Feb", "Mar"]),
-    [PackedFloat64Array([1.0, 2.0, 3.0]), PackedFloat64Array([4.0, 5.0, 6.0])]
+# Two sensors sampled at the same timestamps, keeping the last 256 samples.
+var dataset := TauPlot.Dataset.new(
+    TauPlot.Dataset.Mode.SHARED_X,
+    TauPlot.Dataset.XElementType.NUMERIC,
+    256
 )
+var id_a := dataset.add_series("Sensor A")
+var id_b := dataset.add_series("Sensor B")
 
-# Time series that keeps only the last 256 samples per sensor.
-# New data is pushed in real time, old samples are dropped automatically.
-var rt := TauPlot.Dataset.new(Dataset.Mode.SHARED_X, Dataset.XElementType.NUMERIC, 256)
-var id_a := rt.add_series("Sensor A")
-var id_b := rt.add_series("Sensor B")
+# ---
 
-# Streaming: call this every time new measurements arrive
-rt.append_shared_sample(Time.get_ticks_msec() / 1000.0, PackedFloat64Array([17.0, 42.0]))
+# One append per measurement round, one Y value per registered series.
+# Once 256 samples are stored, every append drops the oldest one.
+dataset.append_shared_sample(Time.get_ticks_msec() / 1000.0, PackedFloat64Array([17.0, 42.0]))
 ```
 
 ### Notes
@@ -87,6 +86,8 @@ Controls how X buffers are organized across series.
 | `SHARED_X` | All series share one X buffer. Sample index `i` maps to the same X value for every series. |
 | `PER_SERIES_X` | Each series owns independent X and Y buffers with its own sample count and X positions. |
 
+---
+
 ### `XElementType`
 
 Controls the type stored in X buffers.
@@ -108,6 +109,9 @@ Emitted after every mutation, or once per [`begin_batch()`](#begin_batch) /
 [`end_batch()`](#end_batch) block. The plot connects to this signal internally and uses it
 to decide whether to redraw or recompute the domain. Not emitted if a batch closes with no
 actual data change.
+
+`p_change` is a [`DatasetChange`](dataset_change.md). Its [`type`](dataset_change.md#type) says how the
+dataset changed and selects which of the remaining fields carry a meaningful value.
 
 ## Constructor
 
@@ -405,7 +409,8 @@ ID exactly once. Affects the legend order and bar rendering order. Emits [`chang
 get_shared_capacity() -> int
 ```
 
-Returns the shared ring buffer capacity. Only valid in [`SHARED_X`](#mode) mode.
+Returns the shared ring buffer capacity. Only valid in [`SHARED_X`](#mode) mode. Logs an error and
+returns `0` in [`PER_SERIES_X`](#mode) mode.
 
 ---
 
@@ -551,7 +556,9 @@ Overwrites the X value at the given index for the specified series. Index `0` is
 get_series_y(p_series_id: int, p_logical_sample_index: int) -> float
 ```
 
-Returns the Y value at the given index for the specified series. Index `0` is the oldest sample in the buffer, `count - 1` is the most recent. Returns `0.0` if the ID is unknown.
+Returns the Y value at the given index for the specified series. Index `0` is the oldest sample in the buffer, `count - 1` is the most recent. Logs an error and returns `0.0` if the ID is unknown.
+
+Reading an empty series, or a logical index below `0` or at or above [`get_series_sample_count()`](#get_series_sample_count), pushes an error and returns `0.0`. A returned `0.0` is therefore not proof that a sample holds that value.
 
 ---
 
@@ -573,8 +580,8 @@ set_series_y_slice(p_series_id: int, p_start_index: int, p_values: PackedFloat64
 ```
 
 Overwrites a contiguous range of Y values starting at `p_start_index`. Writes as many values as
-fit within the buffer from that index forward. Not emitted if no values are written. Emits
-[`changed`](#changed) for the affected series.
+fit within the buffer from that index forward. Emits [`changed`](#changed) for the affected series,
+and emits nothing when no value is written.
 
 ---
 
@@ -628,4 +635,5 @@ Removes all series and all samples. The shared X buffer is recreated in [`SHARED
 ## Related Classes
 
 * [`TauPlot`](tau_plot.md) The plot node. Calls `plot_xy()` to attach a dataset and connects to `changed` internally.
+* [`DatasetChange`](dataset_change.md) Payload of the [`changed`](#changed) signal, describing one change.
 * [`TauXYSeriesBinding`](xy_series_binding.md) Maps a series ID to a pane, overlay type, and Y axis. Passed to `plot_xy()` alongside the dataset.

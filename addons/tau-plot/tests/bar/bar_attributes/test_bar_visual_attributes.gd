@@ -127,7 +127,7 @@ func _setup_test_1() -> void:
 	visual_attributes_b.color_buffer = color_buffer_b
 	sb_b.visual_attributes = visual_attributes_b
 
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
+	var bindings: Array[TauXYSeriesBinding] = [sb_b, sb_a]
 
 	%TestPlot1.plot_xy(dataset, config, bindings)
 	_state.append({})

@@ -3,8 +3,9 @@ const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const YDomainOverride := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").YDomainOverride
 const XYDomainOverrides := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").XYDomainOverrides
 const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis_assignment.gd").SeriesAxisAssignment
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 
 
 # Resolved domain for a single axis.
@@ -66,6 +67,10 @@ class XYDomain extends RefCounted:
 	var overrides: XYDomainOverrides = null
 	var series_assignment: SeriesAxisAssignment = null
 
+	# Per-pane series ids.
+	var bar_series_ids_per_pane: Array[PackedInt64Array] = []
+	var line_series_ids_per_pane: Array[PackedInt64Array] = []
+
 	# Outputs
 	var x_axis_domain: AxisDomain = AxisDomain.new()
 	var x_categories: PackedStringArray = []
@@ -77,10 +82,15 @@ class XYDomain extends RefCounted:
 	const _LOG_MIN_DOMAIN_RATIO: float = 1.1  # Minimum ratio between max/min for log scales
 
 
-	func _init(p_dataset: Dataset, p_config: TauXYConfig, p_series_assignment: SeriesAxisAssignment, p_overrides: XYDomainOverrides = null) -> void:
+	func _init(p_dataset: Dataset, p_config: TauXYConfig, p_series_assignment: SeriesAxisAssignment,
+				p_bar_series_ids_per_pane: Array[PackedInt64Array],
+				p_line_series_ids_per_pane: Array[PackedInt64Array],
+				p_overrides: XYDomainOverrides) -> void:
 		config = p_config
 		overrides = p_overrides
 		series_assignment = p_series_assignment
+		bar_series_ids_per_pane = p_bar_series_ids_per_pane
+		line_series_ids_per_pane = p_line_series_ids_per_pane
 		update_from_dataset(p_dataset)
 
 
@@ -249,8 +259,8 @@ class XYDomain extends RefCounted:
 
 			var y_range_forced := _is_y_range_forced(p_pane_idx, y_axis_id)
 			if y_range_forced:
-				y_axis_domain.min_val = _get_forced_y_min(p_pane_idx)
-				y_axis_domain.max_val = _get_forced_y_max(p_pane_idx)
+				y_axis_domain.min_val = _get_forced_y_min(p_pane_idx, y_axis_id)
+				y_axis_domain.max_val = _get_forced_y_max(p_pane_idx, y_axis_id)
 			else:
 				var final_range := _finalize_y_axis_domain(y_axis_domain)
 				y_axis_domain.min_val = final_range.x
@@ -354,53 +364,64 @@ class XYDomain extends RefCounted:
 
 
 	func _is_y_range_forced(p_pane_index: int, p_y_axis_id: AxisId) -> bool:
-		if overrides == null:
+		var ydo := overrides.get_override(p_pane_index, p_y_axis_id)
+		if ydo == null:
 			return false
-		if p_pane_index < 0 or p_pane_index >= overrides.y_domain_overrides.size():
-			return false
-		var ydo := overrides.y_domain_overrides[p_pane_index]
-		return ydo.force_y_range and ydo.target_y_axis_id == p_y_axis_id
+		return ydo.force_y_range
 
 
-	func _get_forced_y_min(p_pane_index: int) -> float:
-		if overrides == null:
+	func _get_forced_y_min(p_pane_index: int, p_y_axis_id: AxisId) -> float:
+		var ydo := overrides.get_override(p_pane_index, p_y_axis_id)
+		if ydo == null:
 			return 0.0
-		if p_pane_index < 0 or p_pane_index >= overrides.y_domain_overrides.size():
-			return 0.0
-		return overrides.y_domain_overrides[p_pane_index].force_y_min
+		return ydo.force_y_min
 
 
-	func _get_forced_y_max(p_pane_index: int) -> float:
-		if overrides == null:
+	func _get_forced_y_max(p_pane_index: int, p_y_axis_id: AxisId) -> float:
+		var ydo := overrides.get_override(p_pane_index, p_y_axis_id)
+		if ydo == null:
 			return 1.0
-		if p_pane_index < 0 or p_pane_index >= overrides.y_domain_overrides.size():
-			return 1.0
-		return overrides.y_domain_overrides[p_pane_index].force_y_max
+		return ydo.force_y_max
 
 
-	func _must_stack_y_values(p_pane_index: int, p_y_axis_id: AxisId) -> bool:
-		if overrides == null:
-			return false
-		if p_pane_index < 0 or p_pane_index >= overrides.y_domain_overrides.size():
-			return false
-		var ydo := overrides.y_domain_overrides[p_pane_index]
-		return ydo.stack_y_values and ydo.target_y_axis_id == p_y_axis_id
-
-
+	# Series on the axis are partitioned into three groups: bar-stacked,
+	# line-stacked, and non-stacked. Each group contributes a Y range computed
+	# in isolation, and the axis range is the union of the three. When two
+	# stacked overlay types target the same axis the validator guarantees they
+	# share normalization and negative policy.
 	func _scan_series_y_range(p_dataset: Dataset, p_y_axis_series_ids: PackedInt64Array, p_pane_idx: int, p_y_axis_id: AxisId, p_is_log: bool) -> Vector2:
+		var ydo: YDomainOverride = overrides.get_override(p_pane_idx, p_y_axis_id)
+
+		var bar_partition: PackedInt64Array
+		var line_partition: PackedInt64Array
+		if ydo != null and ydo.bar_stack_active:
+			bar_partition = _intersect_with_pane_partition(p_y_axis_series_ids, bar_series_ids_per_pane, p_pane_idx)
+		if ydo != null and ydo.line_stack_active:
+			line_partition = _intersect_with_pane_partition(p_y_axis_series_ids, line_series_ids_per_pane, p_pane_idx)
+
+		var non_stacked := _subtract_partitions(p_y_axis_series_ids, bar_partition, line_partition)
+
+		var range_acc := Vector2(INF, -INF)
+		range_acc = _union_range(range_acc, _scan_independent(p_dataset, non_stacked, p_is_log))
+
+		if not bar_partition.is_empty():
+			range_acc = _union_range(range_acc, _scan_stacked(p_dataset, bar_partition, ydo.stacked_negative_policy, p_is_log))
+		if not line_partition.is_empty():
+			range_acc = _union_range(range_acc, _scan_stacked(p_dataset, line_partition, ydo.stacked_negative_policy, p_is_log))
+
+		return range_acc
+
+
+	# Independent (per-series) min/max scan: each sample contributes on its own.
+	# Honors the per-dataset-mode iteration shape.
+	func _scan_independent(p_dataset: Dataset, p_series_ids: PackedInt64Array, p_is_log: bool) -> Vector2:
 		var y_min := INF
 		var y_max := -INF
 
 		match p_dataset.get_mode():
 			Dataset.Mode.SHARED_X:
-				for series_id in p_y_axis_series_ids:
-					if not p_dataset.has_series(series_id):
-						continue
-
-					if _must_stack_y_values(p_pane_idx, p_y_axis_id):
-						return _scan_stacked_series_y_range(p_dataset, p_y_axis_series_ids, p_is_log)
-
-					var sample_count := p_dataset.get_shared_sample_count()
+				var sample_count := p_dataset.get_shared_sample_count()
+				for series_id in p_series_ids:
 					for sample_index in range(sample_count):
 						var y_value := p_dataset.get_series_y(series_id, sample_index)
 						if is_nan(y_value) or is_inf(y_value):
@@ -411,10 +432,7 @@ class XYDomain extends RefCounted:
 						y_max = maxf(y_max, y_value)
 
 			Dataset.Mode.PER_SERIES_X:
-				for series_id in p_y_axis_series_ids:
-					if not p_dataset.has_series(series_id):
-						continue
-
+				for series_id in p_series_ids:
 					var sample_count := p_dataset.get_series_sample_count(series_id)
 					for sample_index in range(sample_count):
 						var y_value := p_dataset.get_series_y(series_id, sample_index)
@@ -428,27 +446,131 @@ class XYDomain extends RefCounted:
 		return Vector2(y_min, y_max)
 
 
-	func _scan_stacked_series_y_range(p_dataset: Dataset, p_y_axis_series_ids: PackedInt64Array, p_is_log: bool) -> Vector2:
+	func _scan_stacked(p_dataset: Dataset, p_series_ids: PackedInt64Array, p_policy: StackedNegativePolicy, p_is_log: bool) -> Vector2:
+		match p_policy:
+			StackedNegativePolicy.SKIP_NEGATIVES:
+				return _scan_stacked_skip_negatives(p_dataset, p_series_ids, p_policy, p_is_log)
+
+			StackedNegativePolicy.DIVERGING:
+				return _scan_stacked_diverging(p_dataset, p_series_ids, p_policy, p_is_log)
+
+			StackedNegativePolicy.SIGNED_SUM:
+				return _scan_stacked_signed_sum(p_dataset, p_series_ids, p_policy, p_is_log)
+
+			_:
+				push_error("Unexpected StackedNegativePolicy: %d" % p_policy)
+				return Vector2()
+
+
+	func _scan_stacked_skip_negatives(p_dataset: Dataset, p_series_ids: PackedInt64Array, p_policy: StackedNegativePolicy, p_is_log: bool) -> Vector2:
 		var y_min := INF
 		var y_max := -INF
 		var sample_count := p_dataset.get_shared_sample_count()
 
 		for sample_index in range(sample_count):
-			var sum := 0.0
-			for series_id in p_y_axis_series_ids:
-				if not p_dataset.has_series(series_id):
-					continue
+			var pos_total := 0.0
 
+			for series_id in p_series_ids:
 				var y_value := p_dataset.get_series_y(series_id, sample_index)
 				if is_nan(y_value) or is_inf(y_value):
 					continue
 				if p_is_log and y_value <= 0.0:
 					continue
-				sum += y_value
-			y_min = minf(y_min, sum)
-			y_max = maxf(y_max, sum)
+
+				# SKIP_NEGATIVES
+				if y_value >= 0.0:
+					pos_total += y_value
+
+			# SKIP_NEGATIVES
+			y_min = minf(y_min, 0.0)
+			y_max = maxf(y_max, pos_total)
 
 		return Vector2(y_min, y_max)
+
+
+	func _scan_stacked_diverging(p_dataset: Dataset, p_series_ids: PackedInt64Array, p_policy: StackedNegativePolicy, p_is_log: bool) -> Vector2:
+		var y_min := INF
+		var y_max := -INF
+		var sample_count := p_dataset.get_shared_sample_count()
+
+		for sample_index in range(sample_count):
+			var pos_total := 0.0
+			var neg_total := 0.0
+
+			for series_id in p_series_ids:
+				var y_value := p_dataset.get_series_y(series_id, sample_index)
+				if is_nan(y_value) or is_inf(y_value):
+					continue
+				if p_is_log and y_value <= 0.0:
+					continue
+
+				# DIVERGING
+				if y_value >= 0.0:
+					pos_total += y_value
+				else:
+					neg_total += y_value
+
+			# DIVERGING
+			y_min = minf(y_min, neg_total)
+			y_max = maxf(y_max, pos_total)
+
+		return Vector2(y_min, y_max)
+
+
+	func _scan_stacked_signed_sum(p_dataset: Dataset, p_series_ids: PackedInt64Array, p_policy: StackedNegativePolicy, p_is_log: bool) -> Vector2:
+		var y_min := INF
+		var y_max := -INF
+		var sample_count := p_dataset.get_shared_sample_count()
+
+		for sample_index in range(sample_count):
+			var signed_running := 0.0
+			var signed_min_at_x := INF
+			var signed_max_at_x := -INF
+
+			for series_id in p_series_ids:
+				var y_value := p_dataset.get_series_y(series_id, sample_index)
+				if is_nan(y_value) or is_inf(y_value):
+					continue
+				if p_is_log and y_value <= 0.0:
+					continue
+
+				# SIGNED_SUM
+				signed_running += y_value
+				signed_min_at_x = minf(signed_min_at_x, signed_running)
+				signed_max_at_x = maxf(signed_max_at_x, signed_running)
+
+			# SIGNED_SUM
+			if signed_min_at_x != INF:
+				y_min = minf(y_min, signed_min_at_x)
+				y_max = maxf(y_max, signed_max_at_x)
+
+		return Vector2(y_min, y_max)
+
+
+	static func _intersect_with_pane_partition(p_axis_series_ids: PackedInt64Array,
+				p_partition_per_pane: Array[PackedInt64Array], p_pane_idx: int) -> PackedInt64Array:
+		var out := PackedInt64Array()
+		if p_pane_idx >= p_partition_per_pane.size():
+			return out
+		var partition: PackedInt64Array = p_partition_per_pane[p_pane_idx]
+		for sid in p_axis_series_ids:
+			if sid in partition:
+				out.append(sid)
+		return out
+
+
+	static func _subtract_partitions(p_axis_series_ids: PackedInt64Array,
+				p_a: PackedInt64Array, p_b: PackedInt64Array) -> PackedInt64Array:
+		var out := PackedInt64Array()
+		for sid in p_axis_series_ids:
+			if sid in p_a or sid in p_b:
+				continue
+			out.append(sid)
+		return out
+
+
+	static func _union_range(p_a: Vector2, p_b: Vector2) -> Vector2:
+		return Vector2(minf(p_a.x, p_b.x), maxf(p_a.y, p_b.y))
 
 
 	func _compute_continuous_shared_x(p_dataset: Dataset, p_is_log: bool) -> Vector2:
@@ -471,8 +593,6 @@ class XYDomain extends RefCounted:
 		var xmax := -INF
 		for series_id_v in p_series_ids:
 			var series_id := series_id_v
-			if not p_dataset.has_series(series_id):
-				continue
 			var sample_count := p_dataset.get_series_sample_count(series_id)
 			for sample_index in range(sample_count):
 				var x_value := float(p_dataset.get_series_x(series_id, sample_index))

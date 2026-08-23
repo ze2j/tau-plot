@@ -1,5 +1,6 @@
 # Ring buffer storage of colors.
 # Logical index 0 is the oldest element.
+# Reading outside [0; size()[ is an error and returns NO_COLOR.
 class ColorBuffer extends RefCounted:
 	const NO_COLOR = Color(0., 0., 0., 0.)
 
@@ -9,7 +10,7 @@ class ColorBuffer extends RefCounted:
 	var _buffer: PackedColorArray = []
 
 
-	func _init(p_capacity: int, p_default_value: Color = NO_COLOR) -> void:
+	func _init(p_capacity: int) -> void:
 		_capacity = max(p_capacity, 1)
 		_storage_head = 0
 		_stored_count = 0
@@ -44,11 +45,17 @@ class ColorBuffer extends RefCounted:
 
 	func get_value(p_logical_index: int) -> Color:
 		var storage_i := _map_logical_to_storage(p_logical_index)
+		if storage_i < 0:
+			return NO_COLOR
+
 		return _buffer[storage_i]
 
 
 	func set_value(p_logical_index: int, p_value: Color) -> void:
 		var storage_i := _map_logical_to_storage(p_logical_index)
+		if storage_i < 0:
+			return
+
 		_buffer[storage_i] = p_value
 
 
@@ -73,7 +80,7 @@ class ColorBuffer extends RefCounted:
 
 
 	func append_value(p_value: Color) -> int:
-		var overwrote := (_stored_count + 1 > _capacity)
+		var overwrote := (_stored_count == _capacity)
 
 		_buffer[_storage_head] = p_value
 		_storage_head = (_storage_head + 1) % _capacity
@@ -115,14 +122,15 @@ class ColorBuffer extends RefCounted:
 	# Private
 	####################################################################################################
 
+	# Negative when the logical index has no storage slot.
 	func _map_logical_to_storage(p_logical_index: int) -> int:
 		if _stored_count <= 0:
 			push_error("ColorBuffer: the buffer is empty")
-			return 0
+			return -1
 
 		if p_logical_index < 0 or p_logical_index >= _stored_count:
 			push_error("ColorBuffer: logical index %d out of range [0; %d[" % [p_logical_index, _stored_count])
-			return 0
+			return -1
 
 		var oldest_storage := _storage_head - _stored_count
 		if oldest_storage < 0:

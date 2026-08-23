@@ -1,0 +1,67 @@
+[gd_scene load_steps=6 format=3 uid="uid://ds4eiobf8014a"]
+
+[ext_resource type="Script" uid="uid://h65encvxiqxp" path="res://addons/tau-plot/examples/demo_2.gd" id="1_t0jaf"]
+[ext_resource type="Theme" uid="uid://jsm3gqqupy7o" path="res://addons/tau-plot/examples/demo_2/demo_1_theme.tres" id="2_t0jaf"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="3_77ugr"]
+[ext_resource type="Theme" uid="uid://0woixbsv7lf8" path="res://addons/tau-plot/examples/demo_2/demo_2_theme.tres" id="4_ow04m"]
+[ext_resource type="Theme" uid="uid://d3rgq8nvs5huw" path="res://addons/tau-plot/examples/demo_2/demo_3_theme.tres" id="5_ppkl2"]
+
+[node name="Demo" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_t0jaf")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "TauPlot Demo 2"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 2
+
+[node name="DemoPlot1" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("2_t0jaf")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_77ugr")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot2" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("4_ow04m")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_77ugr")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot3" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("5_ppkl2")
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_77ugr")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="DemoPlot4" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("3_77ugr")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"

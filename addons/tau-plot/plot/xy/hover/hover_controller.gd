@@ -1,29 +1,32 @@
-const SampleHit = preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
-const HoverMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
-const CrosshairMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").CrosshairMode
-const TooltipPanel = preload("res://addons/tau-plot/plot/xy/hover/tooltip_panel.gd").TooltipPanel
-const HoverFormatter = preload("res://addons/tau-plot/plot/xy/hover/hover_formatter.gd").HoverFormatter
-const OverlayHitTester = preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
+const SampleHit := preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const HoverMode := preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").HoverMode
+const CrosshairMode := preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").CrosshairMode
+const TooltipPanel := preload("res://addons/tau-plot/plot/xy/hover/tooltip_panel.gd").TooltipPanel
+const HoverFormatter := preload("res://addons/tau-plot/plot/xy/hover/hover_formatter.gd").HoverFormatter
+const OverlayHitTester := preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
 const CrosshairOverlay := preload("res://addons/tau-plot/plot/xy/hover/crosshair_overlay.gd").CrosshairOverlay
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const PaneRenderer := preload("res://addons/tau-plot/plot/xy/pane_renderer.gd").PaneRenderer
 const BarRenderer := preload("res://addons/tau-plot/plot/xy/bar/bar_renderer.gd").BarRenderer
 const ScatterRenderer := preload("res://addons/tau-plot/plot/xy/scatter/scatter_renderer.gd").ScatterRenderer
+const LineRenderer := preload("res://addons/tau-plot/plot/xy/line/line_renderer.gd").LineRenderer
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 
 
 ## Handles input dispatch, hover mode resolution, hit aggregation across
 ## overlays, tooltip lifecycle (create/position/show/hide/destroy), and
-## signal emission. Works exclusively through the OverlayHitTester interface
-## and never inspects overlay internals directly.
+## signal emission. Hit testing goes exclusively through the OverlayHitTester
+## interface.
 class HoverController extends RefCounted:
 	# External references (provided via setup).
 	var _plot: PanelContainer = null
 	var _layout: XYLayout = null
 	var _domain_config: TauXYConfig = null
-	var _pane_containers: Array[Container] = []
+	var _panes: Array[Container] = []
 	var _pane_renderers: Array[PaneRenderer] = []
 	var _bar_renderers: Array[BarRenderer] = []
 	var _scatter_renderers: Array[ScatterRenderer] = []
+	var _line_renderers: Array[LineRenderer] = []
 	var _resolved_xy_style: TauXYStyle = null
 
 	# Hover state.
@@ -31,6 +34,9 @@ class HoverController extends RefCounted:
 	var _hover_config: TauHoverConfig = null
 	var _current_hits: Array[SampleHit] = []
 	var _current_pane: int = -1
+	# X pixel of the position the current hits were collected at, along the
+	# data x axis. In X_ALIGNED this is the column shared by the whole pane.
+	var _hovered_x_px: float = 0.0
 	var _pinned_hits: Array[SampleHit] = []
 
 	# Tooltip state.
@@ -54,10 +60,11 @@ class HoverController extends RefCounted:
 			p_plot: Control,
 			p_layout: XYLayout,
 			p_domain_config: TauXYConfig,
-			p_pane_containers: Array[Container],
+			p_panes: Array[Container],
 			p_pane_renderers: Array[PaneRenderer],
 			p_bar_renderers: Array[BarRenderer],
 			p_scatter_renderers: Array[ScatterRenderer],
+			p_line_renderers: Array[LineRenderer],
 			p_resolved_xy_style: TauXYStyle,
 			p_formatter: HoverFormatter,
 			p_hit_testers_per_pane: Array, # Array[Array[OverlayHitTester]] FIXME Godot 4.5 does not support nested typed collections.
@@ -66,10 +73,11 @@ class HoverController extends RefCounted:
 		_plot = p_plot
 		_layout = p_layout
 		_domain_config = p_domain_config
-		_pane_containers = p_pane_containers
+		_panes = p_panes
 		_pane_renderers = p_pane_renderers
 		_bar_renderers = p_bar_renderers
 		_scatter_renderers = p_scatter_renderers
+		_line_renderers = p_line_renderers
 		_resolved_xy_style = p_resolved_xy_style
 		_formatter = p_formatter
 		_hit_testers_per_pane = p_hit_testers_per_pane
@@ -98,10 +106,11 @@ class HoverController extends RefCounted:
 		_plot = null
 		_layout = null
 		_domain_config = null
-		_pane_containers = []
+		_panes = []
 		_pane_renderers = []
 		_bar_renderers = []
 		_scatter_renderers = []
+		_line_renderers = []
 		_resolved_xy_style = null
 		_formatter = null
 		_hover_config = null
@@ -134,7 +143,7 @@ class HoverController extends RefCounted:
 		_current_pane = -1
 		_hide_transient_tooltip()
 		_hide_all_crosshairs()
-		_clear_highlight_state_on_renderers()
+		_clear_renderers_hover_state()
 		# Also hide pinned tooltip since screen positions are stale.
 		if not _pinned_hits.is_empty():
 			_pinned_hits.clear()
@@ -147,6 +156,8 @@ class HoverController extends RefCounted:
 	## Re-resolves the tooltip style. Called when styles change globally.
 	func refresh_tooltip_style() -> void:
 		_resolve_tooltip_style()
+		if _tooltip_pinned != null and _tooltip_pinned.visible:
+			_apply_tooltip_node_style(_tooltip_pinned, true)
 
 
 	## Re-resolves the crosshair style. Called when styles change globally.
@@ -188,7 +199,7 @@ class HoverController extends RefCounted:
 			return
 
 		if p_event is InputEventMouseMotion:
-			_process_motion(p_pane_index, p_local_pos)
+			_process_mouse_motion(p_pane_index, p_local_pos)
 
 		elif p_event is InputEventMouseButton:
 			var mb := p_event as InputEventMouseButton
@@ -205,7 +216,7 @@ class HoverController extends RefCounted:
 
 
 	## Processes mouse motion: runs hit testing and emits hover signals.
-	func _process_motion(p_pane_index: int, p_local_pos: Vector2) -> void:
+	func _process_mouse_motion(p_pane_index: int, p_local_pos: Vector2) -> void:
 		# Convert pane-local position to plot-local for tooltip positioning.
 		_last_mouse_pos = _pane_to_plot_local(p_pane_index, p_local_pos)
 
@@ -223,15 +234,15 @@ class HoverController extends RefCounted:
 				_current_pane = -1
 				_hide_transient_tooltip()
 				_hide_all_crosshairs()
-				_clear_highlight_state_on_renderers()
+				_clear_renderers_hover_state()
 				_plot.sample_hover_exited.emit()
 			return
 
 		_current_hits = hits
 		_current_pane = p_pane_index
 		_show_transient_tooltip(hits, p_pane_index)
-		_show_crosshairs(hits, p_pane_index, p_local_pos)
-		_push_highlight_state_to_renderers(hits)
+		_show_crosshairs(p_pane_index, p_local_pos)
+		_update_renderers_hover_state(hits)
 		_plot.sample_hovered.emit(hits)
 
 
@@ -277,15 +288,14 @@ class HoverController extends RefCounted:
 		for hit_tester: OverlayHitTester in hit_testers:
 			if not hit_tester.is_hoverable():
 				continue
+
 			var preferred: int = hit_tester.get_preferred_hover_mode()
 			if agreed_mode == -1:
 				agreed_mode = preferred
 			elif agreed_mode != preferred:
 				return HoverMode.NEAREST
 
-		if agreed_mode == -1:
-			return HoverMode.NEAREST
-		return agreed_mode as HoverMode
+		return agreed_mode as HoverMode if agreed_mode != -1 else HoverMode.NEAREST
 
 
 	####################################################################
@@ -311,9 +321,11 @@ class HoverController extends RefCounted:
 				best_dist_sq = d_sq
 				best_hit = hit
 
-		if best_hit != null:
-			return [best_hit]
-		return []
+		if best_hit == null:
+			return []
+
+		_hovered_x_px = best_hit.screen_position.x if _layout._x_is_horizontal else best_hit.screen_position.y
+		return [best_hit]
 
 
 	## Collects all samples at the nearest x position across all hoverable
@@ -347,6 +359,7 @@ class HoverController extends RefCounted:
 				return []
 
 			var x_value: Variant = categories[category_index]
+			_hovered_x_px = _layout.map_x_category_center_to_px(p_pane_index, category_index)
 
 			for hit_tester: OverlayHitTester in hit_testers:
 				if not hit_tester.is_hoverable():
@@ -374,12 +387,40 @@ class HoverController extends RefCounted:
 			if not found:
 				return []
 
+			_hovered_x_px = _layout.map_x_to_px(p_pane_index, nearest_x_val)
+
 			for hit_tester: OverlayHitTester in hit_testers:
 				if not hit_tester.is_hoverable():
 					continue
 				hits.append_array(hit_tester.collect_hits_at_continuous_x(nearest_x_val, p_local_pos))
 
+		_promote_primary_hit(hits)
 		return hits
+
+
+	## Moves the primary hit to index 0. The primary hit is the sample the
+	## pointer sits inside, the closest one when several qualify, and the
+	## closest sample overall when the pointer sits inside none.
+	func _promote_primary_hit(p_hits: Array[SampleHit]) -> void:
+		var primary_index := -1
+		var primary_hit: SampleHit = null
+
+		for i: int in range(p_hits.size()):
+			var hit: SampleHit = p_hits[i]
+			if primary_hit == null or _wins_primary_slot(hit, primary_hit):
+				primary_index = i
+				primary_hit = hit
+
+		if primary_index > 0:
+			p_hits.remove_at(primary_index)
+			p_hits.insert(0, primary_hit)
+
+
+	## Ranks two hits for the primary slot: containment first, distance second.
+	func _wins_primary_slot(p_hit: SampleHit, p_current: SampleHit) -> bool:
+		if p_hit.contains_pointer != p_current.contains_pointer:
+			return p_hit.contains_pointer
+		return p_hit.distance_px < p_current.distance_px
 
 
 	####################################################################
@@ -418,13 +459,13 @@ class HoverController extends RefCounted:
 
 
 	## Creates one CrosshairOverlay per pane and adds it as the last child
-	## of each pane container so it draws on top of all data renderers.
+	## of each pane so it draws on top of all data renderers.
 	func _create_crosshair_overlays() -> void:
 		_crosshair_overlays.clear()
-		for pane_index: int in range(_pane_containers.size()):
+		for pane_index: int in range(_panes.size()):
 			var overlay := CrosshairOverlay.new()
 			overlay.name = "CrosshairOverlay_%d" % pane_index
-			_pane_containers[pane_index].add_child(overlay)
+			_panes[pane_index].add_child(overlay)
 			overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_crosshair_overlays.append(overlay)
 
@@ -441,32 +482,19 @@ class HoverController extends RefCounted:
 
 	## Shows crosshair lines on all panes with multi-pane synchronization.
 	##
-	## The x crosshair line appears on ALL panes (snapped to the hovered
-	## data point's x pixel position). The y crosshair line appears only
-	## on the active pane (following the raw mouse y position).
-	func _show_crosshairs(p_hits: Array[SampleHit], p_active_pane: int, p_local_pos: Vector2) -> void:
+	## The x crosshair line appears on ALL panes, at the position the hits
+	## were collected at. The y crosshair line appears only on the active
+	## pane (following the raw mouse y position).
+	##
+	## The x line marks a column, not a sample.
+	func _show_crosshairs(p_active_pane: int, p_local_pos: Vector2) -> void:
 		var configured_mode: CrosshairMode = _get_crosshair_mode()
 		if configured_mode == CrosshairMode.NONE:
 			_hide_all_crosshairs()
 			return
 
 		var x_is_horizontal: bool = _layout._x_is_horizontal
-		var primary_hit: SampleHit = p_hits[0]
-
-		# X pixel: snapped to the hovered data point's screen position.
-		# For GROUPED bars, snap to the category/data center instead of
-		# the individual bar's offset position.
-		var x_px: float
-		if _is_grouped_bar_x_aligned(p_active_pane):
-			var x_config := _layout.domain.config.x_axis
-			if x_config.type == TauAxisConfig.Type.CATEGORICAL:
-				x_px = _layout.map_x_category_center_to_px(p_active_pane, primary_hit.sample_index)
-			else:
-				x_px = _layout.map_x_to_px(p_active_pane, float(primary_hit.x_value))
-		elif x_is_horizontal:
-			x_px = primary_hit.screen_position.x
-		else:
-			x_px = primary_hit.screen_position.y
+		var x_px: float = _hovered_x_px
 
 		# Y pixel: raw mouse position.
 		var y_px: float
@@ -529,38 +557,56 @@ class HoverController extends RefCounted:
 		return _resolve_mode(p_pane_index) == HoverMode.X_ALIGNED
 
 
-	## Pushes highlight state to all bar and scatter renderers based on the
-	## current set of hits. Each renderer receives set_hover_state with the
-	## hit that belongs to it (matched by pane index and overlay type). If a
-	## renderer has no hit, it still receives p_active = true so that the
-	## color callback dims its samples, but p_series_id = -1 so no sample
-	## gets hovered-state style properties.
+	## Update the renderers hover state based on the current set of hits.
+	## Each renderer receives set_hover_state with the hit that belongs to it
+	## (matched by pane index and overlay type).
+	##
+	## Two rules decide who is left out of the pass:
+	## - A non-hoverable overlay is cleared. It produces no hit by construction,
+	##   so keeping it in could only ever dim it, never emphasize it.
+	## - A pane whose overlays produced no emphasized sample is cleared whole.
+	##   Dimming is a focus effect, and there is nothing to focus on. Without
+	##   this, a cursor resting inside the pane but outside every bar or marker
+	##   would fade the pane for as long as it stays there.
+	##
+	## A hoverable overlay in a pane that does have an emphasized sample, but
+	## none of its own, receives p_active = true with p_series_id = -1: its
+	## samples dim in favour of the overlay carrying the emphasis.
 	##
 	## For GROUPED bars in X_ALIGNED mode, the entire group at the hovered
 	## sample index is highlighted together via set_hover_state_group.
-	func _push_highlight_state_to_renderers(p_hits: Array[SampleHit]) -> void:
+	##
+	## For line overlays in X_ALIGNED mode, the closest hit to the pointer
+	## (smallest distance_px) is selected as the visually emphasized sample
+	## in each pane: hovering "the line at column X" picks the single line
+	## whose curve passes nearest to the cursor for the thicker emphasis,
+	## while the tooltip still lists all line series at that X.
+	func _update_renderers_hover_state(p_hits: Array[SampleHit]) -> void:
 		if not _is_highlight_enabled():
-			_clear_highlight_state_on_renderers()
+			_clear_renderers_hover_state()
 			return
 
 		var highlight_cb: Callable = _get_hover_highlight_callback()
 
 		# Build a lookup from pane_index to the best hit for that pane, per
-		# overlay type. Selection priority:
+		# overlay type. Selection priority for bars and scatter:
 		#   1. Hits where contains_pointer is true (cursor inside the visual
 		#      element). Among those, pick the one with the smallest distance_px.
 		#   2. If no hit contains the pointer, no sample is highlighted for that
 		#      overlay (series_id = -1). The tooltip still shows all hits, but
 		#      the visual highlight is suppressed because the cursor is not
 		#      physically inside any element.
+		# Lines are not bounded by a visual element along the y axis in
+		# X_ALIGNED mode, so they pick the smallest distance_px regardless of
+		# contains_pointer: the closest curve to the cursor wins the emphasis.
 		var bar_hits_by_pane: Dictionary[int, SampleHit] = {}
 		var scatter_hits_by_pane: Dictionary[int, SampleHit] = {}
+		var line_hits_by_pane: Dictionary[int, SampleHit] = {}
 
 		# Also track the sample_index for group highlighting (any bar hit,
 		# even without contains_pointer, tells us the hovered category).
 		var bar_sample_index_by_pane: Dictionary[int, int] = {}
 
-		const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 		for hit: SampleHit in p_hits:
 			if hit.overlay_type == PaneOverlayType.BAR:
 				if not bar_sample_index_by_pane.has(hit.pane_index):
@@ -574,11 +620,20 @@ class HoverController extends RefCounted:
 					var existing: SampleHit = scatter_hits_by_pane.get(hit.pane_index)
 					if existing == null or hit.distance_px < existing.distance_px:
 						scatter_hits_by_pane[hit.pane_index] = hit
+			elif hit.overlay_type == PaneOverlayType.LINE:
+				var existing: SampleHit = line_hits_by_pane.get(hit.pane_index)
+				if existing == null or hit.distance_px < existing.distance_px:
+					line_hits_by_pane[hit.pane_index] = hit
+
+		var emphasized_panes := _collect_emphasized_panes(bar_hits_by_pane, scatter_hits_by_pane, line_hits_by_pane, bar_sample_index_by_pane)
 
 		for pane_index: int in range(_bar_renderers.size()):
 			var renderer: BarRenderer = _bar_renderers[pane_index]
 			if renderer == null:
 				continue  # Pane has no bar overlay.
+			if not renderer.get_config().hoverable or not emphasized_panes.has(pane_index):
+				renderer.set_hover_state(false, -1, -1, Callable())
+				continue
 
 			# Use group highlight for GROUPED bars in X_ALIGNED mode.
 			if _is_grouped_bar_x_aligned(pane_index):
@@ -598,16 +653,56 @@ class HoverController extends RefCounted:
 			var renderer: ScatterRenderer = _scatter_renderers[pane_index]
 			if renderer == null:
 				continue  # Pane has no scatter overlay.
+			if not renderer.get_config().hoverable or not emphasized_panes.has(pane_index):
+				renderer.set_hover_state(false, -1, -1, Callable())
+				continue
 			var hit: SampleHit = scatter_hits_by_pane.get(pane_index)
 			if hit != null:
 				renderer.set_hover_state(true, hit.series_id, hit.sample_index, highlight_cb)
 			else:
 				renderer.set_hover_state(true, -1, -1, highlight_cb)
 
+		for pane_index: int in range(_line_renderers.size()):
+			var renderer: LineRenderer = _line_renderers[pane_index]
+			if renderer == null:
+				continue  # Pane has no line overlay.
+			if not renderer.get_config().hoverable or not emphasized_panes.has(pane_index):
+				renderer.set_hover_state(false, -1, -1, Callable())
+				continue
+			var hit: SampleHit = line_hits_by_pane.get(pane_index)
+			if hit != null:
+				renderer.set_hover_state(true, hit.series_id, hit.sample_index, highlight_cb)
+			else:
+				renderer.set_hover_state(true, -1, -1, highlight_cb)
 
-	## Clears highlight state on all bar and scatter renderers, returning
-	## them to normal (non-highlighted) drawing.
-	func _clear_highlight_state_on_renderers() -> void:
+
+	## Returns the set of pane indices where at least one overlay ends up with
+	## an emphasized sample, keyed by pane index. GROUPED bars in X_ALIGNED
+	## mode count through their sample index, since the group is emphasized
+	## without any of its hits containing the pointer.
+	func _collect_emphasized_panes(
+			p_bar_hits_by_pane: Dictionary[int, SampleHit],
+			p_scatter_hits_by_pane: Dictionary[int, SampleHit],
+			p_line_hits_by_pane: Dictionary[int, SampleHit],
+			p_bar_sample_index_by_pane: Dictionary[int, int]) -> Dictionary[int, bool]:
+		var emphasized: Dictionary[int, bool] = {}
+
+		for pane_index: int in p_bar_hits_by_pane:
+			emphasized[pane_index] = true
+		for pane_index: int in p_scatter_hits_by_pane:
+			emphasized[pane_index] = true
+		for pane_index: int in p_line_hits_by_pane:
+			emphasized[pane_index] = true
+		for pane_index: int in p_bar_sample_index_by_pane:
+			if _is_grouped_bar_x_aligned(pane_index):
+				emphasized[pane_index] = true
+
+		return emphasized
+
+
+	## Clears hover state on all bar, scatter, and line renderers,
+	## returning them to normal (non-highlighted) drawing.
+	func _clear_renderers_hover_state() -> void:
 		for pane_index: int in range(_bar_renderers.size()):
 			var renderer: BarRenderer = _bar_renderers[pane_index]
 			if renderer == null:
@@ -620,6 +715,12 @@ class HoverController extends RefCounted:
 				continue  # Pane has no scatter overlay.
 			renderer.set_hover_state(false, -1, -1, Callable())
 
+		for pane_index: int in range(_line_renderers.size()):
+			var renderer: LineRenderer = _line_renderers[pane_index]
+			if renderer == null:
+				continue  # Pane has no line overlay.
+			renderer.set_hover_state(false, -1, -1, Callable())
+
 
 	####################################################################
 	# Private: coordinate conversion
@@ -629,7 +730,7 @@ class HoverController extends RefCounted:
 	## to the TauPlot root PanelContainer).
 	func _pane_to_plot_local(p_pane_index: int, p_local_pos: Vector2) -> Vector2:
 		# Convert from pane-local to global, then from global to plot-local.
-		var global_pos := _pane_containers[p_pane_index].global_position + p_local_pos
+		var global_pos := _panes[p_pane_index].global_position + p_local_pos
 		return global_pos - _plot.global_position
 
 
@@ -731,7 +832,7 @@ class HoverController extends RefCounted:
 		else:
 			sb = TauTooltipStyle._create_default_style_box()
 
-		p_tooltip.apply_style(sb, style.font, style.font_size,
+		p_tooltip.apply_style(sb, style.get_font(), style.font_size,
 				style.font_color, style.padding_px, style.max_width_px)
 
 
@@ -787,34 +888,25 @@ class HoverController extends RefCounted:
 	## since screen Y grows downward).
 	## Returns Vector2.INF if no bar hits are found.
 	func _compute_grouped_bar_anchor(p_hits: Array, p_pane_index: int) -> Vector2:
-		const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+		var first_bar_hit: SampleHit = _find_first_bar_hit(p_hits)
+		if first_bar_hit == null:
+			return Vector2.INF
 
 		var min_y_px: float = INF  # Smallest screen Y = top of tallest bar.
-		var has_bar_hit := false
-		var first_bar_hit: SampleHit = null
 
-		for hit in p_hits:
-			var sample_hit: SampleHit = hit as SampleHit
-			if sample_hit == null:
+		for hit: SampleHit in p_hits:
+			if hit.overlay_type != PaneOverlayType.BAR:
 				continue
-			if sample_hit.overlay_type != PaneOverlayType.BAR:
-				continue
-			if not has_bar_hit:
-				first_bar_hit = sample_hit
-				has_bar_hit = true
 
 			# screen_position.y holds the bar tip pixel in pane-local space.
 			var x_is_horizontal: bool = _layout._x_is_horizontal
 			var bar_tip_y: float
 			if x_is_horizontal:
-				bar_tip_y = sample_hit.screen_position.y
+				bar_tip_y = hit.screen_position.y
 			else:
-				bar_tip_y = sample_hit.screen_position.x
+				bar_tip_y = hit.screen_position.x
 			if bar_tip_y < min_y_px:
 				min_y_px = bar_tip_y
-
-		if not has_bar_hit:
-			return Vector2.INF
 
 		# X: use the category center, not any individual bar's offset position.
 		# For categorical axes, map the sample_index back to the category center.
@@ -835,6 +927,14 @@ class HoverController extends RefCounted:
 			pane_local = Vector2(min_y_px, center_x_px)
 
 		return _pane_to_plot_local(p_pane_index, pane_local)
+
+
+	## Returns the first BAR hit of the array, or null when it holds none.
+	func _find_first_bar_hit(p_hits: Array) -> SampleHit:
+		for hit: SampleHit in p_hits:
+			if hit.overlay_type == PaneOverlayType.BAR:
+				return hit
+		return null
 
 
 	## Positions the tooltip at the mouse cursor (FOLLOW_MOUSE mode).

@@ -419,7 +419,6 @@ func _step_test_5() -> void:
 
 	var animated_value := int(clampf(25.0 + 25.0 * sin(_t * 0.7), 0.0, 50.0))
 	bar_config.style.bar_width_px = animated_value
-	plot.refresh_now()
 
 ####################################################################################################
 # Test 6
@@ -493,7 +492,6 @@ func _step_test_6() -> void:
 
 	var animated_value := int(clampf(25.0 + 25.0 * sin(_t * 0.7), 0.0, 50.0))
 	bar_config.style.bar_width_px = animated_value
-	plot.refresh_now()
 
 ####################################################################################################
 # Test 7
@@ -562,7 +560,6 @@ func _step_test_7() -> void:
 
 	var animated_value := int(clampf(25.0 + 25.0 * sin(_t * 0.7), 0.0, 50.0))
 	bar_config.style.bar_intragroup_gap_px = animated_value
-	plot.refresh_now()
 
 ####################################################################################################
 # Test 8
@@ -636,4 +633,3 @@ func _step_test_8() -> void:
 
 	var animated_value := int(clampf(25.0 + 25.0 * sin(_t * 0.7), 0.0, 50.0))
 	bar_config.style.bar_intragroup_gap_px = animated_value
-	plot.refresh_now()

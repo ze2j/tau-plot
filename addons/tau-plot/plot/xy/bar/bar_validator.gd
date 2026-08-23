@@ -1,10 +1,10 @@
 # Dependencies
 const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
-const BarVisualAttributes = preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
-const BarVisualCallbacks = preload("res://addons/tau-plot/plot/xy/bar/bar_visual_callbacks.gd").BarVisualCallbacks
-const ValidationResult = preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
+const BarVisualCallbacks := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_callbacks.gd").BarVisualCallbacks
+const ValidationResult := preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
 
 
 ## Validates that the bar overlay configuration for a single pane is internally
@@ -32,13 +32,10 @@ class BarValidator extends RefCounted:
 				p_result.add_error("BarValidator: binding has pane_index %d, expected %d" % [binding.pane_index, p_pane_index])
 				return
 			if binding.overlay_type != PaneOverlayType.BAR:
-				p_result.add_error("BarValidator: binding has overlay_type %d, expected BAR" % int(binding.overlay_type))
+				p_result.add_error("BarValidator: binding has overlay_type %d, expected BAR" % binding.overlay_type)
 				return
 
 		var pane_cfg := p_domain_cfg.panes[p_pane_index]
-		if pane_cfg == null:
-			p_result.add_error("BarValidator: pane %d: pane config is null" % p_pane_index)
-			return
 
 		var bar_config := pane_cfg.get_overlay_config(PaneOverlayType.BAR) as TauBarConfig
 		if bar_config == null:
@@ -48,7 +45,7 @@ class BarValidator extends RefCounted:
 		_validate_bar_visuals(p_pane_index, bar_config, p_bar_overlay_bindings, p_result)
 
 		var is_shared_x := (p_dataset.get_mode() == Dataset.Mode.SHARED_X)
-		_validate_bar_mode_constraints(p_pane_index, bar_config.mode, pane_cfg, p_bar_overlay_bindings, is_shared_x, p_result)
+		_validate_bar_mode_constraints(p_pane_index, bar_config, pane_cfg, p_bar_overlay_bindings, is_shared_x, p_result)
 
 		var x_cfg := p_domain_cfg.x_axis
 		if x_cfg != null:
@@ -69,8 +66,8 @@ class BarValidator extends RefCounted:
 				p_result.add_error("BarValidator: pane %d: series_id %d has visual_attributes that is not a BarVisualAttributes" % [p_pane_index, binding.series_id])
 
 
-	static func _validate_bar_mode_constraints(p_pane_index: int, p_bar_mode: TauBarConfig.BarMode, p_pane_cfg: TauPaneConfig, p_bar_overlay_bindings: Array[TauXYSeriesBinding], p_is_shared_x: bool, p_result: ValidationResult) -> void:
-		match p_bar_mode:
+	static func _validate_bar_mode_constraints(p_pane_index: int, p_bar_config: TauBarConfig, p_pane_cfg: TauPaneConfig, p_bar_overlay_bindings: Array[TauXYSeriesBinding], p_is_shared_x: bool, p_result: ValidationResult) -> void:
+		match p_bar_config.mode:
 			TauBarConfig.BarMode.GROUPED:
 				if not p_is_shared_x:
 					p_result.add_error("BarValidator: pane %d: GROUPED mode requires SHARED_X dataset mode" % p_pane_index)
@@ -78,6 +75,11 @@ class BarValidator extends RefCounted:
 			TauBarConfig.BarMode.STACKED:
 				if not p_is_shared_x:
 					p_result.add_error("BarValidator: pane %d: STACKED mode requires SHARED_X dataset mode" % p_pane_index)
+
+				# SIGNED_SUM is geometrically incompatible with bar STACKED:
+				# negative contributions would require subtracting from the cumulative, which produces overlapping rectangles.
+				if p_bar_config.stacked_negative_policy == TauBarConfig.StackedNegativePolicy.SIGNED_SUM:
+					p_result.add_error("BarValidator: pane %d: STACKED mode does not support SIGNED_SUM negative policy. Use DIVERGING or SKIP_NEGATIVES." % p_pane_index)
 
 				if not p_bar_overlay_bindings.is_empty():
 					# All stacked bar series must share the same y axis.
@@ -95,7 +97,7 @@ class BarValidator extends RefCounted:
 				pass  # No mode-specific constraints
 
 			_:
-				p_result.add_error("BarValidator: pane %d: unsupported bar mode %d" % [p_pane_index, int(p_bar_mode)])
+				p_result.add_error("BarValidator: pane %d: unsupported bar mode %d" % [p_pane_index, p_bar_config.mode])
 
 
 	static func _validate_bar_width_config(p_pane_index: int, p_x_axis_cfg: TauAxisConfig, p_bar_config: TauBarConfig, p_result: ValidationResult) -> void:
@@ -112,17 +114,17 @@ class BarValidator extends RefCounted:
 					TauBarConfig.BarWidthPolicy.THEME, TauBarConfig.BarWidthPolicy.CATEGORY_WIDTH_FRACTION:
 						pass
 					_:
-						p_result.add_error("BarValidator: pane %d: bar_width_policy %d is not allowed for CATEGORICAL x-axis" % [p_pane_index, int(p_policy)])
+						p_result.add_error("BarValidator: pane %d: bar_width_policy %d is not allowed for CATEGORICAL x-axis" % [p_pane_index, p_policy])
 
 			TauAxisConfig.Type.CONTINUOUS:
 				match p_policy:
 					TauBarConfig.BarWidthPolicy.THEME, TauBarConfig.BarWidthPolicy.DATA_UNITS, TauBarConfig.BarWidthPolicy.NEIGHBOR_SPACING_FRACTION:
 						pass
 					_:
-						p_result.add_error("BarValidator: pane %d: bar_width_policy %d is not allowed for CONTINUOUS x-axis" % [p_pane_index, int(p_policy)])
+						p_result.add_error("BarValidator: pane %d: bar_width_policy %d is not allowed for CONTINUOUS x-axis" % [p_pane_index, p_policy])
 
 			_:
-				p_result.add_error("BarValidator: pane %d: unexpected x-axis type %d" % [p_pane_index, int(p_x_axis_type)])
+				p_result.add_error("BarValidator: pane %d: unexpected x-axis type %d" % [p_pane_index, p_x_axis_type])
 
 
 	static func _validate_bar_width_policy_params(p_pane_index: int, p_x_axis_scale: TauAxisConfig.Scale, p_policy: TauBarConfig.BarWidthPolicy, p_bar_config: TauBarConfig, p_result: ValidationResult) -> void:
@@ -155,12 +157,12 @@ class BarValidator extends RefCounted:
 							p_result.add_error("BarValidator: pane %d: bar_gap_x_units must be >= 0 (got %f)" % [p_pane_index, p_bar_config.bar_gap_x_units])
 
 			TauBarConfig.BarWidthPolicy.NEIGHBOR_SPACING_FRACTION:
-				if p_bar_config.neighbor_spacing_fraction < 0.0 or p_bar_config.neighbor_spacing_fraction > 1.0:
-					p_result.add_error("BarValidator: pane %d: neighbor_spacing_fraction must be in [0, 1]" % p_pane_index)
+				if p_bar_config.neighbor_spacing_fraction <= 0.0 or p_bar_config.neighbor_spacing_fraction > 1.0:
+					p_result.add_error("BarValidator: pane %d: neighbor_spacing_fraction must be in ]0, 1]" % p_pane_index)
 
 				if p_bar_config.mode == TauBarConfig.BarMode.GROUPED:
 					if p_bar_config.neighbor_gap_fraction < 0.0:
 						p_result.add_error("BarValidator: pane %d: neighbor_gap_fraction must be >= 0 (got %f)" % [p_pane_index, p_bar_config.neighbor_gap_fraction])
 
 			_:
-				p_result.add_error("BarValidator: pane %d: unsupported bar_width_policy %d" % [p_pane_index, int(p_policy)])
+				p_result.add_error("BarValidator: pane %d: unsupported bar_width_policy %d" % [p_pane_index, p_policy])

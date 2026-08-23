@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://c84ur5wemhrdf" path="res://addons/tau-plot/tests/scatter/log_scale/test_scatter_logarithmic.gd" id="1_uvs55"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_3ak3o"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="Scatters" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

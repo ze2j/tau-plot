@@ -12,10 +12,22 @@ Configures the hover inspection system: hover mode, highlight, tooltip, and cros
 The **hover mode** controls which samples are collected when the cursor moves over a pane:
 
 - [`NEAREST`](#hovermode) collects the single closest sample across all overlays in the pane.
-- [`X_ALIGNED`](#hovermode) collects all samples at the nearest X position across every overlay in the pane. For [`PER_SERIES_X`](dataset.md#mode) datasets, only series that have a data point at the globally nearest X are included (see the [enum table](#hovermode) for details).
-- [`AUTO`](#hovermode) resolves the mode per pane from its overlay composition.
+- [`X_ALIGNED`](#hovermode) collects samples by X position. The plot first finds the X position closest to the cursor in the pane. This is the hovered X position, and it can come from any overlay. Each overlay then picks, among the X positions where it has samples, the one closest to the hovered X position, and reports the samples there. Overlays that use the same X values all pick the same position, which is the usual case. See the [enum table](#hovermode) for how near that position has to be, and for [`PER_SERIES_X`](dataset.md#mode) datasets.
+- [`AUTO`](#hovermode) resolves the mode per pane by a vote. Each [`hoverable`](pane_overlay_config.md#hoverable) overlay in the pane states a preferred mode: [`X_ALIGNED`](#hovermode) for a [`BAR`](tau_plot.md#paneoverlaytype) or [`LINE`](tau_plot.md#paneoverlaytype) overlay, [`NEAREST`](#hovermode) for a [`SCATTER`](tau_plot.md#paneoverlaytype) overlay. Unanimity wins. A disagreement resolves to [`NEAREST`](#hovermode), and so does a pane holding no hoverable overlay.
 
-The **highlight** sub-system adjusts sample colors during rendering based on hover state. [`highlight_enabled`](#highlight_enabled) toggles it. When active, [`hover_highlight_callback`](#hover_highlight_callback) is called once per sample at draw time to perform the color adjustment. The callback must be valid to have any effect. When it is not set, the built-in behavior brightens the hovered sample and dims all other samples. For [`GROUPED`](bar_config.md#barmode) bars in [`X_ALIGNED`](#hovermode) mode, the entire group at the hovered X position is highlighted together rather than a single bar. The callback is only invoked while at least one sample is hovered.
+The **highlight** sub-system emphasizes the hovered samples while the cursor stays over a pane. [`highlight_enabled`](#highlight_enabled) toggles it. It changes the drawing in two ways.
+
+First, the emphasized sample of an overlay takes the hovered-state properties of that overlay's style: [`TauBarStyle.hovered_style_box`](bar_style.md#hovered_style_box), [`TauScatterStyle.hovered_marker_sizes_px`](scatter_style.md#hovered_marker_sizes_px) with [`hovered_outline_width_px`](scatter_style.md#hovered_outline_width_px) and [`hovered_outline_color`](scatter_style.md#hovered_outline_color), and [`TauLineStyle.hovered_line_widths_px`](line_style.md#hovered_line_widths_px).
+
+Second, the plot changes the color of every sample of the pane. By default it brightens the emphasized sample and dims the other ones. [`hover_highlight_callback`](#hover_highlight_callback) replaces that default. When it is set, the plot calls it once per sample and draws the color it returns.
+
+The highlight only affects the pane under the cursor. The other panes keep their normal colors. Inside that pane, the highlight runs only when one of its overlays has an emphasized sample. When none has, every sample keeps its normal color, and the tooltip still lists its hits. An overlay whose [`hoverable`](pane_overlay_config.md#hoverable) is `false` stays out of the highlight and keeps its normal colors.
+
+At most one sample per overlay and per pane is emphasized, picked from the hits the hover mode collected:
+
+- A [`BAR`](tau_plot.md#paneoverlaytype) or [`SCATTER`](tau_plot.md#paneoverlaytype) overlay considers only hits whose [`SampleHit.contains_pointer`](sample_hit.md#contains_pointer) is `true`, and emphasizes the closest of those by [`SampleHit.distance_px`](sample_hit.md#distance_px). When the cursor is inside no element, the tooltip still lists every hit and nothing is emphasized.
+- A [`LINE`](tau_plot.md#paneoverlaytype) overlay emphasizes the closest hit by [`SampleHit.distance_px`](sample_hit.md#distance_px), whatever [`contains_pointer`](sample_hit.md#contains_pointer) holds, so the curve running nearest the cursor takes the emphasis.
+- [`GROUPED`](bar_config.md#barmode) bars in [`X_ALIGNED`](#hovermode) mode are emphasized as a group. Every bar at the hovered X position takes the hovered state, with no containment requirement.
 
 The **tooltip** sub-system renders a popup near the hovered position. [`tooltip_enabled`](#tooltip_enabled) governs whether the built-in popup appears:
 
@@ -23,15 +35,17 @@ The **tooltip** sub-system renders a popup near the hovered position. [`tooltip_
 - When `true`, the built-in popup is rendered. Its content is determined in priority order:
   - [`create_tooltip_control`](#create_tooltip_control), when set, supplies a `Control` node placed inside the popup as its content, replacing the default text and giving full control over layout and presentation.
   - [`format_tooltip_text`](#format_tooltip_text), when set and [`create_tooltip_control`](#create_tooltip_control) is not, supplies a BBCode string rendered inside the popup.
-  - When neither callback is set, the built-in formatter renders the series name and sample values.
+  - When neither callback is set, the built-in formatter renders the hits after deduplicating them by [`series_id`](sample_hit.md#series_id) and [`sample_index`](sample_hit.md#sample_index). A single hit renders as the series name followed by the X value in parentheses, then a second line holding `y: ` and the Y value. Several hits sharing the same X value render that value on the first line, then one line per hit holding the series name and its Y value. Several hits with different X values render no first line. Each line then holds the series name, its X value in parentheses, and its Y value. The Y value is [`SampleHit.y_raw_value`](sample_hit.md#y_raw_value), so a stacked overlay reports what the dataset holds rather than the cumulative top.
 
-The popup exists in two states: a **transient** state that follows or anchors near the cursor, and a **pinned** state that stays visible after a click and is dismissed explicitly. Visual properties for both states are controlled through [`tooltip_style`](#tooltip_style).
+The popup exists in two states: a **transient** state that follows or anchors near the cursor, and a **pinned** state that a click leaves in place. A click on empty space or the Escape key dismisses a pinned popup. Visual properties for both states are controlled through [`tooltip_style`](#tooltip_style).
 
 [`tooltip_position_mode`](#tooltip_position_mode) controls whether the popup anchors to the data point or follows the cursor. [`tooltip_precision_digits`](#tooltip_precision_digits) sets the number of significant digits used when the built-in formatter renders numeric values.
 
-The **crosshair** sub-system draws guide lines across the pane at the hovered position. [`crosshair_mode`](#crosshair_mode) selects which lines are drawn. Visual properties are set on [`crosshair_style`](#crosshair_style).
+The **crosshair** sub-system draws guide lines across the pane at the hovered position. [`crosshair_mode`](#crosshair_mode) selects which lines are drawn. The X line marks the hovered X position, so it marks a column rather than a sample. The Y line follows the cursor. Visual properties are set on [`crosshair_style`](#crosshair_style).
 
 [`tooltip_style`](#tooltip_style) and [`crosshair_style`](#crosshair_style) are created automatically when `TauHoverConfig` is instantiated, so they are never `null`.
+
+After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to this instance. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change. Runtime mutation is not yet supported by every property: see [Runtime Configuration Change Limitations](../runtime-configuration-change-limitations.md).
 
 ### Example
 
@@ -43,7 +57,7 @@ hover.tooltip_precision_digits = 4
 
 # Replace the built-in tooltip text with a custom BBCode string.
 hover.format_tooltip_text = func(hits: Array[TauPlot.SampleHit]) -> String:
-    return "[b]%s[/b]: %.4f" % [hits[0].series_name, hits[0].y_value]
+    return "[b]%s[/b]: %.4f" % [hits[0].series_name, hits[0].y_raw_value]
 
 %MyPlot.hover_config = hover
 %MyPlot.hover_enabled = true
@@ -51,9 +65,7 @@ hover.format_tooltip_text = func(hits: Array[TauPlot.SampleHit]) -> String:
 
 ### Notes
 
-1. **Non-serializable callbacks.** [`hover_highlight_callback`](#hover_highlight_callback), [`format_tooltip_text`](#format_tooltip_text), and [`create_tooltip_control`](#create_tooltip_control) are not exported and cannot be saved in a `.tres` resource file. Assign them at runtime only.
-
-2. **Duplicate hits.** The array passed to [`format_tooltip_text`](#format_tooltip_text) and [`create_tooltip_control`](#create_tooltip_control) is not deduplicated. If a series is bound to multiple overlays, multiple [`SampleHit`](sample_hit.md) entries with the same `series_id` and `sample_index` may appear. The callback is responsible for handling duplicates.
+1. **Duplicate hits.** The array passed to [`format_tooltip_text`](#format_tooltip_text) and [`create_tooltip_control`](#create_tooltip_control) is not deduplicated. A series bound to several overlays produces one [`SampleHit`](sample_hit.md) per overlay, with the same [`series_id`](sample_hit.md#series_id) and [`sample_index`](sample_hit.md#sample_index). A custom callback handles that itself. The built-in formatter deduplicates on those two fields and keeps the first hit of each pair.
 
 ## Enums
 
@@ -63,9 +75,9 @@ Controls which samples are collected when the cursor moves over a pane.
 
 | Value | Meaning |
 |---|---|
-| `AUTO` | The mode is resolved per pane based on the overlay types it contains. |
+| `AUTO` | The mode is resolved per pane by a vote between the hoverable overlays it contains. Bar and line overlays prefer `X_ALIGNED`, scatter overlays prefer `NEAREST`. A disagreement, or a pane with no hoverable overlay, resolves to `NEAREST`. |
 | `NEAREST` | The single closest sample across all overlays in the pane is collected. |
-| `X_ALIGNED` | All samples at the nearest X position across every overlay in the pane are collected. For [`SHARED_X`](dataset.md#mode) datasets every series has a value at that position, so all series appear in the tooltip. For [`PER_SERIES_X`](dataset.md#mode) datasets the nearest X is found across all series, and only series that have a data point at that exact X are included. Two X values are considered equal when their relative difference is smaller than `1e-9`. In practice this means most hover events on a `PER_SERIES_X` dataset produce a single-series tooltip, but when two series happen to share the same X value both appear. |
+| `X_ALIGNED` | Samples are collected by X position. The plot finds the X position closest to the cursor in the pane, which can come from any overlay. This is the hovered X position. Each overlay then picks, among the X positions where it has samples, the one closest to the hovered X position, and reports the samples there. A [`SCATTER`](tau_plot.md#paneoverlaytype) or [`LINE`](tau_plot.md#paneoverlaytype) overlay reports nothing when the position it picked is farther than its `hover_max_distance_px` from the hovered X position. A [`BAR`](tau_plot.md#paneoverlaytype) overlay has no such threshold and always reports the column it picked. Inside one overlay, every series with a sample at the picked X value is reported. Two X values count as equal when their relative difference is at or below `1e-9`. For [`SHARED_X`](dataset.md#mode) datasets every series of the overlay has a value there, so all of them appear. For [`PER_SERIES_X`](dataset.md#mode) datasets most hover events produce a single-series tooltip, but when two series happen to share the same X value both appear. |
 
 ---
 
@@ -76,9 +88,9 @@ Controls which crosshair guide lines are drawn at the hovered position.
 | Value | Meaning |
 |---|---|
 | `NONE` | No crosshair lines are drawn. |
-| `X_ONLY` | A vertical line is drawn at the hovered X position, spanning the full pane extent along the Y direction. |
-| `Y_ONLY` | A horizontal line is drawn at the hovered Y position, spanning the full pane extent along the X direction. |
-| `BOTH` | Both the vertical and horizontal lines are drawn. |
+| `X_ONLY` | One line is drawn at the hovered X position, running across the pane perpendicular to the X axis. In [`X_ALIGNED`](#hovermode) mode it is drawn on every pane, so the panes can be read against the same column. |
+| `Y_ONLY` | One line is drawn at the hovered Y position, running across the pane perpendicular to the Y axis. |
+| `BOTH` | Both lines are drawn. |
 
 ---
 
@@ -88,7 +100,7 @@ Controls where the tooltip popup is anchored.
 
 | Value | Meaning |
 |---|---|
-| `SNAP_TO_POINT` | The tooltip anchors to the hovered data point with an offset defined by [`TauTooltipStyle.offset_px`](tooltip_style.md#offset_px). For [`GROUPED`](bar_config.md#barmode) bars in [`X_ALIGNED`](#hovermode) mode, the anchor is the center of the group (horizontally at the category center, vertically at the top of the tallest bar). |
+| `SNAP_TO_POINT` | The tooltip anchors to the first hit of the array, which is the sample the cursor is on, or the closest sample when the cursor is on none. The offset is defined by [`TauTooltipStyle.offset_px`](tooltip_style.md#offset_px). For [`GROUPED`](bar_config.md#barmode) bars in [`X_ALIGNED`](#hovermode) mode, the anchor sits at the category center along the X axis and at the tip of the tallest bar along the Y axis. |
 | `FOLLOW_MOUSE` | The tooltip follows the cursor with the same offset. |
 
 ## Constructor
@@ -109,13 +121,7 @@ Creates a new `TauHoverConfig` with all properties set to their built-in default
 
 The strategy used to collect samples when the cursor moves over a pane. Default is [`AUTO`](#hovermode).
 
-[`AUTO`](#hovermode) resolves the mode per pane from its overlay composition:
-
-- A pane containing only bar overlays resolves to [`X_ALIGNED`](#hovermode).
-- A pane containing only scatter overlays resolves to [`NEAREST`](#hovermode).
-- A pane mixing both overlay types resolves to [`NEAREST`](#hovermode).
-
-[`NEAREST`](#hovermode) collects the single closest sample. [`X_ALIGNED`](#hovermode) collects all samples at the nearest X position. For [`PER_SERIES_X`](dataset.md#mode) datasets, `X_ALIGNED` finds the globally nearest X across all series and only includes series whose closest X matches that value (relative tolerance of `1e-9`).
+The mode applies to every pane. [`AUTO`](#hovermode) is the one value resolved per pane, from the overlays that pane holds.
 
 ---
 
@@ -123,9 +129,9 @@ The strategy used to collect samples when the cursor moves over a pane. Default 
 
 `highlight_enabled`: `bool`
 
-Controls whether hovered samples receive a visual color adjustment during rendering. Default is `true`.
+Controls whether hovered samples are emphasized during rendering. Default is `true`.
 
-When `true`, [`hover_highlight_callback`](#hover_highlight_callback) is called once per sample at draw time to perform the adjustment. The callback must be valid to have any effect. When the callback is not set, the built-in behavior applies instead: the hovered sample is brightened and all other samples are dimmed. For [`GROUPED`](bar_config.md#barmode) bars in [`X_ALIGNED`](#hovermode) mode, all bars at the hovered X position are brightened together. When `false`, all samples use their normal resolved colors regardless of hover state and [`hover_highlight_callback`](#hover_highlight_callback) is never called.
+When `false`, every sample draws with its normal resolved color and style whatever the hover state, and [`hover_highlight_callback`](#hover_highlight_callback) is never called.
 
 ---
 
@@ -133,15 +139,20 @@ When `true`, [`hover_highlight_callback`](#hover_highlight_callback) is called o
 
 `hover_highlight_callback`: `Callable`
 
-An optional callback that returns the draw color for each sample based on hover state. Default is an invalid `Callable`.
+An optional callback that returns the draw color of each sample from its hover state. Default is an invalid `Callable`.
 
-When invalid, the built-in behavior applies: the hovered sample is brightened and all other samples are dimmed. When valid, the callback replaces that behavior entirely. It is only invoked when [`highlight_enabled`](#highlight_enabled) is `true` and at least one sample is currently hovered. See [note 1](#notes). The callback signature is:
+When invalid, the built-in behavior applies: the emphasized sample is brightened, and the alpha channel of every other sample is multiplied by `0.7`, so a series already translucent stays behind an opaque one. When valid, the callback replaces that behavior for the color, and the hovered-state style properties still apply. It is invoked once per sample of every [`hoverable`](pane_overlay_config.md#hoverable) overlay of the pane under the cursor, while [`highlight_enabled`](#highlight_enabled) is `true` and a sample of that pane is emphasized. The callback signature is:
 
 ```gdscript
 func(color: Color, hovered: bool) -> Color
 ```
 
-`color` is the resolved fill color for the sample. `hovered` is `true` when this specific sample is the one under the cursor. For [`GROUPED`](bar_config.md#barmode) bars in [`X_ALIGNED`](#hovermode) mode, `hovered` is `true` for every bar in the hovered group, not just the one directly under the cursor. The return value is the color the renderer draws.
+* `color: Color` The resolved fill color of the sample.
+* `hovered: bool` `true` when this sample is the emphasized one of its overlay. For [`GROUPED`](bar_config.md#barmode) bars in [`X_ALIGNED`](#hovermode) mode, `true` for every bar of the hovered group.
+
+The return value is the color the renderer draws.
+
+`hover_highlight_callback` is not serializable. The property is not exported and cannot be saved in a `.tres` resource file. Assign it at runtime only.
 
 ---
 
@@ -169,7 +180,7 @@ Controls where the tooltip popup is anchored relative to the hovered position. D
 
 The number of significant digits used when the built-in formatter renders numeric sample values in the tooltip. Default is `3`.
 
-The displayed precision adapts to the visible domain span. A narrow span produces more decimal places. A wide span produces fewer. Valid range is `1` to `15`. This property has no effect when [`format_tooltip_text`](#format_tooltip_text) or [`create_tooltip_control`](#create_tooltip_control) is set.
+The displayed precision adapts to the visible domain span. A narrow span produces more decimal places. A wide span produces fewer. Valid range is `1` to `15`, and a value outside it is clamped into that range on assignment. This property has no effect when [`format_tooltip_text`](#format_tooltip_text) or [`create_tooltip_control`](#create_tooltip_control) is set.
 
 ---
 
@@ -179,7 +190,7 @@ The displayed precision adapts to the visible domain span. A narrow span produce
 
 The visual style applied to the tooltip popup. Default is a freshly constructed [`TauTooltipStyle`](tooltip_style.md) with all built-in defaults.
 
-Never `null`. Modify properties directly on the instance. Any property left at its built-in default remains overridable by the active Godot theme. Multiple `TauHoverConfig` instances can share the same [`TauTooltipStyle`](tooltip_style.md) resource.
+Never `null`. Modify properties directly on the instance. Any property left unassigned on this instance can still be set by the active Godot theme. Multiple `TauHoverConfig` instances can share the same [`TauTooltipStyle`](tooltip_style.md) resource.
 
 ---
 
@@ -197,7 +208,7 @@ The crosshair lines drawn at the hovered position. Default is [`NONE`](#crosshai
 
 The visual style applied to the crosshair lines. Default is a freshly constructed [`TauCrosshairStyle`](crosshair_style.md) with all built-in defaults.
 
-Never `null`. Modify properties directly on the instance. Any property left at its built-in default remains overridable by the active Godot theme. Multiple `TauHoverConfig` instances can share the same [`TauCrosshairStyle`](crosshair_style.md) resource.
+Never `null`. Modify properties directly on the instance. Any property left unassigned on this instance can still be set by the active Godot theme. Multiple `TauHoverConfig` instances can share the same [`TauCrosshairStyle`](crosshair_style.md) resource.
 
 ---
 
@@ -207,13 +218,15 @@ Never `null`. Modify properties directly on the instance. Any property left at i
 
 An optional callback that returns the tooltip content as a BBCode string. Default is an invalid `Callable`.
 
-When valid, replaces the built-in text formatter. When invalid, the built-in formatter renders the series name and sample values using [`tooltip_precision_digits`](#tooltip_precision_digits). Ignored when [`create_tooltip_control`](#create_tooltip_control) is set. See [note 1](#notes) and [note 2](#notes). The callback signature is:
+When valid, replaces the built-in text formatter. When invalid, the built-in formatter renders the series name and sample values using [`tooltip_precision_digits`](#tooltip_precision_digits). Ignored when [`create_tooltip_control`](#create_tooltip_control) is set. See [note 1](#notes). The callback signature is:
 
 ```gdscript
 func(hits: Array[SampleHit]) -> String
 ```
 
-`hits` is the array of [`SampleHit`](sample_hit.md) objects describing the currently hovered samples.
+* `hits: Array[SampleHit]` The [`SampleHit`](sample_hit.md) objects describing the currently hovered samples.
+
+`format_tooltip_text` is not serializable. The property is not exported and cannot be saved in a `.tres` resource file. Assign it at runtime only.
 
 ---
 
@@ -223,18 +236,27 @@ func(hits: Array[SampleHit]) -> String
 
 An optional callback that returns a `Control` node placed inside the tooltip panel as its content. Default is an invalid `Callable`.
 
-When valid, takes priority over [`format_tooltip_text`](#format_tooltip_text). The returned Control is added as a child of the tooltip panel and padded by [`TauTooltipStyle.padding_px`](tooltip_style.md#padding_px) on all sides. The panel's background and positioning are still governed by [`tooltip_style`](#tooltip_style). The Control is freed when the tooltip hides. See [note 1](#notes) and [note 2](#notes). The callback signature is:
+When valid, takes priority over [`format_tooltip_text`](#format_tooltip_text). The returned `Control` is added as a child of the tooltip panel and padded by [`TauTooltipStyle.padding_px`](tooltip_style.md#padding_px) on all sides. The panel background and positioning are still governed by [`tooltip_style`](#tooltip_style). The `Control` is freed when the tooltip hides. See [note 1](#notes). The callback signature is:
 
 ```gdscript
 func(hits: Array[SampleHit]) -> Control
 ```
 
-`hits` is the array of [`SampleHit`](sample_hit.md) objects describing the currently hovered samples.
+* `hits: Array[SampleHit]` The [`SampleHit`](sample_hit.md) objects describing the currently hovered samples.
+
+`create_tooltip_control` is not serializable. The property is not exported and cannot be saved in a `.tres` resource file. Assign it at runtime only.
 
 ## Related Classes
 
 * [`TauPlot`](tau_plot.md) The plot node. Accepts `TauHoverConfig` via [`hover_config`](tau_plot.md#hover_config) and activates the system when [`hover_enabled`](tau_plot.md#hover_enabled) is `true`.
+* [`SampleHit`](sample_hit.md) Describes one hovered sample. Passed to [`format_tooltip_text`](#format_tooltip_text) and [`create_tooltip_control`](#create_tooltip_control).
+* [`Dataset`](dataset.md) The data model. Its [mode](dataset.md#mode) decides how many series [`X_ALIGNED`](#hovermode) collects at one X position.
+* [`TauPaneOverlayConfig`](pane_overlay_config.md) Base class of the overlay configurations. Its [`hoverable`](pane_overlay_config.md#hoverable) flag takes an overlay out of hit testing, out of the highlight, and out of the [`AUTO`](#hovermode) vote.
+* [`TauBarConfig`](bar_config.md) Bar overlay configuration. Its [`mode`](bar_config.md#mode) decides whether bars are emphasized one at a time or as a group.
+* [`TauScatterConfig`](scatter_config.md) Scatter overlay configuration. Holds the [`hover_max_distance_px`](scatter_config.md#hover_max_distance_px) gate applied to markers.
+* [`TauLineConfig`](line_config.md) Line overlay configuration. Holds the [`hover_max_distance_px`](line_config.md#hover_max_distance_px) gate applied to curve samples.
+* [`TauBarStyle`](bar_style.md) Holds [`hovered_style_box`](bar_style.md#hovered_style_box), applied to the emphasized bar.
+* [`TauScatterStyle`](scatter_style.md) Holds the hovered-state marker size, outline width, and outline color.
+* [`TauLineStyle`](line_style.md) Holds [`hovered_line_widths_px`](line_style.md#hovered_line_widths_px), applied around the emphasized sample.
 * [`TauTooltipStyle`](tooltip_style.md) Controls the visual appearance of the tooltip popup, assigned to [`tooltip_style`](#tooltip_style).
 * [`TauCrosshairStyle`](crosshair_style.md) Controls the visual appearance of the crosshair lines, assigned to [`crosshair_style`](#crosshair_style).
-* [`SampleHit`](sample_hit.md) Describes one hovered sample. Passed to [`format_tooltip_text`](#format_tooltip_text) and [`create_tooltip_control`](#create_tooltip_control).
-* [`TauXYStyle`](xy_style.md) Provides the fallback font and font size used by the built-in tooltip formatter.

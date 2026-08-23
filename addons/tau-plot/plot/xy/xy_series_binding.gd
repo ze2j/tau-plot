@@ -1,9 +1,9 @@
 ## Maps a dataset series to a visual representation in the plot.
 class_name TauXYSeriesBinding extends Resource
 
-const PaneOverlayType = preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
-const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
+const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
 
 ## The series ID from the dataset that this mapping applies to.
@@ -18,5 +18,12 @@ const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 ## Which y-axis this series is assigned to.
 ## Must be orthogonal to the x-axis.
 @export var y_axis_id: AxisId = AxisId.LEFT
+
+## Whether this binding contributes a key to the legend.
+##
+## Each binding carries its own key, so a series bound to several overlays can
+## show only some of them. A series whose bindings are all excluded gets no
+## legend entry at all.
+@export var show_in_legend: bool = true
 
 var visual_attributes: VisualAttributes = null

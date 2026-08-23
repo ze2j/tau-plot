@@ -82,6 +82,18 @@ func _make_plot(p_plot: TauPlot, p_title: String, p_legend_position: TauLegendCo
 	var legend_config := TauLegendConfig.new()
 	legend_config.position = p_legend_position
 
+	var legend_background := StyleBoxFlat.new()
+	legend_background.bg_color = Color(0.3, 0.3, 0.3)
+	legend_background.corner_radius_bottom_left = 12
+	legend_background.corner_radius_bottom_right = 12
+	legend_background.corner_radius_top_left = 12
+	legend_background.corner_radius_top_right = 12
+	legend_background.content_margin_bottom = 4
+	legend_background.content_margin_left = 4
+	legend_background.content_margin_right = 4
+	legend_background.content_margin_top = 4
+	legend_config.style.background = legend_background
+
 	p_plot.title = p_title
 	p_plot.legend_config = legend_config
 
@@ -89,20 +101,27 @@ func _make_plot(p_plot: TauPlot, p_title: String, p_legend_position: TauLegendCo
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
 	x_axis.scale = TauAxisConfig.Scale.LINEAR
 
-	var left_t := TauAxisConfig.new()
-	left_t.title = "Top"
-	left_t.type = TauAxisConfig.Type.CONTINUOUS
-	left_t.include_zero_in_domain = true
+	var y_left_axis_t := TauAxisConfig.new()
+	y_left_axis_t.title = "Top"
+	y_left_axis_t.type = TauAxisConfig.Type.CONTINUOUS
+	y_left_axis_t.include_zero_in_domain = true
 
-	var left_m := TauAxisConfig.new()
-	left_m.title = "Middle"
-	left_m.type = TauAxisConfig.Type.CONTINUOUS
-	left_m.include_zero_in_domain = true
+	var y_left_axis_m := TauAxisConfig.new()
+	y_left_axis_m.title = "Middle"
+	y_left_axis_m.type = TauAxisConfig.Type.CONTINUOUS
+	y_left_axis_m.include_zero_in_domain = true
 
-	var left_b := TauAxisConfig.new()
-	left_b.title = "Bottom"
-	left_b.type = TauAxisConfig.Type.CONTINUOUS
-	left_b.include_zero_in_domain = true
+	var y_left_axis_b := TauAxisConfig.new()
+	y_left_axis_b.title = "Bottom"
+	y_left_axis_b.type = TauAxisConfig.Type.CONTINUOUS
+	y_left_axis_b.include_zero_in_domain = true
+
+	var scatter_config := TauScatterConfig.new()
+	scatter_config.style.marker_shapes = [TauScatterStyle.MarkerShape.SQUARE]
+
+	var line_config := TauLineConfig.new()
+	line_config.mode = TauLineConfig.LineMode.INDEPENDENT
+	line_config.interpolation_modes = [TauLineConfig.InterpolationMode.LINEAR]
 
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.INDEPENDENT
@@ -110,17 +129,17 @@ func _make_plot(p_plot: TauPlot, p_title: String, p_legend_position: TauLegendCo
 	bar_config.bar_width_x_units = 0.6
 
 	var pane_t := TauPaneConfig.new()
-	pane_t.y_left_axis = left_t
-	pane_t.stretch_ratio = 2.0
-	pane_t.overlays = [bar_config]
+	pane_t.y_left_axis = y_left_axis_t
+	pane_t.stretch_ratio = 1.0
+	pane_t.overlays = [scatter_config]
 
 	var pane_m := TauPaneConfig.new()
-	pane_m.y_left_axis = left_m
+	pane_m.y_left_axis = y_left_axis_m
 	pane_m.stretch_ratio = 1.0
-	pane_m.overlays = [bar_config]
+	pane_m.overlays = [line_config]
 
 	var pane_b := TauPaneConfig.new()
-	pane_b.y_left_axis = left_b
+	pane_b.y_left_axis = y_left_axis_b
 	pane_b.stretch_ratio = 1.0
 	pane_b.overlays = [bar_config]
 
@@ -130,13 +149,13 @@ func _make_plot(p_plot: TauPlot, p_title: String, p_legend_position: TauLegendCo
 
 	var sb_top := TauXYSeriesBinding.new()
 	sb_top.series_id = dataset.get_series_id_by_index(0)
-	sb_top.overlay_type = TauXYSeriesBinding.PaneOverlayType.BAR
+	sb_top.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
 	sb_top.y_axis_id = TauPlot.AxisId.LEFT
 	sb_top.pane_index = 0
 
 	var sb_mid := TauXYSeriesBinding.new()
 	sb_mid.series_id = dataset.get_series_id_by_index(1)
-	sb_mid.overlay_type = TauXYSeriesBinding.PaneOverlayType.BAR
+	sb_mid.overlay_type = TauXYSeriesBinding.PaneOverlayType.LINE
 	sb_mid.y_axis_id = TauPlot.AxisId.LEFT
 	sb_mid.pane_index = 1
 

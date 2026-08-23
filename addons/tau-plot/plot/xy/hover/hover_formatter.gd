@@ -1,4 +1,5 @@
-const SampleHit = preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const SampleHit := preload("res://addons/tau-plot/plot/xy/hover/sample_hit.gd").SampleHit
+const OverlayHitTester := preload("res://addons/tau-plot/plot/xy/hover/overlay_hit_tester.gd").OverlayHitTester
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis_assignment.gd").SeriesAxisAssignment
 
@@ -6,22 +7,18 @@ const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis
 ## Produces human-readable strings from raw numeric values for tooltip display.
 ##
 ## Adapts decimal places to the visible domain span and a configurable
-## precision digit count. Honors user-provided format_tick_label callbacks
-## on axis configs when they are set.
+## precision digit count.
 class HoverFormatter extends RefCounted:
 	var _domain: XYDomain
-	var _domain_config: TauXYConfig
 	var _series_assignment: SeriesAxisAssignment
 	var _precision_digits: int
 
 
 	func _init(
 			p_domain: XYDomain,
-			p_domain_config: TauXYConfig,
 			p_series_assignment: SeriesAxisAssignment,
 			p_precision_digits: int) -> void:
 		_domain = p_domain
-		_domain_config = p_domain_config
 		_series_assignment = p_series_assignment
 		_precision_digits = p_precision_digits
 
@@ -64,42 +61,60 @@ class HoverFormatter extends RefCounted:
 		return line1 + "\ny: " + y_str
 
 
-	## Formats multiple hits (X_ALIGNED style):
+	## Formats multiple hits (X_ALIGNED style). One shared x value gets a
+	## heading of its own:
 	## "x_value"
 	## "Series1: y1"
 	## "Series2: y2"
+	##
+	## Otherwise each line carries its own x instead:
+	## "Series1 (x1): y1"
+	## "Series2 (x2): y2"
 	func _format_multi_hit(p_hits: Array) -> String:
 		if p_hits.is_empty():
 			return ""
 
-		var first_hit: SampleHit = p_hits[0]
-		var x_str := _format_hit_x_value(first_hit)
 		var lines: PackedStringArray = PackedStringArray()
-		if not x_str.is_empty():
-			lines.append(x_str)
+
+		if _share_one_x_value(p_hits):
+			var x_str := _format_hit_x_value(p_hits[0])
+			if not x_str.is_empty():
+				lines.append(x_str)
+			for hit in p_hits:
+				lines.append(hit.series_name + ": " + _format_hit_y_value(hit))
+			return "\n".join(lines)
 
 		for hit in p_hits:
-			var y_str := _format_hit_y_value(hit)
-			lines.append(hit.series_name + ": " + y_str)
+			var x_str := _format_hit_x_value(hit)
+			var label: String = hit.series_name
+			if not x_str.is_empty():
+				label += " (" + x_str + ")"
+			lines.append(label + ": " + _format_hit_y_value(hit))
 
 		return "\n".join(lines)
 
 
-	## Formats the x value of a hit, using axis format_tick_label if available.
+	## Returns true when every hit sits at the same x value. Categorical x
+	## always does, since the hits come from one resolved category.
+	func _share_one_x_value(p_hits: Array) -> bool:
+		var first_hit: SampleHit = p_hits[0]
+		if first_hit.x_value is String:
+			return true
+
+		for hit: SampleHit in p_hits:
+			if not OverlayHitTester.x_values_match(hit.x_value, first_hit.x_value):
+				return false
+		return true
+
+
 	func _format_hit_x_value(p_hit: SampleHit) -> String:
 		if p_hit.x_value is String:
-			return _apply_x_format_callback(p_hit.x_value as String)
-
-		# Continuous x: format with domain-aware precision for tooltip display.
-		var raw_str := _format_continuous_x_value(p_hit.x_value as float)
-		return _apply_x_format_callback(raw_str)
+			return p_hit.x_value as String
+		return _format_continuous_x_value(p_hit.x_value as float)
 
 
-	## Formats the y value of a hit, using axis format_tick_label if available.
 	func _format_hit_y_value(p_hit: SampleHit) -> String:
-		var span := _get_y_domain_span(p_hit)
-		var raw_str := _format_value(p_hit.y_value, span, _precision_digits)
-		return _apply_y_format_callback(raw_str, p_hit)
+		return _format_value(p_hit.y_raw_value, _get_y_domain_span(p_hit), _precision_digits)
 
 
 	## Formats a continuous x value for tooltip display.
@@ -110,8 +125,7 @@ class HoverFormatter extends RefCounted:
 	## places is derived from the x domain span and the configured precision
 	## digits.
 	func _format_continuous_x_value(p_value: float) -> String:
-		var span := _get_x_domain_span()
-		return _format_value(p_value, span, _precision_digits)
+		return _format_value(p_value, _get_x_domain_span(), _precision_digits)
 
 
 	## Formats a float with precision derived from the domain span.
@@ -120,12 +134,8 @@ class HoverFormatter extends RefCounted:
 	## represents roughly 1/(10^p_precision_digits) of the span. When values
 	## are extremely small or extremely large, scientific notation is used.
 	static func _format_value(p_value: float, p_domain_span: float, p_precision_digits: int) -> String:
-		# The span must be strictly positive (which is guaranteed by XYDomain).
-		if p_domain_span <= 0.0:
-			push_error("HoverFormatter: domain span must be > 0, got %f" % p_domain_span)
-			return String.num(p_value, 3)
-
 		# Compute decimals so precision is ~span / 10^p_precision_digits.
+		# The domain span is strictly positive (guaranteed by XYDomain).
 		var decimals := maxi(0, -int(floor(log(p_domain_span) / log(10.0))) + p_precision_digits)
 
 		# If we would need more than 12 decimal places, switch to scientific
@@ -153,21 +163,3 @@ class HoverFormatter extends RefCounted:
 		var pane_domain := _domain.get_pane_domain(pane_idx)
 		var y_domain := pane_domain.get_y_axis_domain(y_axis_id)
 		return y_domain.max_val - y_domain.min_val
-
-
-	## Applies the x axis format_tick_label callback if set.
-	func _apply_x_format_callback(p_text: String) -> String:
-		var x_cfg := _domain_config.x_axis
-		if x_cfg == null or not x_cfg.format_tick_label.is_valid():
-			return p_text
-		return x_cfg.format_tick_label.call(p_text)
-
-
-	## Applies the y axis format_tick_label callback if set for the hit's pane and axis.
-	func _apply_y_format_callback(p_text: String, p_hit: SampleHit) -> String:
-		var y_axis_id: int = _series_assignment.get_y_axis_id_for_series(p_hit.series_id, p_hit.pane_index)
-		var pane_config: TauPaneConfig = _domain_config.panes[p_hit.pane_index]
-		var y_cfg := pane_config.get_y_axis_config(y_axis_id)
-		if y_cfg == null or not y_cfg.format_tick_label.is_valid():
-			return p_text
-		return y_cfg.format_tick_label.call(p_text)

@@ -12,6 +12,10 @@ Ring buffer that stores `Color` values with a fixed capacity.
 
 All read and write operations use **logical indices**. Index `0` refers to the oldest value currently in the buffer. Index [`size()`](#size)` - 1` refers to the most recently appended one. Logical indices shift when the buffer wraps: after a new value is appended into a full buffer, every index decreases by one.
 
+The buffer holds no readable value outside `[0, `[`size()`](#size)` - 1]`. Capacity bounds how many values the buffer can hold at once, and appending is the only operation that raises [`size()`](#size).
+
+`NO_COLOR` is a public constant of the class, fully transparent black. [`get_value()`](#get_value) returns it on a failed read.
+
 The buffer is pre-allocated at construction and does not resize unless [`set_capacity()`](#set_capacity) is called explicitly.
 
 ### Example
@@ -26,9 +30,9 @@ colors.append_value(Color.RED)
 
 ### Notes
 
-1. **Default value fills unused slots.** At construction and after [`clear()`](#clear), every slot is filled with `p_default_value`. The default for `p_default_value` is `NO_COLOR` (`Color(0, 0, 0, 0)`), which is fully transparent black.
+1. **A new buffer is empty.** Construction allocates the slots and stores no value, so [`size()`](#size) is `0` and every read fails until the first append. [`clear()`](#clear) returns the buffer to that state.
 
-2. **Out-of-range access logs an error.** [`get_value()`](#get_value), [`set_value()`](#set_value), and [`set_values()`](#set_values) log an error and return early when the buffer is empty or the index is out of range.
+2. **Out-of-range access logs an error.** [`set_value()`](#set_value) and [`set_values()`](#set_values) log an error and write nothing when the buffer is empty or the index is out of range. [`get_value()`](#get_value) reports the same failure through its return value.
 
 3. **[`append_value()`](#append_value) and [`append_values()`](#append_values) always succeed.** They never reject input. When the buffer is full, the oldest value is silently overwritten. The return value indicates how many existing values were overwritten.
 
@@ -40,12 +44,11 @@ colors.append_value(Color.RED)
 ColorBuffer.new(p_capacity: int) -> ColorBuffer
 ```
 
-Creates an empty buffer with the given capacity. The buffer is ready to use immediately after construction.
+Creates an empty buffer with the given capacity.
 
 **Parameters**
 
 * `p_capacity: int` Maximum number of `Color` values the buffer can hold. Values below `1` are clamped to `1`.
-* `p_default_value: Color` Value used to fill unused slots at construction and after [`clear()`](#clear). Default: `NO_COLOR` (`Color(0, 0, 0, 0)`).
 
 ## Methods
 
@@ -79,7 +82,9 @@ Returns the number of values currently stored. Always between `0` and [`get_capa
 get_value(p_logical_index: int) -> Color
 ```
 
-Returns the `Color` at the given logical index. Index `0` is the oldest value in the buffer, [`size()`](#size)` - 1` is the most recent. Logs an error and returns `Color(0, 0, 0, 0)` if the buffer is empty or the index is out of range.
+Returns the `Color` at the given logical index. Index `0` is the oldest value in the buffer, [`size()`](#size)` - 1` is the most recent.
+
+Reading an empty buffer, or a logical index below `0` or at or above [`size()`](#size), pushes an error and returns `NO_COLOR`.
 
 **Parameters**
 
@@ -155,7 +160,7 @@ Appends multiple `Color` values to the buffer. If the buffer does not have enoug
 set_capacity(p_capacity: int) -> void
 ```
 
-Resizes the buffer to the new capacity. Values below `1` are clamped to `1`. If the new capacity is smaller than the current sample count, the oldest values are dropped. If the new capacity is greater, existing values are preserved, new slots are pre-filled with the default value set at construction, and [`size()`](#size) is unchanged. Does nothing if the new capacity equals the current one.
+Resizes the buffer to the new capacity. Values below `1` are clamped to `1`. If the new capacity is below [`size()`](#size), the oldest values are dropped and [`size()`](#size) becomes the new capacity. If it is above, every stored value is preserved and [`size()`](#size) is unchanged. Does nothing if the new capacity equals the current one.
 
 **Parameters**
 
@@ -171,7 +176,7 @@ Resizes the buffer to the new capacity. Values below `1` are clamped to `1`. If 
 clear() -> void
 ```
 
-Removes all stored values. The buffer capacity is unchanged. All slots are refilled with the `p_default_value` set at construction.
+Removes all stored values. [`size()`](#size) becomes `0` and the capacity is unchanged.
 
 ## Related Classes
 

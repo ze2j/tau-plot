@@ -35,9 +35,9 @@ const TextAlignment = TauAxisConfig.TextAlignment
 		_update_alignment()
 
 
-## Horizontal text alignment for horizontal labels. Has no effect on vertical
-## labels (where the text is rotated and the holder is as wide as the text
-## height).
+## Horizontal alignment of a horizontal title inside the control. A vertical
+## title is rotated and the control is only as wide as the text height, so
+## there is nothing to align.
 @export var text_alignment: TextAlignment = TextAlignment.CENTER:
 	set(value):
 		if text_alignment == value:
@@ -46,43 +46,37 @@ const TextAlignment = TauAxisConfig.TextAlignment
 		_update_alignment()
 
 
-## Top inset in pixels. The effective area for alignment starts this many
-## pixels below the holder's top edge. Set by the plot after computing the
-## layout so the label aligns with the pane data area, not the full
-## container (which includes tick label overhead).
-var inset_top: float = 0.0:
+## True when the title aligns along the X direction, false when it aligns
+## along the Y direction. Names which pair of data area edges below applies.
+var aligns_horizontally: bool = false:
 	set(value):
-		if inset_top == value:
+		if aligns_horizontally == value:
 			return
-		inset_top = value
+		aligns_horizontally = value
 		_update_alignment()
 
-## Bottom inset in pixels. The effective area for alignment ends this many
-## pixels above the holder's bottom edge.
-var inset_bottom: float = 0.0:
+## Near edge of the pane data area along the alignment direction, in global
+## coordinates: the left edge when aligning horizontally, the top edge
+## otherwise. The title aligns with the data area rather than with the whole
+## control, which also covers the space the tick labels take.
+##
+## The data area is stored rather than the insets derived from it, so a resize
+## recomputes a correct offset instead of reusing a stale one.
+var data_begin_global: float = 0.0:
 	set(value):
-		if inset_bottom == value:
+		if data_begin_global == value:
 			return
-		inset_bottom = value
+		data_begin_global = value
 		_update_alignment()
 
-
-## Left inset in pixels. For horizontal title containers, the effective area
-## starts this many pixels from the holder's left edge.
-var inset_left: float = 0.0:
+## Far edge of the pane data area along the alignment direction, in global
+## coordinates: the right edge when aligning horizontally, the bottom edge
+## otherwise.
+var data_end_global: float = 0.0:
 	set(value):
-		if inset_left == value:
+		if data_end_global == value:
 			return
-		inset_left = value
-		_update_alignment()
-
-## Right inset in pixels. For horizontal title containers, the effective area
-## ends this many pixels from the holder's right edge.
-var inset_right: float = 0.0:
-	set(value):
-		if inset_right == value:
-			return
-		inset_right = value
+		data_end_global = value
 		_update_alignment()
 
 
@@ -90,7 +84,8 @@ var _label: RichTextLabel = null
 var _label_text: String = ""
 var _in_recompute: bool = false
 
-# Cached from _recompute_layout so _update_alignment can use them.
+# Position of the label inside the control before alignment, and the size of
+# the label once rotated. Both come out of the measurement below.
 var _base_position := Vector2.ZERO
 var _rotated_extent := Vector2.ZERO
 
@@ -131,8 +126,8 @@ func _apply_orientation() -> void:
 			push_error("TitleOrientation.AUTO has not been resolved")
 
 
-# Measures the label content, sets the rotation, and computes the holder's
-# minimum size. Caches _base_position and _rotated_extent for _update_alignment.
+# Measures the text, applies the rotation, and sizes the control to what the
+# rotated text needs.
 func _recompute_layout() -> void:
 	if _label == null:
 		return
@@ -140,9 +135,9 @@ func _recompute_layout() -> void:
 		return
 	_in_recompute = true
 
-	# RichTextLabel with fit_content computes its height based on its current
-	# width. To get the true single-line text extent we must give it enough
-	# room so it does not word-wrap, then read back the content dimensions.
+	# A RichTextLabel with fit_content derives its height from its width, so it
+	# is given more width than any title needs. The text then stays on one line
+	# and the measurement below is the extent of that line.
 	_label.custom_minimum_size = Vector2.ZERO
 	_label.size = Vector2(4096.0, 0.0)
 	_label.pivot_offset = Vector2.ZERO
@@ -171,7 +166,9 @@ func _recompute_layout() -> void:
 		TitleOrientation.AUTO:
 			push_error("TitleOrientation.AUTO has not been resolved")
 
-	# Compute rotated AABB and reposition so it fits in the holder.
+	# The rotation turns the text box around its origin, so the bounding box of
+	# the four rotated corners gives the size to ask for, and its negated
+	# minimum brings the text back inside.
 	var t := Transform2D(_label.rotation, Vector2.ZERO)
 
 	var corners := PackedVector2Array([
@@ -196,36 +193,35 @@ func _recompute_layout() -> void:
 	_update_alignment()
 
 
-# Positions the label based on the current alignment, the actual allocated size,
-# and the inset values that define the effective data area.
+# Positions the label from the current control rect and the data area.
 #
-# Insets narrow the effective area within the holder to match the pane data rect.
-# Left/right edge containers (VBoxContainer) set inset_top and inset_bottom.
-# Top/bottom edge containers (HBoxContainer) set inset_left and inset_right.
-#
-# title_alignment positions the label along the axis direction (the stacking
-# direction of the parent container). When vertical insets are active, alignment
-# runs vertically. When horizontal insets are active, alignment runs horizontally.
-# BEGIN maps to the axis origin (bottom or left of the data area), END to the
-# opposite end (top or right).
+# The insets narrow the control down to the data area. title_alignment then
+# places the label inside it, along the alignment direction: BEGIN at the axis
+# origin, which is the bottom or the left, END at the opposite end.
 func _update_alignment() -> void:
 	if _label == null:
 		return
 
-	# Determine which axis direction the parent container stacks along.
-	# When the plot sets inset_left or inset_right, the container is horizontal
-	# (top/bottom HBoxContainer). Otherwise it is vertical (left/right VBoxContainer).
-	var stacks_horizontally := (inset_left != 0.0 or inset_right != 0.0)
+	# Derived here rather than stored, so the rect read below is always the
+	# current one and the two cannot disagree.
+	var inset_left := 0.0
+	var inset_right := 0.0
+	var inset_top := 0.0
+	var inset_bottom := 0.0
+	if aligns_horizontally:
+		inset_left = data_begin_global - global_position.x
+		inset_right = (global_position.x + size.x) - data_end_global
+	else:
+		inset_top = data_begin_global - global_position.y
+		inset_bottom = (global_position.y + size.y) - data_end_global
 
 	match title_orientation:
 		TitleOrientation.HORIZONTAL:
 			var v_offset := 0.0
 			var h_offset := 0.0
 
-			if stacks_horizontally:
-				# In an HBoxContainer: title_alignment positions horizontally
-				# within the effective width defined by inset_left/inset_right.
-				# BEGIN = left of pane, END = right of pane.
+			if aligns_horizontally:
+				# BEGIN is the left of the data area, END its right.
 				var effective_width := size.x - inset_left - inset_right
 				var h_slack := effective_width - _rotated_extent.x
 				match title_alignment:
@@ -236,13 +232,12 @@ func _update_alignment() -> void:
 					TitleAlignment.END:
 						h_offset = inset_left + h_slack
 
-				# Vertical centering in the holder height.
+				# Nothing to align vertically, so the label sits in the middle.
 				var v_slack := size.y - _rotated_extent.y
 				v_offset = v_slack * 0.5
 			else:
-				# In a VBoxContainer: title_alignment positions vertically
-				# within the effective height defined by inset_top/inset_bottom.
-				# BEGIN = bottom of pane (axis origin), END = top of pane.
+				# BEGIN is the bottom of the data area, where the Y axis starts,
+				# END its top.
 				var effective_height := size.y - inset_top - inset_bottom
 				var v_slack := effective_height - _rotated_extent.y
 				match title_alignment:
@@ -253,7 +248,7 @@ func _update_alignment() -> void:
 					TitleAlignment.END:
 						v_offset = inset_top
 
-				# Horizontal text alignment within the holder width.
+				# Across the alignment direction, text_alignment decides.
 				var h_slack := size.x - _rotated_extent.x
 				match text_alignment:
 					TextAlignment.LEFT:
@@ -266,10 +261,8 @@ func _update_alignment() -> void:
 			_label.position = _base_position + Vector2(h_offset, v_offset)
 
 		TitleOrientation.VERTICAL:
-			if stacks_horizontally:
-				# Rotated label in an HBoxContainer: title_alignment positions
-				# horizontally within the effective width.
-				# BEGIN = left of pane, END = right of pane.
+			if aligns_horizontally:
+				# BEGIN is the left of the data area, END its right.
 				var effective_width := size.x - inset_left - inset_right
 				var slack := effective_width - _rotated_extent.x
 				var h_offset := 0.0
@@ -280,13 +273,12 @@ func _update_alignment() -> void:
 						h_offset = inset_left + slack * 0.5
 					TitleAlignment.END:
 						h_offset = inset_left + slack
-				# Center vertically in holder height.
+				# Nothing to align vertically, so the label sits in the middle.
 				var v_slack := size.y - _rotated_extent.y
 				_label.position = _base_position + Vector2(h_offset, v_slack * 0.5)
 			else:
-				# Rotated label in a VBoxContainer: title_alignment positions
-				# vertically within the effective height.
-				# BEGIN = bottom of pane (axis origin), END = top of pane.
+				# BEGIN is the bottom of the data area, where the Y axis starts,
+				# END its top.
 				var effective_height := size.y - inset_top - inset_bottom
 				var slack := effective_height - _rotated_extent.y
 				match title_alignment:

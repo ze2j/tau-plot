@@ -81,7 +81,7 @@ func _setup_test_1() -> void:
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
 	config.panes = [pane_config]
-	config.style.series_alpha = 0.8
+	config.style.series_alphas = [0.8]
 
 	var sb_a := TauXYSeriesBinding.new()
 	sb_a.series_id = dataset.get_series_id_by_index(0)
@@ -152,7 +152,7 @@ func _setup_test_2() -> void:
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
 	config.panes = [pane]
-	config.style.series_alpha = 0.8
+	config.style.series_alphas = [0.8]
 
 	var sb_a := TauXYSeriesBinding.new()
 	sb_a.series_id = dataset.get_series_id_by_index(0)
@@ -224,7 +224,7 @@ func _setup_test_3() -> void:
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
 	config.panes = [pane]
-	config.style.series_alpha = 0.8
+	config.style.series_alphas = [0.8]
 
 	var sb_a := TauXYSeriesBinding.new()
 	sb_a.series_id = dataset.get_series_id_by_index(0)
@@ -296,7 +296,7 @@ func _setup_test_4() -> void:
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
 	config.panes = [pane]
-	config.style.series_alpha = 0.8
+	config.style.series_alphas = [0.8]
 
 	var sb_a := TauXYSeriesBinding.new()
 	sb_a.series_id = dataset.get_series_id_by_index(0)
@@ -367,7 +367,7 @@ func _setup_test_5() -> void:
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
 	config.panes = [pane]
-	config.style.series_alpha = 0.8
+	config.style.series_alphas = [0.8]
 
 	var sb_a := TauXYSeriesBinding.new()
 	sb_a.series_id = dataset.get_series_id_by_index(0)
@@ -439,7 +439,7 @@ func _setup_test_6() -> void:
 	var config := TauXYConfig.new()
 	config.x_axis = x_axis
 	config.panes = [pane]
-	config.style.series_alpha = 0.8
+	config.style.series_alphas = [0.8]
 
 	var sb_a := TauXYSeriesBinding.new()
 	sb_a.series_id = dataset.get_series_id_by_index(0)

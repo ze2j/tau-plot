@@ -3,11 +3,12 @@ const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const ScatterGeometry := preload("res://addons/tau-plot/plot/xy/scatter/scatter_geometry.gd").ScatterGeometry
 const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis_assignment.gd").SeriesAxisAssignment
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
-const VisualAttributes = preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const ScatterVisualAttributes := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
-const MarkerShape = preload("res://addons/tau-plot/plot/xy/scatter/scatter_style.gd").MarkerShape
+const MarkerShape := preload("res://addons/tau-plot/plot/xy/scatter/scatter_style.gd").MarkerShape
+const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highlight.gd").HoverHighlight
 
 const SCATTER_SHADER: Shader = preload("res://addons/tau-plot/plot/xy/scatter/scatter.gdshader")
 
@@ -30,7 +31,12 @@ class ScatterRenderer extends Control:
 	var _dataset: Dataset = null
 	var _scatter_config: TauScatterConfig = null
 	var _series_assignment: SeriesAxisAssignment = null
+
+	# Parallel to _scatter_series_ids: one entry per pane-local series, in the same order.
+	# Series without user-supplied attributes get an empty instance. This is the only
+	# per-series array indexed by the pane-local index rather than the dataset-global one.
 	var _visual_attributes: Array[ScatterVisualAttributes] = []
+
 	# Pane index this renderer belongs to. Used for per-pane domain/layout queries.
 	var _pane_index: int = 0
 
@@ -70,7 +76,6 @@ class ScatterRenderer extends Control:
 	func _init(p_layout: XYLayout,
 				p_dataset: Dataset,
 				p_scatter_config: TauScatterConfig,
-				p_xy_style: TauXYStyle,
 				p_series_assignment: SeriesAxisAssignment,
 				p_pane_index: int = 0,
 				p_visual_attributes: Array[ScatterVisualAttributes] = [],
@@ -83,8 +88,6 @@ class ScatterRenderer extends Control:
 		_pane_index = p_pane_index
 		_visual_attributes = p_visual_attributes
 		_scatter_series_ids = p_scatter_series_ids
-		_scatter_style = p_scatter_config.style
-		_xy_style = p_xy_style
 
 
 	func _ready() -> void:
@@ -157,6 +160,7 @@ class ScatterRenderer extends Control:
 
 			var entry := _get_or_create_entry(series_id)
 			entry.mmi.visible = true
+			_apply_data_area_clip(entry.mmi, pane_rect)
 
 			# Set child draw order so later draw_rank renders on top.
 			if entry.mmi.get_index() != draw_rank:
@@ -183,59 +187,59 @@ class ScatterRenderer extends Control:
 	## Reads all visual properties from resolved styles on this renderer instance:
 	## fill color, alpha, marker shape, outline color, outline width, marker size.
 	## For DATA_UNITS marker size policy, computes size at the domain midpoint.
-	func create_legend_key_control(p_series_index: int) -> Control:
-		# Resolve visual properties from styles.
-		var color := _xy_style.get_series_color(p_series_index)
-		var alpha := _xy_style.series_alpha
-		var fill_color := _apply_alpha(color, alpha)
-		var shape: MarkerShape = _scatter_style.get_series_shape(p_series_index)
-		var outline_color := _apply_alpha(_scatter_style.outline_color, alpha)
-		var outline_width := _scatter_style.outline_width_px
-
-		# Resolve marker size in pixels.
-		var size_px := _resolve_legend_marker_size_px()
-
-		# Build the key Control.
-		var key := Control.new()
-		key.custom_minimum_size = Vector2(size_px, size_px)
-
-		# Build a 1-instance MultiMesh.
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_2D
-		mm.use_colors = true
-		mm.use_custom_data = true
-		mm.mesh = _unit_quad_mesh
-		mm.instance_count = 1
-		mm.visible_instance_count = 1
-
-		# Transform: centered in the key rect, scaled to size_px.
-		var t := Transform2D()
-		t = t.scaled(Vector2(size_px, size_px))
-		t.origin = Vector2(size_px * 0.5, size_px * 0.5)
-		mm.set_instance_transform_2d(0, t)
-
-		# Fill color (with alpha pre-applied).
-		mm.set_instance_color(0, fill_color)
-
-		# Custom data: outline info + shape type.
-		var ow_norm: float = 0.0
-		if size_px > 0.0:
-			ow_norm = clampf(outline_width / size_px, 0.0, 0.5)
-		mm.set_instance_custom_data(0, _pack_custom_data(outline_color, shape, ow_norm))
-
-		var mmi := MultiMeshInstance2D.new()
-		mmi.multimesh = mm
-		mmi.material = _shared_material
-		key.add_child(mmi)
-
+	func create_legend_key_control(p_global_series_index: int) -> Control:
+		var key := _ScatterLegendKey.new(_unit_quad_mesh, _shared_material)
+		_write_legend_key(p_global_series_index, key)
 		return key
 
 
+	## Re-resolves the appearance of a legend key created by
+	## create_legend_key_control(), so a style change costs no rebuild of the
+	## legend row. Under the DATA_UNITS marker size policy the requested box
+	## follows the current layout, so call it after the layout update.
+	func refresh_legend_key_control(p_global_series_index: int, p_control: Control) -> void:
+		_write_legend_key(p_global_series_index, p_control as _ScatterLegendKey)
+
+
+	####################################################################################################
+	# Legend key
+	####################################################################################################
+
+	## Control hosting the single-instance MultiMesh that draws one marker.
+	## Rendered through the same shared SDF material as the scatter path, so the
+	## key is pixel-identical to a real marker.
+	class _ScatterLegendKey extends Control:
+		var _multi_mesh: MultiMesh = null
+
+		func _init(p_mesh: Mesh, p_material: Material) -> void:
+			_multi_mesh = MultiMesh.new()
+			_multi_mesh.transform_format = MultiMesh.TRANSFORM_2D
+			_multi_mesh.use_colors = true
+			_multi_mesh.use_custom_data = true
+			_multi_mesh.mesh = p_mesh
+			_multi_mesh.instance_count = 1
+			_multi_mesh.visible_instance_count = 1
+
+			var mmi := MultiMeshInstance2D.new()
+			mmi.multimesh = _multi_mesh
+			mmi.material = p_material
+			add_child(mmi)
+
+		## Sizes the box to the marker and writes the single instance, centered.
+		func write_marker(p_size_px: float, p_fill_color: Color, p_custom_data: Color) -> void:
+			custom_minimum_size = Vector2(p_size_px, p_size_px)
+			var marker_transform := Transform2D().scaled(Vector2(p_size_px, p_size_px))
+			marker_transform.origin = Vector2(p_size_px * 0.5, p_size_px * 0.5)
+			_multi_mesh.set_instance_transform_2d(0, marker_transform)
+			_multi_mesh.set_instance_color(0, p_fill_color)
+			_multi_mesh.set_instance_custom_data(0, p_custom_data)
+
+
 	## Resolves the marker size in pixels for the legend key.
-	## THEME policy: uses the resolved scatter style marker_size_px.
+	## THEME policy: uses the resolved scatter style size cycle.
 	## DATA_UNITS policy: computes pixel size at the domain x midpoint
 	## via ScatterGeometry.compute_marker_size_px_at_x.
-	func _resolve_legend_marker_size_px() -> float:
+	func _resolve_legend_marker_size_px(p_global_series_index: int) -> float:
 		var policy := _scatter_config.get_resolved_marker_size_policy()
 		if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
 			var x_domain = _layout.domain.x_axis_domain
@@ -243,7 +247,24 @@ class ScatterRenderer extends Control:
 				var x_mid: float = (x_domain.min_val + x_domain.max_val) * 0.5
 				var geom := ScatterGeometry.new(_layout, _scatter_config, _scatter_style, _pane_index)
 				return geom.compute_marker_size_px_at_x(x_mid)
-		return max(_scatter_style.marker_size_px, 1.0)
+		return _scatter_style.get_series_size_px(p_global_series_index)
+
+
+	# Resolves the marker appearance and writes it into the key. Per-sample
+	# styling and hover emphasis are left out, so the key shows the per-series
+	# marker only.
+	func _write_legend_key(p_global_series_index: int, p_key: _ScatterLegendKey) -> void:
+		var alpha := _xy_style.get_series_alpha(p_global_series_index)
+		var fill_color := _apply_alpha(_xy_style.get_series_color(p_global_series_index), alpha)
+		var outline_color := _apply_alpha(_scatter_style.outline_color, alpha)
+		var shape: MarkerShape = _scatter_style.get_series_shape(p_global_series_index)
+
+		var size_px := _resolve_legend_marker_size_px(p_global_series_index)
+		var outline_width_norm: float = 0.0
+		if size_px > 0.0:
+			outline_width_norm = clampf(_scatter_style.outline_width_px / size_px, 0.0, 0.5)
+
+		p_key.write_marker(size_px, fill_color, _pack_custom_data(outline_color, shape, outline_width_norm))
 
 
 	####################################################################################################
@@ -286,6 +307,13 @@ class ScatterRenderer extends Control:
 		add_child(mmi)
 		_series_cache[p_series_id] = entry
 		return entry
+
+
+	# Confines the markers to the data area.
+	func _apply_data_area_clip(p_mmi: MultiMeshInstance2D, p_pane_rect: Rect2) -> void:
+		var canvas_item := p_mmi.get_canvas_item()
+		RenderingServer.canvas_item_set_custom_rect(canvas_item, true, p_pane_rect)
+		RenderingServer.canvas_item_set_clip(canvas_item, true)
 
 
 	func _resize_entry(p_entry: _SeriesRenderEntry, p_new_capacity: int) -> void:
@@ -388,19 +416,20 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_color(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
 		# Try per sample color (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].color_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var c = buf.get_value(p_sample_index)
-				if c != VisualAttributes.ColorBuffer.NO_COLOR:
-					return c
+		var buf = _visual_attributes[p_series_index].color_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var c = buf.get_value(p_sample_index)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		var global_series_index := _get_global_series_index(p_series_index)
 
 		# Try per sample color (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.color_callback.is_valid():
-			return vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			var c = vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		# Use per series color from TauXYStyle (theme if set, otherwise default palette).
 		return _xy_style.get_series_color(global_series_index)
@@ -408,44 +437,46 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_alpha(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
 		# Try per sample alpha (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].alpha_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var alpha = buf.get_value(p_sample_index)
-				if alpha >= 0.0:
-					return alpha
+		var buf = _visual_attributes[p_series_index].alpha_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var alpha = buf.get_value(p_sample_index)
+			if alpha >= 0.0:
+				return alpha
+
+		var global_series_index := _get_global_series_index(p_series_index)
 
 		# Try per sample alpha (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.alpha_callback.is_valid():
-			var alpha = vc.alpha_callback.call(_get_global_series_index(p_series_index), p_sample_index, p_x_value, p_y_value)
+			var alpha = vc.alpha_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
 			if alpha >= 0.0:
 				return alpha
 
-		# Use series alpha from TauXYStyle (theme if set, otherwise default value).
-		return _xy_style.series_alpha
+		# Use per series alpha from TauXYStyle (theme if set, otherwise default value).
+		return _xy_style.get_series_alpha(global_series_index)
 
 
 	func _get_marker_size_px(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
+		var global_series_index := _get_global_series_index(p_series_index)
+
 		# Try per sample marker size (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].size_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var sz = buf.get_value(p_sample_index)
-				if sz >= 0.0:
-					var policy := _geometry_cache.get_resolved_marker_size_policy()
-					if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
-						return _compute_size_px_from_data_units(sz, p_x_value)
-					return max(sz, 1.0)
+		var buf = _visual_attributes[p_series_index].size_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var sz = buf.get_value(p_sample_index)
+			if sz >= 0.0:
+				var policy := _geometry_cache.get_resolved_marker_size_policy()
+				if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
+					return _compute_size_px_from_data_units(sz, p_x_value, global_series_index)
+				return max(sz, 1.0)
 
 		# Try per sample marker size (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.size_callback.is_valid():
-			var sz = vc.size_callback.call(_get_global_series_index(p_series_index), p_sample_index, p_x_value, p_y_value)
+			var sz = vc.size_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
 			if sz >= 0.0:
 				var policy := _geometry_cache.get_resolved_marker_size_policy()
 				if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
-					return _compute_size_px_from_data_units(sz, p_x_value)
+					return _compute_size_px_from_data_units(sz, p_x_value, global_series_index)
 				return max(sz, 1.0)
 
 		var policy := _geometry_cache.get_resolved_marker_size_policy()
@@ -458,27 +489,29 @@ class ScatterRenderer extends Control:
 				else:
 					# If marker size is provided in data units on a CATEGORICAL axis, use marker size
 					# from theme if set, otherwise from style default value.
-					return _geometry_cache.get_marker_size_px_from_theme()
+					return _geometry_cache.get_marker_size_px_from_theme(global_series_index)
 			_:
 				# Use marker size from theme if set, otherwise from style default value.
-				return _geometry_cache.get_marker_size_px_from_theme()
+				return _geometry_cache.get_marker_size_px_from_theme(global_series_index)
 
 
+	# A negative value is the "no override" sentinel, so it falls through to the
+	# next step. Any other value out of range draws a circle, as it does on the
+	# style, but without a message: this runs once per sample.
 	func _get_marker_shape(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> MarkerShape:
 		# Try per sample marker shape (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].shape_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var shape_val: int = buf.get_value(p_sample_index)
-				if shape_val >= 0:
-					return shape_val as MarkerShape
+		var buf = _visual_attributes[p_series_index].shape_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var shape_val: int = buf.get_value(p_sample_index)
+			if shape_val >= 0:
+				return TauScatterStyle.resolve_marker_shape(shape_val)
 
 		# Try per sample marker shape (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.shape_callback.is_valid():
 			var shape_val := int(vc.shape_callback.call(_get_global_series_index(p_series_index), p_sample_index, p_x_value, p_y_value))
 			if shape_val >= 0:
-				return shape_val as MarkerShape
+				return TauScatterStyle.resolve_marker_shape(shape_val)
 
 		# Use per series shape (from theme if set, otherwise from style default value)
 		return _scatter_style.get_series_shape(_get_global_series_index(p_series_index))
@@ -486,19 +519,20 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_outline_color(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
 		# Try per sample outline color (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].outline_color_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var c = buf.get_value(p_sample_index)
-				if c != VisualAttributes.ColorBuffer.NO_COLOR:
-					return c
+		var buf = _visual_attributes[p_series_index].outline_color_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var c = buf.get_value(p_sample_index)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		var global_series_index := _get_global_series_index(p_series_index)
 
 		# Try per sample outline color (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
 		if vc != null and vc.outline_color_callback.is_valid():
-			return vc.outline_color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			var c = vc.outline_color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+			if c != VisualAttributes.ColorBuffer.NO_COLOR:
+				return c
 
 		# Use outline color from theme if set, otherwise from style default value.
 		return _scatter_style.outline_color
@@ -506,12 +540,11 @@ class ScatterRenderer extends Control:
 
 	func _get_marker_outline_width(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
 		# Try per sample outline width (with VisualAttributes)
-		if p_series_index >= 0 and p_series_index < _visual_attributes.size():
-			var buf = _visual_attributes[p_series_index].outline_width_buffer
-			if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
-				var w = buf.get_value(p_sample_index)
-				if w >= 0.0:
-					return w
+		var buf = _visual_attributes[p_series_index].outline_width_buffer
+		if buf != null and p_sample_index >= 0 and p_sample_index < buf.size():
+			var w = buf.get_value(p_sample_index)
+			if w >= 0.0:
+				return w
 
 		# Try per sample outline width (with VisualCallbacks)
 		var vc = _scatter_config.scatter_visual_callbacks
@@ -535,13 +568,7 @@ class ScatterRenderer extends Control:
 		if not _highlight_active:
 			return p_color
 		var is_hovered := p_series_id == _hovered_series_id and p_sample_index == _hovered_sample_index
-		if _hover_highlight_callback.is_valid():
-			return _hover_highlight_callback.call(p_color, is_hovered)
-		# Built-in default: brighten hovered, dim non-hovered.
-		if is_hovered:
-			return p_color.lightened(0.15)
-		else:
-			return Color(p_color, 0.5)
+		return HoverHighlight.resolve(p_color, is_hovered, _hover_highlight_callback)
 
 
 	####################################################################################################
@@ -596,15 +623,17 @@ class ScatterRenderer extends Control:
 			# Rewrite transform and custom_data for the hovered marker so that
 			# size and outline reflect hovered-state style properties.
 			var is_hovered := _highlight_active and series_id == _hovered_series_id and sample_index == _hovered_sample_index
-			var size_px: float
+			var size_px := _get_marker_size_px(series_index, sample_index, x_value, y_value)
 			var outline_color: Color
 			var outline_width: float
 			if is_hovered:
-				size_px = _scatter_style.hovered_marker_size_px
+				# An empty hovered size cycle returns the sentinel and leaves the base size in place.
+				var hovered_size_px := _scatter_style.get_series_hovered_size_px(_get_global_series_index(series_index))
+				if hovered_size_px > 0.0:
+					size_px = hovered_size_px
 				outline_width = _scatter_style.hovered_outline_width_px
 				outline_color = _apply_alpha(_scatter_style.hovered_outline_color, alpha)
 			else:
-				size_px = _get_marker_size_px(series_index, sample_index, x_value, y_value)
 				outline_width = _get_marker_outline_width(series_index, sample_index, x_value, y_value)
 				outline_color = _apply_alpha(_get_marker_outline_color(series_index, sample_index, x_value, y_value), alpha)
 
@@ -625,7 +654,7 @@ class ScatterRenderer extends Control:
 	# Private size conversion
 	####################################################################################################
 
-	func _compute_size_px_from_data_units(p_size_data_units: float, p_x_value: Variant) -> float:
+	func _compute_size_px_from_data_units(p_size_data_units: float, p_x_value: Variant, p_global_series_index: int) -> float:
 		if p_size_data_units <= 0.0:
 			return 1.0
 		if p_x_value is float or p_x_value is int:
@@ -635,7 +664,7 @@ class ScatterRenderer extends Control:
 			var px0 := _layout.map_x_to_px(_pane_index, x_f - half)
 			var px1 := _layout.map_x_to_px(_pane_index, x_f + half)
 			return max(absf(px1 - px0), 1.0)
-		return _geometry_cache.get_marker_size_px_from_theme()
+		return _geometry_cache.get_marker_size_px_from_theme(p_global_series_index)
 
 
 	####################################################################################################
@@ -695,18 +724,11 @@ class ScatterRenderer extends Control:
 		# exactly on the pane boundary due to floating-point rounding in layout
 		# mapping. This is purely cosmetic and does not affect layout or ticks.
 		const TOLERANCE_PX := 0.5
-		var screen_x: float
-		var screen_y: float
-		if _layout._x_is_horizontal:
-			screen_x = p_x
-			screen_y = p_y
-		else:
-			screen_x = p_y
-			screen_y = p_x
-		return (screen_x >= p_pane_rect.position.x - TOLERANCE_PX and
-				screen_x <= p_pane_rect.position.x + p_pane_rect.size.x + TOLERANCE_PX and
-				screen_y >= p_pane_rect.position.y - TOLERANCE_PX and
-				screen_y <= p_pane_rect.position.y + p_pane_rect.size.y + TOLERANCE_PX)
+		var screen := _layout.map_point_to_screen(p_x, p_y)
+		return (screen.x >= p_pane_rect.position.x - TOLERANCE_PX and
+				screen.x <= p_pane_rect.position.x + p_pane_rect.size.x + TOLERANCE_PX and
+				screen.y >= p_pane_rect.position.y - TOLERANCE_PX and
+				screen.y <= p_pane_rect.position.y + p_pane_rect.size.y + TOLERANCE_PX)
 
 	####################################################################################################
 	# Per-instance custom data packing
@@ -720,6 +742,7 @@ class ScatterRenderer extends Control:
 	#   .b = floor(outline_color.b * 255.0) + (shape_type + 0.5) / 16.0
 	#         The integer part encodes blue as a quantized 0-255 value scaled to 0.0-255.0.
 	#         The fractional part encodes shape_type so the shader can recover it.
+	#         It holds 16 slots, which every MarkerShape member fits in.
 	#   .a = outline_width_normalized
 	static func _pack_custom_data(p_outline_color: Color, p_shape: MarkerShape, p_outline_width_norm: float) -> Color:
 		var blue_quantized := floorf(p_outline_color.b * 255.0)
@@ -752,25 +775,19 @@ class ScatterRenderer extends Control:
 
 		# Hovered-state style property overrides for the specifically hovered marker.
 		if _highlight_active and series_id == _hovered_series_id and p_sample_index == _hovered_sample_index:
-			size_px = _scatter_style.hovered_marker_size_px
+			# An empty hovered size cycle returns the sentinel and leaves the base size in place.
+			var hovered_size_px := _scatter_style.get_series_hovered_size_px(_get_global_series_index(p_series_index))
+			if hovered_size_px > 0.0:
+				size_px = hovered_size_px
 			outline_width = _scatter_style.hovered_outline_width_px
 			outline_color = _apply_alpha(_scatter_style.hovered_outline_color, alpha)
 
 		# Transform: translate to center, scale by size_px.
-		# map_x_to_px returns screen-Y when x is vertical, and map_y_to_px returns
-		# screen-X when x is vertical. The callers pass the x-axis pixel as p_cx
-		# and the y-axis pixel as p_cy, so we must swap them for vertical x.
-		var screen_x: float
-		var screen_y: float
-		if _layout._x_is_horizontal:
-			screen_x = p_cx
-			screen_y = p_cy
-		else:
-			screen_x = p_cy
-			screen_y = p_cx
+		# The callers pass the x-axis pixel as p_cx and the y-axis pixel as p_cy
+		var screen := _layout.map_point_to_screen(p_cx, p_cy)
 		var t := Transform2D()
 		t = t.scaled(Vector2(size_px, size_px))
-		t.origin = Vector2(screen_x, screen_y)
+		t.origin = screen
 		p_entry.mm.set_instance_transform_2d(p_slot, t)
 
 		# Color: fill color with alpha
@@ -783,7 +800,7 @@ class ScatterRenderer extends Control:
 		p_entry.mm.set_instance_custom_data(p_slot, _pack_custom_data(outline_color, shape, ow_norm))
 
 		# Record hover data for hit testing.
-		_hover_screen_positions.append(Vector2(screen_x, screen_y))
+		_hover_screen_positions.append(screen)
 		_hover_series_ids.append(series_id)
 		_hover_sample_indices.append(p_sample_index)
 		_hover_x_values.append(p_x_value)

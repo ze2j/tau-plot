@@ -1,7 +1,7 @@
 # Dependencies
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const TickSequence := preload("res://addons/tau-plot/plot/xy/tick_sequence.gd").TickSequence
 
 # Draws the axes, ticks and tick labels of a single pane.
@@ -21,11 +21,10 @@ class PaneRenderer extends Control:
 	var _hover_active: bool = false
 
 
-	func _init(p_pane_index: int, p_layout: XYLayout, p_xy_style: TauXYStyle) -> void:
+	func _init(p_pane_index: int, p_layout: XYLayout) -> void:
 		theme_type_variation = &"TauPane"
 		_pane_index = p_pane_index
 		_layout = p_layout
-		_xy_style = p_xy_style
 
 
 	func _ready() -> void:
@@ -89,9 +88,6 @@ class PaneRenderer extends Control:
 
 
 	func _draw() -> void:
-		if _xy_style == null or _xy_style.label_font == null:
-			return
-
 		var pane_rect := _layout.get_pane_rect(_pane_index)
 		if pane_rect.size.x <= 0.0 or pane_rect.size.y <= 0.0:
 			return
@@ -428,7 +424,7 @@ class PaneRenderer extends Control:
 	####################################################################################################
 
 	func _measure_label(p_label: String) -> Vector2:
-		return _xy_style.label_font.get_string_size(p_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _xy_style.label_font_size)
+		return _xy_style.get_label_font().get_string_size(p_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _xy_style.label_font_size)
 
 
 	func _decorate_x(p_text: String) -> String:
@@ -457,8 +453,9 @@ class PaneRenderer extends Control:
 
 	func _draw_label(p_text: String, p_pos: Vector2) -> void:
 		# draw_string() uses p_pos as baseline, not top-left.
-		var ascent := _xy_style.label_font.get_ascent(_xy_style.label_font_size)
-		draw_string(_xy_style.label_font, p_pos + Vector2(0.0, ascent), p_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _xy_style.label_font_size, _xy_style.label_color)
+		var label_font := _xy_style.get_label_font()
+		var ascent := label_font.get_ascent(_xy_style.label_font_size)
+		draw_string(label_font, p_pos + Vector2(0.0, ascent), p_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _xy_style.label_font_size, _xy_style.label_color)
 
 
 	####################################################################################################
@@ -568,7 +565,7 @@ class PaneRenderer extends Control:
 				_draw_label(label, Vector2(x - label_size.x * 0.5, label_y))
 
 		# Minor ticks
-		var minor_tick_length := tick_length * clampf(_xy_style.minor_tick_length_ratio, 0.0, 1.0)
+		var minor_tick_length := tick_length * _xy_style.minor_tick_length_ratio
 		var minor_tick_thickness := float(_xy_style.x_minor_tick_thickness_px) if is_x_axis else float(_xy_style.y_minor_tick_thickness_px)
 		for t in p_ticks.minor_ticks:
 			var x: float = p_map_fn.call(t)
@@ -649,7 +646,7 @@ class PaneRenderer extends Control:
 				_draw_label(label, Vector2(label_x, y - label_size.y * 0.5))
 
 		# Minor ticks
-		var minor_tick_length := tick_length * clampf(_xy_style.minor_tick_length_ratio, 0.0, 1.0)
+		var minor_tick_length := tick_length * _xy_style.minor_tick_length_ratio
 		var minor_tick_thickness := float(_xy_style.x_minor_tick_thickness_px) if is_x_axis else float(_xy_style.y_minor_tick_thickness_px)
 		for t in p_ticks.minor_ticks:
 			var y: float = p_map_fn.call(t)

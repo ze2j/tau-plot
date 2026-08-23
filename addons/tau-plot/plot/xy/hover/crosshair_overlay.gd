@@ -2,13 +2,13 @@
 ## hovered data position within a single pane.
 ##
 ## One instance per pane, created by HoverController and added as the last
-## child of each pane container so it draws on top of all data renderers.
+## child of each pane so it draws on top of all data renderers.
 ## mouse_filter = MOUSE_FILTER_IGNORE so input passes through to PaneRenderer.
 ##
 ## The HoverController sets position properties and calls queue_redraw().
 ## This never triggers a redraw on any data renderer.
 
-const CrosshairMode = preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").CrosshairMode
+const CrosshairMode := preload("res://addons/tau-plot/plot/xy/hover/hover_config.gd").CrosshairMode
 
 
 class CrosshairOverlay extends Control:

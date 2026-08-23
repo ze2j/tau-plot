@@ -3,8 +3,8 @@ const AxisDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").AxisDo
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const TickSequence := preload("res://addons/tau-plot/plot/xy/tick_sequence.gd").TickSequence
 const TickResolver := preload("res://addons/tau-plot/plot/xy/tick_resolver.gd").TickResolver
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const Axis = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 
 
 ## Resolves XY plot screen-space layout from a domain and a style.
@@ -21,8 +21,8 @@ class XYLayout extends RefCounted:
 
 	## Per-pane layout outputs computed by [method update].
 	class PaneLayout extends RefCounted:
-		## The final data-area rectangle for this pane, in pane-container-local
-		## pixel coordinates.
+		## The final data-area rectangle for this pane, in pane-local pixel
+		## coordinates.
 		var pane_rect: Rect2 = Rect2()
 
 		## Tick sequences for y axes on this pane, keyed by [enum AxisId].
@@ -37,6 +37,11 @@ class XYLayout extends RefCounted:
 
 		## True when this pane draws the secondary x axis.
 		var draws_secondary_x: bool = false
+
+		## Space this pane reserves along the stacking direction, in pixels.
+		## It is the part of the view rect that [member pane_rect] does not
+		## cover along that direction.
+		var stack_reservation_px: float = 0.0
 
 	## Array of per-pane layout results, one per pane.
 	## Rebuilt by [method update].
@@ -67,9 +72,9 @@ class XYLayout extends RefCounted:
 	var _secondary_x_domain_min: float = 0.0
 	var _secondary_x_domain_max: float = 1.0
 
-	## Per-pane view rectangles (the full container area before insets).
+	## Per-pane view rectangles (the full pane area before insets).
 	## Set via [method set_pane_view_rects] before calling [method update].
-	## Each rect has origin (0,0) and the size of the pane container.
+	## Each rect has origin (0,0) and the size of the pane.
 	var _pane_view_rects: Array[Rect2] = []
 
 	## Per-pane positions in PaneStack-local coordinates.
@@ -97,7 +102,7 @@ class XYLayout extends RefCounted:
 
 	## Sets the per-pane view rectangles. Must be called before [method update].
 	## [param p_rects] One Rect2 per pane, each with origin (0,0) and the pane
-	##   container's pixel size.
+	##   pane's pixel size.
 	func set_pane_view_rects(p_rects: Array[Rect2]) -> void:
 		_pane_view_rects = p_rects
 
@@ -105,7 +110,7 @@ class XYLayout extends RefCounted:
 	## Sets the per-pane positions in PaneStack-local coordinates.
 	## Must be called before [method update].
 	## [param p_positions] One Vector2 per pane, the position of each pane
-	##   container within the PaneStack BoxContainer.
+	##   pane within the PaneStack.
 	func set_pane_positions_in_stack(p_positions: Array[Vector2]) -> void:
 		_pane_positions_in_stack = p_positions
 
@@ -123,14 +128,6 @@ class XYLayout extends RefCounted:
 		_secondary_x_domain_max = 1.0
 
 		_x_is_horizontal = Axis.is_horizontal(domain.config.x_axis_id)
-
-		if style == null or style.label_font == null:
-			for i in range(_pane_view_rects.size()):
-				var pl := PaneLayout.new()
-				pl.pane_index = i
-				pl.pane_rect = _pane_view_rects[i] if i < _pane_view_rects.size() else Rect2()
-				pane_layouts.append(pl)
-			return
 
 		var pane_count := domain.get_pane_count()
 		if pane_count == 0:
@@ -247,7 +244,7 @@ class XYLayout extends RefCounted:
 		return pane_layouts[p_pane_index]
 
 
-	## Returns the pane data-area rectangle in pane-container-local pixels.
+	## Returns the pane data-area rectangle in pane-local pixels.
 	## [param p_pane_index] Zero-based pane index. Returns empty Rect2 if out of range.
 	func get_pane_rect(p_pane_index: int = 0) -> Rect2:
 		if p_pane_index < 0 or p_pane_index >= pane_layouts.size():
@@ -391,6 +388,47 @@ class XYLayout extends RefCounted:
 		return map_y_to_px(p_pane_index, 0.0, p_y_axis_id)
 
 
+	## Assembles a screen-space [Vector2] from two pixel coordinates that are
+	## already expressed along the x-axis and y-axis directions respectively.
+	##
+	## [param p_x_axis_px] Pixel coordinate along the x-axis direction, as
+	##                     returned by [method map_x_to_px] or
+	##                     [method map_x_category_center_to_px].
+	## [param p_y_axis_px] Pixel coordinate along the y-axis direction, as
+	##                     returned by [method map_y_to_px].
+	##
+	## When the x axis is horizontal, the x-axis direction is screen-X and
+	## the y-axis direction is screen-Y, so the values map straight through.
+	## When the x axis is vertical, the two are swapped.
+	##
+	## Note: both input values already encode axis inversion and scale
+	## (linear or logarithmic) because those are applied inside the
+	## mapping functions. This helper only performs the orientation swap.
+	func map_point_to_screen(p_x_axis_px: float, p_y_axis_px: float) -> Vector2:
+		if _x_is_horizontal:
+			return Vector2(p_x_axis_px, p_y_axis_px)
+		return Vector2(p_y_axis_px, p_x_axis_px)
+
+	## Converts a whole polyline from axis space to screen space. Each input
+	## vertex carries the x-axis pixel in [member Vector2.x] and the y-axis
+	## pixel in [member Vector2.y], the same layout [method map_point_to_screen]
+	## expects. Vertex order and count are preserved, so indices into the input
+	## stay valid for the returned array.
+	func map_points_to_screen(p_axis_points: PackedVector2Array) -> PackedVector2Array:
+		if _x_is_horizontal:
+			return p_axis_points
+		var screen_points := PackedVector2Array()
+		screen_points.resize(p_axis_points.size())
+		for i in range(p_axis_points.size()):
+			var p := p_axis_points[i]
+			screen_points[i] = Vector2(p.y, p.x)
+		return screen_points
+
+	func map_screen_to_point(p_screen_coords: Vector2) -> Vector2:
+		if _x_is_horizontal:
+			return Vector2(p_screen_coords.x, p_screen_coords.y)
+		return Vector2(p_screen_coords.y, p_screen_coords.x)
+
 	################################################################################################
 	# Categorical label visibility
 	################################################################################################
@@ -488,7 +526,7 @@ class XYLayout extends RefCounted:
 
 	## Returns the pixel size (width, height) of a label string using the current style font.
 	func _measure_label(p_label: String) -> Vector2:
-		return style.label_font.get_string_size(p_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, style.label_font_size)
+		return style.get_label_font().get_string_size(p_label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, style.label_font_size)
 
 
 	## Applies the primary x axis format_tick_label callback to a label string.
@@ -893,6 +931,11 @@ class XYLayout extends RefCounted:
 				var extra_right := maxf(y_half - right_r - float(style.padding_right_px), 0.0)
 				pane_pos.x += extra_left
 				pane_size.x -= extra_left + extra_right
+
+			# Read from the size computed above, so the two cannot disagree.
+			# Taken before the clamp, since a pane with no room left still
+			# reserves the same space.
+			pane_layouts[i].stack_reservation_px = (full.size.y - pane_size.y) if _x_is_horizontal else (full.size.x - pane_size.x)
 
 			pane_size.x = max(pane_size.x, 0.0)
 			pane_size.y = max(pane_size.y, 0.0)

@@ -1,0 +1,129 @@
+[gd_scene load_steps=14 format=3 uid="uid://b61xlwna0tc80"]
+
+[ext_resource type="Script" uid="uid://c6v3wo6uhaoh0" path="res://addons/tau-plot/tests/plot/legend/test_legend_bar.gd" id="1_c4ico"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="1_k63ob"]
+[ext_resource type="Script" uid="uid://uhgixxbpx26l" path="res://addons/tau-plot/plot/legend/legend_config.gd" id="2_c4ico"]
+[ext_resource type="Script" uid="uid://byus5xc02avlw" path="res://addons/tau-plot/plot/legend/legend_style.gd" id="3_em4ge"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c4ico"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0.3, 0.3, 0.3, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Resource" id="Resource_em4ge"]
+script = ExtResource("3_em4ge")
+background = SubResource("StyleBoxFlat_c4ico")
+
+[sub_resource type="Resource" id="Resource_mrva1"]
+script = ExtResource("2_c4ico")
+position = 3
+style = SubResource("Resource_em4ge")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vx6kb"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0.3, 0.3, 0.3, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Resource" id="Resource_ngg67"]
+script = ExtResource("3_em4ge")
+background = SubResource("StyleBoxFlat_vx6kb")
+
+[sub_resource type="Resource" id="Resource_6x7xv"]
+script = ExtResource("2_c4ico")
+position = 3
+style = SubResource("Resource_ngg67")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_30m4b"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0.3, 0.3, 0.3, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Resource" id="Resource_s6y8r"]
+script = ExtResource("3_em4ge")
+background = SubResource("StyleBoxFlat_30m4b")
+
+[sub_resource type="Resource" id="Resource_exfld"]
+script = ExtResource("2_c4ico")
+position = 3
+style = SubResource("Resource_s6y8r")
+
+[node name="LegendTests" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_c4ico")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Test legend BAR keys"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 2
+
+[node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("1_k63ob")
+title = "Style box"
+legend_config = SubResource("Resource_mrva1")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("1_k63ob")
+title = "Texture style box"
+legend_config = SubResource("Resource_6x7xv")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("1_k63ob")
+title = "Alpha cycle"
+legend_config = SubResource("Resource_exfld")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
+
+[node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"TauPlot"
+script = ExtResource("1_k63ob")
+metadata/_custom_type_script = "uid://dnhvsf2wip771"

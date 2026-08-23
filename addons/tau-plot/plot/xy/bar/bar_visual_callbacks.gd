@@ -1,5 +1,5 @@
 # Dependencies
-const VisualCallbacks = preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
+const VisualCallbacks := preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
 
 ## BAR overlay specific callbacks.
 class BarVisualCallbacks extends VisualCallbacks:

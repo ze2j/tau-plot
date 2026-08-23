@@ -58,6 +58,22 @@ The documentation is written in markdown and generated in HTML with [`mkdocs`](h
 
 The following instructions are valid for **Linux** and **macOS** and only need to be done once. If you're not familiar with virtual environments or using a **Windows** platform, you may want to read the [python documentation](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/) first.
 
+### Guidelines
+
+The documentation has two kinds of page, and each has its own guideline in `documentation/contributing/`.
+Read the one that applies before you write, and check your page against its writer checklist before you
+open the pull request.
+
+- [Class reference guidelines](documentation/contributing/class-reference-guidelines.md): the API
+reference, one page per public class. Fixed section order, a public API inventory that decides what may
+be mentioned at all, and boilerplate blocks whose wording must be copied rather than paraphrased.
+- [Narrative documentation guidelines](documentation/contributing/narrative-documentation-guidelines.md):
+the two READMEs, the documentation landing page, and the guides. These teach rather than state, so the
+voice differs and the two guidelines don't mix.
+
+Two things hold for both. Every claim is checked against the source, not against an existing page, since
+a page can be stale. And every snippet is run before it ships.
+
 ### Initial configuration
 
 Create a new virtual environment inside `documentation/`: 

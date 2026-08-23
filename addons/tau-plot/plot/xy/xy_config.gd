@@ -10,7 +10,7 @@
 ## RIGHT, panes stack horizontally. Most plots only need one pane.
 class_name TauXYConfig extends Resource
 
-const AxisId = preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
+const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
 ## Theme-driven visual and spacing parameters for the XY plot (axes, ticks,
 ## padding, series colors, etc.). Never null.
