@@ -1,6 +1,8 @@
 # Runtime Configuration Change Limitations
 
-The plot keeps a reference to the configuration objects you pass to [`plot_xy()`](api/tau_plot.md#plot_xy). To change a property on one of them while the plot is displayed, assign the property, then call [`TauPlot.queue_refresh()`](api/tau_plot.md#queue_refresh) or [`TauPlot.refresh_now()`](api/tau_plot.md#refresh_now).
+The plot keeps a reference to the configuration objects you pass to [`plot_xy()`](api/tau_plot.md#plot_xy). To change a property on one of them while the plot is displayed, assign the property, then call [`TauPlot.queue_refresh()`](api/tau_plot.md#queue_refresh).
+
+[`TauPlot.refresh_now()`](api/tau_plot.md#refresh_now) applies the change in the current frame instead of the next one, which gives the same result only for a visual-only change: a change that affects the layout may still need the next frame to settle. Prefer `queue_refresh()` unless a per-frame animation cannot afford the extra frame.
 
 Some properties do not work that way yet. The tables below list every configuration property and tell you which ones do.
 

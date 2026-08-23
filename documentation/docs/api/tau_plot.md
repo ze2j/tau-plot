@@ -339,7 +339,7 @@ queue_refresh() -> void
 
 Schedules a render update for the next frame.
 
-If a refresh is already pending, does nothing. Call this after mutating a configuration property on the objects passed to [`plot_xy()`](#plot_xy) to apply the change.
+Call this after mutating a configuration property on the objects passed to [`plot_xy()`](#plot_xy) to apply the change. Repeated calls before the render coalesce into a single update.
 
 On a node outside the scene tree, the request is held and the render happens when the node enters the tree.
 
@@ -351,7 +351,11 @@ On a node outside the scene tree, the request is held and the render happens whe
 refresh_now() -> void
 ```
 
-Forces an immediate refresh in the current frame. Use this only when the plot needs to be up to date synchronously. For most UI-driven updates, prefer [`queue_refresh()`](#queue_refresh), since theme and layout changes may settle on the next frame.
+Renders in the current frame instead of the next one.
+
+For a visual-only change this gives the same result as [`queue_refresh()`](#queue_refresh), one frame earlier. A change that affects the layout may still need the next frame to settle. Prefer [`queue_refresh()`](#queue_refresh) unless a per-frame animation cannot afford the extra frame.
+
+A render already scheduled by [`queue_refresh()`](#queue_refresh) is not cancelled and still runs on the next frame.
 
 ## Related Classes
 
