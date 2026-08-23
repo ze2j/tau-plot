@@ -44,7 +44,7 @@ const _XYPlotScene := preload("res://addons/tau-plot/plot/xy/xy_plot.tscn")
 		if _plot_title != null:
 			_plot_title.text = title
 			_plot_title.visible = not title.is_empty()
-
+			queue_refresh()
 
 
 ## Master switch for the legend. When false the legend is hidden.
@@ -57,6 +57,7 @@ const _XYPlotScene := preload("res://addons/tau-plot/plot/xy/xy_plot.tscn")
 		legend_enabled = value
 		if _xy_plot != null:
 			_xy_plot.set_legend_enabled(legend_enabled)
+			queue_refresh()
 
 
 ## Configuration for the legend: position, flow direction, and visual
@@ -229,7 +230,6 @@ func queue_refresh():
 
 func reset():
 	_reset_active_plot()
-	_plot_title.visible = false
 	queue_redraw()
 
 

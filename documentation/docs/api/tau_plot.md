@@ -261,7 +261,7 @@ Emitted when a pinned tooltip is dismissed by clicking on empty space or by pres
 
 `title`: `String`
 
-Sets the title displayed above the plot. Supports BBCode. Defaults to `""`, which hides the title. Applies immediately. Safe to set after [`plot_xy()`](#plot_xy).
+Sets the title displayed above the plot. Supports BBCode. Defaults to `""`, which hides the title. The label updates on assignment and the plot area is re-laid out on the next frame. Safe to set after [`plot_xy()`](#plot_xy).
 
 ---
 
@@ -285,7 +285,7 @@ Configuration for the hover inspection system. Controls hover mode, tooltip, cro
 
 `legend_enabled`: `bool`
 
-Controls legend visibility. When `true`, the legend renders using the settings in [`legend_config`](#legend_config). When `false`, the legend is hidden. Defaults to `true`. Safe to set after [`plot_xy()`](#plot_xy).
+Controls legend visibility. When `true`, the legend renders using the settings in [`legend_config`](#legend_config). When `false`, the legend is hidden. Defaults to `true`. The legend updates on assignment and the plot area is re-laid out on the next frame. Safe to set after [`plot_xy()`](#plot_xy).
 
 ---
 
@@ -293,7 +293,7 @@ Controls legend visibility. When `true`, the legend renders using the settings i
 
 `legend_config`: [`TauLegendConfig`](legend_config.md)
 
-Configuration for the legend system. Controls position, flow direction, and visual style. If `null`, built-in defaults apply for all settings. Defaults to `null`. Safe to set after [`plot_xy()`](#plot_xy).
+Configuration for the legend system. Controls position, flow direction, and visual style. If `null`, built-in defaults apply for all settings. Defaults to `null`. The legend updates on assignment and the plot area is re-laid out on the next frame. Safe to set after [`plot_xy()`](#plot_xy).
 
 ## Methods
 
@@ -325,9 +325,9 @@ Can be called before the node enters the scene tree. The first render then happe
 reset() -> void
 ```
 
-Destroys the active plot and resets the node to an empty state.
+Destroys the active plot and clears the plot area.
 
-Frees all renderer nodes, disconnects dataset and style signals, and hides the title. Safe to call when no plot is active.
+Frees the internal plot nodes and disconnects dataset and style signals. The exported properties are left untouched, so a non-empty [`title`](#title) stays displayed. Safe to call when no plot is active.
 
 ---
 

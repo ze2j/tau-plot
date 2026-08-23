@@ -132,7 +132,7 @@ The base class of the overlay configurations. These properties are available on 
 | tooltip_enabled | `bool` | OK | |
 | tooltip_position_mode | `TooltipPositionMode` | OK | |
 | tooltip_precision_digits | `int` | KO | Not applied. Workaround: call `plot_xy()` again. |
-| tooltip_style | `TauTooltipStyle` | KO | Assigning a new instance is not detected. Changing a property on the current instance works. Workaround: assign the config again to `TauPlot.hover_config`. |
+| tooltip_style | `TauTooltipStyle` | KO | Assigning a new instance is not detected. Changing a property on the current instance works. Workaround: build a new `TauHoverConfig` and assign it to [`TauPlot.hover_config`](api/tau_plot.md#hover_config). |
 | crosshair_mode | `CrosshairMode` | OK | |
 | crosshair_style | `TauCrosshairStyle` | KO | Same as `tooltip_style`. |
 | format_tooltip_text | `Callable` | OK | |
@@ -142,6 +142,6 @@ The base class of the overlay configurations. These properties are available on 
 
 | Property | Type | Status | Comment |
 |---|---|---|---|
-| position | `Position` | KO | Not applied. Workaround: assign the config again to `TauPlot.legend_config`. |
+| position | `Position` | KO | Not applied. Workaround: build a new `TauLegendConfig` and assign it to [`TauPlot.legend_config`](api/tau_plot.md#legend_config). |
 | flow_direction | `FlowDirection` | KO | Same as `position`. |
-| style | `TauLegendStyle` | KO | Assigning a new instance is not detected. Changing a property on the current instance works. Workaround: assign the config again to `TauPlot.legend_config`. |
+| style | `TauLegendStyle` | KO | Assigning a new instance is not detected. Changing a property on the current instance works. Workaround: build a new `TauLegendConfig` and assign it to [`TauPlot.legend_config`](api/tau_plot.md#legend_config). |
