@@ -54,7 +54,7 @@ In [`X_ALIGNED`](hover_config.md#hovermode) mode, two hits of the same array can
 
 `y_plotted_value`: `float`
 
-The Y position the sample is drawn at, in axis units.
+The Y position the sample is drawn at, in data units.
 
 On a [`STACKED`](bar_config.md#barmode) bar overlay or a [`STACKED`](line_config.md#linemode) line overlay this is the cumulative total of the stack up to and including this series, rescaled when [`FRACTION`](tau_plot.md#stackednormalization) or [`PERCENT`](tau_plot.md#stackednormalization) normalization is active. In every other case it equals [`y_raw_value`](#y_raw_value).
 

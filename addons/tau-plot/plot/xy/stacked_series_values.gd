@@ -70,7 +70,7 @@ class StackedSeriesValues extends RefCounted:
 					_accumulate_signed_sum(sample_index, pos_scale)
 
 
-	## Painted top of this (series, sample) in axis units.
+	## Painted top of this (series, sample) in data units.
 	func get_y_plotted(p_series_local: int, p_sample_index: int) -> float:
 		return _y_plotted[p_series_local * _sample_count + p_sample_index]
 

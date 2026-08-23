@@ -31,7 +31,7 @@ TauPlot is built for in-game analytics, telemetry overlays, scientific plots, se
 
 - **Bar, line, and scatter overlays** can be combined freely in one chart. Bars can be grouped, stacked, or independent, lines can be independent or stacked, both support optional normalization, and a line can carry a flat or textured area fill.
 - **Axes** can be categorical or continuous, linear or logarithmic, inverted, and placed on any edge. A pane can carry two Y axes with optional alignment at zero, and a secondary X axis shows the same range in another unit through a custom transform.
-- **Godot theme integration** with a three-layer cascade (built-in defaults, Godot theme, code overrides). Every visual property participates in this cascade, so charts match the rest of your UI without per property work.
+- **Godot theme integration** with a three-layer cascade (built-in defaults, Godot theme, code overrides). Every visual property resolves through this cascade.
 - **Automatic tick and tick label generation with overlap prevention**, so axes stay readable at any plot size without manual tuning. Tick labels can be formatted with a custom callback.
 - **Real-time streaming** with ring-buffer datasets. The chart redraws incrementally as samples arrive and the oldest points are dropped when the buffer is full.
 - **Multi-pane layouts** (also known as subplots) for stacked graphs that share an X axis but use different Y scales.

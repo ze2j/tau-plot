@@ -16,7 +16,7 @@ class SampleHit extends RefCounted:
 	## X value: float for continuous axes, String for categorical.
 	var x_value: Variant
 
-	## Y position the sample is drawn at, in axis units.
+	## Y position the sample is drawn at, in data units.
 	## Differs from y_raw_value when STACKED is on (cumulative top) or when
 	## FRACTION/PERCENT normalization is on.
 	var y_plotted_value: float

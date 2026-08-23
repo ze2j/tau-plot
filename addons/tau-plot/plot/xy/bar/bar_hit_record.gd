@@ -9,7 +9,7 @@ class BarHitRecord extends RefCounted:
 	## Float for continuous x, String for categorical.
 	var x_value: Variant
 
-	## Y position the bar's top is drawn at, in axis units.
+	## Y position the bar's top is drawn at, in data units.
 	## Differs from y_raw_value when STACKED is on (cumulative top) or when
 	## FRACTION/PERCENT normalization is on.
 	var y_plotted_value: float
