@@ -95,6 +95,10 @@ Planned for upcoming releases:
 - Symmetric logarithmic (symlog) axis scale.
 - Pie and radar plot types.
 
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/ze2j/tau-plot/tree/main/CONTRIBUTING.md) for guidelines on reporting issues, proposing features, code style, testing, and AI usage policy.
+
 ## License
 
 TauPlot is released under the [BSD 3-Clause License](LICENSE).
