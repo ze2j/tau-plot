@@ -216,6 +216,9 @@ class BarRenderer extends Control:
 		# Cleared before any early-return so the cache cannot outlive the bars it describes.
 		_hit_records.clear()
 
+		if not _layout.has_pane_layouts():
+			return
+
 		var pane_rect := _layout.get_pane_rect(_pane_index)
 		if pane_rect.size.x <= 0.0 or pane_rect.size.y <= 0.0:
 			return

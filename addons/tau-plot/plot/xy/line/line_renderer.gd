@@ -336,6 +336,9 @@ class LineRenderer extends Control:
 	func _draw() -> void:
 		_hit_records.clear()
 
+		if not _layout.has_pane_layouts():
+			return
+
 		var pane_rect := _layout.get_pane_rect(_pane_index)
 		if pane_rect.size.x <= 0.0 or pane_rect.size.y <= 0.0:
 			return

@@ -88,14 +88,15 @@ class PaneRenderer extends Control:
 
 
 	func _draw() -> void:
+		if not _layout.has_pane_layouts():
+			return
+
 		var pane_rect := _layout.get_pane_rect(_pane_index)
 		if pane_rect.size.x <= 0.0 or pane_rect.size.y <= 0.0:
 			return
 
 		var axis_color := _xy_style.axis_color
-		var pane_layout := _get_pane_layout()
-		if pane_layout == null:
-			return
+		var pane_layout := _layout.get_pane_layout(_pane_index)
 
 		var x_left := pane_rect.position.x
 		var x_right := pane_rect.position.x + pane_rect.size.x
@@ -408,12 +409,6 @@ class PaneRenderer extends Control:
 	####################################################################################################
 	# Private -- Pane and config accessors
 	####################################################################################################
-
-	func _get_pane_layout() -> XYLayout.PaneLayout:
-		if _pane_index < 0 or _pane_index >= _layout.pane_layouts.size():
-			return null
-		return _layout.pane_layouts[_pane_index]
-
 
 	func _get_x_config() -> TauAxisConfig:
 		return _layout.domain.config.x_axis
