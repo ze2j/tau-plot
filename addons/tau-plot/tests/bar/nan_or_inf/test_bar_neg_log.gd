@@ -50,7 +50,7 @@ func _setup_test_1() -> void:
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.GROUPED
 	bar_config.bar_width_policy = TauBarConfig.BarWidthPolicy.NEIGHBOR_SPACING_FRACTION
-	bar_config.bar_gap_x_units = 1.01
+	bar_config.neighbor_gap_fraction = 0.25
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis
@@ -174,7 +174,6 @@ func _setup_test_3() -> void:
 	var bar_config := TauBarConfig.new()
 	bar_config.mode = TauBarConfig.BarMode.STACKED
 	bar_config.bar_width_policy = TauBarConfig.BarWidthPolicy.NEIGHBOR_SPACING_FRACTION
-	bar_config.bar_gap_x_units = 1.01
 
 	var pane := TauPaneConfig.new()
 	pane.y_left_axis = y_axis

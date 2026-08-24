@@ -273,6 +273,52 @@ class BarGeometry extends RefCounted:
 				_x_axis_config.scale == TauAxisConfig.Scale.LOGARITHMIC)
 
 
+	# Mirrors the sample filtering applied by the renderers, so width and gap
+	# follow the spacing of the bars that are actually drawn.
+	func _is_x_plottable(p_x: float) -> bool:
+		if is_nan(p_x) or is_inf(p_x):
+			return false
+		return not _is_log_x_scale() or p_x > 0.0
+
+
+	# Index of the nearest plottable sample from p_index walking in p_direction,
+	# or -1 when that side holds none.
+	func _find_plottable_neighbor_shared_x(p_index: int, p_count: int, p_direction: int) -> int:
+		var i := p_index + p_direction
+		while i >= 0 and i < p_count:
+			if _is_x_plottable(float(_dataset.get_shared_x(i))):
+				return i
+			i += p_direction
+		return -1
+
+
+	func _find_plottable_neighbor_per_series(p_series_id: int, p_index: int, p_count: int, p_direction: int) -> int:
+		var i := p_index + p_direction
+		while i >= 0 and i < p_count:
+			if _is_x_plottable(float(_dataset.get_series_x(p_series_id, i))):
+				return i
+			i += p_direction
+		return -1
+
+
+	# Spacing between two plottable x values on a log scale, expressed as a
+	# factor at or above 1.0 whatever the order of the samples.
+	func _log_spacing_ratio(p_a: float, p_b: float) -> float:
+		return maxf(p_a / p_b, p_b / p_a)
+
+
+	# Stands in for the local spacing of a sample that has no plottable
+	# neighbor on either side: the axis itself is its neighborhood.
+	func _domain_spacing_x_units() -> float:
+		var x_domain := _layout.domain.x_axis_domain
+		return x_domain.max_val - x_domain.min_val
+
+
+	func _domain_spacing_log_ratio() -> float:
+		var x_domain := _layout.domain.x_axis_domain
+		return x_domain.max_val / x_domain.min_val
+
+
 	func _compute_px_distance_for_x_units(p_x_center: float, p_units: float) -> float:
 		# Convert a delta in X data units into pixels at the given center.
 		if p_units <= 0.0:
@@ -346,9 +392,6 @@ class BarGeometry extends RefCounted:
 		var gap_frac := max(_bar_config.neighbor_gap_fraction, 0.0)
 
 		if _is_log_x_scale():
-			if x_i <= 0.0:
-				return 0.0
-
 			var group_width_factor := _compute_neighbor_width_factor_log_shared_x(p_index, p_count, _bar_config.neighbor_spacing_fraction)
 			var denom := _compute_group_denom_log(series_count, gap_frac)
 			var per_bar_factor := pow(max(group_width_factor, 1.000001), 1.0 / denom)
@@ -365,89 +408,71 @@ class BarGeometry extends RefCounted:
 
 
 	func _compute_neighbor_width_units_linear_shared_x(p_index: int, p_count: int, p_fraction: float) -> float:
-		if p_count <= 1:
-			return max(_bar_config.bar_width_x_units, 0.0)
-
 		var x_i := float(_dataset.get_shared_x(p_index))
-		var spacing := 0.0
-		if p_index == 0:
-			spacing = float(_dataset.get_shared_x(1)) - x_i
-		elif p_index == p_count - 1:
-			spacing = x_i - float(_dataset.get_shared_x(p_count - 2))
-		else:
-			var next_x := float(_dataset.get_shared_x(p_index + 1))
-			var prev_x := float(_dataset.get_shared_x(p_index - 1))
-			spacing = minf(next_x - x_i, x_i - prev_x)
+		var prev_index := _find_plottable_neighbor_shared_x(p_index, p_count, -1)
+		var next_index := _find_plottable_neighbor_shared_x(p_index, p_count, 1)
 
-		return absf(spacing) * clampf(p_fraction, 0.0, 1.0)
+		var spacing := INF
+		if prev_index >= 0:
+			spacing = absf(x_i - float(_dataset.get_shared_x(prev_index)))
+		if next_index >= 0:
+			spacing = minf(spacing, absf(float(_dataset.get_shared_x(next_index)) - x_i))
+
+		if is_inf(spacing):
+			spacing = _domain_spacing_x_units()
+
+		return spacing * clampf(p_fraction, 0.0, 1.0)
 
 
 	func _compute_neighbor_width_units_linear_per_series(p_series_id: int, p_index: int, p_count: int, p_fraction: float) -> float:
-		if p_count <= 1:
-			return max(_bar_config.bar_width_x_units, 0.0)
-
 		var x_i := float(_dataset.get_series_x(p_series_id, p_index))
-		var spacing := 0.0
-		if p_index == 0:
-			spacing = float(_dataset.get_series_x(p_series_id, 1)) - x_i
-		elif p_index == p_count - 1:
-			spacing = x_i - float(_dataset.get_series_x(p_series_id, p_count - 2))
-		else:
-			var next_x := float(_dataset.get_series_x(p_series_id, p_index + 1))
-			var prev_x := float(_dataset.get_series_x(p_series_id, p_index - 1))
-			spacing = minf(next_x - x_i, x_i - prev_x)
+		var prev_index := _find_plottable_neighbor_per_series(p_series_id, p_index, p_count, -1)
+		var next_index := _find_plottable_neighbor_per_series(p_series_id, p_index, p_count, 1)
 
-		return absf(spacing) * clampf(p_fraction, 0.0, 1.0)
+		var spacing := INF
+		if prev_index >= 0:
+			spacing = absf(x_i - float(_dataset.get_series_x(p_series_id, prev_index)))
+		if next_index >= 0:
+			spacing = minf(spacing, absf(float(_dataset.get_series_x(p_series_id, next_index)) - x_i))
+
+		if is_inf(spacing):
+			spacing = _domain_spacing_x_units()
+
+		return spacing * clampf(p_fraction, 0.0, 1.0)
 
 
 	func _compute_neighbor_width_factor_log_shared_x(p_index: int, p_count: int, p_fraction: float) -> float:
-		if p_count <= 1:
-			return max(_bar_config.bar_width_log_factor, 1.000001)
-
 		var x_i := float(_dataset.get_shared_x(p_index))
-		if x_i <= 0.0:
-			return 1.0
+		var prev_index := _find_plottable_neighbor_shared_x(p_index, p_count, -1)
+		var next_index := _find_plottable_neighbor_shared_x(p_index, p_count, 1)
 
-		var spacing_ratio := 1.0
-		if p_index == 0:
-			var x_next := float(_dataset.get_shared_x(1))
-			spacing_ratio = x_next / x_i if x_i > 0.0 else 1.0
-		elif p_index == p_count - 1:
-			var x_prev := float(_dataset.get_shared_x(p_count - 2))
-			spacing_ratio = x_i / x_prev if x_prev > 0.0 else 1.0
-		else:
-			var x_next := float(_dataset.get_shared_x(p_index + 1))
-			var x_prev := float(_dataset.get_shared_x(p_index - 1))
-			var ratio_next := x_next / x_i if x_i > 0.0 else 1.0
-			var ratio_prev := x_i / x_prev if x_prev > 0.0 else 1.0
-			spacing_ratio = minf(ratio_next, ratio_prev)
+		var spacing_ratio := INF
+		if prev_index >= 0:
+			spacing_ratio = _log_spacing_ratio(x_i, float(_dataset.get_shared_x(prev_index)))
+		if next_index >= 0:
+			spacing_ratio = minf(spacing_ratio, _log_spacing_ratio(x_i, float(_dataset.get_shared_x(next_index))))
 
-		return pow(max(spacing_ratio, 1.0), clampf(p_fraction, 0.0, 1.0))
+		if is_inf(spacing_ratio):
+			spacing_ratio = _domain_spacing_log_ratio()
+
+		return pow(spacing_ratio, clampf(p_fraction, 0.0, 1.0))
 
 
 	func _compute_neighbor_width_factor_log_per_series(p_series_id: int, p_index: int, p_count: int, p_fraction: float) -> float:
-		if p_count <= 1:
-			return max(_bar_config.bar_width_log_factor, 1.000001)
-
 		var x_i := float(_dataset.get_series_x(p_series_id, p_index))
-		if x_i <= 0.0:
-			return 1.0
+		var prev_index := _find_plottable_neighbor_per_series(p_series_id, p_index, p_count, -1)
+		var next_index := _find_plottable_neighbor_per_series(p_series_id, p_index, p_count, 1)
 
-		var spacing_ratio := 1.0
-		if p_index == 0:
-			var x_next := float(_dataset.get_series_x(p_series_id, 1))
-			spacing_ratio = x_next / x_i if x_i > 0.0 else 1.0
-		elif p_index == p_count - 1:
-			var x_prev := float(_dataset.get_series_x(p_series_id, p_count - 2))
-			spacing_ratio = x_i / x_prev if x_prev > 0.0 else 1.0
-		else:
-			var x_next := float(_dataset.get_series_x(p_series_id, p_index + 1))
-			var x_prev := float(_dataset.get_series_x(p_series_id, p_index - 1))
-			var ratio_next := x_next / x_i if x_i > 0.0 else 1.0
-			var ratio_prev := x_i / x_prev if x_prev > 0.0 else 1.0
-			spacing_ratio = minf(ratio_next, ratio_prev)
+		var spacing_ratio := INF
+		if prev_index >= 0:
+			spacing_ratio = _log_spacing_ratio(x_i, float(_dataset.get_series_x(p_series_id, prev_index)))
+		if next_index >= 0:
+			spacing_ratio = minf(spacing_ratio, _log_spacing_ratio(x_i, float(_dataset.get_series_x(p_series_id, next_index))))
 
-		return pow(max(spacing_ratio, 1.0), clampf(p_fraction, 0.0, 1.0))
+		if is_inf(spacing_ratio):
+			spacing_ratio = _domain_spacing_log_ratio()
+
+		return pow(spacing_ratio, clampf(p_fraction, 0.0, 1.0))
 
 
 	func _compute_group_denom_linear(p_series_count: int, p_gap_frac: float) -> float:
