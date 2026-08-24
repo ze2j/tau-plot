@@ -3,7 +3,6 @@ const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis_assignment.gd").SeriesAxisAssignment
 const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
-const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_visual_attributes.gd").LineVisualAttributes
 const LineHitRecord := preload("res://addons/tau-plot/plot/xy/line/line_hit_record.gd").LineHitRecord
@@ -360,6 +359,59 @@ class LineRenderer extends Control:
 		RenderingServer.canvas_item_set_custom_rect(get_canvas_item(), true, p_pane_rect)
 
 
+	# Optimization. Holds every value the sample loop needs that is fixed for
+	# the whole series. Resolving them inline would walk the config, the
+	# resolved style and the axis assignment once per sample, which is the bulk
+	# of a redraw. Resolved fresh in each _draw() so it cannot go stale.
+	class _SeriesDrawContext extends RefCounted:
+		var series_index: int = -1
+		var series_id: int = -1
+		var global_index: int = -1
+		var y_axis_id: AxisId
+		var x_is_log: bool = false
+		var y_is_log: bool = false
+		var color_buffer: VisualAttributes.ColorBuffer = null
+		var alpha_buffer: VisualAttributes.AlphaBuffer = null
+		# Buffers may be shorter than the series, so the size is a real bound
+		# and not a redundant check. Cached here to keep it out of the sample
+		# loop.
+		var color_buffer_size: int = 0
+		var alpha_buffer_size: int = 0
+		var color_callback: Callable = Callable()
+		var alpha_callback: Callable = Callable()
+		var has_color_callback: bool = false
+		var has_alpha_callback: bool = false
+		var base_color: Color
+		var base_alpha: float = 1.0
+
+
+	func _build_series_draw_context(p_series_index: int) -> _SeriesDrawContext:
+		var ctx := _SeriesDrawContext.new()
+		ctx.series_index = p_series_index
+		ctx.series_id = _get_line_series_id(p_series_index)
+		ctx.global_index = _get_global_series_index(p_series_index)
+		ctx.y_axis_id = _get_y_axis_id_for_series(ctx.series_id)
+		ctx.x_is_log = _get_x_axis_config().scale == TauAxisConfig.Scale.LOGARITHMIC
+		ctx.y_is_log = _get_y_axis_config(ctx.y_axis_id).scale == TauAxisConfig.Scale.LOGARITHMIC
+
+		var attributes: LineVisualAttributes = _visual_attributes[p_series_index]
+		ctx.color_buffer = attributes.color_buffer
+		ctx.alpha_buffer = attributes.alpha_buffer
+		ctx.color_buffer_size = ctx.color_buffer.size() if ctx.color_buffer != null else 0
+		ctx.alpha_buffer_size = ctx.alpha_buffer.size() if ctx.alpha_buffer != null else 0
+
+		var callbacks := _line_config.line_visual_callbacks
+		if callbacks != null:
+			ctx.color_callback = callbacks.color_callback
+			ctx.alpha_callback = callbacks.alpha_callback
+			ctx.has_color_callback = ctx.color_callback.is_valid()
+			ctx.has_alpha_callback = ctx.alpha_callback.is_valid()
+
+		ctx.base_color = _xy_style.get_series_color(ctx.global_index)
+		ctx.base_alpha = _xy_style.get_series_alpha(ctx.global_index)
+		return ctx
+
+
 	# Routes a series to the x layout that resolves its parameter axis, then the
 	# shared run loop applies the emission rules for both:
 	#   - A valid sample is appended to the current run.
@@ -375,13 +427,14 @@ class LineRenderer extends Control:
 	# runs the full path: a series at width 0 still fills and still answers
 	# hover on its samples.
 	func _draw_series(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
-		if not _series_paints_anything(p_series_index):
+		var ctx := _build_series_draw_context(p_series_index)
+		if not _series_paints_anything(ctx.global_index):
 			return
 
 		if _get_x_axis_config().type == TauAxisConfig.Type.CATEGORICAL:
-			_draw_series_categorical(p_series_index, p_stacked)
+			_draw_series_categorical(ctx, p_stacked)
 		else:
-			_draw_series_continuous(p_series_index, p_stacked)
+			_draw_series_continuous(ctx, p_stacked)
 
 
 	# True when the series puts at least one of its two marks on screen, a
@@ -390,47 +443,42 @@ class LineRenderer extends Control:
 	# whole series is invisible. The fill resolved here is the same one
 	# _draw_series_runs resolves for the run loop, both cheap reads off the
 	# resolved style.
-	func _series_paints_anything(p_series_index: int) -> bool:
-		var global_series_index := _get_global_series_index(p_series_index)
-		if _line_style.get_series_width_px(global_series_index) > 0.0:
+	func _series_paints_anything(p_global_series_index: int) -> bool:
+		if _line_style.get_series_width_px(p_global_series_index) > 0.0:
 			return true
-		var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
-		return resolve_series_fill_color(global_series_index, fill).a > 0.0
+		var fill: TauLineFill = _line_style.get_series_fill(p_global_series_index)
+		return resolve_series_fill_color(p_global_series_index, fill).a > 0.0
 
 
-	func _draw_series_continuous(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
-		var series_id := _get_line_series_id(p_series_index)
-
+	func _draw_series_continuous(p_ctx: _SeriesDrawContext, p_stacked: StackedSeriesValues) -> void:
 		# Precompute the x plan for the shared run loop. A sample whose x is NaN,
 		# Inf, or forbidden by the axis scale gets a NAN x pixel, which the loop
 		# reads as a run break. Every other sample maps its x to an axis pixel.
 		# The value stored alongside is the raw float, handed to color resolution
 		# and hit records unchanged.
 		var is_shared_x := _dataset.get_mode() == Dataset.Mode.SHARED_X
-		var sample_count := _dataset.get_series_sample_count(series_id)
+		var sample_count := _dataset.get_series_sample_count(p_ctx.series_id)
 		var x_px := PackedFloat64Array()
 		x_px.resize(sample_count)
 		var x_values: Array = []
 		x_values.resize(sample_count)
 		for i in range(sample_count):
-			var xv: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(series_id, i))
+			var xv: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(p_ctx.series_id, i))
 			x_values[i] = xv
-			if is_nan(xv) or is_inf(xv) or not _is_x_value_valid_for_scale(xv):
+			if is_nan(xv) or is_inf(xv) or (p_ctx.x_is_log and xv <= 0.0):
 				x_px[i] = NAN
 			else:
 				x_px[i] = _layout.map_x_to_px(_pane_index, xv)
 
-		_draw_series_runs(p_series_index, p_stacked, x_px, x_values)
+		_draw_series_runs(p_ctx, p_stacked, x_px, x_values)
 
 
-	func _draw_series_categorical(p_series_index: int, p_stacked: StackedSeriesValues) -> void:
-		var series_id := _get_line_series_id(p_series_index)
-
+	func _draw_series_categorical(p_ctx: _SeriesDrawContext, p_stacked: StackedSeriesValues) -> void:
 		# Precompute the x plan for the shared run loop. Category centers are
 		# always valid, so no x pixel is ever NAN and a run only breaks on an
 		# invalid y. The value stored alongside is the category itself.
 		var categories := _layout.domain.x_categories
-		var sample_count := _dataset.get_series_sample_count(series_id)
+		var sample_count := _dataset.get_series_sample_count(p_ctx.series_id)
 		var x_px := PackedFloat64Array()
 		x_px.resize(sample_count)
 		var x_values: Array = []
@@ -439,7 +487,7 @@ class LineRenderer extends Control:
 			x_px[cat_idx] = _layout.map_x_category_center_to_px(_pane_index, cat_idx)
 			x_values[cat_idx] = categories[cat_idx]
 
-		_draw_series_runs(p_series_index, p_stacked, x_px, x_values)
+		_draw_series_runs(p_ctx, p_stacked, x_px, x_values)
 
 
 	# Builds and finalizes every run of one series from a precomputed x plan,
@@ -449,20 +497,19 @@ class LineRenderer extends Control:
 	# value handed to color resolution and hit records, a float for a continuous
 	# x and a category for a categorical one. The y plan (scale validity,
 	# stacking, normalization) is resolved here per sample.
-	func _draw_series_runs(p_series_index: int, p_stacked: StackedSeriesValues, p_x_px: PackedFloat64Array, p_x_values: Array) -> void:
-		var series_id := _get_line_series_id(p_series_index)
-		var global_series_index := _get_global_series_index(p_series_index)
-		var width_px: float = _line_style.get_series_width_px(global_series_index)
-		var dash_px: int = _line_style.get_series_dash_length_px(global_series_index)
-		var hover_width_px: float = max(_line_style.get_series_hovered_width_px(global_series_index), width_px)
-		var y_axis_id := _get_y_axis_id_for_series(series_id)
+	func _draw_series_runs(p_ctx: _SeriesDrawContext, p_stacked: StackedSeriesValues, p_x_px: PackedFloat64Array, p_x_values: Array) -> void:
+		var series_id := p_ctx.series_id
+		var width_px: float = _line_style.get_series_width_px(p_ctx.global_index)
+		var dash_px: int = _line_style.get_series_dash_length_px(p_ctx.global_index)
+		var hover_width_px: float = max(_line_style.get_series_hovered_width_px(p_ctx.global_index), width_px)
+		var y_axis_id := p_ctx.y_axis_id
 		var bridge: bool = _line_config.gap_policy == TauLineConfig.GapPolicy.BRIDGE
-		var interpolation: TauLineConfig.InterpolationMode = _line_config.get_series_interpolation_mode(global_series_index)
+		var interpolation: TauLineConfig.InterpolationMode = _line_config.get_series_interpolation_mode(p_ctx.global_index)
 
 		# Resolved once per series: every run of this series fills against the
 		# same baseline and the same color, and uses the same UV reference frame.
-		var fill: TauLineFill = _line_style.get_series_fill(global_series_index)
-		var fill_color: Color = resolve_series_fill_color(global_series_index, fill)
+		var fill: TauLineFill = _line_style.get_series_fill(p_ctx.global_index)
+		var fill_color: Color = resolve_series_fill_color(p_ctx.global_index, fill)
 		var baseline_y_px: float = _resolve_fill_baseline_y_px(fill, y_axis_id)
 		var fill_uv_ctx: _FillUVContext = _resolve_fill_uv_context(fill, y_axis_id)
 
@@ -474,7 +521,7 @@ class LineRenderer extends Control:
 
 		var independent_y: PackedFloat64Array
 		if p_stacked == null:
-			independent_y = _build_independent_y_row(series_id)
+			independent_y = _build_independent_y_row(p_ctx)
 
 		var run := PackedVector2Array()
 		var run_colors := PackedColorArray()
@@ -498,8 +545,8 @@ class LineRenderer extends Control:
 			var y_raw: float = NAN
 			if not is_nan(x_px):
 				if p_stacked != null:
-					y_plotted = p_stacked.get_y_plotted(p_series_index, i)
-					y_raw = p_stacked.get_y_raw(p_series_index, i)
+					y_plotted = p_stacked.get_y_plotted(p_ctx.series_index, i)
+					y_raw = p_stacked.get_y_raw(p_ctx.series_index, i)
 				else:
 					y_plotted = independent_y[i]
 					y_raw = y_plotted
@@ -520,14 +567,14 @@ class LineRenderer extends Control:
 			var y_px := _layout.map_y_to_px(_pane_index, y_plotted, y_axis_id)
 			var axis_point := Vector2(x_px, y_px)
 			var x_value: Variant = p_x_values[i]
-			var sample_color := _resolve_sample_color(p_series_index, i, x_value, y_raw)
+			var sample_color := _resolve_sample_color(p_ctx, i, x_value, y_raw)
 			# The run is buffered in axis space so interpolation runs along the
 			# parameter and value axes directly. _finalize_run maps it to screen.
 			_append_with_interpolation(run, run_colors, axis_point, sample_color, interpolation)
 			# Lower edge in lockstep: same x, dropped to the layer below's top. The
 			# shared step-riser logic keeps it index-aligned with the upper run.
 			if stacked_fill:
-				var baseline_axis_point := Vector2(x_px, _layout.map_y_to_px(_pane_index, p_stacked.get_y_baseline(p_series_index, i), y_axis_id))
+				var baseline_axis_point := Vector2(x_px, _layout.map_y_to_px(_pane_index, p_stacked.get_y_baseline(p_ctx.series_index, i), y_axis_id))
 				_append_lower_with_interpolation(run_baseline, baseline_axis_point, interpolation)
 			# The real sample is always the last vertex appended by
 			# _append_with_interpolation, regardless of the interpolation mode.
@@ -549,16 +596,16 @@ class LineRenderer extends Control:
 
 	# Marks dropped samples (NaN, Inf, log-axis violations) as NAN up front
 	# so the inner draw loop only needs a single is_nan() check per sample.
-	func _build_independent_y_row(p_series_id: int) -> PackedFloat64Array:
-		var sample_count := _dataset.get_series_sample_count(p_series_id)
+	func _build_independent_y_row(p_ctx: _SeriesDrawContext) -> PackedFloat64Array:
+		var sample_count := _dataset.get_series_sample_count(p_ctx.series_id)
 		var y_plotted := PackedFloat64Array()
 		y_plotted.resize(sample_count)
 		y_plotted.fill(NAN)
 		for i in range(sample_count):
-			var y := _dataset.get_series_y(p_series_id, i)
+			var y := _dataset.get_series_y(p_ctx.series_id, i)
 			if is_nan(y) or is_inf(y):
 				continue
-			if not _is_y_value_valid_for_scale(p_series_id, y):
+			if p_ctx.y_is_log and y <= 0.0:
 				continue
 			y_plotted[i] = y
 		return y_plotted
@@ -1647,8 +1694,7 @@ class LineRenderer extends Control:
 				return window_swapped != _get_x_axis_config().inverted
 			TauLineFill.FillStretchSpan.VALUE_Y:
 				var series_id: int = _dataset.get_series_id_by_index(p_global_series_index)
-				var pane_cfg: TauPaneConfig = _layout.domain.config.panes[_pane_index]
-				var y_cfg: TauAxisConfig = pane_cfg.get_y_axis_config(_get_y_axis_id_for_series(series_id))
+				var y_cfg := _get_y_axis_config(_get_y_axis_id_for_series(series_id))
 				return window_swapped != y_cfg.inverted
 			TauLineFill.FillStretchSpan.MAGNITUDE:
 				return window_swapped
@@ -1946,86 +1992,77 @@ class LineRenderer extends Control:
 	# Combined per-sample color resolution. Alpha overwrites the resolved
 	# color's alpha channel, then the result is routed through the
 	# hover-highlight callback when active.
-	func _resolve_sample_color(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
-		var base := _resolve_sample_color_only(p_series_index, p_sample_index, p_x_value, p_y_value)
-		var alpha := _resolve_sample_alpha(p_series_index, p_sample_index, p_x_value, p_y_value)
+	#
+	# Optimization. The highlight routing is inlined rather than delegated. A
+	# helper would cost a call per sample to return its argument unchanged on
+	# the path where no highlight is active.
+	func _resolve_sample_color(p_ctx: _SeriesDrawContext, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
+		var base := _resolve_sample_color_only(p_ctx, p_sample_index, p_x_value, p_y_value)
+		var alpha := _resolve_sample_alpha(p_ctx, p_sample_index, p_x_value, p_y_value)
 		base.a = clampf(alpha, 0.0, 1.0)
-		return _apply_hover_color(base, _get_line_series_id(p_series_index), p_sample_index)
-
-
-	# Applies the hover-highlight callback (or the built-in dim/brighten
-	# default) to a resolved per-sample color. Returns the color unchanged
-	# when the highlight feature is off.
-	func _apply_hover_color(p_color: Color, p_series_id: int, p_sample_index: int) -> Color:
 		if not _highlight_active:
-			return p_color
-		var is_hovered: bool = (p_series_id == _hovered_series_id) and (p_sample_index == _hovered_sample_index)
-		return HoverHighlight.resolve(p_color, is_hovered, _hover_highlight_callback)
+			return base
+		var is_hovered: bool = (p_ctx.series_id == _hovered_series_id) and (p_sample_index == _hovered_sample_index)
+		return HoverHighlight.resolve(base, is_hovered, _hover_highlight_callback)
 
 
-	func _resolve_sample_color_only(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
-		# Per-sample override from LineVisualAttributes.color_buffer.
-		var color_buffer: VisualAttributes.ColorBuffer = _visual_attributes[p_series_index].color_buffer
-		if color_buffer != null and p_sample_index >= 0 and p_sample_index < color_buffer.size():
-			var c := color_buffer.get_value(p_sample_index)
+	func _resolve_sample_color_only(p_ctx: _SeriesDrawContext, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
+		# Per-sample override from LineVisualAttributes.color_buffer. The lower
+		# bound is guaranteed by the sample loop. The upper one is real: a
+		# buffer shorter than the series falls through to the resolved style.
+		if p_ctx.color_buffer != null and p_sample_index < p_ctx.color_buffer_size:
+			var c := p_ctx.color_buffer.get_value(p_sample_index)
 			if c != VisualAttributes.ColorBuffer.NO_COLOR:
 				return c
-
-		var global_series_index := _get_global_series_index(p_series_index)
 
 		# Per-sample override from LineVisualCallbacks.color_callback.
-		var vc := _line_config.line_visual_callbacks
-		if vc != null and vc.color_callback.is_valid():
-			var c: Color = vc.color_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+		if p_ctx.has_color_callback:
+			var c: Color = p_ctx.color_callback.call(p_ctx.global_index, p_sample_index, p_x_value, p_y_value)
 			if c != VisualAttributes.ColorBuffer.NO_COLOR:
 				return c
 
-		return _xy_style.get_series_color(global_series_index)
+		return p_ctx.base_color
 
 
-	func _resolve_sample_alpha(p_series_index: int, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
-		# Per-sample override from LineVisualAttributes.alpha_buffer.
-		var alpha_buffer: VisualAttributes.AlphaBuffer = _visual_attributes[p_series_index].alpha_buffer
-		if alpha_buffer != null and p_sample_index >= 0 and p_sample_index < alpha_buffer.size():
-			var a := alpha_buffer.get_value(p_sample_index)
+	func _resolve_sample_alpha(p_ctx: _SeriesDrawContext, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
+		# Per-sample override from LineVisualAttributes.alpha_buffer, bounded
+		# like the color buffer.
+		if p_ctx.alpha_buffer != null and p_sample_index < p_ctx.alpha_buffer_size:
+			var a := p_ctx.alpha_buffer.get_value(p_sample_index)
 			if a >= 0.0:
 				return a
-
-		var global_series_index := _get_global_series_index(p_series_index)
 
 		# Per-sample override from LineVisualCallbacks.alpha_callback.
-		var vc := _line_config.line_visual_callbacks
-		if vc != null and vc.alpha_callback.is_valid():
-			var a: float = vc.alpha_callback.call(global_series_index, p_sample_index, p_x_value, p_y_value)
+		if p_ctx.has_alpha_callback:
+			var a: float = p_ctx.alpha_callback.call(p_ctx.global_index, p_sample_index, p_x_value, p_y_value)
 			if a >= 0.0:
 				return a
 
-		return _xy_style.get_series_alpha(global_series_index)
+		return p_ctx.base_alpha
 
 
 	####################################################################################################
 	# Axis helpers
 	####################################################################################################
 
+	# XYPlotValidator rejects a binding whose y axis is not orthogonal to the x
+	# axis or whose pane has no axis configured there, and _line_series_ids is
+	# built from the surviving bindings, so the assignment always answers.
 	func _get_y_axis_id_for_series(p_series_id: int) -> AxisId:
-		var axis_id: int = _series_assignment.get_y_axis_id_for_series(p_series_id, _pane_index)
-		if axis_id != -1:
-			return axis_id as AxisId
-		# Fallback: should not happen if validation passed.
-		push_error("LineRenderer: series %d not assigned to any y-axis in pane %d" % [p_series_id, _pane_index])
-		return Axis.get_orthogonal_axes(_layout.domain.config.x_axis_id)[0]
+		return _series_assignment.get_y_axis_id_for_series(p_series_id, _pane_index) as AxisId
+
+
+	# Returns the config of one y axis of this renderer's pane.
+	func _get_y_axis_config(p_y_axis_id: AxisId) -> TauAxisConfig:
+		var pane_cfg: TauPaneConfig = _layout.domain.config.panes[_pane_index]
+		return pane_cfg.get_y_axis_config(p_y_axis_id)
 
 
 	####################################################################################################
 	# Axis-scale validity checks
 	####################################################################################################
 
-	func _is_x_value_valid_for_scale(p_x_value: float) -> bool:
-		return _layout.domain.config.x_axis.scale != TauAxisConfig.Scale.LOGARITHMIC or p_x_value > 0.0
-
-
+	# The draw path reads the resolved scale off the per-series context instead.
 	func _is_y_value_valid_for_scale(p_series_id: int, p_y_value: float) -> bool:
-		var y_axis_id := _get_y_axis_id_for_series(p_series_id)
-		var pane_cfg: TauPaneConfig = _layout.domain.config.panes[_pane_index]
-		var y_cfg: TauAxisConfig = pane_cfg.get_y_axis_config(y_axis_id)
+		var y_cfg := _get_y_axis_config(_get_y_axis_id_for_series(p_series_id))
 		return y_cfg.scale != TauAxisConfig.Scale.LOGARITHMIC or p_y_value > 0.0
