@@ -115,7 +115,10 @@ signal sample_clicked(hits: Array[SampleHit])
 signal sample_click_dismissed()
 
 
-var _pending_refresh := false
+# A request stands until it renders.
+var _refresh_requested := false
+# Only covers the frame being awaited.
+var _refresh_scheduled := false
 
 # Stands in for legend_config when the user leaves it unset, so the plot
 # internals always read a config. Its defaults are the documented ones.
@@ -164,8 +167,8 @@ func _notification(what: int) -> void:
 			# Entering at the size it already had raises no
 			# NOTIFICATION_RESIZED, so a request made outside the tree is run
 			# here.
-			if _pending_refresh:
-				_refresh_next_frame()
+			if _refresh_requested:
+				_schedule_refresh()
 		NOTIFICATION_RESIZED:
 			_refresh()
 		NOTIFICATION_THEME_CHANGED:
@@ -205,30 +208,25 @@ func plot_xy(p_dataset: Dataset, p_xy_config: TauXYConfig, p_series_bindings: Ar
 
 
 # TODO
-func plot_pie():
+func plot_pie() -> void:
 	push_error("PIE plots are not implemented yet")
 
 
 # TODO
-func plot_radar():
+func plot_radar() -> void:
 	push_error("RADAR plots are not implemented yet")
 
 
-func refresh_now():
+func refresh_now() -> void:
 	_refresh()
 
 
-func queue_refresh():
-	if _pending_refresh:
-		return # Already scheduled
-	_pending_refresh = true
-	# Outside the tree there is no frame to wait for and nothing to lay out.
-	# NOTIFICATION_ENTER_TREE runs the pending request.
-	if is_inside_tree():
-		_refresh_next_frame()
+func queue_refresh() -> void:
+	_refresh_requested = true
+	_schedule_refresh()
 
 
-func reset():
+func reset() -> void:
 	_reset_active_plot()
 	queue_redraw()
 
@@ -238,15 +236,22 @@ func reset():
 ####################################################################################################
 
 func _refresh() -> void:
-	_pending_refresh = false
 	if _xy_plot != null:
 		_xy_plot.refresh(global_position, _effective_legend_config().position)
 
 
-# Waits one frame to let label visibility changes propagate through the layout
-# system, then runs the pending refresh.
-func _refresh_next_frame() -> void:
+# Waits one frame so the layout settles before the refresh measures it.
+# Outside the tree there is nothing to lay out, so the request waits for NOTIFICATION_ENTER_TREE.
+func _schedule_refresh() -> void:
+	if _refresh_scheduled or not is_inside_tree():
+		return
+	_refresh_scheduled = true
 	await get_tree().process_frame
+	_refresh_scheduled = false
+	if not is_inside_tree():
+		return
+	# Cleared first so an internal request made during the refresh schedules the next one.
+	_refresh_requested = false
 	_refresh()
 
 
