@@ -32,7 +32,7 @@ colors.append_value(Color.RED)
 
 1. **A new buffer is empty.** Construction allocates the slots and stores no value, so [`size()`](#size) is `0` and every read fails until the first append. [`clear()`](#clear) returns the buffer to that state.
 
-2. **Out-of-range access logs an error.** [`set_value()`](#set_value) and [`set_values()`](#set_values) log an error and write nothing when the buffer is empty or the index is out of range. [`get_value()`](#get_value) reports the same failure through its return value.
+2. **Out-of-range access logs an error.** [`set_value()`](#set_value) and [`set_values()`](#set_values) log an error and write nothing when the buffer is empty or the index is out of range. [`get_value()`](#get_value) reports the same failure through its return value, and [`get_values()`](#get_values) returns an empty array.
 
 3. **[`append_value()`](#append_value) and [`append_values()`](#append_values) always succeed.** They never reject input. When the buffer is full, the oldest value is silently overwritten. The return value indicates how many existing values were overwritten.
 
@@ -74,7 +74,7 @@ Returns the number of values currently stored. Always between `0` and [`get_capa
 
 ---
 
-### Reading and writing individual values
+### Reading and writing values
 
 #### get_value()
 
@@ -89,6 +89,41 @@ Reading an empty buffer, or a logical index below `0` or at or above [`size()`](
 **Parameters**
 
 * `p_logical_index: int` Logical index in the range `[0, `[`size()`](#size)` - 1]`.
+
+---
+
+#### get_value_unsafe()
+
+```gdscript
+get_value_unsafe(p_logical_index: int) -> Color
+```
+
+Returns the `Color` at the given logical index, without checking the index. On a valid index it returns the same value as [`get_value()`](#get_value), and it is faster because it skips the check.
+
+This method is unsafe. An index outside `[0, `[`size()`](#size)` - 1]` is undefined behavior. Use [`get_value()`](#get_value) unless the index is already known to be valid, for example a loop counter that stops at [`size()`](#size).
+
+**Parameters**
+
+* `p_logical_index: int` Logical index in the range `[0, `[`size()`](#size)` - 1]`. The method does not check it.
+
+---
+
+#### get_values()
+
+```gdscript
+get_values(p_start_index: int, p_count: int) -> PackedColorArray
+```
+
+Returns `p_count` values, starting at logical index `p_start_index`. Index `0` is the oldest value in the buffer, [`size()`](#size)` - 1` is the most recent. The returned array is a copy, so writing to it does not change the buffer.
+
+If `p_count` is `0` or less, the method returns an empty array and pushes no error. If the range goes outside `[0, `[`size()`](#size)`[`, it pushes an error and returns an empty array.
+
+Reading a whole range at once is faster than reading one value at a time. Use it whenever you need more than a few values.
+
+**Parameters**
+
+* `p_start_index: int` Logical index of the first value to read. Must be in the range `[0, `[`size()`](#size)` - 1]`.
+* `p_count: int` How many values to read. `p_start_index + p_count` must not be greater than [`size()`](#size).
 
 ---
 

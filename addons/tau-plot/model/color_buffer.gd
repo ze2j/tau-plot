@@ -44,19 +44,56 @@ class ColorBuffer extends RefCounted:
 
 
 	func get_value(p_logical_index: int) -> Color:
-		var storage_i := _map_logical_to_storage(p_logical_index)
-		if storage_i < 0:
+		if _stored_count <= 0:
+			push_error("ColorBuffer: the buffer is empty")
 			return NO_COLOR
 
-		return _buffer[storage_i]
+		if p_logical_index < 0 or p_logical_index >= _stored_count:
+			push_error("ColorBuffer: logical index %d out of range [0; %d[" % [p_logical_index, _stored_count])
+			return NO_COLOR
+
+		return _buffer[(_storage_origin() + p_logical_index) % _capacity]
+
+
+	# Unsafe: it does not check the index. Outside [0; size()[ it reads the
+	# wrong slot of the ring storage and reports no error. Only call it when
+	# the index is already known to be valid.
+	func get_value_unsafe(p_logical_index: int) -> Color:
+		return _buffer[(_storage_origin() + p_logical_index) % _capacity]
+
+
+	func get_values(p_start_index: int, p_count: int) -> PackedColorArray:
+		if p_count <= 0:
+			return PackedColorArray()
+
+		if p_start_index < 0 or p_start_index + p_count > _stored_count:
+			push_error("ColorBuffer: range [%d; %d[ out of range [0; %d[" % [p_start_index, p_start_index + p_count, _stored_count])
+			return PackedColorArray()
+
+		# Optimization. The range is checked once, the ring origin is computed
+		# once, and the read is cut at the ring seam into one or two native
+		# slices. Reading one value at a time would cost a loop step and an
+		# index mapping per value, which is most of the cost of a big read.
+		var start := (_storage_origin() + p_start_index) % _capacity
+		var head := _capacity - start
+		if p_count <= head:
+			return _buffer.slice(start, start + p_count)
+
+		var out := _buffer.slice(start, _capacity)
+		out.append_array(_buffer.slice(0, p_count - head))
+		return out
 
 
 	func set_value(p_logical_index: int, p_value: Color) -> void:
-		var storage_i := _map_logical_to_storage(p_logical_index)
-		if storage_i < 0:
+		if _stored_count <= 0:
+			push_error("ColorBuffer: the buffer is empty")
 			return
 
-		_buffer[storage_i] = p_value
+		if p_logical_index < 0 or p_logical_index >= _stored_count:
+			push_error("ColorBuffer: logical index %d out of range [0; %d[" % [p_logical_index, _stored_count])
+			return
+
+		_buffer[(_storage_origin() + p_logical_index) % _capacity] = p_value
 
 
 	func set_values(p_start_index: int, p_values: PackedColorArray) -> int:
@@ -71,12 +108,24 @@ class ColorBuffer extends RefCounted:
 			push_error("ColorBuffer: start_index %d out of range [0; %d[" % [p_start_index, _stored_count])
 			return 0
 
-		var max_write := min(p_values.size(), _stored_count - p_start_index)
-		for i in range(max_write):
-			var storage_i := _map_logical_to_storage(p_start_index + i)
-			_buffer[storage_i] = p_values[i]
+		# Optimization. The range is checked once, the ring origin is computed
+		# once, and the write is cut at the ring seam into two contiguous runs.
+		# Mapping each index on its own would repeat the check and the origin
+		# maths for every value.
+		#
+		# The write stays in place on purpose. Rebuilding the storage from
+		# slices would be one native copy, but it would allocate the whole
+		# buffer again, which is slower for the small writes a streaming plot
+		# makes.
+		var write_count := min(p_values.size(), _stored_count - p_start_index)
+		var start := (_storage_origin() + p_start_index) % _capacity
+		var head := min(write_count, _capacity - start)
+		for i in range(head):
+			_buffer[start + i] = p_values[i]
+		for i in range(write_count - head):
+			_buffer[i] = p_values[head + i]
 
-		return max_write
+		return write_count
 
 
 	func append_value(p_value: Color) -> int:
@@ -122,21 +171,12 @@ class ColorBuffer extends RefCounted:
 	# Private
 	####################################################################################################
 
-	# Negative when the logical index has no storage slot.
-	func _map_logical_to_storage(p_logical_index: int) -> int:
-		if _stored_count <= 0:
-			push_error("ColorBuffer: the buffer is empty")
-			return -1
-
-		if p_logical_index < 0 or p_logical_index >= _stored_count:
-			push_error("ColorBuffer: logical index %d out of range [0; %d[" % [p_logical_index, _stored_count])
-			return -1
-
-		var oldest_storage := _storage_head - _stored_count
-		if oldest_storage < 0:
-			oldest_storage += _capacity
-
-		return (oldest_storage + p_logical_index) % _capacity
+	# Storage index of logical index 0. It checks nothing, so a bulk read or
+	# write can call it once before its loop and then index the storage
+	# directly. Callers check the logical range themselves.
+	func _storage_origin() -> int:
+		var origin := _storage_head - _stored_count
+		return origin + _capacity if origin < 0 else origin
 
 
 	static func _resize_ring_buffer(p_old: PackedColorArray, p_old_cap: int, p_old_head: int, p_old_count: int, p_new_cap: int) -> PackedColorArray:

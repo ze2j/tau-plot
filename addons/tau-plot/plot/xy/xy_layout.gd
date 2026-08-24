@@ -19,6 +19,65 @@ class XYLayout extends RefCounted:
 	## Must be set by the caller before calling [method update].
 	var style: TauXYStyle = null
 
+	## Transform from a data value to a pixel along one axis of one pane.
+	##
+	## Optimization. Folds the pane rectangle, the domain bounds, the inversion
+	## and the scale into a single multiply-add, resolved once by
+	## [method update]. Deriving them inside the mapping functions would repeat
+	## all four for every mapped value.
+	class AxisMapping extends RefCounted:
+		# The domain offset, the inversion and the pixel extent all collapse
+		# into this pair. On a logarithmic axis it applies to the logarithm of
+		# the value: the ratio cancels the base, so the raw log() is used.
+		var _scale_px: float = 0.0
+		var _offset_px: float = 0.0
+		var _is_log: bool = false
+
+		# A collapsed domain or a zero-extent pane has no transform. Held as a
+		# flag so the normal path stays a multiply-add.
+		var _degenerate: bool = false
+
+		# Pixel returned when a value has no mapping: every value when the
+		# transform is degenerate, a non-positive value on a logarithmic axis.
+		var _fallback_px: float = 0.0
+
+		## Resolves the transform.
+		## [param p_min] Domain minimum.
+		## [param p_max] Domain maximum.
+		## [param p_is_log] True for a logarithmic scale.
+		## [param p_origin] Pixel of the axis start.
+		## [param p_extent] Pixel length of the axis.
+		## [param p_invert] True when higher values map to lower pixels.
+		## [param p_degenerate_px] Pixel returned when the domain is collapsed
+		##   or the pane has no extent. Explicit because the x and y mappings
+		##   answer differently there.
+		func _init(p_min: float, p_max: float, p_is_log: bool, p_origin: float, p_extent: float, p_invert: bool, p_degenerate_px: float) -> void:
+			_is_log = p_is_log
+			if p_min >= p_max or p_extent <= 0.0:
+				_degenerate = true
+				_fallback_px = p_degenerate_px
+				return
+
+			var start_px: float = p_origin + p_extent if p_invert else p_origin
+			var signed_extent: float = -p_extent if p_invert else p_extent
+			var domain_min: float = log(p_min) if p_is_log else p_min
+			var domain_max: float = log(p_max) if p_is_log else p_max
+			_fallback_px = start_px
+			_scale_px = signed_extent / (domain_max - domain_min)
+			_offset_px = start_px - domain_min * _scale_px
+
+		## Returns the axis pixel of [param p_value].
+		func to_px(p_value: float) -> float:
+			if _degenerate:
+				return _fallback_px
+			if _is_log:
+				if p_value <= 0.0:
+					push_error("AxisMapping.to_px(): a logarithmic axis requires a strictly positive value (value=%f)" % p_value)
+					return _fallback_px
+				return _offset_px + log(p_value) * _scale_px
+			return _offset_px + p_value * _scale_px
+
+
 	## Per-pane layout outputs computed by [method update].
 	class PaneLayout extends RefCounted:
 		## The final data-area rectangle for this pane, in pane-local pixel
@@ -28,6 +87,17 @@ class XYLayout extends RefCounted:
 		## Tick sequences for y axes on this pane, keyed by [enum AxisId].
 		## Only populated for y axes that have both a config and series data.
 		var y_ticks: Dictionary[AxisId, TickSequence] = {}
+
+		## Transform for the primary x axis on this pane.
+		var x_mapping: AxisMapping = null
+
+		## Transform for the secondary x axis on this pane, or null when the
+		## plot has no secondary x axis.
+		var secondary_x_mapping: AxisMapping = null
+
+		## Transforms for the y axes on this pane, keyed by [enum AxisId].
+		## Only populated for y axes that have a domain.
+		var y_mappings: Dictionary[AxisId, AxisMapping] = {}
 
 		## Zero-based index of this pane within the pane list. Input.
 		var pane_index: int = 0
@@ -212,6 +282,8 @@ class XYLayout extends RefCounted:
 
 		_compute_all_pane_rects(draws_bottom, draws_top, draws_left, draws_right, y_axes)
 
+		_compute_axis_mappings(y_axes, has_secondary_x)
+
 
 	## Returns true if [param p_pane_index] is the pane closest to [param p_edge].
 	## In a vertical stack (x horizontal), TOP is nearest pane 0, BOTTOM is nearest pane N-1.
@@ -255,47 +327,25 @@ class XYLayout extends RefCounted:
 	# Axis mapping
 	################################################################################################
 
+	## Returns the transform from an x-axis data value to a pixel along the x axis direction.
+	## [param p_pane_index] Zero-based pane index.
+	func get_x_mapping(p_pane_index: int) -> AxisMapping:
+		return pane_layouts[p_pane_index].x_mapping
+
+
+	## Returns the transform from an y-axis data value to a pixel along the y axis direction.
+	## [param p_pane_index] Zero-based pane index.
+	## [param p_y_axis_id] Which y axis.
+	func get_y_mapping(p_pane_index: int, p_y_axis_id: AxisId) -> AxisMapping:
+		return pane_layouts[p_pane_index].y_mappings[p_y_axis_id]
+
+
 	## Maps an x-axis data value to a pixel coordinate along the x axis direction.
 	## Returns a screen-X pixel when x is horizontal, or screen-Y when x is vertical.
 	## [param p_pane_index] Zero-based pane index.
 	## [param p_x] Data value on the x axis.
 	func map_x_to_px(p_pane_index: int, p_x: float) -> float:
-		if p_pane_index < 0 or p_pane_index >= pane_layouts.size():
-			return 0.0
-		var pane_layout := pane_layouts[p_pane_index]
-		var x_axis_cfg := domain.config.x_axis
-		if x_axis_cfg == null:
-			return pane_layout.pane_rect.position.x
-
-		# x horizontal: origin and extent are along screen-X.
-		# x vertical: origin and extent are along screen-Y.
-		var origin: float = pane_layout.pane_rect.position.x if _x_is_horizontal else pane_layout.pane_rect.position.y
-		var extent: float = pane_layout.pane_rect.size.x if _x_is_horizontal else pane_layout.pane_rect.size.y
-
-		var domain_x_min := domain.x_axis_domain.min_val
-		var domain_x_max := domain.x_axis_domain.max_val
-		if domain_x_min >= domain_x_max or extent <= 0.0:
-			return origin
-
-		# Notes:
-		# - screen-X increases rightward
-		# - screen-Y increases downward
-		# As a consequence, when the x axis is vertical an inversion is required to get x min at
-		# the bottom and x max at the top.
-		# The user-facing "inverted" flag flips the direction on top of the
-		# orientation-based default (XOR logic).
-		var flip: bool = (not _x_is_horizontal) != x_axis_cfg.inverted
-		match x_axis_cfg.scale:
-			TauAxisConfig.Scale.LOGARITHMIC:
-				return _map_log_value_to_px(p_x, domain_x_min, domain_x_max, origin, extent, flip)
-			TauAxisConfig.Scale.LINEAR:
-				var t := (p_x - domain_x_min) / (domain_x_max - domain_x_min)
-				if flip:
-					t = 1.0 - t
-				return origin + t * extent
-			_:
-				push_error("Unexpected scale %d" % x_axis_cfg.scale)
-				return origin
+		return pane_layouts[p_pane_index].x_mapping.to_px(p_x)
 
 
 	## Maps a secondary x-axis data value to a pixel coordinate along the x
@@ -305,30 +355,7 @@ class XYLayout extends RefCounted:
 	## [param p_pane_index] Zero-based pane index.
 	## [param p_x] Data value in the secondary x axis domain.
 	func map_secondary_x_to_px(p_pane_index: int, p_x: float) -> float:
-		if p_pane_index < 0 or p_pane_index >= pane_layouts.size():
-			return 0.0
-		var pane_layout := pane_layouts[p_pane_index]
-		var secondary_cfg := domain.config.secondary_x_axis
-		if secondary_cfg == null:
-			return pane_layout.pane_rect.position.x
-
-		var origin: float = pane_layout.pane_rect.position.x if _x_is_horizontal else pane_layout.pane_rect.position.y
-		var extent: float = pane_layout.pane_rect.size.x if _x_is_horizontal else pane_layout.pane_rect.size.y
-
-		if _secondary_x_domain_min >= _secondary_x_domain_max or extent <= 0.0:
-			return origin
-
-		match secondary_cfg.scale:
-			TauAxisConfig.Scale.LOGARITHMIC:
-				return _map_log_value_to_px(p_x, _secondary_x_domain_min, _secondary_x_domain_max, origin, extent, not _x_is_horizontal)
-			TauAxisConfig.Scale.LINEAR:
-				var t := (p_x - _secondary_x_domain_min) / (_secondary_x_domain_max - _secondary_x_domain_min)
-				if not _x_is_horizontal:
-					t = 1.0 - t
-				return origin + t * extent
-			_:
-				push_error("Unexpected scale %d" % secondary_cfg.scale)
-				return origin
+		return pane_layouts[p_pane_index].secondary_x_mapping.to_px(p_x)
 
 
 	## Maps a categorical x-axis index to the pixel coordinate at the center of
@@ -360,25 +387,7 @@ class XYLayout extends RefCounted:
 	## [param p_value] Data value on the y axis.
 	## [param p_y_axis_id] Which y axis (one of the two orthogonal positions).
 	func map_y_to_px(p_pane_index: int, p_value: float, p_y_axis_id: AxisId) -> float:
-		if p_pane_index < 0 or p_pane_index >= pane_layouts.size():
-			return 0.0
-		var pane_layout := pane_layouts[p_pane_index]
-
-		var y_axis_domain := _get_y_axis_domain(p_pane_index, p_y_axis_id)
-		if y_axis_domain == null:
-			push_error("map_y_to_px(): no y axis domain for axis_id %d" % p_y_axis_id)
-			return 0.0
-
-		# x horizontal: y axis runs along screen-Y. x vertical: y axis runs along screen-X.
-		var origin: float = pane_layout.pane_rect.position.y if _x_is_horizontal else pane_layout.pane_rect.position.x
-		var extent: float = pane_layout.pane_rect.size.y if _x_is_horizontal else pane_layout.pane_rect.size.x
-		# x horizontal: y is vertical, so invert (higher values = lower screen-Y = up).
-		# x vertical: y is horizontal, values increase with screen-X, no inversion.
-		# The user-facing "inverted" flag flips the direction on top of the
-		# orientation-based default (XOR logic).
-		var y_cfg := y_axis_domain.config
-		var flip: bool = _x_is_horizontal != (y_cfg != null and y_cfg.inverted)
-		return _map_y_value(p_value, y_axis_domain.min_val, y_axis_domain.max_val, y_axis_domain.scale, origin, extent, flip)
+		return pane_layouts[p_pane_index].y_mappings[p_y_axis_id].to_px(p_value)
 
 
 	## Returns the pixel coordinate of y=0 on the given y axis.
@@ -475,53 +484,53 @@ class XYLayout extends RefCounted:
 		return y_axis_domain.config
 
 
-	## Maps a y data value to a pixel coordinate using linear or log scale.
-	## [param p_value] Data value.
-	## [param p_min] Domain minimum.
-	## [param p_max] Domain maximum.
-	## [param p_scale] LINEAR or LOGARITHMIC.
-	## [param p_origin] Pixel coordinate of the axis start (top or left of pane rect).
-	## [param p_extent] Pixel length of the axis in screen space.
-	## [param p_invert] If true, higher data values map to lower pixel coordinates
-	##   (used when y is vertical, because screen-Y increases downward).
-	##   If false, higher data values map to higher pixel coordinates
-	##   (used when y is horizontal, because screen-X increases rightward).
-	func _map_y_value(p_value: float, p_min: float, p_max: float, p_scale: TauAxisConfig.Scale, p_origin: float, p_extent: float, p_invert: bool) -> float:
-		if p_min >= p_max or p_extent <= 0.0:
-			return p_origin + p_extent if p_invert else p_origin
-		match p_scale:
-			TauAxisConfig.Scale.LOGARITHMIC:
-				return _map_log_value_to_px(p_value, p_min, p_max, p_origin, p_extent, p_invert)
-			TauAxisConfig.Scale.LINEAR:
-				var t := (p_value - p_min) / (p_max - p_min)
-				if p_invert:
-					return p_origin + (1.0 - t) * p_extent
-				else:
-					return p_origin + t * p_extent
-			_:
-				push_error("Unexpected scale %d" % p_scale)
-				return p_origin + p_extent if p_invert else p_origin
+	## Resolves one [AxisMapping] per axis and per pane from the pane rectangles and the domain bounds.
+	func _compute_axis_mappings(p_y_axes: Array[AxisId], p_has_secondary_x: bool) -> void:
+		var x_axis_cfg := domain.config.x_axis
+		var x_is_log := x_axis_cfg.scale == TauAxisConfig.Scale.LOGARITHMIC
+		# Notes:
+		# - screen-X increases rightward
+		# - screen-Y increases downward
+		# As a consequence, when the x axis is vertical an inversion is required
+		# to get x min at the bottom and x max at the top.
+		# The user-facing "inverted" flag flips the direction on top of the
+		# orientation-based default (XOR logic).
+		var x_flip: bool = (not _x_is_horizontal) != x_axis_cfg.inverted
 
+		for i in range(pane_layouts.size()):
+			var pane_layout := pane_layouts[i]
+			var pane_rect := pane_layout.pane_rect
 
-	## Maps a data value to a pixel coordinate using a base-10 logarithmic scale.
-	## [param p_invert] If true, higher values map to lower pixel coordinates.
-	func _map_log_value_to_px(p_value: float, p_min: float, p_max: float, p_pane_start: float, p_pane_size: float, p_invert: bool) -> float:
-		if p_value <= 0.0 or p_min <= 0.0 or p_max <= 0.0:
-			push_error("Logarithmic mapping requires strictly positive values (value=%f, min=%f, max=%f)" % [p_value, p_min, p_max])
-			return (p_pane_start + p_pane_size) if p_invert else p_pane_start
+			# x horizontal: the x axis runs along screen-X and the y axes along
+			# screen-Y. x vertical: the two are swapped.
+			var x_origin: float = pane_rect.position.x if _x_is_horizontal else pane_rect.position.y
+			var x_extent: float = pane_rect.size.x if _x_is_horizontal else pane_rect.size.y
+			var y_origin: float = pane_rect.position.y if _x_is_horizontal else pane_rect.position.x
+			var y_extent: float = pane_rect.size.y if _x_is_horizontal else pane_rect.size.x
 
-		if p_min >= p_max or p_pane_size <= 0.0:
-			return (p_pane_start + p_pane_size) if p_invert else p_pane_start
+			pane_layout.x_mapping = AxisMapping.new(
+				domain.x_axis_domain.min_val, domain.x_axis_domain.max_val, x_is_log,
+				x_origin, x_extent, x_flip, x_origin)
 
-		const LOG_10 := log(10.0)
-		var log_value := log(p_value) / LOG_10
-		var log_min := log(p_min) / LOG_10
-		var log_max := log(p_max) / LOG_10
-		var t := (log_value - log_min) / (log_max - log_min)
-		if p_invert:
-			return p_pane_start + (1.0 - t) * p_pane_size
-		else:
-			return p_pane_start + t * p_pane_size
+			if p_has_secondary_x:
+				pane_layout.secondary_x_mapping = AxisMapping.new(
+					_secondary_x_domain_min, _secondary_x_domain_max,
+					domain.config.secondary_x_axis.scale == TauAxisConfig.Scale.LOGARITHMIC,
+					x_origin, x_extent, not _x_is_horizontal, x_origin)
+
+			for y_axis_id in p_y_axes:
+				var y_axis_domain := _get_y_axis_domain(i, y_axis_id)
+				if y_axis_domain == null:
+					continue
+				# x horizontal: y is vertical, so invert (higher values = lower
+				# screen-Y = up). x vertical: y is horizontal, values increase
+				# with screen-X, no inversion. Same XOR with "inverted" as x.
+				var y_flip: bool = _x_is_horizontal != y_axis_domain.config.inverted
+				var y_start_px: float = y_origin + y_extent if y_flip else y_origin
+				pane_layout.y_mappings[y_axis_id] = AxisMapping.new(
+					y_axis_domain.min_val, y_axis_domain.max_val,
+					y_axis_domain.scale == TauAxisConfig.Scale.LOGARITHMIC,
+					y_origin, y_extent, y_flip, y_start_px)
 
 
 	## Returns the pixel size (width, height) of a label string using the current style font.

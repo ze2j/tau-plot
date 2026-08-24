@@ -42,19 +42,56 @@ class StringBuffer extends RefCounted:
 
 
 	func get_value(p_logical_index: int) -> String:
-		var storage_i := _map_logical_to_storage(p_logical_index)
-		if storage_i < 0:
+		if _stored_count <= 0:
+			push_error("StringBuffer: the buffer is empty")
 			return ""
 
-		return _buffer[storage_i]
+		if p_logical_index < 0 or p_logical_index >= _stored_count:
+			push_error("StringBuffer: logical index %d out of range [0; %d[" % [p_logical_index, _stored_count])
+			return ""
+
+		return _buffer[(_storage_origin() + p_logical_index) % _capacity]
+
+
+	## Skips the range validation of get_value(). Outside [0; size()[ this reads
+	## an unrelated slot of the ring storage instead of reporting an error, so
+	## the caller must already hold the bound.
+	func get_value_unsafe(p_logical_index: int) -> String:
+		return _buffer[(_storage_origin() + p_logical_index) % _capacity]
+
+
+	func get_values(p_start_index: int, p_count: int) -> PackedStringArray:
+		if p_count <= 0:
+			return PackedStringArray()
+
+		if p_start_index < 0 or p_start_index + p_count > _stored_count:
+			push_error("StringBuffer: range [%d; %d[ out of range [0; %d[" % [p_start_index, p_start_index + p_count, _stored_count])
+			return PackedStringArray()
+
+		# Optimization. The range is validated once, the ring origin is computed
+		# once, and the read is split at the seam into at most two native
+		# slices. Reading element by element would cost a script iteration and
+		# an index mapping per value, which dominates on a large read.
+		var start := (_storage_origin() + p_start_index) % _capacity
+		var head := _capacity - start
+		if p_count <= head:
+			return _buffer.slice(start, start + p_count)
+
+		var out := _buffer.slice(start, _capacity)
+		out.append_array(_buffer.slice(0, p_count - head))
+		return out
 
 
 	func set_value(p_logical_index: int, p_value: String) -> void:
-		var storage_i := _map_logical_to_storage(p_logical_index)
-		if storage_i < 0:
+		if _stored_count <= 0:
+			push_error("StringBuffer: the buffer is empty")
 			return
 
-		_buffer[storage_i] = p_value
+		if p_logical_index < 0 or p_logical_index >= _stored_count:
+			push_error("StringBuffer: logical index %d out of range [0; %d[" % [p_logical_index, _stored_count])
+			return
+
+		_buffer[(_storage_origin() + p_logical_index) % _capacity] = p_value
 
 
 	func set_values(p_start_index: int, p_values: PackedStringArray) -> int:
@@ -69,12 +106,23 @@ class StringBuffer extends RefCounted:
 			push_error("StringBuffer: start_index %d out of range [0; %d[" % [p_start_index, _stored_count])
 			return 0
 
-		var max_write := min(p_values.size(), _stored_count - p_start_index)
-		for i in range(max_write):
-			var storage_i := _map_logical_to_storage(p_start_index + i)
-			_buffer[storage_i] = p_values[i]
+		# Optimization. The range is validated once, the ring origin is computed
+		# once, and the write is split at the seam into two contiguous runs.
+		# Mapping each logical index on its own would repeat both the validation
+		# and the origin arithmetic per element.
+		#
+		# The write stays in place on purpose. Rebuilding the storage from
+		# slices would be one native copy but would reallocate the whole buffer,
+		# which loses on the small writes a streaming plot makes.
+		var write_count := min(p_values.size(), _stored_count - p_start_index)
+		var start := (_storage_origin() + p_start_index) % _capacity
+		var head := min(write_count, _capacity - start)
+		for i in range(head):
+			_buffer[start + i] = p_values[i]
+		for i in range(write_count - head):
+			_buffer[i] = p_values[head + i]
 
-		return max_write
+		return write_count
 
 
 	func append_value(p_value: String) -> int:
@@ -120,21 +168,12 @@ class StringBuffer extends RefCounted:
 	# Private
 	####################################################################################################
 
-	# Negative when the logical index has no storage slot.
-	func _map_logical_to_storage(p_logical_index: int) -> int:
-		if _stored_count <= 0:
-			push_error("StringBuffer: the buffer is empty")
-			return -1
-
-		if p_logical_index < 0 or p_logical_index >= _stored_count:
-			push_error("StringBuffer: logical index %d out of range [0; %d[" % [p_logical_index, _stored_count])
-			return -1
-
-		var oldest_storage := _storage_head - _stored_count
-		if oldest_storage < 0:
-			oldest_storage += _capacity
-
-		return (oldest_storage + p_logical_index) % _capacity
+	# Storage index of logical index 0. Carries no validation so bulk paths can
+	# hoist it out of their loop and index the storage directly. Callers
+	# validate the logical range before using it.
+	func _storage_origin() -> int:
+		var origin := _storage_head - _stored_count
+		return origin + _capacity if origin < 0 else origin
 
 
 	static func _resize_ring_buffer(p_old: PackedStringArray, p_old_cap: int, p_old_head: int, p_old_count: int, p_new_cap: int) -> PackedStringArray:

@@ -79,6 +79,11 @@ class BarRenderer extends Control:
 	# never drifts from what is on screen.
 	var _hit_records: Array[BarHitRecord] = []
 
+	# Optimization. Building one hit record per bar costs an allocation plus a
+	# screen mapping, and hit testing is the only reader. Dropping the cache
+	# when hover cannot reach this overlay removes both.
+	var _hit_records_enabled: bool = true
+
 
 	func _init(p_layout: XYLayout,
 				p_dataset: Dataset,
@@ -149,7 +154,17 @@ class BarRenderer extends Control:
 			queue_redraw()
 
 
-	## Returns the per-frame hit records cache. Treat as read-only.
+	## Enables or disables the per-frame hit record cache. While disabled,
+	## get_hit_records() returns an empty array and hover cannot resolve a sample
+	## on this overlay.
+	func set_hit_records_enabled(p_enabled: bool) -> void:
+		if _hit_records_enabled == p_enabled:
+			return
+		_hit_records_enabled = p_enabled
+		queue_redraw()
+
+
+	## Returns the per-frame hit records cache, empty while the cache is disabled.
 	func get_hit_records() -> Array[BarHitRecord]:
 		return _hit_records
 
@@ -472,7 +487,8 @@ class BarRenderer extends Control:
 
 
 	## Draws a single bar, orientation-aware, using a StyleBox.
-	## Records a BarHitRecord for every bar that survives clipping.
+	## Records a BarHitRecord for every bar that survives clipping, unless the
+	## hit record cache is disabled.
 	## p_pane_rect: pane bounds used to clip the bar rect.
 	## p_x_axis_px: bar center along the x-axis direction, in pixels.
 	## p_y_axis_from_px: baseline end of the bar along the y-axis direction, in pixels.
@@ -536,6 +552,9 @@ class BarRenderer extends Control:
 			_remap_corners_and_borders(style_box as StyleBoxFlat, _derived_source_ref as StyleBoxFlat, x_is_horizontal, tip_at_min)
 
 		draw_style_box(style_box, rect)
+
+		if not _hit_records_enabled:
+			return
 
 		# Tip center in screen coords, un-clipped so the anchor stays on the data
 		# point even when the bar is partly outside the pane.
