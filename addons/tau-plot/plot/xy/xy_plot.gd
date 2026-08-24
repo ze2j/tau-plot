@@ -550,6 +550,10 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 			has_any_bar = true
 			break
 
+	# hoverable lives on the overlay configs, and a renderer caches hit records
+	# only while it is set.
+	var overlay_config_changed := false
+
 	if has_any_bar:
 		for pane_index in range(pane_count):
 			var pane_bar_config: TauBarConfig = _bar_config_per_pane[pane_index]
@@ -557,6 +561,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				continue
 			var prev_bar_config: TauBarConfig = _state.bar_config_per_pane[pane_index]
 			if not pane_bar_config.is_equal_to(prev_bar_config):
+				overlay_config_changed = true
 				if pane_bar_config.has_layout_affecting_change(prev_bar_config):
 					_domain_dirty = true
 					_ticks_dirty = true
@@ -605,6 +610,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				continue
 			var prev_line_config: TauLineConfig = _state.line_config_per_pane[pane_index]
 			if not pane_line_config.is_equal_to(prev_line_config):
+				overlay_config_changed = true
 				if pane_line_config.has_layout_affecting_change(prev_line_config):
 					_domain_dirty = true
 					_ticks_dirty = true
@@ -614,6 +620,9 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				else:
 					_line_dirty_panes[pane_index] = true
 				_state.save_line_config_for_pane(pane_index, pane_line_config)
+
+	if overlay_config_changed and _hover_controller != null:
+		_hover_controller.refresh_hit_records_enabled()
 
 	# Step 3b: Check if styles changed (programmatic mutations via config.style.*)
 	# XY style: three-layer change detection (theme dirty, ref change, content mutation).

@@ -72,6 +72,7 @@ const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highl
 #   Each part is one draw call. For dashed lines, each part inherits the
 #   cumulative arc-length offset from the polyline start, so the dash
 #   pattern stays continuous through the slices.
+# - The hit record cache is gated by set_hit_records_enabled().
 #
 # Per-sample color and alpha resolution:
 # - Color resolution order: LineVisualAttributes.color_buffer, then
@@ -193,6 +194,11 @@ class LineRenderer extends Control:
 	# Rebuilt every _draw() so the cache never drifts from what is on screen.
 	var _hit_records: Array[LineHitRecord] = []
 
+	# Optimization. Building one hit record per sample is the largest single cost
+	# of a redraw, and hit testing is the only reader. Dropping the cache when
+	# hover cannot reach this overlay removes an allocation per sample.
+	var _hit_records_enabled: bool = true
+
 	# Hover highlight state. When _highlight_active is true, the per-sample
 	# color is routed through the hover color callback (or a built-in
 	# dim/brighten default). When the hovered sample lies within a drawn
@@ -266,7 +272,17 @@ class LineRenderer extends Control:
 			queue_redraw()
 
 
-	## Returns the per-frame hit records cache. Treat as read-only.
+	## Enables or disables the per-frame hit record cache. While disabled,
+	## get_hit_records() returns an empty array and hover cannot resolve a sample
+	## on this overlay.
+	func set_hit_records_enabled(p_enabled: bool) -> void:
+		if _hit_records_enabled == p_enabled:
+			return
+		_hit_records_enabled = p_enabled
+		queue_redraw()
+
+
+	## Returns the per-frame hit records cache, empty while the cache is disabled.
 	func get_hit_records() -> Array[LineHitRecord]:
 		return _hit_records
 
@@ -503,7 +519,6 @@ class LineRenderer extends Control:
 
 			var y_px := _layout.map_y_to_px(_pane_index, y_plotted, y_axis_id)
 			var axis_point := Vector2(x_px, y_px)
-			var screen_pos := _layout.map_point_to_screen(x_px, y_px)
 			var x_value: Variant = p_x_values[i]
 			var sample_color := _resolve_sample_color(p_series_index, i, x_value, y_raw)
 			# The run is buffered in axis space so interpolation runs along the
@@ -519,14 +534,15 @@ class LineRenderer extends Control:
 			real_polyline_indices.append(run.size() - 1)
 			real_dataset_indices.append(i)
 
-			var record := LineHitRecord.new()
-			record.series_id = series_id
-			record.sample_index = i
-			record.x_value = x_value
-			record.y_plotted_value = y_plotted
-			record.y_raw_value = y_raw
-			record.screen_position = screen_pos
-			_hit_records.append(record)
+			if _hit_records_enabled:
+				var record := LineHitRecord.new()
+				record.series_id = series_id
+				record.sample_index = i
+				record.x_value = x_value
+				record.y_plotted_value = y_plotted
+				record.y_raw_value = y_raw
+				record.screen_position = _layout.map_point_to_screen(x_px, y_px)
+				_hit_records.append(record)
 
 		_finalize_run(run, run_colors, run_baseline, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
 

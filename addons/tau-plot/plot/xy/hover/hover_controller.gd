@@ -85,6 +85,7 @@ class HoverController extends RefCounted:
 		_hover_config = p_config
 
 		_apply_to_pane_renderers()
+		refresh_hit_records_enabled()
 		_resolve_tooltip_style()
 		_resolve_crosshair_style()
 		_create_crosshair_overlays()
@@ -124,8 +125,24 @@ class HoverController extends RefCounted:
 			return
 		_enabled = p_enabled
 		_apply_to_pane_renderers()
+		refresh_hit_records_enabled()
 		if not _enabled:
 			invalidate()
+
+
+	## Enables the hit record cache on every overlay renderer when hover is on
+	## and the overlay config is hoverable. Disables it otherwise, so the
+	## renderer stops building records no one reads.
+	func refresh_hit_records_enabled() -> void:
+		for renderer: BarRenderer in _bar_renderers:
+			if renderer == null:
+				continue  # Pane has no bar overlay.
+			renderer.set_hit_records_enabled(_enabled and renderer.get_config().hoverable)
+
+		for renderer: LineRenderer in _line_renderers:
+			if renderer == null:
+				continue  # Pane has no line overlay.
+			renderer.set_hit_records_enabled(_enabled and renderer.get_config().hoverable)
 
 
 	## Replaces the TauHoverConfig at runtime and re-resolves styles.
