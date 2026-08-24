@@ -368,6 +368,7 @@ class LineRenderer extends Control:
 		var series_id: int = -1
 		var global_index: int = -1
 		var y_axis_id: AxisId
+		var y_mapping: XYLayout.AxisMapping = null
 		var x_is_log: bool = false
 		var y_is_log: bool = false
 		var color_buffer: VisualAttributes.ColorBuffer = null
@@ -391,6 +392,7 @@ class LineRenderer extends Control:
 		ctx.series_id = _get_line_series_id(p_series_index)
 		ctx.global_index = _get_global_series_index(p_series_index)
 		ctx.y_axis_id = _get_y_axis_id_for_series(ctx.series_id)
+		ctx.y_mapping = _layout.get_y_mapping(_pane_index, ctx.y_axis_id)
 		ctx.x_is_log = _get_x_axis_config().scale == TauAxisConfig.Scale.LOGARITHMIC
 		ctx.y_is_log = _get_y_axis_config(ctx.y_axis_id).scale == TauAxisConfig.Scale.LOGARITHMIC
 
@@ -469,6 +471,11 @@ class LineRenderer extends Control:
 		else:
 			x_values = _dataset.get_series_x_numeric_slice(p_ctx.series_id, 0, sample_count)
 
+		# Optimization. The x transform is looked up once and applied per value.
+		# Going through map_x_to_px would add a call and a pane lookup per
+		# sample for a transform fixed across the whole row.
+		var x_mapping := _layout.get_x_mapping(_pane_index)
+
 		var x_px := PackedFloat64Array()
 		x_px.resize(sample_count)
 		for i in range(sample_count):
@@ -476,7 +483,7 @@ class LineRenderer extends Control:
 			if not is_finite(xv) or (p_ctx.x_is_log and xv <= 0.0):
 				x_px[i] = NAN
 			else:
-				x_px[i] = _layout.map_x_to_px(_pane_index, xv)
+				x_px[i] = x_mapping.to_px(xv)
 
 		_draw_series_runs(p_ctx, p_stacked, x_px, x_values)
 
@@ -574,7 +581,7 @@ class LineRenderer extends Control:
 					real_dataset_indices = PackedInt32Array()
 				continue
 
-			var y_px := _layout.map_y_to_px(_pane_index, y_plotted, y_axis_id)
+			var y_px := p_ctx.y_mapping.to_px(y_plotted)
 			var axis_point := Vector2(x_px, y_px)
 			var x_value: Variant = p_x_values[i]
 			var sample_color := _resolve_sample_color(p_ctx, i, x_value, y_raw)
@@ -584,7 +591,7 @@ class LineRenderer extends Control:
 			# Lower edge in lockstep: same x, dropped to the layer below's top. The
 			# shared step-riser logic keeps it index-aligned with the upper run.
 			if stacked_fill:
-				var baseline_axis_point := Vector2(x_px, _layout.map_y_to_px(_pane_index, p_stacked.get_y_baseline(p_ctx.series_index, i), y_axis_id))
+				var baseline_axis_point := Vector2(x_px, p_ctx.y_mapping.to_px(p_stacked.get_y_baseline(p_ctx.series_index, i)))
 				_append_lower_with_interpolation(run_baseline, baseline_axis_point, interpolation)
 			# The real sample is always the last vertex appended by
 			# _append_with_interpolation, regardless of the interpolation mode.
