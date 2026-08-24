@@ -504,7 +504,7 @@ Only valid in [`PER_SERIES_X`](#mode) mode.
 
 ---
 
-### Reading and writing individual values
+### Reading and writing values
 
 #### get_shared_x()
 
@@ -514,6 +514,25 @@ get_shared_x(p_logical_sample_index: int) -> Variant
 
 Returns the X value at the given index from the shared X buffer. Index `0` is the oldest sample in the buffer, `count - 1` is the most recent. Returns `null` in
 [`PER_SERIES_X`](#mode) mode. The return type is `String` for [`CATEGORY`](#xelementtype), `float` for [`NUMERIC`](#xelementtype).
+
+---
+
+#### get_shared_x_numeric_slice()
+
+```gdscript
+get_shared_x_numeric_slice(p_start_index: int, p_count: int) -> PackedFloat64Array
+```
+
+Returns `p_count` shared X values, starting at logical sample index `p_start_index`. Index `0` is the oldest sample in the buffer, `count - 1` is the most recent. The returned array is a copy, so writing to it does not change the dataset.
+
+Needs [`SHARED_X`](#mode) mode and a [`NUMERIC`](#xelementtype) X element type. A [`CATEGORY`](#xelementtype) dataset stores strings, so it has no float row to return. In any other case, or when the range goes outside the stored samples, the method logs an error and returns an empty array.
+
+Reading a whole range at once is faster than calling [`get_shared_x()`](#get_shared_x) for each sample, and the result is typed instead of `Variant`.
+
+**Parameters**
+
+* `p_start_index: int` Logical sample index of the first value to read.
+* `p_count: int` How many values to read. `p_start_index + p_count` must not be greater than [`get_shared_sample_count()`](#get_shared_sample_count).
 
 ---
 
@@ -539,6 +558,26 @@ mode or if the ID is unknown. The return type matches the [`XElementType`](#xele
 
 ---
 
+#### get_series_x_numeric_slice()
+
+```gdscript
+get_series_x_numeric_slice(p_series_id: int, p_start_index: int, p_count: int) -> PackedFloat64Array
+```
+
+Returns `p_count` X values of one series, starting at logical sample index `p_start_index`. Index `0` is the oldest sample in the buffer, `count - 1` is the most recent. The returned array is a copy, so writing to it does not change the dataset.
+
+Needs [`PER_SERIES_X`](#mode) mode and a [`NUMERIC`](#xelementtype) X element type. A [`CATEGORY`](#xelementtype) dataset stores strings, so it has no float row to return. In any other case, when the ID is unknown, or when the range goes outside the stored samples, the method logs an error and returns an empty array.
+
+Reading a whole range at once is faster than calling [`get_series_x()`](#get_series_x) for each sample, and the result is typed instead of `Variant`.
+
+**Parameters**
+
+* `p_series_id: int` ID of the series to read.
+* `p_start_index: int` Logical sample index of the first value to read.
+* `p_count: int` How many values to read. `p_start_index + p_count` must not be greater than [`get_series_sample_count()`](#get_series_sample_count).
+
+---
+
 #### set_series_x()
 
 ```gdscript
@@ -559,6 +598,26 @@ get_series_y(p_series_id: int, p_logical_sample_index: int) -> float
 Returns the Y value at the given index for the specified series. Index `0` is the oldest sample in the buffer, `count - 1` is the most recent. Logs an error and returns `0.0` if the ID is unknown.
 
 Reading an empty series, or a logical index below `0` or at or above [`get_series_sample_count()`](#get_series_sample_count), pushes an error and returns `0.0`. A returned `0.0` is therefore not proof that a sample holds that value.
+
+---
+
+#### get_series_y_slice()
+
+```gdscript
+get_series_y_slice(p_series_id: int, p_start_index: int, p_count: int) -> PackedFloat64Array
+```
+
+Returns `p_count` Y values of one series, starting at logical sample index `p_start_index`. Index `0` is the oldest sample in the buffer, `count - 1` is the most recent. The returned array is a copy, so writing to it does not change the dataset.
+
+Logs an error and returns an empty array when the ID is unknown, or when the range goes outside the stored samples. If `p_count` is `0` or less, the method returns an empty array and logs nothing.
+
+Reading a whole range at once is faster than calling [`get_series_y()`](#get_series_y) for each sample. It is the read counterpart of [`set_series_y_slice()`](#set_series_y_slice).
+
+**Parameters**
+
+* `p_series_id: int` ID of the series to read.
+* `p_start_index: int` Logical sample index of the first value to read.
+* `p_count: int` How many values to read. `p_start_index + p_count` must not be greater than [`get_series_sample_count()`](#get_series_sample_count).
 
 ---
 

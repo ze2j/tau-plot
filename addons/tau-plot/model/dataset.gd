@@ -492,6 +492,15 @@ class Dataset extends RefCounted:
 		return xb.get_value(p_logical_sample_index)
 
 
+	# The result is a copy.
+	func get_shared_x_numeric_slice(p_start_index: int, p_count: int) -> PackedFloat64Array:
+		if _mode != Mode.SHARED_X or _x_element_type != XElementType.NUMERIC:
+			push_error("Dataset.get_shared_x_numeric_slice(): requires SHARED_X mode with a NUMERIC X element type")
+			return PackedFloat64Array()
+
+		return _x_buffers[0].get_values(p_start_index, p_count)
+
+
 	func set_shared_x(p_logical_sample_index: int, p_x: Variant) -> void:
 		if _mode != Mode.SHARED_X:
 			push_error("Dataset.set_shared_x(): only valid in SHARED_X mode")
@@ -531,6 +540,19 @@ class Dataset extends RefCounted:
 		return xb.get_value(p_logical_sample_index)
 
 
+	# The result is a copy.
+	func get_series_x_numeric_slice(p_series_id: int, p_start_index: int, p_count: int) -> PackedFloat64Array:
+		if _mode != Mode.PER_SERIES_X or _x_element_type != XElementType.NUMERIC:
+			push_error("Dataset.get_series_x_numeric_slice(): requires PER_SERIES_X mode with a NUMERIC X element type")
+			return PackedFloat64Array()
+
+		var idx := _require_series_exists(p_series_id)
+		if idx < 0:
+			return PackedFloat64Array()
+
+		return _x_buffers[idx].get_values(p_start_index, p_count)
+
+
 	func set_series_x(p_series_id: int, p_logical_sample_index: int, p_x: Variant) -> void:
 		if _mode != Mode.PER_SERIES_X:
 			push_error("Dataset.set_series_x(): only valid in PER_SERIES_X mode")
@@ -562,6 +584,15 @@ class Dataset extends RefCounted:
 		if idx < 0:
 			return 0.0
 		return _y_buffers[idx].get_value(p_logical_sample_index)
+
+
+	# The result is a copy.
+	func get_series_y_slice(p_series_id: int, p_start_index: int, p_count: int) -> PackedFloat64Array:
+		var idx := _require_series_exists(p_series_id)
+		if idx < 0:
+			return PackedFloat64Array()
+
+		return _y_buffers[idx].get_values(p_start_index, p_count)
 
 
 	func set_series_y(p_series_id: int, p_logical_sample_index: int, p_y: float) -> void:

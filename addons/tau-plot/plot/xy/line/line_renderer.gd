@@ -372,8 +372,8 @@ class LineRenderer extends Control:
 		var y_is_log: bool = false
 		var color_buffer: VisualAttributes.ColorBuffer = null
 		var alpha_buffer: VisualAttributes.AlphaBuffer = null
-		# Buffers may be shorter than the series, so the size is a real bound
-		# and not a redundant check. Cached here to keep it out of the sample
+		# A buffer may be shorter than the series, so its size is a real limit
+		# and not a useless check. Read once here to keep it out of the sample
 		# loop.
 		var color_buffer_size: int = 0
 		var alpha_buffer_size: int = 0
@@ -454,18 +454,26 @@ class LineRenderer extends Control:
 		# Precompute the x plan for the shared run loop. A sample whose x is NaN,
 		# Inf, or forbidden by the axis scale gets a NAN x pixel, which the loop
 		# reads as a run break. Every other sample maps its x to an axis pixel.
-		# The value stored alongside is the raw float, handed to color resolution
-		# and hit records unchanged.
-		var is_shared_x := _dataset.get_mode() == Dataset.Mode.SHARED_X
+		# The row carried alongside holds the raw values, passed to color
+		# resolution and hit records unchanged.
 		var sample_count := _dataset.get_series_sample_count(p_ctx.series_id)
+
+		# Optimization. The whole x row is read in one call and scanned as a
+		# packed array, then passed to the run loop as it is. Reading one sample
+		# at a time would cost a mode check, a series lookup, a ring mapping and
+		# a Variant conversion for every value. Copying the row into a second
+		# array would then copy every value a second time.
+		var x_values: PackedFloat64Array
+		if _dataset.get_mode() == Dataset.Mode.SHARED_X:
+			x_values = _dataset.get_shared_x_numeric_slice(0, sample_count)
+		else:
+			x_values = _dataset.get_series_x_numeric_slice(p_ctx.series_id, 0, sample_count)
+
 		var x_px := PackedFloat64Array()
 		x_px.resize(sample_count)
-		var x_values: Array = []
-		x_values.resize(sample_count)
 		for i in range(sample_count):
-			var xv: float = float(_dataset.get_shared_x(i)) if is_shared_x else float(_dataset.get_series_x(p_ctx.series_id, i))
-			x_values[i] = xv
-			if is_nan(xv) or is_inf(xv) or (p_ctx.x_is_log and xv <= 0.0):
+			var xv := x_values[i]
+			if not is_finite(xv) or (p_ctx.x_is_log and xv <= 0.0):
 				x_px[i] = NAN
 			else:
 				x_px[i] = _layout.map_x_to_px(_pane_index, xv)
@@ -476,18 +484,17 @@ class LineRenderer extends Control:
 	func _draw_series_categorical(p_ctx: _SeriesDrawContext, p_stacked: StackedSeriesValues) -> void:
 		# Precompute the x plan for the shared run loop. Category centers are
 		# always valid, so no x pixel is ever NAN and a run only breaks on an
-		# invalid y. The value stored alongside is the category itself.
-		var categories := _layout.domain.x_categories
+		# invalid y. The row carried alongside holds the categories.
 		var sample_count := _dataset.get_series_sample_count(p_ctx.series_id)
 		var x_px := PackedFloat64Array()
 		x_px.resize(sample_count)
-		var x_values: Array = []
-		x_values.resize(sample_count)
 		for cat_idx in range(sample_count):
 			x_px[cat_idx] = _layout.map_x_category_center_to_px(_pane_index, cat_idx)
-			x_values[cat_idx] = categories[cat_idx]
 
-		_draw_series_runs(p_ctx, p_stacked, x_px, x_values)
+		# Optimization. The domain row is passed to the run loop as it is. The
+		# run loop only reads it, so copying it into a second array would
+		# duplicate every category for nothing.
+		_draw_series_runs(p_ctx, p_stacked, x_px, _layout.domain.x_categories)
 
 
 	# Builds and finalizes every run of one series from a precomputed x plan,
@@ -495,9 +502,11 @@ class LineRenderer extends Control:
 	# emission rules live in one place. p_x_px carries the axis-space x pixel per
 	# sample, NAN where the sample's x breaks the run. p_x_values carries the
 	# value handed to color resolution and hit records, a float for a continuous
-	# x and a category for a categorical one. The y plan (scale validity,
-	# stacking, normalization) is resolved here per sample.
-	func _draw_series_runs(p_ctx: _SeriesDrawContext, p_stacked: StackedSeriesValues, p_x_px: PackedFloat64Array, p_x_values: Array) -> void:
+	# x and a category for a categorical one. It is the row the layout already
+	# holds, a PackedFloat64Array or a PackedStringArray, so the type is
+	# Variant. The y plan (scale validity, stacking, normalization) is resolved
+	# here per sample.
+	func _draw_series_runs(p_ctx: _SeriesDrawContext, p_stacked: StackedSeriesValues, p_x_px: PackedFloat64Array, p_x_values: Variant) -> void:
 		var series_id := p_ctx.series_id
 		var width_px: float = _line_style.get_series_width_px(p_ctx.global_index)
 		var dash_px: int = _line_style.get_series_dash_length_px(p_ctx.global_index)
@@ -519,9 +528,11 @@ class LineRenderer extends Control:
 		# lower run empty and unused.
 		var stacked_fill: bool = fill.fill_mode == TauLineFill.FillMode.STACKED and p_stacked != null
 
+		var sample_count := p_x_px.size()
+
 		var independent_y: PackedFloat64Array
 		if p_stacked == null:
-			independent_y = _build_independent_y_row(p_ctx)
+			independent_y = _build_independent_y_row(p_ctx, sample_count)
 
 		var run := PackedVector2Array()
 		var run_colors := PackedColorArray()
@@ -536,7 +547,6 @@ class LineRenderer extends Control:
 		var real_polyline_indices := PackedInt32Array()
 		var real_dataset_indices := PackedInt32Array()
 
-		var sample_count := p_x_px.size()
 		for i in range(sample_count):
 			var x_px: float = p_x_px[i]
 			# The y plan is only read for an x-valid sample, so an invalid x
@@ -594,20 +604,24 @@ class LineRenderer extends Control:
 		_finalize_run(run, run_colors, run_baseline, real_polyline_indices, real_dataset_indices, series_id, width_px, hover_width_px, interpolation, dash_px, fill, fill_color, baseline_y_px, fill_uv_ctx)
 
 
-	# Marks dropped samples (NaN, Inf, log-axis violations) as NAN up front
-	# so the inner draw loop only needs a single is_nan() check per sample.
-	func _build_independent_y_row(p_ctx: _SeriesDrawContext) -> PackedFloat64Array:
-		var sample_count := _dataset.get_series_sample_count(p_ctx.series_id)
-		var y_plotted := PackedFloat64Array()
-		y_plotted.resize(sample_count)
-		y_plotted.fill(NAN)
-		for i in range(sample_count):
-			var y := _dataset.get_series_y(p_ctx.series_id, i)
-			if is_nan(y) or is_inf(y):
-				continue
-			if p_ctx.y_is_log and y <= 0.0:
-				continue
-			y_plotted[i] = y
+	# Marks dropped samples (NaN, Inf, log-axis violations) as NAN before the
+	# draw loop, so that loop only needs one is_nan() check per sample.
+	#
+	# Optimization. The row is read in one call and rewritten in place. Reading
+	# one sample at a time would cost a series lookup and a ring mapping per
+	# value. The log test runs once before the loop instead of once per sample,
+	# and one is_finite() replaces the two calls that checked NaN and Inf.
+	func _build_independent_y_row(p_ctx: _SeriesDrawContext, p_sample_count: int) -> PackedFloat64Array:
+		var y_plotted := _dataset.get_series_y_slice(p_ctx.series_id, 0, p_sample_count)
+		if p_ctx.y_is_log:
+			for i in range(p_sample_count):
+				var y := y_plotted[i]
+				if not is_finite(y) or y <= 0.0:
+					y_plotted[i] = NAN
+		else:
+			for i in range(p_sample_count):
+				if not is_finite(y_plotted[i]):
+					y_plotted[i] = NAN
 		return y_plotted
 
 
@@ -2007,11 +2021,13 @@ class LineRenderer extends Control:
 
 
 	func _resolve_sample_color_only(p_ctx: _SeriesDrawContext, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> Color:
-		# Per-sample override from LineVisualAttributes.color_buffer. The lower
-		# bound is guaranteed by the sample loop. The upper one is real: a
-		# buffer shorter than the series falls through to the resolved style.
+		# Per-sample override from LineVisualAttributes.color_buffer. The sample
+		# loop already keeps the index at 0 or above. The test below is the
+		# upper limit, and it is a real one: a buffer shorter than the series
+		# falls back to the resolved style. Together they make the index valid,
+		# which is what the unsafe read needs.
 		if p_ctx.color_buffer != null and p_sample_index < p_ctx.color_buffer_size:
-			var c := p_ctx.color_buffer.get_value(p_sample_index)
+			var c := p_ctx.color_buffer.get_value_unsafe(p_sample_index)
 			if c != VisualAttributes.ColorBuffer.NO_COLOR:
 				return c
 
@@ -2025,10 +2041,10 @@ class LineRenderer extends Control:
 
 
 	func _resolve_sample_alpha(p_ctx: _SeriesDrawContext, p_sample_index: int, p_x_value: Variant, p_y_value: float) -> float:
-		# Per-sample override from LineVisualAttributes.alpha_buffer, bounded
-		# like the color buffer.
+		# Per-sample override from LineVisualAttributes.alpha_buffer, with the
+		# same index limit as the color buffer.
 		if p_ctx.alpha_buffer != null and p_sample_index < p_ctx.alpha_buffer_size:
-			var a := p_ctx.alpha_buffer.get_value(p_sample_index)
+			var a := p_ctx.alpha_buffer.get_value_unsafe(p_sample_index)
 			if a >= 0.0:
 				return a
 

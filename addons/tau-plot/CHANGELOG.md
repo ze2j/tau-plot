@@ -28,6 +28,7 @@
 - `TauXYSeriesBinding.show_in_legend`. Set it to `false` to keep a series out of the legend while still drawing it. Defaults to `true`.
 - `SampleHit.contains_pointer` tells whether the cursor is inside the hit zone of the sample rather than merely nearest to it. It is what gates the highlight.
 - `DatasetChange`, the payload of `Dataset.changed`, is now public and documented.
+- **Bulk reads and fast value getters** on `Dataset` and the five ring buffer classes: `Dataset.get_series_y_slice()`, `Dataset.get_shared_x_numeric_slice()`, `Dataset.get_series_x_numeric_slice()`, and `get_values()` and `get_value_unsafe()` on `ColorBuffer`, `Float32Buffer`, `Float64Buffer`, `Int32Buffer` and `StringBuffer`.
 - `StackedNormalization`, `StackedNegativePolicy`, `DatasetChange`, `LineVisualAttributes` and `LineVisualCallbacks` are reachable through the `TauPlot` namespace.
 - Resolved styles are checked for consistency once per plot build, and report the property combinations they cannot draw as a warning or an error.
 
@@ -49,6 +50,7 @@
 - The first hit of `sample_hovered` and `sample_clicked` is now the sample closest to the cursor, instead of the first overlay that answered. The `SNAP_TO_POINT` tooltip anchor follows it.
 - The X crosshair line is drawn at the hovered X position instead of at the hovered sample.
 - The built-in tooltip prints the X value on each line when the hits do not share the same X value.
+- `Dataset` and the ring buffers behind it have been optimized internally. Reading and writing samples is faster, with no API change and no behavior change.
 
 ### Fixed
 
