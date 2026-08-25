@@ -316,11 +316,16 @@ class XYLayout extends RefCounted:
 		return pane_layouts[p_pane_index]
 
 
+	## True once [method update] has produced the pane layouts. None exist
+	## before the first update, so a caller that can run earlier asks this
+	## and skips its work.
+	func has_pane_layouts() -> bool:
+		return not pane_layouts.is_empty()
+
+
 	## Returns the pane data-area rectangle in pane-local pixels.
-	## [param p_pane_index] Zero-based pane index. Returns empty Rect2 if out of range.
+	## [param p_pane_index] Zero-based pane index.
 	func get_pane_rect(p_pane_index: int = 0) -> Rect2:
-		if p_pane_index < 0 or p_pane_index >= pane_layouts.size():
-			return Rect2()
 		return pane_layouts[p_pane_index].pane_rect
 
 	################################################################################################
@@ -363,8 +368,6 @@ class XYLayout extends RefCounted:
 	## [param p_pane_index] Zero-based pane index.
 	## [param p_category_index] Zero-based category index.
 	func map_x_category_center_to_px(p_pane_index: int, p_category_index: int) -> float:
-		if p_pane_index < 0 or p_pane_index >= pane_layouts.size():
-			return 0.0
 		var pane_layout := pane_layouts[p_pane_index]
 		# x horizontal: categories span screen-X. x vertical: categories span screen-Y.
 		var origin: float = pane_layout.pane_rect.position.x if _x_is_horizontal else pane_layout.pane_rect.position.y

@@ -902,6 +902,10 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		_pane_rect_dirty = false
 		_ticks_dirty = false
 
+		# A layout change moves how many pixels a data unit spans, and a
+		# DATA_UNITS scatter key is drawn from that span.
+		legend_refresh_needed = true
+
 	# Re-resolve the legend keys once if any overlay or plot-wide style changed.
 	# Must run after the layout update as some legend keys depend on the layout
 	# (e.g. scatter with DATA_UNITS marker size policy, which uses map_x_to_px).

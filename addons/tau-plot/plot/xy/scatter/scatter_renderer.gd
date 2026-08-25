@@ -238,12 +238,14 @@ class ScatterRenderer extends Control:
 	## Resolves the marker size in pixels for the legend key.
 	## THEME policy: uses the resolved scatter style size cycle.
 	## DATA_UNITS policy: computes pixel size at the domain x midpoint
-	## via ScatterGeometry.compute_marker_size_px_at_x.
+	## via ScatterGeometry.compute_marker_size_px_at_x. Keys are also built
+	## before the first layout update, where no pixel span exists yet, so the
+	## theme size stands in until refresh_legend_key_control() runs.
 	func _resolve_legend_marker_size_px(p_global_series_index: int) -> float:
 		var policy := _scatter_config.get_resolved_marker_size_policy()
-		if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS:
-			var x_domain = _layout.domain.x_axis_domain
-			if x_domain != null and x_domain.min_val < x_domain.max_val:
+		if policy == TauScatterConfig.MarkerSizePolicy.DATA_UNITS and _layout.has_pane_layouts():
+			var x_domain := _layout.domain.x_axis_domain
+			if x_domain.min_val < x_domain.max_val:
 				var x_mid: float = (x_domain.min_val + x_domain.max_val) * 0.5
 				var geom := ScatterGeometry.new(_layout, _scatter_config, _scatter_style, _pane_index)
 				return geom.compute_marker_size_px_at_x(x_mid)
