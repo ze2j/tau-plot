@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.2.0 - 2026-??-??
+## v0.2.0 - 2026-08-25
 
 ### Breaking changes
 
@@ -37,6 +37,7 @@
 - A style property assigned a value outside its documented range is now clamped whatever path it arrives by. A cycle is clamped entry by entry as it is stored.
 - A cycle stores a copy of the array assigned to it, so writing into that array afterwards does not reach the style.
 - Style changes are detected by the plot, so `TauPlot.queue_refresh()` after a style assignment is no longer necessary. Configuration objects still need it.
+- `TauPlot.reset()` no longer hides the title. Before: the title was hidden but `TauPlot.title` kept its value, so setting the same value again did nothing. (#24)
 - A theme constant holding a value outside the enum of the property it feeds is reported and replaced by the built-in default. Before: the value reached the renderer, and an unknown marker shape drew whatever the shader made of it.
 - A pane holding more than one overlay of the same type is now a validation error. The rule was documented but unenforced.
 - A stacked bar overlay and a stacked line overlay sharing one axis of a pane must declare the same `stacked_normalization` and `stacked_negative_policy`. They share a stack, so disagreeing is a validation error.
@@ -57,6 +58,8 @@
 - Visual attributes could end up on the wrong series. A binding's `visual_attributes` were matched to a series by declaration order rather than by series, so declaring series 1 before series 0 swapped their per-sample buffers. The plot drew without an error, in the wrong colors. (#23)
 - A change to `TauHoverConfig.tooltip_style` or `crosshair_style` after `plot_xy()` had no effect, and `queue_refresh()` did not help. Both now re-resolve like every other style. (#25)
 - `queue_refresh()` no longer fails when the plot is outside the tree. The pending refresh runs when the plot enters it.
+- A pending `queue_refresh()` could run twice. Calling `refresh_now()` or resizing the plot while one was waiting scheduled a second one. (#29)
+- Setting `TauPlot.title` or `TauPlot.legend_enabled` after `plot_xy()` did not lay out the plot again. The plot area changed size, but the bars, ticks and axes kept the old geometry and no longer lined up. Both now lay out the plot on the next frame. (#24)
 - Changing `TauBarConfig.mode` or one of the stacking properties at runtime and calling `queue_refresh()` now recomputes the Y domain. The change was treated as visual only, so the pane kept the unstacked range and clipped the stack drawn into it.
 - The Y domain of a stacked bar overlay holding negative values matches what is drawn. The domain summed every value, negatives included, while the bars skipped them, so the axis reserved room for a total no bar reached.
 - The five ring buffer classes, `ColorBuffer`, `Float32Buffer`, `Float64Buffer`, `Int32Buffer` and `StringBuffer`, return a defined constant when `get_value()` is called on an empty buffer or outside `[0; size()[`. Before: an arbitrary stored element, whichever value the ring held at that moment. After: `ColorBuffer.NO_COLOR`, `0.0`, `0.0`, `-1` and `""` respectively. The pushed error is unchanged.
@@ -64,13 +67,9 @@
 - A scatter overlay is clipped to its pane. Markers sitting at the edge of the domain used to spill over the axis and into the neighbouring panes.
 - An overlay with `TauPaneOverlayConfig.hoverable = false` no longer dims when the cursor enters its pane.
 - `X_ALIGNED` hover on a continuous X axis missed overlays. The plot picks one X value for the whole pane, and an overlay only answered when it held a sample at exactly that X, which an overlay sampled at other X positions almost never did. Its `hover_max_distance_px` was never consulted. Each overlay now answers with the samples at its own X closest to the one picked, as long as that X is within its `hover_max_distance_px`.
-- `xy_padding_top` and `xy_padding_bottom` were applied to every pane instead of
-  once to the plot. The gap between two panes is now `xy_pane_gap` alone, as it
-  should always have been.
-- Panes with the same `stretch_ratio` came out at different sizes, because the
-  pane drawing the shared X axis paid for the tick marks and tick labels out of
-  its own space. Every pane now gets a drawing area proportional to its
-  `stretch_ratio`, whichever pane carries the axis.
+- `xy_padding_top` and `xy_padding_bottom` were applied to every pane instead of once to the plot. The gap between two panes is now `xy_pane_gap` alone, as it should always have been.
+- Panes with the same `stretch_ratio` came out at different sizes, because the pane drawing the shared X axis paid for the tick marks and tick labels out of its own space. Every pane now gets a drawing area proportional to its `stretch_ratio`, whichever pane carries the axis.
+
 
 ## v0.1.2 - 2026-05-01
 
