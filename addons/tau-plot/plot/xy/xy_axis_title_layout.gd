@@ -103,21 +103,20 @@ class XYAxisTitleLayout extends RefCounted:
 
 
 	## Gives every title control the data area rectangle it aligns with.
-	func update_insets(p_xy_layout: XYLayout, p_panes: Array) -> void:
-		if p_xy_layout == null:
-			return
+	## [param p_pane_rects] Rect of every pane, in PaneStack-local coordinates and in pane order.
+	## [param p_stack_global_position] Global position of the pane stack, which
+	## turns the pane rects into global coordinates.
+	func update_insets(p_xy_layout: XYLayout, p_pane_rects: Array[Rect2], p_stack_global_position: Vector2) -> void:
 		var pane_count := p_xy_layout.pane_layouts.size()
 		for i in range(pane_count):
-			if i >= p_panes.size() or p_panes[i] == null:
-				continue
 			var pane_rect: Rect2 = p_xy_layout.pane_layouts[i].pane_rect
-			var pane: Control = p_panes[i]
+			var pane_global := p_stack_global_position + p_pane_rects[i].position
 
 			# Global coordinates, so the alignment is correct whatever the
 			# nesting depth of each title container.
-			var data_left_global := pane.global_position.x + pane_rect.position.x
+			var data_left_global := pane_global.x + pane_rect.position.x
 			var data_right_global := data_left_global + pane_rect.size.x
-			var data_top_global := pane.global_position.y + pane_rect.position.y
+			var data_top_global := pane_global.y + pane_rect.position.y
 			var data_bottom_global := data_top_global + pane_rect.size.y
 
 			if _panes_stack_vertically:

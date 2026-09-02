@@ -524,24 +524,19 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	if pane_count == 0:
 		return
 
-	# Step 1: Collect pane view rects and pane positions, check for changes
+	# Step 1: Read the pane geometry, check for changes.
+	# The pane nodes still carry the sizes of the last sort, so every consumer
+	# of the geometry in this pass reads the rects the stack is about to apply.
+	var pane_rects := _pane_stack.compute_child_rects()
 	var any_valid_rect := false
-	var pane_view_rects: Array[Rect2] = []
-	var pane_positions: Array[Vector2] = []
-	for i in range(pane_count):
-		if _panes[i] != null:
-			var r := Rect2(Vector2.ZERO, _panes[i].size)
-			pane_view_rects.append(r)
-			pane_positions.append(_panes[i].position)
-			if r.size.x > 0.0 and r.size.y > 0.0:
-				any_valid_rect = true
-		else:
-			pane_view_rects.append(Rect2())
-			pane_positions.append(Vector2.ZERO)
+	for rect in pane_rects:
+		if rect.size.x > 0.0 and rect.size.y > 0.0:
+			any_valid_rect = true
+			break
 	if not any_valid_rect:
 		return
 
-	var view_rects_changed := _state.have_pane_view_rects_changed(pane_view_rects)
+	var pane_rects_changed := _state.have_pane_rects_changed(pane_rects)
 
 	# Step 2: Check if bar config changed (for animation support) per pane
 	var has_any_bar := false
@@ -848,8 +843,8 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		_mark_domain_dependents_dirty()
 		_state.save_config(_domain_config)
 
-	if view_rects_changed:
-		# View rect change requires plot rect recomputation
+	if pane_rects_changed:
+		# A pane moved or resized, so the layout is recomputed against it.
 		_pane_rect_dirty = true
 		_mark_visual_dirty()
 		# Hover state is invalid after layout change.
@@ -882,14 +877,9 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		# again when the measurement moved them, so the panes are never drawn
 		# against a set of reservations they are not sized for.
 		for round_index in _LAYOUT_ROUNDS_MAX:
-			# The pane nodes still carry the sizes of the last sort, and the
-			# ratios set above are about to change them. Laying out against the
-			# sizes the stack is going to apply keeps the drawing and the nodes
-			# in step.
-			var sorted_rects := _pane_stack.compute_child_rects()
 			var layout_view_rects: Array[Rect2] = []
 			var layout_positions: Array[Vector2] = []
-			for rect in sorted_rects:
+			for rect in pane_rects:
 				layout_view_rects.append(Rect2(Vector2.ZERO, rect.size))
 				layout_positions.append(rect.position)
 			_update_xy_layout(layout_view_rects, layout_positions)
@@ -897,8 +887,14 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				break
 			if round_index == _LAYOUT_ROUNDS_MAX - 1:
 				# Still moving at the last round, so the next frame finishes it.
+				# pane_rects stays on the values the layout was computed
+				# against, so the next pass sees the reservations move.
 				_queue_refresh.call()
-		_axis_title_layout.update_insets(_xy_layout, _panes)
+				break
+			# The new reservations resize the panes, so the rest of the pass
+			# reads the rects again.
+			pane_rects = _pane_stack.compute_child_rects()
+		_axis_title_layout.update_insets(_xy_layout, pane_rects, _pane_stack.global_position)
 		_pane_rect_dirty = false
 		_ticks_dirty = false
 
@@ -935,7 +931,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 			_line_renderers[i].queue_redraw()
 			_line_dirty_panes[i] = false
 
-	_state.save_pane_view_rects(pane_view_rects)
+	_state.save_pane_rects(pane_rects)
 
 
 ## Called by TauPlot when NOTIFICATION_THEME_CHANGED fires.

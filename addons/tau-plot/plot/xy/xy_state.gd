@@ -79,8 +79,8 @@ class XYState extends RefCounted:
 	# Categorical x labels from last refresh
 	var domain_x_categories: PackedStringArray = []
 
-	# Per-pane view rects from last refresh
-	var pane_view_rects: Array[Rect2] = []
+	# Per-pane rects from last refresh, in PaneStack-local coordinates
+	var pane_rects: Array[Rect2] = []
 
 	# Per-pane config snapshots from last refresh
 	var bar_config_per_pane: Array[TauBarConfig] = []
@@ -197,7 +197,7 @@ class XYState extends RefCounted:
 		x_axis_min_label_spacing_px = -1
 		x_axis_inverted = -1
 
-		pane_view_rects = []
+		pane_rects = []
 
 		bar_config_per_pane.clear()
 		scatter_config_per_pane.clear()
@@ -224,12 +224,12 @@ class XYState extends RefCounted:
 			pane_state.reset()
 
 
-	func have_pane_view_rects_changed(p_rects: Array[Rect2]) -> bool:
-		return p_rects != pane_view_rects
+	func have_pane_rects_changed(p_rects: Array[Rect2]) -> bool:
+		return p_rects != pane_rects
 
 
-	func save_pane_view_rects(p_rects: Array[Rect2]) -> void:
-		pane_view_rects = p_rects.duplicate()
+	func save_pane_rects(p_rects: Array[Rect2]) -> void:
+		pane_rects = p_rects.duplicate()
 
 
 	func save_domain(p_domain: XYDomain) -> void:
