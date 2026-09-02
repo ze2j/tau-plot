@@ -49,11 +49,6 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 const LineHitTester := preload("res://addons/tau-plot/plot/xy/line/line_hit_tester.gd").LineHitTester
 
 
-# Maximum number of rounds needed to make the layout converge.
-# A second round is needed when measuring the labels, changes what a pane reserves.
-# A third has never been observed to change anything.
-const _LAYOUT_ROUNDS_MAX := 2
-
 # External references (provided via setup)
 var _plot: PanelContainer = null
 var _queue_refresh: Callable
@@ -118,9 +113,12 @@ var _state := XYState.new()
 
 # Global dirty flags (affect all panes)
 var _domain_dirty: bool = true
-var _ticks_dirty: bool = true
-var _pane_rect_dirty: bool = true
+# The layout inputs moved, so the pane stack has to sort again.
+var _layout_dirty: bool = true
 var _styles_dirty: bool = true
+# The legend keys are drawn from the resolved styles and the layout, and both
+# can move without the series list changing.
+var _legend_keys_dirty: bool = true
 
 # Per-pane dirty flags
 var _xy_dirty_panes: Array[bool] = []
@@ -387,12 +385,6 @@ func setup(
 			scatter_renderer.set_resolved_scatter_style(resolved_scatter_style)
 			scatter_renderer.set_resolved_xy_style(_resolved_xy_style)
 
-	# PaneStack reads one reservation per child, so it needs a full set before
-	# its first sort. The measured values come with the first layout.
-	var initial_reservations := PackedFloat32Array()
-	initial_reservations.resize(pane_count)
-	_pane_stack.set_reservations(initial_reservations)
-
 	# Axis titles
 	_axis_title_layout.build(p_xy_config, _series_assignment)
 
@@ -508,7 +500,11 @@ func clear() -> void:
 	_mark_all_dirty()
 
 
-func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> void:
+## Runs everything that does not depend on the pane geometry: style
+## resolution, domain, stacking overrides and configuration changes. It ends by
+## asking the pane stack to sort, which settles the layout later in the same
+## frame (see [method _arrange_panes]).
+func refresh() -> void:
 	if _dataset == null or _xy_domain == null or _xy_layout == null:
 		return
 	if _pane_renderers.is_empty():
@@ -524,21 +520,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	if pane_count == 0:
 		return
 
-	# Step 1: Read the pane geometry, check for changes.
-	# The pane nodes still carry the sizes of the last sort, so every consumer
-	# of the geometry in this pass reads the rects the stack is about to apply.
-	var pane_rects := _pane_stack.compute_child_rects()
-	var any_valid_rect := false
-	for rect in pane_rects:
-		if rect.size.x > 0.0 and rect.size.y > 0.0:
-			any_valid_rect = true
-			break
-	if not any_valid_rect:
-		return
-
-	var pane_rects_changed := _state.have_pane_rects_changed(pane_rects)
-
-	# Step 2: Check if bar config changed (for animation support) per pane
+	# Step 1: Check if bar config changed (for animation support) per pane
 	var has_any_bar := false
 	for renderer in _bar_renderers:
 		if renderer != null:
@@ -559,15 +541,14 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				overlay_config_changed = true
 				if pane_bar_config.has_layout_affecting_change(prev_bar_config):
 					_domain_dirty = true
-					_ticks_dirty = true
-					_pane_rect_dirty = true
+					_layout_dirty = true
 					_set_all_pane_flags(_xy_dirty_panes, true)
 					_set_all_pane_flags(_bars_dirty_panes, true)
 				else:
 					_bars_dirty_panes[pane_index] = true
 				_state.save_bar_config_for_pane(pane_index, pane_bar_config)
 
-	# Step 3: Check if scatter config changed per pane
+	# Step 2: Check if scatter config changed per pane
 	var has_any_scatter := false
 	for renderer in _scatter_renderers:
 		if renderer != null:
@@ -583,15 +564,14 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 			if not pane_scatter_config.is_equal_to(prev_scatter_config):
 				if pane_scatter_config.has_layout_affecting_change(prev_scatter_config):
 					_domain_dirty = true
-					_ticks_dirty = true
-					_pane_rect_dirty = true
+					_layout_dirty = true
 					_set_all_pane_flags(_xy_dirty_panes, true)
 					_set_all_pane_flags(_scatter_dirty_panes, true)
 				else:
 					_scatter_dirty_panes[pane_index] = true
 				_state.save_scatter_config_for_pane(pane_index, pane_scatter_config)
 
-	# Step 3-line: Check if line config changed per pane
+	# Step 3: Check if line config changed per pane
 	var has_any_line := false
 	for renderer in _line_renderers:
 		if renderer != null:
@@ -608,8 +588,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				overlay_config_changed = true
 				if pane_line_config.has_layout_affecting_change(prev_line_config):
 					_domain_dirty = true
-					_ticks_dirty = true
-					_pane_rect_dirty = true
+					_layout_dirty = true
 					_set_all_pane_flags(_xy_dirty_panes, true)
 					_set_all_pane_flags(_line_dirty_panes, true)
 				else:
@@ -619,15 +598,13 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 	if overlay_config_changed and _hover_controller != null:
 		_hover_controller.refresh_hit_records_enabled()
 
-	# Step 3b: Check if styles changed (programmatic mutations via config.style.*)
+	# Step 4: Check if styles changed (programmatic mutations via config.style.*)
 	# XY style: three-layer change detection (theme dirty, ref change, content mutation).
-	#  - layout-affecting properties trigger ticks + pane rect recompute,
+	#  - layout-affecting properties trigger a new sort,
 	#  - visual-only properties (colors, alpha) trigger data renderer redraws.
 	# Legend keys read visual properties from renderer instances, so any resolved
 	# style change makes them stale. The series list is untouched here, so the
 	# rows stay and only the pictures are re-resolved.
-	var legend_refresh_needed := false
-
 	if _domain_config != null:
 		var xy_user_style := _domain_config.style
 		var needs_xy_re_resolve := _styles_dirty
@@ -648,8 +625,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 			# Push the resolved copy to all renderers.
 			for renderer in _pane_renderers:
-				if renderer != null:
-					renderer.set_resolved_xy_style(_resolved_xy_style)
+				renderer.set_resolved_xy_style(_resolved_xy_style)
 			for renderer in _bar_renderers:
 				if renderer != null:
 					renderer.set_resolved_xy_style(_resolved_xy_style)
@@ -660,15 +636,12 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				if renderer != null:
 					renderer.set_resolved_xy_style(_resolved_xy_style)
 
-			legend_refresh_needed = true
+			_legend_keys_dirty = true
+			_apply_pane_gap()
+			_mark_visual_dirty()
 
-			# Determine the scope of dirtying based on what changed.
 			if prev_resolved == null or _resolved_xy_style.has_layout_affecting_change(prev_resolved):
-				_ticks_dirty = true
-				_pane_rect_dirty = true
-				_mark_visual_dirty()
-			else:
-				_mark_visual_dirty()
+				_layout_dirty = true
 
 			_state.save_xy_style(xy_user_style)
 
@@ -698,7 +671,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				_bar_renderers[pane_index].set_resolved_bar_style(resolved_bar)
 				_state.save_bar_style_for_pane(pane_index, bar_config.style)
 				_bars_dirty_panes[pane_index] = true
-				legend_refresh_needed = true
+				_legend_keys_dirty = true
 
 	# Scatter style: three-layer change detection (theme dirty, ref change, content mutation).
 	# All TauScatterStyle properties are visual-only, so only dirty the owning scatter pane.
@@ -726,7 +699,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				_scatter_renderers[pane_index].set_resolved_scatter_style(resolved_scatter)
 				_state.save_scatter_style_for_pane(pane_index, scatter_config.style)
 				_scatter_dirty_panes[pane_index] = true
-				legend_refresh_needed = true
+				_legend_keys_dirty = true
 
 	# Line style: three-layer change detection (theme dirty, ref change, content mutation).
 	# All TauLineStyle properties are visual-only, so only dirty the owning line pane.
@@ -754,9 +727,9 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				_line_renderers[pane_index].set_resolved_line_style(resolved_line)
 				_state.save_line_style_for_pane(pane_index, line_config.style)
 				_line_dirty_panes[pane_index] = true
-				legend_refresh_needed = true
+				_legend_keys_dirty = true
 
-	# Step 3c: Check grid_line config changes, style reference changes,
+	# Step 5: Check grid_line config changes, style reference changes,
 	# and pane style mutations. All visual-only.
 	for pane_index in range(pane_count):
 		var pane_config: TauPaneConfig = _domain_config.panes[pane_index]
@@ -771,9 +744,8 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 			if stretch_ratio > 0.0:
 				_panes[pane_index].size_flags_stretch_ratio = stretch_ratio
 				_axis_title_layout.set_stretch_ratio_for_pane(pane_index, stretch_ratio)
-				# The new ratio resizes the panes, so the pane rects are
-				# computed again in this same pass.
-				_pane_rect_dirty = true
+				# The new ratio moves where the panes end up.
+				_layout_dirty = true
 				_mark_visual_dirty()
 			else:
 				push_error("TauPaneConfig.stretch_ratio of pane %d is %f, expected a value greater than 0. The pane keeps its previous ratio." % [pane_index, stretch_ratio])
@@ -781,8 +753,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		# TauGridLineConfig changes (enabled flags, y_axis selection).
 		if _state.has_grid_line_config_changed_for_pane(pane_index, pane_config.grid_line):
 			_state.save_grid_line_config_for_pane(pane_index, pane_config.grid_line)
-			if _pane_renderers[pane_index] != null:
-				_pane_renderers[pane_index].set_grid_line_config(pane_config.grid_line)
+			_pane_renderers[pane_index].set_grid_line_config(pane_config.grid_line)
 			_xy_dirty_panes[pane_index] = true
 
 		# Style resource reference change (user assigned a different TauPaneStyle).
@@ -801,7 +772,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 				if prev_pane_style != null:
 					needs_re_resolve = true
 
-		if needs_re_resolve and _pane_renderers[pane_index] != null:
+		if needs_re_resolve:
 			var user_style: TauPaneStyle = pane_config.style
 			var resolved := TauPaneStyle.resolve(_pane_renderers[pane_index], pane_index, user_style)
 			_resolved_pane_styles[pane_index] = resolved
@@ -809,7 +780,7 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 			_state.save_pane_style_for_pane(pane_index, user_style)
 			_xy_dirty_panes[pane_index] = true
 
-	# Step 3d: TauLegendStyle three-layer change detection (theme dirty, ref change, content mutation).
+	# Step 6: TauLegendStyle three-layer change detection (theme dirty, ref change, content mutation).
 	var needs_legend_re_resolve := _styles_dirty
 
 	# Reference change: user assigned a different TauLegendStyle resource.
@@ -838,26 +809,18 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 
 	_styles_dirty = false
 
-	# Step 4: Check if domain config changed (tick counts, overlap strategy, spacing)
+	# Step 7: Check if domain config changed (tick counts, overlap strategy, spacing)
 	if _domain_config != null and _state.has_config_changed(_domain_config):
 		_mark_domain_dependents_dirty()
 		_state.save_config(_domain_config)
 
-	if pane_rects_changed:
-		# A pane moved or resized, so the layout is recomputed against it.
-		_pane_rect_dirty = true
-		_mark_visual_dirty()
-		# Hover state is invalid after layout change.
-		if _hover_controller != null:
-			_hover_controller.invalidate()
-
-	# Step 5: Apply stacking Y overrides. Bar and line stacked overlays
+	# Step 8: Apply stacking Y overrides. Bar and line stacked overlays
 	# write to the same per-axis entry, with the cross-overlay validator
 	# guaranteeing they agree on the shared fields.
 	if _domain_dirty and (has_any_bar or has_any_line):
 		_apply_stacking_domain_overrides_y()
 
-	# Step 6: Recompute domain from dataset if needed
+	# Step 9: Recompute domain from dataset if needed
 	if _domain_dirty:
 		_xy_domain.update_from_dataset(_dataset)
 
@@ -870,68 +833,22 @@ func refresh(p_plot_global_position: Vector2, p_legend_position: Position) -> vo
 		_state.save_domain(_xy_domain)
 		_domain_dirty = false
 
-	# Step 7: Update layout (ticks and plot rect) if needed
-	if _ticks_dirty or _pane_rect_dirty:
-		# The reservations are measured from the layout, and the layout is
-		# computed from the extents the reservations produce. The round runs
-		# again when the measurement moved them, so the panes are never drawn
-		# against a set of reservations they are not sized for.
-		for round_index in _LAYOUT_ROUNDS_MAX:
-			var layout_view_rects: Array[Rect2] = []
-			var layout_positions: Array[Vector2] = []
-			for rect in pane_rects:
-				layout_view_rects.append(Rect2(Vector2.ZERO, rect.size))
-				layout_positions.append(rect.position)
-			_update_xy_layout(layout_view_rects, layout_positions)
-			if not _pane_stack.set_reservations(_collect_stack_reservations()):
-				break
-			if round_index == _LAYOUT_ROUNDS_MAX - 1:
-				# Still moving at the last round, so the next frame finishes it.
-				# pane_rects stays on the values the layout was computed
-				# against, so the next pass sees the reservations move.
-				_queue_refresh.call()
-				break
-			# The new reservations resize the panes, so the rest of the pass
-			# reads the rects again.
-			pane_rects = _pane_stack.compute_child_rects()
-		_axis_title_layout.update_insets(_xy_layout, pane_rects, _pane_stack.global_position)
-		_pane_rect_dirty = false
-		_ticks_dirty = false
-
-		# A layout change moves how many pixels a data unit spans, and a
-		# DATA_UNITS scatter key is drawn from that span.
-		legend_refresh_needed = true
-
-	# Re-resolve the legend keys once if any overlay or plot-wide style changed.
-	# Must run after the layout update as some legend keys depend on the layout
-	# (e.g. scatter with DATA_UNITS marker size policy, which uses map_x_to_px).
-	if legend_refresh_needed:
+	# Step 10: Re-resolve the legend keys once if any resolved style or the
+	# layout moved.
+	if _legend_keys_dirty:
 		_legend_builder.controller.legend.refresh_keys()
+		_legend_keys_dirty = false
 
-	# Step 7b: Update legend overlay if INSIDE position
-	if _is_inside_legend_position(p_legend_position):
-		var union_global := _pane_stack.global_position + _xy_layout.data_area_union.position
-		var union_in_plot := Rect2(
-			union_global - p_plot_global_position,
-			_xy_layout.data_area_union.size)
-		_legend_builder.controller.update_inside_rect(union_in_plot)
+	# Step 11: Redraw the dirty panes.
+	_redraw_dirty_panes()
 
-	# Step 8: Redraw only dirty panes
-	for i in range(pane_count):
-		if _xy_dirty_panes[i] and _pane_renderers[i] != null:
-			_pane_renderers[i].queue_redraw()
-			_xy_dirty_panes[i] = false
-		if _bars_dirty_panes[i] and _bar_renderers[i] != null:
-			_bar_renderers[i].queue_redraw()
-			_bars_dirty_panes[i] = false
-		if _scatter_dirty_panes[i] and _scatter_renderers[i] != null:
-			_scatter_renderers[i].update_scatter()
-			_scatter_dirty_panes[i] = false
-		if _line_dirty_panes[i] and _line_renderers[i] != null:
-			_line_renderers[i].queue_redraw()
-			_line_dirty_panes[i] = false
-
-	_state.save_pane_rects(pane_rects)
+	# Step 12: Hand the geometry over. The sort runs in the message queue flush,
+	# which Godot processes after this frame's process_frame signal, so the
+	# layout settles in this same frame. A scatter builds its markers from the
+	# layout rather than from a draw call, so it waits for the sort as well.
+	if _layout_dirty or _has_dirty_scatter():
+		_pane_stack.queue_sort()
+	_layout_dirty = false
 
 
 ## Called by TauPlot when NOTIFICATION_THEME_CHANGED fires.
@@ -976,10 +893,6 @@ func set_hover_config(p_config: TauHoverConfig) -> void:
 ####################################################################################################
 # Private
 ####################################################################################################
-
-static func _is_inside_legend_position(p_pos: Position) -> bool:
-	return p_pos >= Position.INSIDE_TOP
-
 
 ## Returns the create_key_control callable for the renderer that owns the given
 ## overlay type on the given pane. Used by XYLegendBuilder as a resolver so that
@@ -1107,19 +1020,48 @@ func _set_all_pane_flags(p_flags: Array[bool], p_value: bool) -> void:
 		p_flags[i] = p_value
 
 
+# Sends the flagged panes to the screen. Godot draws once the pending sorts are
+# flushed, so a pane flagged before the sort still paints against the layout the
+# sort settles on. A scatter is left out: it builds its markers from the layout
+# rather than drawing them, so it waits for the sort in
+# _on_pane_geometry_settled.
+func _redraw_dirty_panes() -> void:
+	for i in range(_pane_renderers.size()):
+		if _xy_dirty_panes[i]:
+			_pane_renderers[i].queue_redraw()
+			_xy_dirty_panes[i] = false
+		if _bars_dirty_panes[i] and _bar_renderers[i] != null:
+			_bar_renderers[i].queue_redraw()
+			_bars_dirty_panes[i] = false
+		if _line_dirty_panes[i] and _line_renderers[i] != null:
+			_line_renderers[i].queue_redraw()
+			_line_dirty_panes[i] = false
+
+
+# A scatter is rebuilt in the sort, so a dirty one is a reason to ask for one.
+func _has_dirty_scatter() -> bool:
+	for i in range(_scatter_dirty_panes.size()):
+		if _scatter_dirty_panes[i] and _scatter_renderers[i] != null:
+			return true
+	return false
+
+
 func _mark_all_dirty() -> void:
 	_domain_dirty = true
-	_ticks_dirty = true
-	_pane_rect_dirty = true
+	_layout_dirty = true
 	_styles_dirty = true
+	_legend_keys_dirty = true
 	_set_all_pane_flags(_xy_dirty_panes, true)
 	_set_all_pane_flags(_bars_dirty_panes, true)
 	_set_all_pane_flags(_scatter_dirty_panes, true)
+	_set_all_pane_flags(_line_dirty_panes, true)
 
 
 func _mark_domain_dependents_dirty() -> void:
-	_ticks_dirty = true
-	_pane_rect_dirty = true
+	_layout_dirty = true
+	# How many pixels a data unit spans follows the domain, and a legend key
+	# can be drawn in data units.
+	_legend_keys_dirty = true
 	_set_all_pane_flags(_xy_dirty_panes, true)
 	_set_all_pane_flags(_bars_dirty_panes, true)
 	_set_all_pane_flags(_scatter_dirty_panes, true)
@@ -1266,6 +1208,7 @@ func _clear_panes() -> void:
 func _create_pane_stack(p_x_is_horizontal: bool) -> void:
 	_destroy_pane_stack()
 	_pane_stack = PaneStack.new()
+	_pane_stack.setup(_arrange_panes, _on_pane_geometry_settled)
 	_pane_stack.vertical = p_x_is_horizontal
 	_pane_stack.name = "PaneStack"
 	_pane_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1281,22 +1224,63 @@ func _destroy_pane_stack() -> void:
 	_pane_stack = null
 
 
-func _update_xy_layout(p_pane_view_rects: Array[Rect2], p_pane_positions: Array[Vector2]) -> void:
-	if _domain_config == null:
-		return
-	if _resolved_xy_style == null:
-		return
+# Measures the layout against the rects the pane stack is about to apply, and
+# returns what each pane reserves along the stacking direction.
+#
+# Runs inside the sort, which is the only moment the pane geometry exists, so
+# everything it needs comes in as an argument and it reads no Control size or
+# position. It must leave every minimum size untouched: a sort that asks for
+# another sort is dropped by Godot.
+func _arrange_panes(p_pane_rects: Array[Rect2]) -> PackedFloat32Array:
+	var view_rects: Array[Rect2] = []
+	var positions: Array[Vector2] = []
+	for rect in p_pane_rects:
+		view_rects.append(Rect2(Vector2.ZERO, rect.size))
+		positions.append(rect.position)
 
 	_xy_layout.style = _resolved_xy_style
+	_xy_layout.set_pane_view_rects(view_rects)
+	_xy_layout.set_pane_positions_in_stack(positions)
+	_xy_layout.update()
 
-	# Apply pane gap from style to the pane stack and title containers.
+	return _collect_stack_reservations()
+
+
+# Places everything that sits around the panes, now that the layout is settled.
+# Same rule as _arrange_panes: no minimum size may move here.
+func _on_pane_geometry_settled(p_pane_rects: Array[Rect2], p_stack_global_position: Vector2) -> void:
+	_axis_title_layout.update_insets(_xy_layout, p_pane_rects, p_stack_global_position)
+	_legend_builder.controller.update_inside_rect(Rect2(
+		p_stack_global_position + _xy_layout.data_area_union.position,
+		_xy_layout.data_area_union.size))
+
+	if _state.has_settled_geometry_changed(p_pane_rects, _xy_layout.data_area_union):
+		_state.save_settled_geometry(p_pane_rects, _xy_layout.data_area_union)
+		_hover_controller.invalidate()
+		# A pane that kept its rect gets no resize notification of its own, and
+		# its insets may still have moved.
+		_mark_visual_dirty()
+		# A legend key is measured against the layout too, and a key
+		# measurement moves minimum sizes, so it waits for the next refresh
+		# rather than running inside the sort.
+		_legend_keys_dirty = true
+		_queue_refresh.call()
+
+	_redraw_dirty_panes()
+
+	for i in range(_scatter_dirty_panes.size()):
+		if _scatter_dirty_panes[i] and _scatter_renderers[i] != null:
+			_scatter_renderers[i].update_scatter()
+			_scatter_dirty_panes[i] = false
+
+
+# The gap sits between the panes, so the stack and the four title containers
+# running alongside it have to agree on it. It moves minimum sizes, which keeps
+# it out of the sort.
+func _apply_pane_gap() -> void:
 	var gap := _resolved_xy_style.pane_gap_px
 	_pane_stack.separation = gap
 	_axis_title_layout.update_separation(gap)
-
-	_xy_layout.set_pane_view_rects(p_pane_view_rects)
-	_xy_layout.set_pane_positions_in_stack(p_pane_positions)
-	_xy_layout.update()
 
 
 # Returns the space each pane reserves along the stacking direction, in pane

@@ -79,8 +79,12 @@ class XYState extends RefCounted:
 	# Categorical x labels from last refresh
 	var domain_x_categories: PackedStringArray = []
 
-	# Per-pane rects from last refresh, in PaneStack-local coordinates
+	# Geometry the last sort settled on, in PaneStack-local coordinates: one
+	# rect per pane, and the union of the pane data areas. The two together
+	# cover both a pane moving and a pane keeping its rect while its insets
+	# change.
 	var pane_rects: Array[Rect2] = []
+	var data_area_union: Rect2 = Rect2()
 
 	# Per-pane config snapshots from last refresh
 	var bar_config_per_pane: Array[TauBarConfig] = []
@@ -198,6 +202,7 @@ class XYState extends RefCounted:
 		x_axis_inverted = -1
 
 		pane_rects = []
+		data_area_union = Rect2()
 
 		bar_config_per_pane.clear()
 		scatter_config_per_pane.clear()
@@ -224,12 +229,13 @@ class XYState extends RefCounted:
 			pane_state.reset()
 
 
-	func have_pane_rects_changed(p_rects: Array[Rect2]) -> bool:
-		return p_rects != pane_rects
+	func has_settled_geometry_changed(p_rects: Array[Rect2], p_data_area_union: Rect2) -> bool:
+		return p_rects != pane_rects or p_data_area_union != data_area_union
 
 
-	func save_pane_rects(p_rects: Array[Rect2]) -> void:
+	func save_settled_geometry(p_rects: Array[Rect2], p_data_area_union: Rect2) -> void:
 		pane_rects = p_rects.duplicate()
+		data_area_union = p_data_area_union
 
 
 	func save_domain(p_domain: XYDomain) -> void:

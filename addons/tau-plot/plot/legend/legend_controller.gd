@@ -190,15 +190,15 @@ class LegendController extends RefCounted:
 
 
 	## Updates the inside overlay rect and legend max_size constraint.
-	## Called from the plot type's refresh after layout computation.
-	## p_data_area_rect is the data area union rect in Plot-local coordinates.
-	## Converted to global coordinates here because the overlay uses
-	## top_level = true and is therefore positioned in global space.
-	func update_inside_rect(p_data_area_rect: Rect2) -> void:
+	## Does nothing unless the legend is at an inside position.
+	## [param p_data_area_global] The data area union rect, in global
+	## coordinates, which is the space the overlay is positioned in since it
+	## uses top_level = true.
+	func update_inside_rect(p_data_area_global: Rect2) -> void:
 		if legend == null or _inside_overlay == null:
 			return
 
-		var area := p_data_area_rect.size
+		var area := p_data_area_global.size
 		if area.x <= 0.0 or area.y <= 0.0:
 			return
 
@@ -206,9 +206,7 @@ class LegendController extends RefCounted:
 		if style == null:
 			return
 
-		# The overlay is top_level, so position it in global coordinates.
-		var global_origin := _plot.global_position + p_data_area_rect.position
-		_inside_overlay.global_position = global_origin
+		_inside_overlay.global_position = p_data_area_global.position
 		_inside_overlay.size = area
 
 		# Compute max_size so the legend does not exceed the data area.
