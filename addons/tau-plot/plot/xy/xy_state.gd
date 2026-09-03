@@ -63,7 +63,7 @@ class _PaneState extends RefCounted:
 		stretch_ratio = -1.0
 
 
-# Snapshot of the state that _refresh() uses for change detection between frames.
+# What _refresh() compares against between frames, for the data no tracker covers.
 class XYState extends RefCounted:
 
 	# Shared x domain bounds
@@ -86,38 +86,6 @@ class XYState extends RefCounted:
 	var pane_rects: Array[Rect2] = []
 	var data_area_union: Rect2 = Rect2()
 
-	# Per-pane config snapshots from last refresh
-	var bar_config_per_pane: Array[TauBarConfig] = []
-	var scatter_config_per_pane: Array[TauScatterConfig] = []
-	var line_config_per_pane: Array[TauLineConfig] = []
-
-	# Per-pane grid_line config snapshots
-	var grid_line_config_per_pane: Array[TauGridLineConfig] = []
-
-	# Per-pane TauPaneStyle resource references (not duplicates, just the ref for
-	# detecting when the user assigns a different TauPaneStyle to TauPaneConfig.style).
-	var pane_style_ref_per_pane: Array = []
-
-	# Per-pane TauPaneStyle content snapshots (duplicates for mutation detection).
-	var pane_style_per_pane: Array[TauPaneStyle] = []
-
-	# Style snapshots from last refresh
-	var xy_style_snapshot: TauXYStyle = null
-	var xy_style_ref: TauXYStyle = null
-	var bar_style_per_pane: Array[TauBarStyle] = []
-	var scatter_style_per_pane: Array[TauScatterStyle] = []
-	var line_style_per_pane: Array[TauLineStyle] = []
-
-	# Per-pane overlay style resource references (for detecting when the user
-	# assigns a different style resource to the config).
-	var bar_style_ref_per_pane: Array = []
-	var scatter_style_ref_per_pane: Array = []
-	var line_style_ref_per_pane: Array = []
-
-	# TauLegendStyle ref + content tracking
-	var legend_style_ref: TauLegendStyle = null
-	var legend_style_snapshot: TauLegendStyle = null
-
 	# Per-pane state
 	const PaneState := _PaneState
 	var pane_states: Array[PaneState] = []
@@ -129,66 +97,6 @@ class XYState extends RefCounted:
 			pane_states.pop_back()
 		while pane_states.size() < p_pane_count:
 			pane_states.append(PaneState.new())
-
-		while bar_config_per_pane.size() > p_pane_count:
-			bar_config_per_pane.pop_back()
-		while bar_config_per_pane.size() < p_pane_count:
-			bar_config_per_pane.append(null)
-
-		while scatter_config_per_pane.size() > p_pane_count:
-			scatter_config_per_pane.pop_back()
-		while scatter_config_per_pane.size() < p_pane_count:
-			scatter_config_per_pane.append(null)
-
-		while line_config_per_pane.size() > p_pane_count:
-			line_config_per_pane.pop_back()
-		while line_config_per_pane.size() < p_pane_count:
-			line_config_per_pane.append(null)
-
-		while grid_line_config_per_pane.size() > p_pane_count:
-			grid_line_config_per_pane.pop_back()
-		while grid_line_config_per_pane.size() < p_pane_count:
-			grid_line_config_per_pane.append(null)
-
-		while pane_style_ref_per_pane.size() > p_pane_count:
-			pane_style_ref_per_pane.pop_back()
-		while pane_style_ref_per_pane.size() < p_pane_count:
-			pane_style_ref_per_pane.append(null)
-
-		while pane_style_per_pane.size() > p_pane_count:
-			pane_style_per_pane.pop_back()
-		while pane_style_per_pane.size() < p_pane_count:
-			pane_style_per_pane.append(null)
-
-		while bar_style_per_pane.size() > p_pane_count:
-			bar_style_per_pane.pop_back()
-		while bar_style_per_pane.size() < p_pane_count:
-			bar_style_per_pane.append(null)
-
-		while scatter_style_per_pane.size() > p_pane_count:
-			scatter_style_per_pane.pop_back()
-		while scatter_style_per_pane.size() < p_pane_count:
-			scatter_style_per_pane.append(null)
-
-		while line_style_per_pane.size() > p_pane_count:
-			line_style_per_pane.pop_back()
-		while line_style_per_pane.size() < p_pane_count:
-			line_style_per_pane.append(null)
-
-		while bar_style_ref_per_pane.size() > p_pane_count:
-			bar_style_ref_per_pane.pop_back()
-		while bar_style_ref_per_pane.size() < p_pane_count:
-			bar_style_ref_per_pane.append(null)
-
-		while scatter_style_ref_per_pane.size() > p_pane_count:
-			scatter_style_ref_per_pane.pop_back()
-		while scatter_style_ref_per_pane.size() < p_pane_count:
-			scatter_style_ref_per_pane.append(null)
-
-		while line_style_ref_per_pane.size() > p_pane_count:
-			line_style_ref_per_pane.pop_back()
-		while line_style_ref_per_pane.size() < p_pane_count:
-			line_style_ref_per_pane.append(null)
 
 
 	func reset() -> void:
@@ -203,27 +111,6 @@ class XYState extends RefCounted:
 
 		pane_rects = []
 		data_area_union = Rect2()
-
-		bar_config_per_pane.clear()
-		scatter_config_per_pane.clear()
-		line_config_per_pane.clear()
-
-		grid_line_config_per_pane.clear()
-		pane_style_ref_per_pane.clear()
-		pane_style_per_pane.clear()
-
-		xy_style_snapshot = null
-		xy_style_ref = null
-		bar_style_per_pane.clear()
-		scatter_style_per_pane.clear()
-		line_style_per_pane.clear()
-
-		bar_style_ref_per_pane.clear()
-		scatter_style_ref_per_pane.clear()
-		line_style_ref_per_pane.clear()
-
-		legend_style_ref = null
-		legend_style_snapshot = null
 
 		for pane_state: PaneState in pane_states:
 			pane_state.reset()
@@ -338,174 +225,12 @@ class XYState extends RefCounted:
 		return false
 
 
-	func save_bar_config_for_pane(p_pane_index: int, p_bar_config: TauBarConfig) -> void:
-		if p_pane_index < 0 or p_pane_index >= bar_config_per_pane.size():
-			return
-		bar_config_per_pane[p_pane_index] = p_bar_config.duplicate() if p_bar_config != null else null
-
-
-	func save_scatter_config_for_pane(p_pane_index: int, p_scatter_config: TauScatterConfig) -> void:
-		if p_pane_index < 0 or p_pane_index >= scatter_config_per_pane.size():
-			return
-		scatter_config_per_pane[p_pane_index] = p_scatter_config.duplicate() if p_scatter_config != null else null
-
-
-	func save_line_config_for_pane(p_pane_index: int, p_line_config: TauLineConfig) -> void:
-		if p_pane_index < 0 or p_pane_index >= line_config_per_pane.size():
-			return
-		line_config_per_pane[p_pane_index] = p_line_config.duplicate() if p_line_config != null else null
-
-
-	func save_grid_line_config_for_pane(p_pane_index: int, p_grid_line_config: TauGridLineConfig) -> void:
-		if p_pane_index < 0 or p_pane_index >= grid_line_config_per_pane.size():
-			return
-		grid_line_config_per_pane[p_pane_index] = p_grid_line_config.duplicate() if p_grid_line_config != null else null
-
-
-	func has_grid_line_config_changed_for_pane(p_pane_index: int, p_grid_line_config: TauGridLineConfig) -> bool:
-		if p_pane_index < 0 or p_pane_index >= grid_line_config_per_pane.size():
-			return true
-		var prev: TauGridLineConfig = grid_line_config_per_pane[p_pane_index]
-		if prev == null and p_grid_line_config == null:
-			return false
-		if prev == null or p_grid_line_config == null:
-			return true
-		return not p_grid_line_config.is_equal_to(prev)
-
-
 	func save_stretch_ratio_for_pane(p_pane_index: int, p_stretch_ratio: float) -> void:
 		pane_states[p_pane_index].stretch_ratio = p_stretch_ratio
 
 
 	func has_stretch_ratio_changed_for_pane(p_pane_index: int, p_stretch_ratio: float) -> bool:
 		return pane_states[p_pane_index].stretch_ratio != p_stretch_ratio
-
-	# ==================================================================================
-	# Style snapshots
-	# ==================================================================================
-
-	func save_xy_style(p_style: TauXYStyle) -> void:
-		if p_style == null:
-			xy_style_snapshot = null
-			return
-		xy_style_snapshot = p_style.make_snapshot()
-
-
-	func save_xy_style_ref(p_style_ref: TauXYStyle) -> void:
-		xy_style_ref = p_style_ref
-
-
-	func has_xy_style_ref_changed(p_style_ref: TauXYStyle) -> bool:
-		return xy_style_ref != p_style_ref
-
-
-	func has_xy_style_changed(p_style: TauXYStyle) -> bool:
-		if p_style == null and xy_style_snapshot == null:
-			return false
-		if p_style == null or xy_style_snapshot == null:
-			return true
-		return not p_style.is_equal_to(xy_style_snapshot)
-
-
-	func has_xy_style_layout_change(p_style: TauXYStyle) -> bool:
-		if p_style == null or xy_style_snapshot == null:
-			return true
-		return p_style.has_layout_affecting_change(xy_style_snapshot)
-
-
-	func save_bar_style_for_pane(p_pane_index: int, p_style: TauBarStyle) -> void:
-		if p_pane_index < 0 or p_pane_index >= bar_style_per_pane.size():
-			return
-		bar_style_per_pane[p_pane_index] = p_style.make_snapshot() if p_style != null else null
-
-
-	func save_bar_style_ref_for_pane(p_pane_index: int, p_style_ref: TauBarStyle) -> void:
-		if p_pane_index < 0 or p_pane_index >= bar_style_ref_per_pane.size():
-			return
-		bar_style_ref_per_pane[p_pane_index] = p_style_ref
-
-
-	func has_bar_style_ref_changed_for_pane(p_pane_index: int, p_style_ref: TauBarStyle) -> bool:
-		if p_pane_index < 0 or p_pane_index >= bar_style_ref_per_pane.size():
-			return true
-		return bar_style_ref_per_pane[p_pane_index] != p_style_ref
-
-
-	func save_scatter_style_for_pane(p_pane_index: int, p_style: TauScatterStyle) -> void:
-		if p_pane_index < 0 or p_pane_index >= scatter_style_per_pane.size():
-			return
-		scatter_style_per_pane[p_pane_index] = p_style.make_snapshot() if p_style != null else null
-
-
-	func save_scatter_style_ref_for_pane(p_pane_index: int, p_style_ref: TauScatterStyle) -> void:
-		if p_pane_index < 0 or p_pane_index >= scatter_style_ref_per_pane.size():
-			return
-		scatter_style_ref_per_pane[p_pane_index] = p_style_ref
-
-
-	func has_scatter_style_ref_changed_for_pane(p_pane_index: int, p_style_ref: TauScatterStyle) -> bool:
-		if p_pane_index < 0 or p_pane_index >= scatter_style_ref_per_pane.size():
-			return true
-		return scatter_style_ref_per_pane[p_pane_index] != p_style_ref
-
-
-	func save_line_style_for_pane(p_pane_index: int, p_style: TauLineStyle) -> void:
-		if p_pane_index < 0 or p_pane_index >= line_style_per_pane.size():
-			return
-		line_style_per_pane[p_pane_index] = p_style.make_snapshot() if p_style != null else null
-
-
-	func save_line_style_ref_for_pane(p_pane_index: int, p_style_ref: TauLineStyle) -> void:
-		if p_pane_index < 0 or p_pane_index >= line_style_ref_per_pane.size():
-			return
-		line_style_ref_per_pane[p_pane_index] = p_style_ref
-
-
-	func has_line_style_ref_changed_for_pane(p_pane_index: int, p_style_ref: TauLineStyle) -> bool:
-		if p_pane_index < 0 or p_pane_index >= line_style_ref_per_pane.size():
-			return true
-		return line_style_ref_per_pane[p_pane_index] != p_style_ref
-
-
-	func save_pane_style_for_pane(p_pane_index: int, p_style: TauPaneStyle) -> void:
-		if p_pane_index < 0 or p_pane_index >= pane_style_per_pane.size():
-			return
-		pane_style_per_pane[p_pane_index] = p_style.make_snapshot() if p_style != null else null
-
-
-	func save_pane_style_ref_for_pane(p_pane_index: int, p_style_ref: TauPaneStyle) -> void:
-		if p_pane_index < 0 or p_pane_index >= pane_style_ref_per_pane.size():
-			return
-		pane_style_ref_per_pane[p_pane_index] = p_style_ref
-
-
-	func has_pane_style_ref_changed_for_pane(p_pane_index: int, p_style_ref: TauPaneStyle) -> bool:
-		if p_pane_index < 0 or p_pane_index >= pane_style_ref_per_pane.size():
-			return true
-		return pane_style_ref_per_pane[p_pane_index] != p_style_ref
-
-
-	func save_legend_style(p_style: TauLegendStyle) -> void:
-		if p_style == null:
-			legend_style_snapshot = null
-			return
-		legend_style_snapshot = p_style.make_snapshot()
-
-
-	func save_legend_style_ref(p_style_ref: TauLegendStyle) -> void:
-		legend_style_ref = p_style_ref
-
-
-	func has_legend_style_ref_changed(p_style_ref: TauLegendStyle) -> bool:
-		return legend_style_ref != p_style_ref
-
-
-	func has_legend_style_changed(p_style: TauLegendStyle) -> bool:
-		if p_style == null and legend_style_snapshot == null:
-			return false
-		if p_style == null or legend_style_snapshot == null:
-			return true
-		return not p_style.is_equal_to(legend_style_snapshot)
 
 
 	# ==================================================================================

@@ -14,7 +14,7 @@ The payload describes a change in three parts.
 
 [`type`](#type) says how the dataset changed, and selects which of the other fields carry a meaningful value. A field the type does not carry keeps its initial value, so a handler that reads it gets `0` or an empty array rather than stale data from a previous change.
 
-[`flags`](#flags) is a bitmask of [`Flags`](#flags-enum) values saying what changed. It answers whether X values, Y values, or the series list moved without matching on the type, which is what a listener that only redraws needs.
+[`flags`](#flags) is a bitmask of [`Flags`](#flags-enum) values saying what changed. It answers whether X values, Y values, or the series list changed without matching on the type, which is what a listener that only redraws needs.
 
 The seven remaining fields narrow the change down to the series it touched and the range of samples inside them, so a listener can update incrementally instead of re-reading the whole dataset.
 

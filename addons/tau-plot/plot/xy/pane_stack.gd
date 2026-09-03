@@ -13,8 +13,8 @@
 # stretch ratio. Data areas follow the stretch ratios, whatever a pane reserves.
 class PaneStack extends Container:
 	# Rounds the sort runs to make the reservations converge. A second round is
-	# needed when measuring the tick labels moves what a pane reserves. A third
-	# has never been observed to change anything.
+	# needed when measuring the tick labels changes what a pane reserves. A
+	# third has never been observed to change anything.
 	const _ROUNDS_MAX := 2
 
 	## True when panes are stacked from top to bottom,
@@ -79,8 +79,8 @@ class PaneStack extends Container:
 
 		# What a pane reserves is measured from the layout, and the layout is
 		# measured against the extent the reservations leave. A round runs again
-		# when the measurement moved them, so the panes are never drawn against
-		# a set of reservations the layout does not match. Out of rounds, the
+		# when the measurement changed them, so the panes are never drawn
+		# against a set of reservations the layout does not match. Out of rounds, the
 		# applied rects keep the layout they were measured with and the last
 		# measurement seeds the next sort.
 		for round_index in _ROUNDS_MAX:

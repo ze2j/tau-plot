@@ -4,6 +4,25 @@
 # domain, layout, panes, renderers, dirty flags, and change detection
 # state. Delegates axis title management to XYAxisTitleLayout and legend
 # management to XYLegendBuilder.
+#
+# A refresh runs in three phases: resolve, arrange and draw.
+#
+# Geometry is the size and the position of a Control, in pixels. A pane gets
+# its own from the pane stack, a custom container, and only while Godot runs the
+# container sort (the engine name for the layout pass).
+#
+# Resolve runs without geometry. It reads the user resources and recomputes
+# what derives from them, the resolved styles and the domain among others.
+#
+# Arrange runs inside the sort, the one moment the pane rects exist. It
+# recomputes the layout: how much of each pane rect the axes take, what data
+# area is left, and how a value maps to a pixel inside it. No other phase
+# touches a pane rect.
+#
+# Draw queues a redraw on the panes that changed, and queues a sort on the
+# pane stack when the layout is stale. Godot runs the sort, which is where
+# arrange happens, and paints after it. So the panes are painted against the
+# layout arrange has just settled.
 
 @tool
 extends VBoxContainer
@@ -18,6 +37,7 @@ const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const XYLegendBuilder := preload("res://addons/tau-plot/plot/xy/xy_legend_builder.gd").XYLegendBuilder
 
+const Tracked := preload("res://addons/tau-plot/plot/tracked.gd").Tracked
 const XYState := preload("res://addons/tau-plot/plot/xy/xy_state.gd").XYState
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const XYDomainOverrides := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").XYDomainOverrides
@@ -52,6 +72,9 @@ const LineHitTester := preload("res://addons/tau-plot/plot/xy/line/line_hit_test
 # External references (provided via setup)
 var _plot: PanelContainer = null
 var _queue_refresh: Callable
+
+# True between the end of setup() and the start of clear().
+var _is_setup := false
 
 # Internal: legend management
 var _legend_builder: XYLegendBuilder = null
@@ -111,16 +134,43 @@ var _user_legend_style: TauLegendStyle = null
 # State tracking for change detection between refreshes
 var _state := XYState.new()
 
-# Global dirty flags (affect all panes)
-var _domain_dirty: bool = true
-# The layout inputs moved, so the pane stack has to sort again.
-var _layout_dirty: bool = true
-var _styles_dirty: bool = true
-# The legend keys are drawn from the resolved styles and the layout, and both
-# can move without the series list changing.
-var _legend_keys_dirty: bool = true
+# Every user resource a refresh watches, in no particular order.
+var _tracked: Array[Tracked] = []
+# The subset the theme feeds. A theme change re-resolves them whether or not
+# the user resource changed.
+var _tracked_styles: Array[Tracked] = []
 
-# Per-pane dirty flags
+# What a refresh derives. _invalidate() marks one of them stale.
+enum Artifact
+{
+	DOMAIN,			# The value range each axis maps from.
+	LAYOUT,			# Pane rects, ticks and reservations, settled by the sort.
+	LEGEND_KEYS,	# The picture drawn in front of each legend row.
+	HOVER_STYLES,	# The tooltip and the crosshair, resolved by the hover controller.
+	HIT_RECORDS,	# Whether a renderer caches what the hover tests against.
+	DRAW,			# What the panes paint.
+}
+
+# What goes stale with an artifact, so that a call site names the artifact at
+# its own level and nothing further down. An artifact absent from the table has
+# nothing under it.
+const _DEPENDENTS := {
+	Artifact.DOMAIN: [Artifact.LAYOUT, Artifact.LEGEND_KEYS, Artifact.DRAW],
+	Artifact.LAYOUT: [Artifact.LEGEND_KEYS, Artifact.DRAW],
+}
+
+# The artifacts waiting to be recomputed. Everything a plot needs before it can
+# be drawn starts stale. DRAW is never a key here: it is held per pane and per
+# overlay in the flags below.
+var _dirty: Dictionary[Artifact, bool] = {
+	Artifact.DOMAIN: true,
+	Artifact.LAYOUT: true,
+	Artifact.LEGEND_KEYS: true,
+	Artifact.HOVER_STYLES: true,
+	Artifact.HIT_RECORDS: false,
+}
+
+# Per-pane draw flags
 var _xy_dirty_panes: Array[bool] = []
 var _bars_dirty_panes: Array[bool] = []
 var _scatter_dirty_panes: Array[bool] = []
@@ -392,7 +442,8 @@ func setup(
 	_user_legend_style = p_legend_config.style
 
 	_hover_config = p_hover_config
-	_connect_style_signals()
+	_connect_hover_style_signals()
+	_build_trackers()
 
 	# The builder creates the legend, places it in the tree, then resolves
 	# the TauLegendStyle cascade against the in-tree legend (TauLegend type
@@ -458,16 +509,18 @@ func setup(
 		_resolved_xy_style, formatter, hit_testers_per_pane,
 		p_hover_enabled, p_hover_config)
 
+	_is_setup = true
+
 
 func clear() -> void:
+	_is_setup = false
 	_clear_panes()
 	_destroy_pane_stack()
-	if _axis_title_layout != null:
-		_axis_title_layout.clear()
-	if _legend_builder != null:
-		_legend_builder.destroy()
-		_legend_builder = null
-	_disconnect_style_signals()
+	_axis_title_layout.clear()
+	_legend_builder.destroy()
+	_legend_builder = null
+	_disconnect_hover_style_signals()
+	_release_trackers()
 	_reset_dataset()
 
 	_plot = null
@@ -491,370 +544,31 @@ func clear() -> void:
 	_user_legend_style = null
 	_series_bindings = []
 
-	if _hover_controller != null:
-		_hover_controller.clear()
-		_hover_controller = null
+	_hover_controller.clear()
+	_hover_controller = null
 	_hover_config = null
 
 	_state.reset()
 	_mark_all_dirty()
 
 
-## Runs everything that does not depend on the pane geometry: style
-## resolution, domain, stacking overrides and configuration changes. It ends by
-## asking the pane stack to sort, which settles the layout later in the same
-## frame (see [method _arrange_panes]).
+## Brings the plot back in line with the dataset, the user resources and the
+## theme as they stand now. Only what changed is recomputed.
 func refresh() -> void:
-	if _dataset == null or _xy_domain == null or _xy_layout == null:
-		return
-	if _pane_renderers.is_empty():
-		return
-	if not _has_any_data_renderer():
-		return
-	if _domain_config == null:
-		return
-	if _xy_domain_overrides == null:
+	if not _is_setup:
 		return
 
-	var pane_count := _panes.size()
-	if pane_count == 0:
-		return
-
-	# Step 1: Check if bar config changed (for animation support) per pane
-	var has_any_bar := false
-	for renderer in _bar_renderers:
-		if renderer != null:
-			has_any_bar = true
-			break
-
-	# hoverable lives on the overlay configs, and a renderer caches hit records
-	# only while it is set.
-	var overlay_config_changed := false
-
-	if has_any_bar:
-		for pane_index in range(pane_count):
-			var pane_bar_config: TauBarConfig = _bar_config_per_pane[pane_index]
-			if pane_bar_config == null:
-				continue
-			var prev_bar_config: TauBarConfig = _state.bar_config_per_pane[pane_index]
-			if not pane_bar_config.is_equal_to(prev_bar_config):
-				overlay_config_changed = true
-				if pane_bar_config.has_layout_affecting_change(prev_bar_config):
-					_domain_dirty = true
-					_layout_dirty = true
-					_set_all_pane_flags(_xy_dirty_panes, true)
-					_set_all_pane_flags(_bars_dirty_panes, true)
-				else:
-					_bars_dirty_panes[pane_index] = true
-				_state.save_bar_config_for_pane(pane_index, pane_bar_config)
-
-	# Step 2: Check if scatter config changed per pane
-	var has_any_scatter := false
-	for renderer in _scatter_renderers:
-		if renderer != null:
-			has_any_scatter = true
-			break
-
-	if has_any_scatter:
-		for pane_index in range(pane_count):
-			var pane_scatter_config: TauScatterConfig = _scatter_config_per_pane[pane_index]
-			if pane_scatter_config == null:
-				continue
-			var prev_scatter_config: TauScatterConfig = _state.scatter_config_per_pane[pane_index]
-			if not pane_scatter_config.is_equal_to(prev_scatter_config):
-				if pane_scatter_config.has_layout_affecting_change(prev_scatter_config):
-					_domain_dirty = true
-					_layout_dirty = true
-					_set_all_pane_flags(_xy_dirty_panes, true)
-					_set_all_pane_flags(_scatter_dirty_panes, true)
-				else:
-					_scatter_dirty_panes[pane_index] = true
-				_state.save_scatter_config_for_pane(pane_index, pane_scatter_config)
-
-	# Step 3: Check if line config changed per pane
-	var has_any_line := false
-	for renderer in _line_renderers:
-		if renderer != null:
-			has_any_line = true
-			break
-
-	if has_any_line:
-		for pane_index in range(pane_count):
-			var pane_line_config: TauLineConfig = _line_config_per_pane[pane_index]
-			if pane_line_config == null:
-				continue
-			var prev_line_config: TauLineConfig = _state.line_config_per_pane[pane_index]
-			if not pane_line_config.is_equal_to(prev_line_config):
-				overlay_config_changed = true
-				if pane_line_config.has_layout_affecting_change(prev_line_config):
-					_domain_dirty = true
-					_layout_dirty = true
-					_set_all_pane_flags(_xy_dirty_panes, true)
-					_set_all_pane_flags(_line_dirty_panes, true)
-				else:
-					_line_dirty_panes[pane_index] = true
-				_state.save_line_config_for_pane(pane_index, pane_line_config)
-
-	if overlay_config_changed and _hover_controller != null:
-		_hover_controller.refresh_hit_records_enabled()
-
-	# Step 4: Check if styles changed (programmatic mutations via config.style.*)
-	# XY style: three-layer change detection (theme dirty, ref change, content mutation).
-	#  - layout-affecting properties trigger a new sort,
-	#  - visual-only properties (colors, alpha) trigger data renderer redraws.
-	# Legend keys read visual properties from renderer instances, so any resolved
-	# style change makes them stale. The series list is untouched here, so the
-	# rows stay and only the pictures are re-resolved.
-	if _domain_config != null:
-		var xy_user_style := _domain_config.style
-		var needs_xy_re_resolve := _styles_dirty
-
-		# Reference change: user assigned a different TauXYStyle resource.
-		if _state.has_xy_style_ref_changed(xy_user_style):
-			needs_xy_re_resolve = true
-			_state.save_xy_style_ref(xy_user_style)
-
-		# Content mutation: user changed a property on the existing TauXYStyle.
-		if not needs_xy_re_resolve:
-			if _state.has_xy_style_changed(xy_user_style):
-				needs_xy_re_resolve = true
-
-		if needs_xy_re_resolve:
-			var prev_resolved := _resolved_xy_style
-			_resolved_xy_style = TauXYStyle.resolve(_plot, xy_user_style)
-
-			# Push the resolved copy to all renderers.
-			for renderer in _pane_renderers:
-				renderer.set_resolved_xy_style(_resolved_xy_style)
-			for renderer in _bar_renderers:
-				if renderer != null:
-					renderer.set_resolved_xy_style(_resolved_xy_style)
-			for renderer in _scatter_renderers:
-				if renderer != null:
-					renderer.set_resolved_xy_style(_resolved_xy_style)
-			for renderer in _line_renderers:
-				if renderer != null:
-					renderer.set_resolved_xy_style(_resolved_xy_style)
-
-			_legend_keys_dirty = true
-			_apply_pane_gap()
-			_mark_visual_dirty()
-
-			if prev_resolved == null or _resolved_xy_style.has_layout_affecting_change(prev_resolved):
-				_layout_dirty = true
-
-			_state.save_xy_style(xy_user_style)
-
-	# Bar style: three-layer change detection (theme dirty, ref change, content mutation).
-	# All TauBarStyle properties are visual-only, so only dirty the owning bar pane.
-	if has_any_bar:
-		for pane_index in range(pane_count):
-			var bar_config: TauBarConfig = _bar_config_per_pane[pane_index]
-			if bar_config == null:
-				continue
-			var needs_bar_re_resolve := _styles_dirty
-
-			# Reference change: user assigned a different TauBarStyle resource.
-			if _state.has_bar_style_ref_changed_for_pane(pane_index, bar_config.style):
-				needs_bar_re_resolve = true
-				_state.save_bar_style_ref_for_pane(pane_index, bar_config.style)
-
-			# Content mutation: user changed a property on the existing TauBarStyle.
-			if not needs_bar_re_resolve:
-				var prev_bar_style: TauBarStyle = _state.bar_style_per_pane[pane_index]
-				if not bar_config.style.is_equal_to(prev_bar_style):
-					needs_bar_re_resolve = true
-
-			if needs_bar_re_resolve and _bar_renderers[pane_index] != null:
-				var resolved_bar := TauBarStyle.resolve(_bar_renderers[pane_index], pane_index, bar_config.style)
-				_resolved_bar_styles[pane_index] = resolved_bar
-				_bar_renderers[pane_index].set_resolved_bar_style(resolved_bar)
-				_state.save_bar_style_for_pane(pane_index, bar_config.style)
-				_bars_dirty_panes[pane_index] = true
-				_legend_keys_dirty = true
-
-	# Scatter style: three-layer change detection (theme dirty, ref change, content mutation).
-	# All TauScatterStyle properties are visual-only, so only dirty the owning scatter pane.
-	if has_any_scatter:
-		for pane_index in range(pane_count):
-			var scatter_config: TauScatterConfig = _scatter_config_per_pane[pane_index]
-			if scatter_config == null:
-				continue
-			var needs_scatter_re_resolve := _styles_dirty
-
-			# Reference change: user assigned a different TauScatterStyle resource.
-			if _state.has_scatter_style_ref_changed_for_pane(pane_index, scatter_config.style):
-				needs_scatter_re_resolve = true
-				_state.save_scatter_style_ref_for_pane(pane_index, scatter_config.style)
-
-			# Content mutation: user changed a property on the existing TauScatterStyle.
-			if not needs_scatter_re_resolve:
-				var prev_scatter_style: TauScatterStyle = _state.scatter_style_per_pane[pane_index]
-				if not scatter_config.style.is_equal_to(prev_scatter_style):
-					needs_scatter_re_resolve = true
-
-			if needs_scatter_re_resolve and _scatter_renderers[pane_index] != null:
-				var resolved_scatter := TauScatterStyle.resolve(_scatter_renderers[pane_index], pane_index, scatter_config.style)
-				_resolved_scatter_styles[pane_index] = resolved_scatter
-				_scatter_renderers[pane_index].set_resolved_scatter_style(resolved_scatter)
-				_state.save_scatter_style_for_pane(pane_index, scatter_config.style)
-				_scatter_dirty_panes[pane_index] = true
-				_legend_keys_dirty = true
-
-	# Line style: three-layer change detection (theme dirty, ref change, content mutation).
-	# All TauLineStyle properties are visual-only, so only dirty the owning line pane.
-	if has_any_line:
-		for pane_index in range(pane_count):
-			var line_config: TauLineConfig = _line_config_per_pane[pane_index]
-			if line_config == null:
-				continue
-			var needs_line_re_resolve := _styles_dirty
-
-			# Reference change: user assigned a different TauLineStyle resource.
-			if _state.has_line_style_ref_changed_for_pane(pane_index, line_config.style):
-				needs_line_re_resolve = true
-				_state.save_line_style_ref_for_pane(pane_index, line_config.style)
-
-			# Content mutation: user changed a property on the existing TauLineStyle.
-			if not needs_line_re_resolve:
-				var prev_line_style: TauLineStyle = _state.line_style_per_pane[pane_index]
-				if not line_config.style.is_equal_to(prev_line_style):
-					needs_line_re_resolve = true
-
-			if needs_line_re_resolve and _line_renderers[pane_index] != null:
-				var resolved_line := TauLineStyle.resolve(_line_renderers[pane_index], pane_index, line_config.style)
-				_resolved_line_styles[pane_index] = resolved_line
-				_line_renderers[pane_index].set_resolved_line_style(resolved_line)
-				_state.save_line_style_for_pane(pane_index, line_config.style)
-				_line_dirty_panes[pane_index] = true
-				_legend_keys_dirty = true
-
-	# Step 5: Check grid_line config changes, style reference changes,
-	# and pane style mutations. All visual-only.
-	for pane_index in range(pane_count):
-		var pane_config: TauPaneConfig = _domain_config.panes[pane_index]
-		var needs_re_resolve := _styles_dirty
-
-		# stretch_ratio changes. plot_xy() rejects a value below or equal to
-		# zero, a runtime change does not go through it. The rejected value is
-		# saved so the error is reported once and not on every refresh.
-		var stretch_ratio := pane_config.stretch_ratio
-		if _state.has_stretch_ratio_changed_for_pane(pane_index, stretch_ratio):
-			_state.save_stretch_ratio_for_pane(pane_index, stretch_ratio)
-			if stretch_ratio > 0.0:
-				_panes[pane_index].size_flags_stretch_ratio = stretch_ratio
-				_axis_title_layout.set_stretch_ratio_for_pane(pane_index, stretch_ratio)
-				# The new ratio moves where the panes end up.
-				_layout_dirty = true
-				_mark_visual_dirty()
-			else:
-				push_error("TauPaneConfig.stretch_ratio of pane %d is %f, expected a value greater than 0. The pane keeps its previous ratio." % [pane_index, stretch_ratio])
-
-		# TauGridLineConfig changes (enabled flags, y_axis selection).
-		if _state.has_grid_line_config_changed_for_pane(pane_index, pane_config.grid_line):
-			_state.save_grid_line_config_for_pane(pane_index, pane_config.grid_line)
-			_pane_renderers[pane_index].set_grid_line_config(pane_config.grid_line)
-			_xy_dirty_panes[pane_index] = true
-
-		# Style resource reference change (user assigned a different TauPaneStyle).
-		if _state.has_pane_style_ref_changed_for_pane(pane_index, pane_config.style):
-			needs_re_resolve = true
-			_state.save_pane_style_ref_for_pane(pane_index, pane_config.style)
-
-		# TauPaneStyle resource mutation (user changed a property on the assigned style).
-		if not needs_re_resolve:
-			var prev_pane_style: TauPaneStyle = _state.pane_style_per_pane[pane_index]
-			var user_style_check: TauPaneStyle = pane_config.style
-			if user_style_check != null:
-				if not user_style_check.is_equal_to(prev_pane_style):
-					needs_re_resolve = true
-			else:
-				if prev_pane_style != null:
-					needs_re_resolve = true
-
-		if needs_re_resolve:
-			var user_style: TauPaneStyle = pane_config.style
-			var resolved := TauPaneStyle.resolve(_pane_renderers[pane_index], pane_index, user_style)
-			_resolved_pane_styles[pane_index] = resolved
-			_pane_renderers[pane_index].set_resolved_pane_style(resolved)
-			_state.save_pane_style_for_pane(pane_index, user_style)
-			_xy_dirty_panes[pane_index] = true
-
-	# Step 6: TauLegendStyle three-layer change detection (theme dirty, ref change, content mutation).
-	var needs_legend_re_resolve := _styles_dirty
-
-	# Reference change: user assigned a different TauLegendStyle resource.
-	if _state.has_legend_style_ref_changed(_user_legend_style):
-		needs_legend_re_resolve = true
-		_state.save_legend_style_ref(_user_legend_style)
-
-	# Content mutation: user changed a property on the existing TauLegendStyle.
-	if not needs_legend_re_resolve:
-		if _state.has_legend_style_changed(_user_legend_style):
-			needs_legend_re_resolve = true
-
-	if needs_legend_re_resolve:
-		_resolved_legend_style = TauLegendStyle.resolve(_legend_builder.controller.legend, _user_legend_style)
-		_legend_builder.controller.legend.set_resolved_legend_style(_resolved_legend_style)
-		_state.save_legend_style(_user_legend_style)
-
-		# If the legend style has a layout-affecting change, the legend
-		# controller may need to recompute inside overlay sizing.
-		# The legend itself handles its own rebuild in set_resolved_legend_style.
-
-	# Re-resolve tooltip and crosshair styles if styles changed (theme or user overrides).
-	if _styles_dirty and _hover_controller != null:
-		_hover_controller.refresh_tooltip_style()
-		_hover_controller.refresh_crosshair_style()
-
-	_styles_dirty = false
-
-	# Step 7: Check if domain config changed (tick counts, overlap strategy, spacing)
-	if _domain_config != null and _state.has_config_changed(_domain_config):
-		_mark_domain_dependents_dirty()
-		_state.save_config(_domain_config)
-
-	# Step 8: Apply stacking Y overrides. Bar and line stacked overlays
-	# write to the same per-axis entry, with the cross-overlay validator
-	# guaranteeing they agree on the shared fields.
-	if _domain_dirty and (has_any_bar or has_any_line):
-		_apply_stacking_domain_overrides_y()
-
-	# Step 9: Recompute domain from dataset if needed
-	if _domain_dirty:
-		_xy_domain.update_from_dataset(_dataset)
-
-		# Check if domain actually changed
-		if _state.has_domain_changed(_xy_domain):
-			_mark_domain_dependents_dirty()
-			if _hover_controller != null:
-				_hover_controller.invalidate()
-
-		_state.save_domain(_xy_domain)
-		_domain_dirty = false
-
-	# Step 10: Re-resolve the legend keys once if any resolved style or the
-	# layout moved.
-	if _legend_keys_dirty:
-		_legend_builder.controller.legend.refresh_keys()
-		_legend_keys_dirty = false
-
-	# Step 11: Redraw the dirty panes.
-	_redraw_dirty_panes()
-
-	# Step 12: Hand the geometry over. The sort runs in the message queue flush,
-	# which Godot processes after this frame's process_frame signal, so the
-	# layout settles in this same frame. A scatter builds its markers from the
-	# layout rather than from a draw call, so it waits for the sort as well.
-	if _layout_dirty or _has_dirty_scatter():
-		_pane_stack.queue_sort()
-	_layout_dirty = false
+	_phase_resolve()
+	_phase_draw()
 
 
-## Called by TauPlot when NOTIFICATION_THEME_CHANGED fires.
 func on_theme_changed() -> void:
-	_mark_domain_dependents_dirty()
-	_styles_dirty = true
+	# A themed font or tick size may change the layout.
+	_invalidate(Artifact.LAYOUT)
+	_invalidate(Artifact.HOVER_STYLES)
+	# Force style resolution as the theme is one of three layer cascade.
+	for tracked in _tracked_styles:
+		tracked.force_change()
 
 
 func set_legend_enabled(p_enabled: bool) -> void:
@@ -862,13 +576,7 @@ func set_legend_enabled(p_enabled: bool) -> void:
 
 
 func set_legend_config(p_config: TauLegendConfig) -> void:
-	var new_style: TauLegendStyle = p_config.style
-
-	# Update style tracking.
-	if _user_legend_style != new_style:
-		_unsubscribe_style(_user_legend_style, _on_style_changed)
-		_user_legend_style = new_style
-		_subscribe_style(_user_legend_style, _on_style_changed)
+	_user_legend_style = p_config.style
 
 	# Update position and flow direction.
 	_legend_builder.controller.place(p_config.position)
@@ -876,8 +584,7 @@ func set_legend_config(p_config: TauLegendConfig) -> void:
 
 
 func set_hover_enabled(p_enabled: bool) -> void:
-	if _hover_controller != null:
-		_hover_controller.set_enabled(p_enabled)
+	_hover_controller.set_enabled(p_enabled)
 
 
 func set_hover_config(p_config: TauHoverConfig) -> void:
@@ -887,12 +594,434 @@ func set_hover_config(p_config: TauHoverConfig) -> void:
 	for style in _hover_styles():
 		_subscribe_style(style, _on_hover_style_changed)
 
-	if _hover_controller != null:
-		_hover_controller.set_config(p_config)
+	_hover_controller.set_config(p_config)
 
 ####################################################################################################
 # Private
 ####################################################################################################
+
+# Resolve, the first phase. It runs without geometry: the sort has not run
+# yet, so there is no pane rect to read.
+#
+# The user may have changed a config, a style, the theme or the dataset since
+# the last refresh. The dirty flags say which artifacts those changes made
+# stale. This phase recomputes those artifacts, as far as it can go without
+# geometry, the domain among them, and raises the flag of every artifact that
+# reads a value it just changed. Those flags are what keeps a refresh from
+# recomputing what nothing changed under.
+#
+# Once this returns, arrange has all it needs.
+func _phase_resolve() -> void:
+	for tracked in _tracked:
+		tracked.update()
+
+	if _is_dirty(Artifact.HIT_RECORDS):
+		_hover_controller.refresh_hit_records_enabled()
+		_mark_clean(Artifact.HIT_RECORDS)
+
+	# A stretch ratio is a plain float rather than a resource, so no tracker
+	# watches it.
+	_apply_stretch_ratios()
+
+	# The hover overlays resolve their own styles, and the theme feeds them the
+	# same way it feeds the tracked ones.
+	if _is_dirty(Artifact.HOVER_STYLES):
+		_hover_controller.refresh_tooltip_style()
+		_hover_controller.refresh_crosshair_style()
+		_mark_clean(Artifact.HOVER_STYLES)
+
+	# Tick counts, overlap strategy and label spacing are read when the ticks
+	# are resolved against the axis length in pixels, which is layout rather
+	# than domain.
+	if _state.has_config_changed(_domain_config):
+		_invalidate(Artifact.LAYOUT)
+		_state.save_config(_domain_config)
+
+	if _is_dirty(Artifact.DOMAIN):
+		# Bar and line stacked overlays write to the same per-axis entry, with
+		# the cross-overlay validator guaranteeing they agree on the shared
+		# fields.
+		if _has_stackable_overlay():
+			_apply_stacking_domain_overrides_y()
+
+		_xy_domain.update_from_dataset(_dataset)
+		if _state.has_domain_changed(_xy_domain):
+			_invalidate_dependents(Artifact.DOMAIN)
+			_hover_controller.invalidate()
+
+		_state.save_domain(_xy_domain)
+		_mark_clean(Artifact.DOMAIN)
+
+
+# Arrange, the second phase, first half.
+#
+# Resolve has run, so the domain is final. The pane stack holds the size its
+# parent gave it and proposes one rect per pane.
+#
+# This phase updates the layout from those rects. For each pane the layout
+# resolves the ticks, takes out of the rect the space the axes, the tick marks
+# and the tick labels need on each edge, and keeps what is left as the data
+# area. The domain then maps onto that data area, which gives the value to
+# pixel transforms the renderers draw with.
+#
+# The space a pane takes out of its rect along the stacking direction is its
+# reservation, and this phase returns one per pane. The stack recomputes the
+# rects from them and calls again, until the reservations stop changing or its
+# round limit is reached.
+#
+# The rects come in as an argument because a pane node does not carry its new
+# one yet. The sort applies them after this returns.
+#
+# This phase must not change a minimum size, on any node. Godot drops a sort
+# that asks for another sort, so work that grows a node, such as measuring a
+# legend key, waits for the next refresh.
+#
+# Once this returns, the layout matches the rects the panes are about to get.
+func _phase_arrange(p_pane_rects: Array[Rect2]) -> PackedFloat32Array:
+	var view_rects: Array[Rect2] = []
+	var positions: Array[Vector2] = []
+	for rect in p_pane_rects:
+		view_rects.append(Rect2(Vector2.ZERO, rect.size))
+		positions.append(rect.position)
+
+	_xy_layout.style = _resolved_xy_style
+	_xy_layout.set_pane_view_rects(view_rects)
+	_xy_layout.set_pane_positions_in_stack(positions)
+	_xy_layout.update()
+
+	return _collect_stack_reservations()
+
+
+# Arrange, second half.
+#
+# The rects are applied and the layout is settled. This is the last moment of
+# the sort, and the only one where the final pane geometry is known, so what
+# sits around the panes is placed here, and what builds itself from the layout
+# rather than from a draw call is rebuilt.
+#
+# The minimum size rule of the first half still holds. A geometry that differs
+# from the previous one is therefore not repaired on the spot. This raises the
+# flags of what it made stale and asks for another refresh.
+#
+# Once this returns, the plot matches the geometry Godot settled, or a refresh
+# is queued to make it match.
+func _on_pane_geometry_settled(p_pane_rects: Array[Rect2], p_stack_global_position: Vector2) -> void:
+	_axis_title_layout.update_insets(_xy_layout, p_pane_rects, p_stack_global_position)
+	_legend_builder.controller.update_inside_rect(Rect2(
+		p_stack_global_position + _xy_layout.data_area_union.position,
+		_xy_layout.data_area_union.size))
+
+	if _state.has_settled_geometry_changed(p_pane_rects, _xy_layout.data_area_union):
+		_state.save_settled_geometry(p_pane_rects, _xy_layout.data_area_union)
+		_hover_controller.invalidate()
+		# A pane that kept its rect gets no resize notification of its own, and
+		# its insets may still differ.
+		_invalidate(Artifact.DRAW)
+		# A legend key is measured against the layout too, and a key
+		# measurement changes minimum sizes, so it waits for the next refresh
+		# rather than running inside the sort.
+		_invalidate(Artifact.LEGEND_KEYS)
+		_queue_refresh.call()
+
+	_redraw_dirty_panes()
+
+	for i in range(_scatter_dirty_panes.size()):
+		if _scatter_dirty_panes[i] and _scatter_renderers[i] != null:
+			_scatter_renderers[i].update_scatter()
+			_scatter_dirty_panes[i] = false
+
+
+# Draw, the third phase.
+#
+# This phase paints nothing. It queues a redraw on the panes that changed, and
+# a sort on the pane stack when the layout is stale. Godot runs the sort once
+# the refresh returns, and paints after it, so the panes are painted against
+# the layout arrange settles in between.
+#
+# Refreshing the legend keys is the one other thing done here. It belongs to
+# this phase because measuring a key changes a minimum size, which arrange
+# must not do.
+func _phase_draw() -> void:
+	if _is_dirty(Artifact.LEGEND_KEYS):
+		_legend_builder.controller.legend.refresh_keys()
+		_mark_clean(Artifact.LEGEND_KEYS)
+
+	_redraw_dirty_panes()
+
+	# Hand over to arrange. A scatter builds its markers from the layout rather
+	# than from a draw call, so a stale one is a reason to sort as well.
+	if _is_dirty(Artifact.LAYOUT) or _has_dirty_scatter():
+		_pane_stack.queue_sort()
+	_mark_clean(Artifact.LAYOUT)
+
+
+# Marks p_artifact and everything under it in _DEPENDENTS as due for a
+# recompute.
+func _invalidate(p_artifact: Artifact) -> void:
+	if p_artifact == Artifact.DRAW:
+		# Draw is held per pane and per overlay, so the whole-plot form of it
+		# spreads over those flags rather than sitting in _dirty.
+		_set_all_pane_flags(_xy_dirty_panes, true)
+		_set_all_pane_flags(_bars_dirty_panes, true)
+		_set_all_pane_flags(_scatter_dirty_panes, true)
+		_set_all_pane_flags(_line_dirty_panes, true)
+	else:
+		_dirty[p_artifact] = true
+
+	_invalidate_dependents(p_artifact)
+
+
+# Same, for an artifact that has just been recomputed into a value differing
+# from the one before it. The artifact itself is up to date, what reads it is
+# not.
+func _invalidate_dependents(p_artifact: Artifact) -> void:
+	if not _DEPENDENTS.has(p_artifact):
+		return
+	for dependent: Artifact in _DEPENDENTS[p_artifact]:
+		_invalidate(dependent)
+
+
+func _is_dirty(p_artifact: Artifact) -> bool:
+	return _dirty[p_artifact]
+
+
+func _mark_clean(p_artifact: Artifact) -> void:
+	_dirty[p_artifact] = false
+
+
+# Registers one tracker per user resource a refresh has to watch. A tracker
+# reads its resource through one of the readers below, so a style the user
+# swaps for another one is followed without re-registering anything.
+func _build_trackers() -> void:
+	_track_style(_read_xy_style, _on_xy_style_changed)
+	_track_style(_read_legend_style, _on_legend_style_changed)
+
+	for pane_index in range(_domain_config.panes.size()):
+		_track_style(_read_pane_style.bind(pane_index), _on_pane_style_changed.bind(pane_index))
+		_track_config(_read_grid_line_config.bind(pane_index), _on_grid_line_config_changed.bind(pane_index))
+
+		# A pane holds an overlay config exactly when it holds series of that
+		# overlay, which is also what gives it the matching renderer.
+		if _bar_config_per_pane[pane_index] != null:
+			_track_config(_read_bar_config.bind(pane_index), _on_bar_config_changed.bind(pane_index))
+			_track_style(_read_bar_style.bind(pane_index), _on_bar_style_changed.bind(pane_index))
+
+		if _scatter_config_per_pane[pane_index] != null:
+			_track_config(_read_scatter_config.bind(pane_index), _on_scatter_config_changed.bind(pane_index))
+			_track_style(_read_scatter_style.bind(pane_index), _on_scatter_style_changed.bind(pane_index))
+
+		if _line_config_per_pane[pane_index] != null:
+			_track_config(_read_line_config.bind(pane_index), _on_line_config_changed.bind(pane_index))
+			_track_style(_read_line_style.bind(pane_index), _on_line_style_changed.bind(pane_index))
+
+
+# A style emits changed on every assignment, so the tracker subscribes to it
+# and the refresh it wakes up is the one that compares.
+func _track_style(p_read: Callable, p_react: Callable) -> void:
+	var tracked := Tracked.announced(p_read, p_react, _queue_refresh)
+	_tracked.append(tracked)
+	_tracked_styles.append(tracked)
+
+
+# A config emits nothing, so it is compared on every poll and a change to one
+# shows up on the next refresh the plot runs for any other reason.
+func _track_config(p_read: Callable, p_react: Callable) -> void:
+	_tracked.append(Tracked.silent(p_read, p_react))
+
+
+func _release_trackers() -> void:
+	for tracked in _tracked:
+		tracked.release()
+	_tracked.clear()
+	_tracked_styles.clear()
+
+
+# The readers the trackers poll through. A style is read back every time rather
+# than held, since the user may assign a different one to the config it hangs
+# on at any moment. An overlay config keeps the reference it was given in
+# setup(), and is read the same way to keep every tracker alike.
+func _read_xy_style() -> TauXYStyle:
+	return _domain_config.style
+
+
+func _read_legend_style() -> TauLegendStyle:
+	return _user_legend_style
+
+
+func _read_pane_style(p_pane_index: int) -> TauPaneStyle:
+	return _domain_config.panes[p_pane_index].style
+
+
+func _read_grid_line_config(p_pane_index: int) -> TauGridLineConfig:
+	return _domain_config.panes[p_pane_index].grid_line
+
+
+func _read_bar_config(p_pane_index: int) -> TauBarConfig:
+	return _bar_config_per_pane[p_pane_index]
+
+
+func _read_bar_style(p_pane_index: int) -> TauBarStyle:
+	return _bar_config_per_pane[p_pane_index].style
+
+
+func _read_scatter_config(p_pane_index: int) -> TauScatterConfig:
+	return _scatter_config_per_pane[p_pane_index]
+
+
+func _read_scatter_style(p_pane_index: int) -> TauScatterStyle:
+	return _scatter_config_per_pane[p_pane_index].style
+
+
+func _read_line_config(p_pane_index: int) -> TauLineConfig:
+	return _line_config_per_pane[p_pane_index]
+
+
+func _read_line_style(p_pane_index: int) -> TauLineStyle:
+	return _line_config_per_pane[p_pane_index].style
+
+
+# TauXYStyle covers the whole plot: every renderer holds a copy, the pane gap
+# comes from it, and a legend key is drawn from the values it resolves to.
+func _on_xy_style_changed(_p_change: Tracked.Change) -> void:
+	var previous := _resolved_xy_style
+	_resolved_xy_style = TauXYStyle.resolve(_plot, _read_xy_style())
+
+	for renderer in _pane_renderers:
+		renderer.set_resolved_xy_style(_resolved_xy_style)
+	for renderer in _bar_renderers:
+		if renderer != null:
+			renderer.set_resolved_xy_style(_resolved_xy_style)
+	for renderer in _scatter_renderers:
+		if renderer != null:
+			renderer.set_resolved_xy_style(_resolved_xy_style)
+	for renderer in _line_renderers:
+		if renderer != null:
+			renderer.set_resolved_xy_style(_resolved_xy_style)
+
+	_apply_pane_gap()
+	_invalidate(Artifact.DRAW)
+	_invalidate(Artifact.LEGEND_KEYS)
+
+	# The theme feeds the cascade too, so what the layout cares about is
+	# whether the resolved values differ, not what the user resource reported.
+	if _resolved_xy_style.has_layout_affecting_change(previous):
+		_invalidate(Artifact.LAYOUT)
+
+
+# Every TauPaneStyle property is visual, and the pane renderer is its only
+# reader.
+func _on_pane_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+	var renderer := _pane_renderers[p_pane_index]
+	var resolved := TauPaneStyle.resolve(renderer, p_pane_index, _read_pane_style(p_pane_index))
+	_resolved_pane_styles[p_pane_index] = resolved
+	renderer.set_resolved_pane_style(resolved)
+	_xy_dirty_panes[p_pane_index] = true
+
+
+# Every TauBarStyle property is visual, so only the pane holding the bars
+# repaints. The legend keys are drawn by the renderers, so they go stale too.
+func _on_bar_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+	var renderer := _bar_renderers[p_pane_index]
+	var resolved := TauBarStyle.resolve(renderer, p_pane_index, _read_bar_style(p_pane_index))
+	_resolved_bar_styles[p_pane_index] = resolved
+	renderer.set_resolved_bar_style(resolved)
+	_bars_dirty_panes[p_pane_index] = true
+	_invalidate(Artifact.LEGEND_KEYS)
+
+
+# See _on_bar_style_changed.
+func _on_scatter_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+	var renderer := _scatter_renderers[p_pane_index]
+	var resolved := TauScatterStyle.resolve(renderer, p_pane_index, _read_scatter_style(p_pane_index))
+	_resolved_scatter_styles[p_pane_index] = resolved
+	renderer.set_resolved_scatter_style(resolved)
+	_scatter_dirty_panes[p_pane_index] = true
+	_invalidate(Artifact.LEGEND_KEYS)
+
+
+# See _on_bar_style_changed.
+func _on_line_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+	var renderer := _line_renderers[p_pane_index]
+	var resolved := TauLineStyle.resolve(renderer, p_pane_index, _read_line_style(p_pane_index))
+	_resolved_line_styles[p_pane_index] = resolved
+	renderer.set_resolved_line_style(resolved)
+	_line_dirty_panes[p_pane_index] = true
+	_invalidate(Artifact.LEGEND_KEYS)
+
+
+# The legend rebuilds itself from the resolved style.
+func _on_legend_style_changed(_p_change: Tracked.Change) -> void:
+	_resolved_legend_style = TauLegendStyle.resolve(_legend_builder.controller.legend, _read_legend_style())
+	_legend_builder.controller.legend.set_resolved_legend_style(_resolved_legend_style)
+
+
+# A bar config can change the domain, which every pane is measured against, so
+# a layout-affecting change starts at the top of the table and a visual one
+# stops at the pane that owns the bars. hoverable sits on this config, and a renderer
+# caches hit records only while it is set.
+func _on_bar_config_changed(p_change: Tracked.Change, p_pane_index: int) -> void:
+	_invalidate(Artifact.HIT_RECORDS)
+	if p_change == Tracked.Change.LAYOUT:
+		_invalidate(Artifact.DOMAIN)
+	else:
+		_bars_dirty_panes[p_pane_index] = true
+
+
+# See _on_bar_config_changed. A scatter carries no hit records to enable.
+func _on_scatter_config_changed(p_change: Tracked.Change, p_pane_index: int) -> void:
+	if p_change == Tracked.Change.LAYOUT:
+		_invalidate(Artifact.DOMAIN)
+	else:
+		_scatter_dirty_panes[p_pane_index] = true
+
+
+# See _on_bar_config_changed.
+func _on_line_config_changed(p_change: Tracked.Change, p_pane_index: int) -> void:
+	_invalidate(Artifact.HIT_RECORDS)
+	if p_change == Tracked.Change.LAYOUT:
+		_invalidate(Artifact.DOMAIN)
+	else:
+		_line_dirty_panes[p_pane_index] = true
+
+
+# Grid lines are drawn by the pane renderer, and where they land comes from the
+# ticks rather than from this config.
+func _on_grid_line_config_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+	_pane_renderers[p_pane_index].set_grid_line_config(_read_grid_line_config(p_pane_index))
+	_xy_dirty_panes[p_pane_index] = true
+
+
+# The stretch ratio decides how the stack splits itself, so a new one moves
+# both the panes and the axis titles running alongside them.
+func _apply_stretch_ratios() -> void:
+	for pane_index in range(_panes.size()):
+		var stretch_ratio: float = _domain_config.panes[pane_index].stretch_ratio
+		if not _state.has_stretch_ratio_changed_for_pane(pane_index, stretch_ratio):
+			continue
+
+		# plot_xy() rejects a value below or equal to zero, a runtime change
+		# does not go through it. The rejected value is saved so the error is
+		# reported once and not on every refresh.
+		_state.save_stretch_ratio_for_pane(pane_index, stretch_ratio)
+		if stretch_ratio <= 0.0:
+			push_error("TauPaneConfig.stretch_ratio of pane %d is %f, expected a value greater than 0. The pane keeps its previous ratio." % [pane_index, stretch_ratio])
+			continue
+
+		_panes[pane_index].size_flags_stretch_ratio = stretch_ratio
+		_axis_title_layout.set_stretch_ratio_for_pane(pane_index, stretch_ratio)
+		_invalidate(Artifact.LAYOUT)
+
+
+# Only a bar or a line overlay stacks.
+func _has_stackable_overlay() -> bool:
+	for renderer in _bar_renderers:
+		if renderer != null:
+			return true
+	for renderer in _line_renderers:
+		if renderer != null:
+			return true
+	return false
+
 
 ## Returns the create_key_control callable for the renderer that owns the given
 ## overlay type on the given pane. Used by XYLegendBuilder as a resolver so that
@@ -917,14 +1046,11 @@ func _get_legend_key_refresher(p_overlay_type: int, p_pane_index: int) -> Callab
 func _get_overlay_renderer(p_overlay_type: int, p_pane_index: int):
 	match p_overlay_type:
 		TauXYSeriesBinding.PaneOverlayType.BAR:
-			if p_pane_index >= 0 and p_pane_index < _bar_renderers.size():
-				return _bar_renderers[p_pane_index]
+			return _bar_renderers[p_pane_index]
 		TauXYSeriesBinding.PaneOverlayType.SCATTER:
-			if p_pane_index >= 0 and p_pane_index < _scatter_renderers.size():
-				return _scatter_renderers[p_pane_index]
+			return _scatter_renderers[p_pane_index]
 		TauXYSeriesBinding.PaneOverlayType.LINE:
-			if p_pane_index >= 0 and p_pane_index < _line_renderers.size():
-				return _line_renderers[p_pane_index]
+			return _line_renderers[p_pane_index]
 	return null
 
 
@@ -1046,36 +1172,19 @@ func _has_dirty_scatter() -> bool:
 	return false
 
 
+# Nothing is left standing: the domain heads the table, and the resolved
+# styles are re-resolved from the layer under them rather than from a change
+# the user made.
 func _mark_all_dirty() -> void:
-	_domain_dirty = true
-	_layout_dirty = true
-	_styles_dirty = true
-	_legend_keys_dirty = true
-	_set_all_pane_flags(_xy_dirty_panes, true)
-	_set_all_pane_flags(_bars_dirty_panes, true)
-	_set_all_pane_flags(_scatter_dirty_panes, true)
-	_set_all_pane_flags(_line_dirty_panes, true)
+	_invalidate(Artifact.DOMAIN)
+	_invalidate(Artifact.HOVER_STYLES)
+	for tracked in _tracked_styles:
+		tracked.force_change()
 
 
-func _mark_domain_dependents_dirty() -> void:
-	_layout_dirty = true
-	# How many pixels a data unit spans follows the domain, and a legend key
-	# can be drawn in data units.
-	_legend_keys_dirty = true
-	_set_all_pane_flags(_xy_dirty_panes, true)
-	_set_all_pane_flags(_bars_dirty_panes, true)
-	_set_all_pane_flags(_scatter_dirty_panes, true)
-	_set_all_pane_flags(_line_dirty_panes, true)
-
-
-func _mark_renderers_dirty() -> void:
-	_set_all_pane_flags(_bars_dirty_panes, true)
-	_set_all_pane_flags(_scatter_dirty_panes, true)
-	_set_all_pane_flags(_line_dirty_panes, true)
-
-
-func _mark_visual_dirty() -> void:
-	_set_all_pane_flags(_xy_dirty_panes, true)
+# The samples changed but nothing around them did, so the overlays repaint and
+# the axes, ticks and tick labels stay.
+func _mark_overlays_dirty() -> void:
 	_set_all_pane_flags(_bars_dirty_panes, true)
 	_set_all_pane_flags(_scatter_dirty_panes, true)
 	_set_all_pane_flags(_line_dirty_panes, true)
@@ -1089,41 +1198,18 @@ func _reset_dataset() -> void:
 	_dataset = null
 
 
-func _connect_style_signals() -> void:
-	for style in _user_styles():
-		_subscribe_style(style, _on_style_changed)
+func _connect_hover_style_signals() -> void:
 	for style in _hover_styles():
 		_subscribe_style(style, _on_hover_style_changed)
 
 
-func _disconnect_style_signals() -> void:
-	for style in _user_styles():
-		_unsubscribe_style(style, _on_style_changed)
+func _disconnect_hover_style_signals() -> void:
 	for style in _hover_styles():
 		_unsubscribe_style(style, _on_hover_style_changed)
 
 
-# Every user style feeding the plot itself, in no particular order. A style
-# resource may be shared between configurations, so the same one can come up
-# twice, and a pane style or a legend style may be null.
-func _user_styles() -> Array[TauStyle]:
-	var styles: Array[TauStyle] = [_domain_config.style, _user_legend_style]
-	for pane_config in _domain_config.panes:
-		styles.append(pane_config.style)
-	for bar_config in _bar_config_per_pane:
-		if bar_config != null:
-			styles.append(bar_config.style)
-	for scatter_config in _scatter_config_per_pane:
-		if scatter_config != null:
-			styles.append(scatter_config.style)
-	for line_config in _line_config_per_pane:
-		if line_config != null:
-			styles.append(line_config.style)
-	return styles
-
-
 # The user styles feeding the hover overlays. They are resolved by the hover
-# controller rather than by a refresh.
+# controller rather than by a refresh, so no tracker watches them.
 func _hover_styles() -> Array[TauStyle]:
 	if _hover_config == null:
 		return []
@@ -1140,10 +1226,6 @@ func _unsubscribe_style(p_style: TauStyle, p_handler: Callable) -> void:
 		p_style.changed.disconnect(p_handler)
 
 
-func _on_style_changed() -> void:
-	_queue_refresh.call()
-
-
 func _on_hover_style_changed() -> void:
 	_hover_controller.refresh_tooltip_style()
 	_hover_controller.refresh_crosshair_style()
@@ -1156,59 +1238,43 @@ func _on_dataset_changed(p_change: DatasetChange) -> void:
 		DatasetChangeAnalyzer.Impact.NONE:
 			pass
 		DatasetChangeAnalyzer.Impact.RENDERERS_ONLY:
-			_mark_renderers_dirty()
+			_mark_overlays_dirty()
 		DatasetChangeAnalyzer.Impact.FULL_RECOMPUTE:
 			_mark_all_dirty()
 
 	_queue_refresh.call()
 
 
-func _has_any_data_renderer() -> bool:
-	for renderer in _bar_renderers:
-		if renderer != null:
-			return true
-	for renderer in _scatter_renderers:
-		if renderer != null:
-			return true
-	for renderer in _line_renderers:
-		if renderer != null:
-			return true
-	return false
-
-
 func _clear_panes() -> void:
 	for renderer in _pane_renderers:
-		if renderer != null and is_instance_valid(renderer):
-			renderer.queue_free()
+		renderer.queue_free()
 	_pane_renderers.clear()
 
 	for renderer in _bar_renderers:
-		if renderer != null and is_instance_valid(renderer):
+		if renderer != null:
 			renderer.queue_free()
 	_bar_renderers.clear()
 
 	for renderer in _scatter_renderers:
-		if renderer != null and is_instance_valid(renderer):
+		if renderer != null:
 			renderer.queue_free()
 	_scatter_renderers.clear()
 
 	for renderer in _line_renderers:
-		if renderer != null and is_instance_valid(renderer):
+		if renderer != null:
 			renderer.queue_free()
 	_line_renderers.clear()
 
-	if _pane_stack != null:
-		for pane in _panes:
-			if pane != null and is_instance_valid(pane):
-				_pane_stack.remove_child(pane)
-				pane.queue_free()
+	for pane in _panes:
+		_pane_stack.remove_child(pane)
+		pane.queue_free()
 	_panes.clear()
 
 
 func _create_pane_stack(p_x_is_horizontal: bool) -> void:
 	_destroy_pane_stack()
 	_pane_stack = PaneStack.new()
-	_pane_stack.setup(_arrange_panes, _on_pane_geometry_settled)
+	_pane_stack.setup(_phase_arrange, _on_pane_geometry_settled)
 	_pane_stack.vertical = p_x_is_horizontal
 	_pane_stack.name = "PaneStack"
 	_pane_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1218,65 +1284,15 @@ func _create_pane_stack(p_x_is_horizontal: bool) -> void:
 
 
 func _destroy_pane_stack() -> void:
-	if _pane_stack != null and is_instance_valid(_pane_stack):
+	if _pane_stack != null:
 		_pane_stack.get_parent().remove_child(_pane_stack)
 		_pane_stack.queue_free()
 	_pane_stack = null
 
 
-# Measures the layout against the rects the pane stack is about to apply, and
-# returns what each pane reserves along the stacking direction.
-#
-# Runs inside the sort, which is the only moment the pane geometry exists, so
-# everything it needs comes in as an argument and it reads no Control size or
-# position. It must leave every minimum size untouched: a sort that asks for
-# another sort is dropped by Godot.
-func _arrange_panes(p_pane_rects: Array[Rect2]) -> PackedFloat32Array:
-	var view_rects: Array[Rect2] = []
-	var positions: Array[Vector2] = []
-	for rect in p_pane_rects:
-		view_rects.append(Rect2(Vector2.ZERO, rect.size))
-		positions.append(rect.position)
-
-	_xy_layout.style = _resolved_xy_style
-	_xy_layout.set_pane_view_rects(view_rects)
-	_xy_layout.set_pane_positions_in_stack(positions)
-	_xy_layout.update()
-
-	return _collect_stack_reservations()
-
-
-# Places everything that sits around the panes, now that the layout is settled.
-# Same rule as _arrange_panes: no minimum size may move here.
-func _on_pane_geometry_settled(p_pane_rects: Array[Rect2], p_stack_global_position: Vector2) -> void:
-	_axis_title_layout.update_insets(_xy_layout, p_pane_rects, p_stack_global_position)
-	_legend_builder.controller.update_inside_rect(Rect2(
-		p_stack_global_position + _xy_layout.data_area_union.position,
-		_xy_layout.data_area_union.size))
-
-	if _state.has_settled_geometry_changed(p_pane_rects, _xy_layout.data_area_union):
-		_state.save_settled_geometry(p_pane_rects, _xy_layout.data_area_union)
-		_hover_controller.invalidate()
-		# A pane that kept its rect gets no resize notification of its own, and
-		# its insets may still have moved.
-		_mark_visual_dirty()
-		# A legend key is measured against the layout too, and a key
-		# measurement moves minimum sizes, so it waits for the next refresh
-		# rather than running inside the sort.
-		_legend_keys_dirty = true
-		_queue_refresh.call()
-
-	_redraw_dirty_panes()
-
-	for i in range(_scatter_dirty_panes.size()):
-		if _scatter_dirty_panes[i] and _scatter_renderers[i] != null:
-			_scatter_renderers[i].update_scatter()
-			_scatter_dirty_panes[i] = false
-
-
 # The gap sits between the panes, so the stack and the four title containers
-# running alongside it have to agree on it. It moves minimum sizes, which keeps
-# it out of the sort.
+# running alongside it have to agree on it. It changes minimum sizes, which
+# keeps it out of the sort.
 func _apply_pane_gap() -> void:
 	var gap := _resolved_xy_style.pane_gap_px
 	_pane_stack.separation = gap
