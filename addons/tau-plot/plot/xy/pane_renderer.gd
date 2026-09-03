@@ -111,61 +111,30 @@ class PaneRenderer extends Control:
 		var axis_color := _xy_style.axis_color
 		var pane_layout := _layout.get_pane_layout(_pane_index)
 
-		var x_left := pane_rect.position.x
-		var x_right := pane_rect.position.x + pane_rect.size.x
-		var y_top := pane_rect.position.y
-		var y_bottom := pane_rect.position.y + pane_rect.size.y
-
 		var x_cfg := _get_x_config()
 		var categories: PackedStringArray = _layout.domain.x_categories
 		var x_axis_id := _layout.domain.config.x_axis_id
 
-		# ---- Phase 1: Axis lines ----
+		# ---- Phase 1: Grid lines ----
+
+		_draw_grid_lines(pane_layout, pane_rect, x_axis_id)
+
+		# ---- Phase 2: Axis lines ----
 
 		# Primary X axis line
 		if x_cfg != null and pane_layout.draws_x:
-			match x_axis_id:
-				AxisId.BOTTOM:
-					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
-				AxisId.TOP:
-					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
-				AxisId.LEFT:
-					draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), axis_color)
-				AxisId.RIGHT:
-					draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), axis_color)
+			_draw_edge_line(x_axis_id, pane_rect, axis_color)
 
 		# Secondary X axis line
 		if _layout.domain.config.secondary_x_axis != null and pane_layout.draws_secondary_x:
-			var secondary_edge := Axis.get_opposite(x_axis_id)
-			match secondary_edge:
-				AxisId.BOTTOM:
-					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
-				AxisId.TOP:
-					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
-				AxisId.LEFT:
-					draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), axis_color)
-				AxisId.RIGHT:
-					draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), axis_color)
+			_draw_edge_line(Axis.get_opposite(x_axis_id), pane_rect, axis_color)
 
 		# Y axis lines
 		var y_axes: Array[AxisId] = Axis.get_orthogonal_axes(x_axis_id)
 		for axis_id in y_axes:
-			var ticks = pane_layout.y_ticks.get(axis_id)
-			if ticks == null:
+			if not pane_layout.y_ticks.has(axis_id):
 				continue
-			match axis_id:
-				AxisId.LEFT:
-					draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), axis_color)
-				AxisId.RIGHT:
-					draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), axis_color)
-				AxisId.BOTTOM:
-					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
-				AxisId.TOP:
-					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
-
-		# ---- Phase 2: Grid lines ----
-
-		_draw_grid_lines(pane_layout, pane_rect, x_axis_id)
+			_draw_edge_line(axis_id, pane_rect, axis_color)
 
 		# ---- Phase 3: Ticks and labels ----
 
@@ -215,12 +184,36 @@ class PaneRenderer extends Control:
 
 
 	####################################################################################################
+	# Private -- Axis line drawing
+	####################################################################################################
+
+	## Draws the line running along one edge of the pane rectangle.
+	##
+	## [param p_axis_id] Which physical edge to draw.
+	## [param p_pane_rect] The pane data-area rectangle.
+	## [param p_color] Line color.
+	func _draw_edge_line(p_axis_id: AxisId, p_pane_rect: Rect2, p_color: Color) -> void:
+		var x_left := p_pane_rect.position.x
+		var x_right := p_pane_rect.position.x + p_pane_rect.size.x
+		var y_top := p_pane_rect.position.y
+		var y_bottom := p_pane_rect.position.y + p_pane_rect.size.y
+
+		match p_axis_id:
+			AxisId.BOTTOM:
+				draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), p_color)
+			AxisId.TOP:
+				draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), p_color)
+			AxisId.LEFT:
+				draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), p_color)
+			AxisId.RIGHT:
+				draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), p_color)
+
+
+	####################################################################################################
 	# Private -- Grid line drawing
 	####################################################################################################
 
 	## Draws all enabled grid lines for this pane.
-	## Called between axis lines and tick/label drawing so that grid lines sit
-	## behind ticks but in front of the axis lines.
 	func _draw_grid_lines(
 		p_pane_layout: XYLayout.PaneLayout,
 		p_pane_rect: Rect2,
@@ -368,6 +361,7 @@ class PaneRenderer extends Control:
 	## Draws grid lines for an array of tick values.
 	##
 	## [param p_tick_values] Array of domain values where lines are drawn.
+	##   Values that fall on or outside a pane edge are skipped.
 	## [param p_pane_rect] The pane data-area rectangle.
 	## [param p_is_x_grid_line] True for X grid lines (perpendicular to x axis),
 	##   false for Y grid lines (perpendicular to y axis).
