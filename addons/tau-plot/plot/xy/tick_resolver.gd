@@ -10,7 +10,6 @@ class TickResolver extends RefCounted:
 
 	# Log scale constants
 	const _LOG_MINOR_TICKS: Array[float] = [2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
-	const _MIN_PIXELS_PER_MAJOR_TICK: float = 10.0
 	const _MIN_PIXELS_PER_MINOR_TICK: float = 2.0
 
 	################################################################################################
@@ -186,7 +185,7 @@ class TickResolver extends RefCounted:
 			return TickSequence.new()
 
 		var major_ticks := _compute_log_major_ticks(p_axis_min, p_axis_max)
-		var minor_ticks := _compute_log_minor_ticks(p_axis_min, p_axis_max, major_ticks, p_available_pixels)
+		var minor_ticks := _compute_log_minor_ticks(p_axis_min, p_axis_max, p_available_pixels)
 
 		var labeled_indices: PackedInt32Array
 
@@ -215,50 +214,28 @@ class TickResolver extends RefCounted:
 			if tick_val >= p_min and tick_val <= p_max:
 				major_ticks.append(tick_val)
 
-		if major_ticks.is_empty():
-			var mid_log := (log_min + log_max) / 2.0
-			major_ticks.append(pow(10.0, round(mid_log)))
-
 		return major_ticks
 
 
 	static func _compute_log_minor_ticks(p_min: float,
 										 p_max: float,
-										 p_major_ticks: Array[float],
 										 p_available_pixels: float) -> Array[float]:
-		if p_major_ticks.is_empty():
-			return []
+		var first_exp := int(floor(log(p_min) / log(10.0)))
+		var last_exp := int(floor(log(p_max) / log(10.0)))
 
-		var pixels_per_major: float = p_available_pixels / max(float(p_major_ticks.size()), 1.0)
-		if pixels_per_major < _MIN_PIXELS_PER_MAJOR_TICK * 2.0:
-			return []
-
+		# Ascending by construction: 9 * 10^k stays below 2 * 10^(k+1).
 		var all_ticks: Array[float] = []
-
-		if not p_major_ticks.is_empty():
-			var first_major := p_major_ticks[0]
-			var decade_below := first_major / 10.0
+		for exp in range(first_exp, last_exp + 1):
+			var decade := pow(10.0, float(exp))
 			for minor_mult in _LOG_MINOR_TICKS:
-				var tick_val := decade_below * minor_mult
-				if tick_val >= p_min and tick_val < first_major:
+				var tick_val: float = decade * minor_mult
+				if tick_val >= p_min and tick_val <= p_max:
 					all_ticks.append(tick_val)
-
-		for i in range(p_major_ticks.size()):
-			var major := p_major_ticks[i]
-			for minor_mult in _LOG_MINOR_TICKS:
-				var tick_val := major * minor_mult
-				if tick_val <= p_max:
-					if i + 1 < p_major_ticks.size():
-						if tick_val < p_major_ticks[i + 1]:
-							all_ticks.append(tick_val)
-					else:
-						all_ticks.append(tick_val)
 
 		var pixels_per_tick: float = p_available_pixels / max(float(all_ticks.size()), 1.0)
 		if pixels_per_tick < _MIN_PIXELS_PER_MINOR_TICK:
 			return []
 
-		all_ticks.sort()
 		return all_ticks
 
 

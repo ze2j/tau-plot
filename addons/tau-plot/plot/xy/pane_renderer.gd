@@ -7,6 +7,9 @@ const TickSequence := preload("res://addons/tau-plot/plot/xy/tick_sequence.gd").
 # Draws the axes, ticks and tick labels of a single pane.
 # It relies on XYLayout for pane_rect, mappings, ticks and formatting policy.
 class PaneRenderer extends Control:
+	# Keeps a grid line off the pane edge, where the axis line is drawn.
+	const _GRID_LINE_EDGE_MARGIN_PX: float = 0.5
+
 	var _pane_index: int = 0
 	var _layout: XYLayout
 	var _xy_style: TauXYStyle = null
@@ -107,7 +110,11 @@ class PaneRenderer extends Control:
 		var categories: PackedStringArray = _layout.domain.x_categories
 		var x_axis_id := _layout.domain.config.x_axis_id
 
-		# ---- Phase 1: Axis lines ----
+		# ---- Phase 1: Grid lines ----
+
+		_draw_grid_lines(pane_layout, pane_rect, x_axis_id)
+
+		# ---- Phase 2: Axis lines ----
 
 		# Primary X axis line
 		if x_cfg != null and pane_layout.draws_x:
@@ -149,10 +156,6 @@ class PaneRenderer extends Control:
 					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
 				AxisId.TOP:
 					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
-
-		# ---- Phase 2: Grid lines ----
-
-		_draw_grid_lines(pane_layout, pane_rect, x_axis_id)
 
 		# ---- Phase 3: Ticks and labels ----
 
@@ -206,8 +209,6 @@ class PaneRenderer extends Control:
 	####################################################################################################
 
 	## Draws all enabled grid lines for this pane.
-	## Called between axis lines and tick/label drawing so that grid lines sit
-	## behind ticks but in front of the axis lines.
 	func _draw_grid_lines(
 		p_pane_layout: XYLayout.PaneLayout,
 		p_pane_rect: Rect2,
@@ -344,6 +345,7 @@ class PaneRenderer extends Control:
 	## Draws grid lines for an array of tick values.
 	##
 	## [param p_tick_values] Array of domain values where lines are drawn.
+	##   Values that fall on or outside a pane edge are skipped.
 	## [param p_pane_rect] The pane data-area rectangle.
 	## [param p_is_x_grid_line] True for X grid lines (perpendicular to x axis),
 	##   false for Y grid lines (perpendicular to y axis).
@@ -390,8 +392,14 @@ class PaneRenderer extends Control:
 		var rect_y_min := p_pane_rect.position.y
 		var rect_y_max := p_pane_rect.position.y + p_pane_rect.size.y
 
+		var pos_min: float = rect_x_min if line_is_vertical else rect_y_min
+		var pos_max: float = rect_x_max if line_is_vertical else rect_y_max
+
 		for tick_val in p_tick_values:
 			var px: float = p_map_fn.call(tick_val)
+			# The pane edges belong to the axis lines.
+			if px <= pos_min + _GRID_LINE_EDGE_MARGIN_PX or px >= pos_max - _GRID_LINE_EDGE_MARGIN_PX:
+				continue
 			var from: Vector2
 			var to: Vector2
 			if line_is_vertical:
