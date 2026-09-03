@@ -38,7 +38,7 @@ const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const XYLegendBuilder := preload("res://addons/tau-plot/plot/xy/xy_legend_builder.gd").XYLegendBuilder
 
 const Tracked := preload("res://addons/tau-plot/plot/tracked.gd").Tracked
-const XYState := preload("res://addons/tau-plot/plot/xy/xy_state.gd").XYState
+const XYAxisConfigSnapshot := preload("res://addons/tau-plot/plot/xy/xy_axis_config_snapshot.gd").XYAxisConfigSnapshot
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const XYDomainOverrides := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").XYDomainOverrides
 const YDomainOverride := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").YDomainOverride
@@ -131,8 +131,20 @@ var _resolved_legend_style: TauLegendStyle = null
 # User-provided TauLegendStyle resource (may be null when legend_config is null).
 var _user_legend_style: TauLegendStyle = null
 
-# State tracking for change detection between refreshes
-var _state := XYState.new()
+# What the axis configs looked like when a refresh last read them. No tracker
+# watches TauAxisConfig.
+var _axis_config_snapshot := XYAxisConfigSnapshot.new()
+
+# Geometry the last sort settled on, in PaneStack-local coordinates: one rect
+# per pane, and the union of the pane data areas. The two together cover both a
+# pane moving and a pane keeping its rect while its insets change.
+var _settled_pane_rects: Array[Rect2] = []
+var _settled_data_area_union := Rect2()
+
+# Stretch ratio applied to each pane. Kept here rather than read back from the
+# Control, whose float is narrower than this one and would never compare equal
+# to the config value it came from.
+var _applied_stretch_ratio_per_pane: PackedFloat64Array = []
 
 # Every user resource a refresh watches, in no particular order.
 var _tracked: Array[Tracked] = []
@@ -456,13 +468,11 @@ func setup(
 	# Initialize per-pane dirty flags
 	_init_pane_dirty_flags(pane_count)
 
-	# Initialize state for per-pane tracking
-	_state.init_panes(pane_count)
-
 	# The panes were created with these ratios, so the first refresh has
 	# nothing to apply.
+	_applied_stretch_ratio_per_pane.resize(pane_count)
 	for pane_index in range(pane_count):
-		_state.save_stretch_ratio_for_pane(pane_index, p_xy_config.panes[pane_index].stretch_ratio)
+		_applied_stretch_ratio_per_pane[pane_index] = p_xy_config.panes[pane_index].stretch_ratio
 
 	# Mark everything dirty for initial plot
 	_mark_all_dirty()
@@ -548,7 +558,10 @@ func clear() -> void:
 	_hover_controller = null
 	_hover_config = null
 
-	_state.reset()
+	_axis_config_snapshot.reset()
+	_settled_pane_rects.clear()
+	_settled_data_area_union = Rect2()
+	_applied_stretch_ratio_per_pane.clear()
 	_mark_all_dirty()
 
 
@@ -633,9 +646,9 @@ func _phase_resolve() -> void:
 	# Tick counts, overlap strategy and label spacing are read when the ticks
 	# are resolved against the axis length in pixels, which is layout rather
 	# than domain.
-	if _state.has_config_changed(_domain_config):
+	if _axis_config_snapshot.has_changed(_domain_config):
 		_invalidate(Artifact.LAYOUT)
-		_state.save_config(_domain_config)
+		_axis_config_snapshot.save(_domain_config)
 
 	if _is_dirty(Artifact.DOMAIN):
 		# Bar and line stacked overlays write to the same per-axis entry, with
@@ -644,12 +657,10 @@ func _phase_resolve() -> void:
 		if _has_stackable_overlay():
 			_apply_stacking_domain_overrides_y()
 
-		_xy_domain.update_from_dataset(_dataset)
-		if _state.has_domain_changed(_xy_domain):
+		if _xy_domain.update_from_dataset(_dataset):
 			_invalidate_dependents(Artifact.DOMAIN)
 			_hover_controller.invalidate()
 
-		_state.save_domain(_xy_domain)
 		_mark_clean(Artifact.DOMAIN)
 
 
@@ -711,8 +722,9 @@ func _on_pane_geometry_settled(p_pane_rects: Array[Rect2], p_stack_global_positi
 		p_stack_global_position + _xy_layout.data_area_union.position,
 		_xy_layout.data_area_union.size))
 
-	if _state.has_settled_geometry_changed(p_pane_rects, _xy_layout.data_area_union):
-		_state.save_settled_geometry(p_pane_rects, _xy_layout.data_area_union)
+	if p_pane_rects != _settled_pane_rects or _xy_layout.data_area_union != _settled_data_area_union:
+		_settled_pane_rects = p_pane_rects.duplicate()
+		_settled_data_area_union = _xy_layout.data_area_union
 		_hover_controller.invalidate()
 		# A pane that kept its rect gets no resize notification of its own, and
 		# its insets may still differ.
@@ -996,13 +1008,13 @@ func _on_grid_line_config_changed(_p_change: Tracked.Change, p_pane_index: int) 
 func _apply_stretch_ratios() -> void:
 	for pane_index in range(_panes.size()):
 		var stretch_ratio: float = _domain_config.panes[pane_index].stretch_ratio
-		if not _state.has_stretch_ratio_changed_for_pane(pane_index, stretch_ratio):
+		if stretch_ratio == _applied_stretch_ratio_per_pane[pane_index]:
 			continue
 
 		# plot_xy() rejects a value below or equal to zero, a runtime change
-		# does not go through it. The rejected value is saved so the error is
+		# does not go through it. The rejected value is stored so the error is
 		# reported once and not on every refresh.
-		_state.save_stretch_ratio_for_pane(pane_index, stretch_ratio)
+		_applied_stretch_ratio_per_pane[pane_index] = stretch_ratio
 		if stretch_ratio <= 0.0:
 			push_error("TauPaneConfig.stretch_ratio of pane %d is %f, expected a value greater than 0. The pane keeps its previous ratio." % [pane_index, stretch_ratio])
 			continue

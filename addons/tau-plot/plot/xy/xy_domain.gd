@@ -50,10 +50,6 @@ class PaneYDomains extends RefCounted:
 			return y_axis_domains[p_axis_id]
 		return null
 
-	func reset() -> void:
-		for d in y_axis_domains.values():
-			d.reset()
-
 
 # Computes and stores the resolved axis domains for XY plots.
 # It validates dataset consistency based on TauXYConfig and applies overrides/policies.
@@ -109,8 +105,18 @@ class XYDomain extends RefCounted:
 		return config.x_axis
 
 
-	func update_from_dataset(p_dataset: Dataset) -> void:
-		_reset_domain()
+	# Recomputes every domain from the dataset and reports whether what a
+	# renderer maps a value with differs from the previous computation.
+	func update_from_dataset(p_dataset: Dataset) -> bool:
+		var previous_x_min := x_axis_domain.min_val
+		var previous_x_max := x_axis_domain.max_val
+		var previous_x_categories := x_categories
+		# _compute_pane_y_domains() builds new instances rather than writing
+		# into the ones already there, so these keep the previous bounds.
+		var previous_pane_y_domains := pane_y_domains.duplicate()
+
+		x_categories = []
+		x_axis_domain.reset()
 
 		# Compute shared x axis domain.
 		_compute_x_domain(p_dataset)
@@ -158,16 +164,39 @@ class XYDomain extends RefCounted:
 			# must not modify. When one axis is overridden its range is locked.
 			_align_y_axes_at_zero_for_pane(y_axis_domain_0, y_axis_domain_1, overridden_0, overridden_1)
 
+		# Exact comparison: a recompute nothing needed costs less than a frame
+		# drawn against bounds that moved.
+		return (x_axis_domain.min_val != previous_x_min
+				or x_axis_domain.max_val != previous_x_max
+				or x_categories != previous_x_categories
+				or _have_pane_y_domains_changed(previous_pane_y_domains))
+
 
 	####################################################################################################
 	# Private
 	####################################################################################################
 
-	func _reset_domain() -> void:
-		x_categories = []
-		x_axis_domain.reset()
-		for pane_domain in pane_y_domains:
-			pane_domain.reset()
+	# An axis gained or lost by a pane counts as a change, as does a pane count
+	# that no longer matches.
+	func _have_pane_y_domains_changed(p_previous: Array[PaneYDomains]) -> bool:
+		if pane_y_domains.size() != p_previous.size():
+			return true
+
+		for pane_index in range(pane_y_domains.size()):
+			var current_domains: Dictionary[AxisId, AxisDomain] = pane_y_domains[pane_index].y_axis_domains
+			var previous_domains: Dictionary[AxisId, AxisDomain] = p_previous[pane_index].y_axis_domains
+			if current_domains.size() != previous_domains.size():
+				return true
+
+			for axis_id in current_domains:
+				if axis_id not in previous_domains:
+					return true
+				var current_domain: AxisDomain = current_domains[axis_id]
+				var previous_domain: AxisDomain = previous_domains[axis_id]
+				if current_domain.min_val != previous_domain.min_val or current_domain.max_val != previous_domain.max_val:
+					return true
+
+		return false
 
 
 	# Computes the shared x axis domain.
