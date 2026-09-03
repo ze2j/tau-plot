@@ -70,8 +70,8 @@ class XYDomain extends RefCounted:
 	# Outputs
 	var x_axis_domain: AxisDomain = AxisDomain.new()
 	var x_categories: PackedStringArray = []
-	var pane_y_domains: Array[PaneYDomains] = []
 
+	var _pane_y_domains: Array[PaneYDomains] = []
 
 	const _RELATIVE_EXPAND_FRACTION: float = 0.1
 	const _MIN_ABSOLUTE_EXPAND: float = 1.0
@@ -90,19 +90,12 @@ class XYDomain extends RefCounted:
 		update_from_dataset(p_dataset)
 
 
-	# FIXME: pane_y_domains is public so remove this method?
 	func get_pane_count() -> int:
-		return pane_y_domains.size()
+		return _pane_y_domains.size()
 
 
-	# FIXME: pane_y_domains is public so remove this method?
 	func get_pane_domain(p_pane_index: int) -> PaneYDomains:
-		return pane_y_domains[p_pane_index]
-
-
-	# FIXME: config.x_axis is public so remove this method?
-	func get_x_axis_config() -> TauAxisConfig:
-		return config.x_axis
+		return _pane_y_domains[p_pane_index]
 
 
 	# Recomputes every domain from the dataset and reports whether what a
@@ -113,7 +106,7 @@ class XYDomain extends RefCounted:
 		var previous_x_categories := x_categories
 		# _compute_pane_y_domains() builds new instances rather than writing
 		# into the ones already there, so these keep the previous bounds.
-		var previous_pane_y_domains := pane_y_domains.duplicate()
+		var previous_pane_y_domains := _pane_y_domains.duplicate()
 
 		x_categories = []
 		x_axis_domain.reset()
@@ -124,13 +117,13 @@ class XYDomain extends RefCounted:
 		# Compute per-pane raw y domains.
 		var pane_count := config.panes.size()
 		var y_axes: Array[AxisId] = Axis.get_orthogonal_axes(config.x_axis_id)
-		pane_y_domains.resize(pane_count)
+		_pane_y_domains.resize(pane_count)
 		for pane_idx in range(pane_count):
 			_compute_pane_y_domains(p_dataset, pane_idx, y_axes)
 
 		# Per-pane zero-alignment.
 		for pane_idx in range(pane_count):
-			var pane_domain: PaneYDomains = pane_y_domains[pane_idx]
+			var pane_domain: PaneYDomains = _pane_y_domains[pane_idx]
 			if not pane_domain.pane_config.align_y_axes_at_zero:
 				continue
 
@@ -179,11 +172,11 @@ class XYDomain extends RefCounted:
 	# An axis gained or lost by a pane counts as a change, as does a pane count
 	# that no longer matches.
 	func _have_pane_y_domains_changed(p_previous: Array[PaneYDomains]) -> bool:
-		if pane_y_domains.size() != p_previous.size():
+		if _pane_y_domains.size() != p_previous.size():
 			return true
 
-		for pane_index in range(pane_y_domains.size()):
-			var current_domains: Dictionary[AxisId, AxisDomain] = pane_y_domains[pane_index].y_axis_domains
+		for pane_index in range(_pane_y_domains.size()):
+			var current_domains: Dictionary[AxisId, AxisDomain] = _pane_y_domains[pane_index].y_axis_domains
 			var previous_domains: Dictionary[AxisId, AxisDomain] = p_previous[pane_index].y_axis_domains
 			if current_domains.size() != previous_domains.size():
 				return true
@@ -298,7 +291,7 @@ class XYDomain extends RefCounted:
 			_compute_recompute_thresholds(y_axis_domain)
 			pane_domain.y_axis_domains[y_axis_id] = y_axis_domain
 
-		pane_y_domains[p_pane_idx] = pane_domain
+		_pane_y_domains[p_pane_idx] = pane_domain
 
 
 	func _finalize_y_axis_domain(y_axis_domain: AxisDomain) -> Vector2:
