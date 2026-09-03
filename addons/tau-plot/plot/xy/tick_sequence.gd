@@ -18,6 +18,12 @@ class TickSequence extends RefCounted:
 	## Empty array means no labels are shown (though ticks are still drawn).
 	var labeled_major_indices: PackedInt32Array = PackedInt32Array()
 
+	## Indices into minor_ticks array indicating which ticks should display labels.
+	## All indices must be valid (< minor_ticks.size()).
+	## A label never changes the rank of a tick, so a labeled minor tick keeps
+	## the minor tick mark and the minor grid line.
+	var labeled_minor_indices: PackedInt32Array = PackedInt32Array()
+
 	## Number of decimal digits for fixed-point formatting (when use_scientific is false)
 	var decimals: int = 0
 
@@ -31,14 +37,16 @@ class TickSequence extends RefCounted:
 	func _init(
 		p_major_ticks: Array[float] = [],
 		p_minor_ticks: Array[float] = [],
-		p_labeled_indices: PackedInt32Array = PackedInt32Array(),
+		p_labeled_major_indices: PackedInt32Array = PackedInt32Array(),
+		p_labeled_minor_indices: PackedInt32Array = PackedInt32Array(),
 		p_decimals: int = 0,
 		p_use_scientific: bool = false,
 		p_is_log_scale: bool = false
 	) -> void:
 		major_ticks = p_major_ticks
 		minor_ticks = p_minor_ticks
-		labeled_major_indices = p_labeled_indices
+		labeled_major_indices = p_labeled_major_indices
+		labeled_minor_indices = p_labeled_minor_indices
 		decimals = max(p_decimals, 0)
 		use_scientific = p_use_scientific
 		is_log_scale = p_is_log_scale
@@ -48,6 +56,14 @@ class TickSequence extends RefCounted:
 	func should_show_label(p_major_tick_index: int) -> bool:
 		for idx in labeled_major_indices:
 			if idx == p_major_tick_index:
+				return true
+		return false
+
+
+	## Returns true if the minor tick at the given index should display a label
+	func should_show_minor_label(p_minor_tick_index: int) -> bool:
+		for idx in labeled_minor_indices:
+			if idx == p_minor_tick_index:
 				return true
 		return false
 
@@ -86,19 +102,27 @@ class TickSequence extends RefCounted:
 				# Use superscript notation: 10^n
 				return "10" + _get_superscript(exp_int)
 
-		# Not a clean power of 10, show the actual value
-		# Determine appropriate precision based on magnitude
+		# Not a clean power of 10, show the actual value. The magnitude sets the
+		# precision, which also absorbs the float noise of a value built from a
+		# decade times a small integer.
 		var abs_val := abs(p_value)
+		var decimals_for_magnitude := 4
 		if abs_val >= 100.0:
-			return String.num(p_value, 0)
+			decimals_for_magnitude = 0
 		elif abs_val >= 10.0:
-			return String.num(p_value, 1)
+			decimals_for_magnitude = 1
 		elif abs_val >= 1.0:
-			return String.num(p_value, 2)
+			decimals_for_magnitude = 2
 		elif abs_val >= 0.1:
-			return String.num(p_value, 3)
-		else:
-			return String.num(p_value, 4)
+			decimals_for_magnitude = 3
+		return _trim_trailing_zeros(String.num(p_value, decimals_for_magnitude))
+
+
+	# Turns "2.00" into "2" and "0.300" into "0.3".
+	static func _trim_trailing_zeros(p_text: String) -> String:
+		if not p_text.contains("."):
+			return p_text
+		return p_text.rstrip("0").rstrip(".")
 
 
 	func _get_superscript(p_exponent: int) -> String:
