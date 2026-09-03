@@ -101,11 +101,6 @@ class PaneRenderer extends Control:
 		var axis_color := _xy_style.axis_color
 		var pane_layout := _layout.get_pane_layout(_pane_index)
 
-		var x_left := pane_rect.position.x
-		var x_right := pane_rect.position.x + pane_rect.size.x
-		var y_top := pane_rect.position.y
-		var y_bottom := pane_rect.position.y + pane_rect.size.y
-
 		var x_cfg := _get_x_config()
 		var categories: PackedStringArray = _layout.domain.x_categories
 		var x_axis_id := _layout.domain.config.x_axis_id
@@ -118,44 +113,18 @@ class PaneRenderer extends Control:
 
 		# Primary X axis line
 		if x_cfg != null and pane_layout.draws_x:
-			match x_axis_id:
-				AxisId.BOTTOM:
-					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
-				AxisId.TOP:
-					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
-				AxisId.LEFT:
-					draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), axis_color)
-				AxisId.RIGHT:
-					draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), axis_color)
+			_draw_edge_line(x_axis_id, pane_rect, axis_color)
 
 		# Secondary X axis line
 		if _layout.domain.config.secondary_x_axis != null and pane_layout.draws_secondary_x:
-			var secondary_edge := Axis.get_opposite(x_axis_id)
-			match secondary_edge:
-				AxisId.BOTTOM:
-					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
-				AxisId.TOP:
-					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
-				AxisId.LEFT:
-					draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), axis_color)
-				AxisId.RIGHT:
-					draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), axis_color)
+			_draw_edge_line(Axis.get_opposite(x_axis_id), pane_rect, axis_color)
 
 		# Y axis lines
 		var y_axes: Array[AxisId] = Axis.get_orthogonal_axes(x_axis_id)
 		for axis_id in y_axes:
-			var ticks = pane_layout.y_ticks.get(axis_id)
-			if ticks == null:
+			if not pane_layout.y_ticks.has(axis_id):
 				continue
-			match axis_id:
-				AxisId.LEFT:
-					draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), axis_color)
-				AxisId.RIGHT:
-					draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), axis_color)
-				AxisId.BOTTOM:
-					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
-				AxisId.TOP:
-					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
+			_draw_edge_line(axis_id, pane_rect, axis_color)
 
 		# ---- Phase 3: Ticks and labels ----
 
@@ -202,6 +171,32 @@ class PaneRenderer extends Control:
 				Callable(),
 				func(val: float) -> float: return _layout.map_y_to_px(_pane_index, val, axis_id),
 				null)
+
+
+	####################################################################################################
+	# Private -- Axis line drawing
+	####################################################################################################
+
+	## Draws the line running along one edge of the pane rectangle.
+	##
+	## [param p_axis_id] Which physical edge to draw.
+	## [param p_pane_rect] The pane data-area rectangle.
+	## [param p_color] Line color.
+	func _draw_edge_line(p_axis_id: AxisId, p_pane_rect: Rect2, p_color: Color) -> void:
+		var x_left := p_pane_rect.position.x
+		var x_right := p_pane_rect.position.x + p_pane_rect.size.x
+		var y_top := p_pane_rect.position.y
+		var y_bottom := p_pane_rect.position.y + p_pane_rect.size.y
+
+		match p_axis_id:
+			AxisId.BOTTOM:
+				draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), p_color)
+			AxisId.TOP:
+				draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), p_color)
+			AxisId.LEFT:
+				draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), p_color)
+			AxisId.RIGHT:
+				draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), p_color)
 
 
 	####################################################################################################
