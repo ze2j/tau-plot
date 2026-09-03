@@ -86,19 +86,27 @@ class TickSequence extends RefCounted:
 				# Use superscript notation: 10^n
 				return "10" + _get_superscript(exp_int)
 
-		# Not a clean power of 10, show the actual value
-		# Determine appropriate precision based on magnitude
+		# Not a clean power of 10, show the actual value. The magnitude sets the
+		# precision, which also absorbs the float noise of a value built from a
+		# decade times a small integer.
 		var abs_val := abs(p_value)
+		var decimals_for_magnitude := 4
 		if abs_val >= 100.0:
-			return String.num(p_value, 0)
+			decimals_for_magnitude = 0
 		elif abs_val >= 10.0:
-			return String.num(p_value, 1)
+			decimals_for_magnitude = 1
 		elif abs_val >= 1.0:
-			return String.num(p_value, 2)
+			decimals_for_magnitude = 2
 		elif abs_val >= 0.1:
-			return String.num(p_value, 3)
-		else:
-			return String.num(p_value, 4)
+			decimals_for_magnitude = 3
+		return _trim_trailing_zeros(String.num(p_value, decimals_for_magnitude))
+
+
+	# Turns "2.00" into "2" and "0.300" into "0.3".
+	static func _trim_trailing_zeros(p_text: String) -> String:
+		if not p_text.contains("."):
+			return p_text
+		return p_text.rstrip("0").rstrip(".")
 
 
 	func _get_superscript(p_exponent: int) -> String:

@@ -187,6 +187,13 @@ class TickResolver extends RefCounted:
 		var major_ticks := _compute_log_major_ticks(p_axis_min, p_axis_max)
 		var minor_ticks := _compute_log_minor_ticks(p_axis_min, p_axis_max, p_available_pixels)
 
+		# A domain narrower than one decade holds no power of ten. The minor
+		# ticks then carry the axis on their own, so they become the major
+		# sequence and take the labels with them.
+		if major_ticks.is_empty():
+			major_ticks = minor_ticks
+			minor_ticks = []
+
 		var labeled_indices: PackedInt32Array
 
 		match p_overlap_strategy:
