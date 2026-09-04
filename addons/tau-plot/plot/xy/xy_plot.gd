@@ -37,7 +37,9 @@ const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const XYLegendBuilder := preload("res://addons/tau-plot/plot/xy/xy_legend_builder.gd").XYLegendBuilder
 
-const Tracked := preload("res://addons/tau-plot/plot/tracked.gd").Tracked
+const Tracker := preload("res://addons/tau-plot/plot/tracker.gd").Tracker
+const NotifiedTracker := preload("res://addons/tau-plot/plot/tracker.gd").NotifiedTracker
+const PolledTracker := preload("res://addons/tau-plot/plot/tracker.gd").PolledTracker
 const XYAxisConfigSnapshot := preload("res://addons/tau-plot/plot/xy/xy_axis_config_snapshot.gd").XYAxisConfigSnapshot
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const XYDomainOverrides := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").XYDomainOverrides
@@ -146,11 +148,11 @@ var _settled_data_area_union := Rect2()
 # to the config value it came from.
 var _applied_stretch_ratio_per_pane: PackedFloat64Array = []
 
-# Every user resource a refresh watches, in no particular order.
-var _tracked: Array[Tracked] = []
+# One tracker per user resource a refresh watches, in no particular order.
+var _trackers: Array[Tracker] = []
 # The subset the theme feeds. A theme change re-resolves them whether or not
 # the user resource changed.
-var _tracked_styles: Array[Tracked] = []
+var _style_trackers: Array[Tracker] = []
 
 # What a refresh derives. _invalidate() marks one of them stale.
 enum Artifact
@@ -580,8 +582,8 @@ func on_theme_changed() -> void:
 	_invalidate(Artifact.LAYOUT)
 	_invalidate(Artifact.HOVER_STYLES)
 	# Force style resolution as the theme is one of three layer cascade.
-	for tracked in _tracked_styles:
-		tracked.force_change()
+	for tracker in _style_trackers:
+		tracker.force_change()
 
 
 func set_legend_enabled(p_enabled: bool) -> void:
@@ -625,8 +627,8 @@ func set_hover_config(p_config: TauHoverConfig) -> void:
 #
 # Once this returns, arrange has all it needs.
 func _phase_resolve() -> void:
-	for tracked in _tracked:
-		tracked.update()
+	for tracker in _trackers:
+		tracker.update()
 
 	if _is_dirty(Artifact.HIT_RECORDS):
 		_hover_controller.refresh_hit_records_enabled()
@@ -830,25 +832,24 @@ func _build_trackers() -> void:
 # A style emits changed on every assignment, so the tracker subscribes to it
 # and the refresh it wakes up is the one that compares.
 func _track_style(p_read: Callable, p_react: Callable) -> void:
-	var tracked := Tracked.announced(p_read, p_react, _queue_refresh)
-	_tracked.append(tracked)
-	_tracked_styles.append(tracked)
+	var tracker := NotifiedTracker.new(p_read, p_react, _queue_refresh)
+	_trackers.append(tracker)
+	_style_trackers.append(tracker)
 
 
-# A config emits nothing, so it is compared on every poll and a change to one
-# shows up on the next refresh the plot runs for any other reason.
+# A config emits nothing, so it is compared on every update.
 func _track_config(p_read: Callable, p_react: Callable) -> void:
-	_tracked.append(Tracked.silent(p_read, p_react))
+	_trackers.append(PolledTracker.new(p_read, p_react))
 
 
 func _release_trackers() -> void:
-	for tracked in _tracked:
-		tracked.release()
-	_tracked.clear()
-	_tracked_styles.clear()
+	for tracker in _trackers:
+		tracker.release()
+	_trackers.clear()
+	_style_trackers.clear()
 
 
-# The readers the trackers poll through. A style is read back every time rather
+# The readers the trackers read through. A style is read back every time rather
 # than held, since the user may assign a different one to the config it hangs
 # on at any moment. An overlay config keeps the reference it was given in
 # setup(), and is read the same way to keep every tracker alike.
@@ -894,7 +895,7 @@ func _read_line_style(p_pane_index: int) -> TauLineStyle:
 
 # TauXYStyle covers the whole plot: every renderer holds a copy, the pane gap
 # comes from it, and a legend key is drawn from the values it resolves to.
-func _on_xy_style_changed(_p_change: Tracked.Change) -> void:
+func _on_xy_style_changed(_p_change: Tracker.Change) -> void:
 	var previous := _resolved_xy_style
 	_resolved_xy_style = TauXYStyle.resolve(_plot, _read_xy_style())
 
@@ -922,7 +923,7 @@ func _on_xy_style_changed(_p_change: Tracked.Change) -> void:
 
 # Every TauPaneStyle property is visual, and the pane renderer is its only
 # reader.
-func _on_pane_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+func _on_pane_style_changed(_p_change: Tracker.Change, p_pane_index: int) -> void:
 	var renderer := _pane_renderers[p_pane_index]
 	var resolved := TauPaneStyle.resolve(renderer, p_pane_index, _read_pane_style(p_pane_index))
 	_resolved_pane_styles[p_pane_index] = resolved
@@ -932,7 +933,7 @@ func _on_pane_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> voi
 
 # Every TauBarStyle property is visual, so only the pane holding the bars
 # repaints. The legend keys are drawn by the renderers, so they go stale too.
-func _on_bar_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+func _on_bar_style_changed(_p_change: Tracker.Change, p_pane_index: int) -> void:
 	var renderer := _bar_renderers[p_pane_index]
 	var resolved := TauBarStyle.resolve(renderer, p_pane_index, _read_bar_style(p_pane_index))
 	_resolved_bar_styles[p_pane_index] = resolved
@@ -942,7 +943,7 @@ func _on_bar_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> void
 
 
 # See _on_bar_style_changed.
-func _on_scatter_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+func _on_scatter_style_changed(_p_change: Tracker.Change, p_pane_index: int) -> void:
 	var renderer := _scatter_renderers[p_pane_index]
 	var resolved := TauScatterStyle.resolve(renderer, p_pane_index, _read_scatter_style(p_pane_index))
 	_resolved_scatter_styles[p_pane_index] = resolved
@@ -952,7 +953,7 @@ func _on_scatter_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> 
 
 
 # See _on_bar_style_changed.
-func _on_line_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+func _on_line_style_changed(_p_change: Tracker.Change, p_pane_index: int) -> void:
 	var renderer := _line_renderers[p_pane_index]
 	var resolved := TauLineStyle.resolve(renderer, p_pane_index, _read_line_style(p_pane_index))
 	_resolved_line_styles[p_pane_index] = resolved
@@ -962,7 +963,7 @@ func _on_line_style_changed(_p_change: Tracked.Change, p_pane_index: int) -> voi
 
 
 # The legend rebuilds itself from the resolved style.
-func _on_legend_style_changed(_p_change: Tracked.Change) -> void:
+func _on_legend_style_changed(_p_change: Tracker.Change) -> void:
 	_resolved_legend_style = TauLegendStyle.resolve(_legend_builder.controller.legend, _read_legend_style())
 	_legend_builder.controller.legend.set_resolved_legend_style(_resolved_legend_style)
 
@@ -971,26 +972,26 @@ func _on_legend_style_changed(_p_change: Tracked.Change) -> void:
 # a layout-affecting change starts at the top of the table and a visual one
 # stops at the pane that owns the bars. hoverable sits on this config, and a renderer
 # caches hit records only while it is set.
-func _on_bar_config_changed(p_change: Tracked.Change, p_pane_index: int) -> void:
+func _on_bar_config_changed(p_change: Tracker.Change, p_pane_index: int) -> void:
 	_invalidate(Artifact.HIT_RECORDS)
-	if p_change == Tracked.Change.LAYOUT:
+	if p_change == Tracker.Change.LAYOUT:
 		_invalidate(Artifact.DOMAIN)
 	else:
 		_bars_dirty_panes[p_pane_index] = true
 
 
 # See _on_bar_config_changed. A scatter carries no hit records to enable.
-func _on_scatter_config_changed(p_change: Tracked.Change, p_pane_index: int) -> void:
-	if p_change == Tracked.Change.LAYOUT:
+func _on_scatter_config_changed(p_change: Tracker.Change, p_pane_index: int) -> void:
+	if p_change == Tracker.Change.LAYOUT:
 		_invalidate(Artifact.DOMAIN)
 	else:
 		_scatter_dirty_panes[p_pane_index] = true
 
 
 # See _on_bar_config_changed.
-func _on_line_config_changed(p_change: Tracked.Change, p_pane_index: int) -> void:
+func _on_line_config_changed(p_change: Tracker.Change, p_pane_index: int) -> void:
 	_invalidate(Artifact.HIT_RECORDS)
-	if p_change == Tracked.Change.LAYOUT:
+	if p_change == Tracker.Change.LAYOUT:
 		_invalidate(Artifact.DOMAIN)
 	else:
 		_line_dirty_panes[p_pane_index] = true
@@ -998,7 +999,7 @@ func _on_line_config_changed(p_change: Tracked.Change, p_pane_index: int) -> voi
 
 # Grid lines are drawn by the pane renderer, and where they land comes from the
 # ticks rather than from this config.
-func _on_grid_line_config_changed(_p_change: Tracked.Change, p_pane_index: int) -> void:
+func _on_grid_line_config_changed(_p_change: Tracker.Change, p_pane_index: int) -> void:
 	_pane_renderers[p_pane_index].set_grid_line_config(_read_grid_line_config(p_pane_index))
 	_xy_dirty_panes[p_pane_index] = true
 
@@ -1190,8 +1191,8 @@ func _has_dirty_scatter() -> bool:
 func _mark_all_dirty() -> void:
 	_invalidate(Artifact.DOMAIN)
 	_invalidate(Artifact.HOVER_STYLES)
-	for tracked in _tracked_styles:
-		tracked.force_change()
+	for tracker in _style_trackers:
+		tracker.force_change()
 
 
 # The samples changed but nothing around them did, so the overlays repaint and
