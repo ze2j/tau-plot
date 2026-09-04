@@ -1,7 +1,7 @@
 # Owns the full lifecycle of an XY plot: setup, per-frame refresh, and teardown.
 #
 # Attached to the xy_plot.tscn scene (root VBoxContainer). Manages the dataset,
-# domain, layout, panes, renderers, dirty flags, and change detection
+# domain, layout, panes, renderers, stale artifacts, and change detection
 # state. Delegates axis title management to XYAxisTitleLayout and legend
 # management to XYLegendBuilder.
 #
@@ -40,6 +40,7 @@ const XYLegendBuilder := preload("res://addons/tau-plot/plot/xy/xy_legend_builde
 const Tracker := preload("res://addons/tau-plot/plot/tracker.gd").Tracker
 const NotifiedTracker := preload("res://addons/tau-plot/plot/tracker.gd").NotifiedTracker
 const PolledTracker := preload("res://addons/tau-plot/plot/tracker.gd").PolledTracker
+const StaleArtifacts := preload("res://addons/tau-plot/plot/stale_artifacts.gd").StaleArtifacts
 const XYAxisConfigSnapshot := preload("res://addons/tau-plot/plot/xy/xy_axis_config_snapshot.gd").XYAxisConfigSnapshot
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const XYDomainOverrides := preload("res://addons/tau-plot/plot/xy/xy_domain_overrides.gd").XYDomainOverrides
@@ -154,7 +155,7 @@ var _trackers: Array[Tracker] = []
 # the user resource changed.
 var _style_trackers: Array[Tracker] = []
 
-# What a refresh derives. _invalidate() marks one of them stale.
+# What a refresh derives. StaleArtifacts.mark() marks one of them stale.
 enum Artifact
 {
 	DOMAIN,			# The value range each axis maps from.
@@ -166,23 +167,24 @@ enum Artifact
 }
 
 # What goes stale with an artifact, so that a call site names the artifact at
-# its own level and nothing further down. An artifact absent from the table has
-# nothing under it.
+# its own level and nothing further down. An artifact absent from the table
+# feeds nothing.
+#
+# The table is transitively minimal: an artifact names only what it feeds
+# directly, since the propagation reaches the rest through it. Keeping it that
+# way is the reason to have a table at all.
+#
+# It is acyclic, as the propagation has no cycle guard.
 const _DEPENDENTS := {
-	Artifact.DOMAIN: [Artifact.LAYOUT, Artifact.LEGEND_KEYS, Artifact.DRAW],
+	Artifact.DOMAIN: [Artifact.LAYOUT],
 	Artifact.LAYOUT: [Artifact.LEGEND_KEYS, Artifact.DRAW],
 }
 
 # The artifacts waiting to be recomputed. Everything a plot needs before it can
-# be drawn starts stale. DRAW is never a key here: it is held per pane and per
-# overlay in the flags below.
-var _dirty: Dictionary[Artifact, bool] = {
-	Artifact.DOMAIN: true,
-	Artifact.LAYOUT: true,
-	Artifact.LEGEND_KEYS: true,
-	Artifact.HOVER_STYLES: true,
-	Artifact.HIT_RECORDS: false,
-}
+# be drawn starts stale. DRAW is left out: it is held per pane and per overlay
+# in the flags below, and reached through the handler registered in _init().
+var _stale_artifacts := StaleArtifacts.new(_DEPENDENTS,
+	[Artifact.DOMAIN, Artifact.LAYOUT, Artifact.LEGEND_KEYS, Artifact.HOVER_STYLES] as Array[int])
 
 # Per-pane draw flags
 var _xy_dirty_panes: Array[bool] = []
@@ -200,6 +202,12 @@ var _hover_config: TauHoverConfig = null
 ####################################################################################################
 # Public
 ####################################################################################################
+
+func _init() -> void:
+	# DRAW has no flag of its own. Its state lives in the per-pane and
+	# per-overlay flags, and the handler raises them all.
+	_stale_artifacts.set_handler(Artifact.DRAW, _mark_all_panes_dirty)
+
 
 func setup(
 		p_plot: PanelContainer,
@@ -579,8 +587,8 @@ func refresh() -> void:
 
 func on_theme_changed() -> void:
 	# A themed font or tick size may change the layout.
-	_invalidate(Artifact.LAYOUT)
-	_invalidate(Artifact.HOVER_STYLES)
+	_stale_artifacts.mark(Artifact.LAYOUT)
+	_stale_artifacts.mark(Artifact.HOVER_STYLES)
 	# Force style resolution as the theme is one of three layer cascade.
 	for tracker in _style_trackers:
 		tracker.force_change()
@@ -619,20 +627,20 @@ func set_hover_config(p_config: TauHoverConfig) -> void:
 # yet, so there is no pane rect to read.
 #
 # The user may have changed a config, a style, the theme or the dataset since
-# the last refresh. The dirty flags say which artifacts those changes made
+# the last refresh. _stale_artifacts says which artifacts those changes made
 # stale. This phase recomputes those artifacts, as far as it can go without
-# geometry, the domain among them, and raises the flag of every artifact that
-# reads a value it just changed. Those flags are what keeps a refresh from
-# recomputing what nothing changed under.
+# geometry, the domain among them, and marks stale every artifact that reads a
+# value it just changed. A refresh recomputes an artifact only when it is
+# marked stale.
 #
 # Once this returns, arrange has all it needs.
 func _phase_resolve() -> void:
 	for tracker in _trackers:
 		tracker.update()
 
-	if _is_dirty(Artifact.HIT_RECORDS):
+	if _stale_artifacts.is_stale(Artifact.HIT_RECORDS):
 		_hover_controller.refresh_hit_records_enabled()
-		_mark_clean(Artifact.HIT_RECORDS)
+		_stale_artifacts.clear(Artifact.HIT_RECORDS)
 
 	# A stretch ratio is a plain float rather than a resource, so no tracker
 	# watches it.
@@ -640,19 +648,19 @@ func _phase_resolve() -> void:
 
 	# The hover overlays resolve their own styles, and the theme feeds them the
 	# same way it feeds the tracked ones.
-	if _is_dirty(Artifact.HOVER_STYLES):
+	if _stale_artifacts.is_stale(Artifact.HOVER_STYLES):
 		_hover_controller.refresh_tooltip_style()
 		_hover_controller.refresh_crosshair_style()
-		_mark_clean(Artifact.HOVER_STYLES)
+		_stale_artifacts.clear(Artifact.HOVER_STYLES)
 
 	# Tick counts, overlap strategy and label spacing are read when the ticks
 	# are resolved against the axis length in pixels, which is layout rather
 	# than domain.
 	if _axis_config_snapshot.has_changed(_domain_config):
-		_invalidate(Artifact.LAYOUT)
+		_stale_artifacts.mark(Artifact.LAYOUT)
 		_axis_config_snapshot.save(_domain_config)
 
-	if _is_dirty(Artifact.DOMAIN):
+	if _stale_artifacts.is_stale(Artifact.DOMAIN):
 		# Bar and line stacked overlays write to the same per-axis entry, with
 		# the cross-overlay validator guaranteeing they agree on the shared
 		# fields.
@@ -660,10 +668,10 @@ func _phase_resolve() -> void:
 			_apply_stacking_domain_overrides_y()
 
 		if _xy_domain.update_from_dataset(_dataset):
-			_invalidate_dependents(Artifact.DOMAIN)
+			_stale_artifacts.mark_dependents(Artifact.DOMAIN)
 			_hover_controller.invalidate()
 
-		_mark_clean(Artifact.DOMAIN)
+		_stale_artifacts.clear(Artifact.DOMAIN)
 
 
 # Arrange, the second phase, first half.
@@ -730,11 +738,11 @@ func _on_pane_geometry_settled(p_pane_rects: Array[Rect2], p_stack_global_positi
 		_hover_controller.invalidate()
 		# A pane that kept its rect gets no resize notification of its own, and
 		# its insets may still differ.
-		_invalidate(Artifact.DRAW)
+		_stale_artifacts.mark(Artifact.DRAW)
 		# A legend key is measured against the layout too, and a key
 		# measurement changes minimum sizes, so it waits for the next refresh
 		# rather than running inside the sort.
-		_invalidate(Artifact.LEGEND_KEYS)
+		_stale_artifacts.mark(Artifact.LEGEND_KEYS)
 		_queue_refresh.call()
 
 	_redraw_dirty_panes()
@@ -756,51 +764,17 @@ func _on_pane_geometry_settled(p_pane_rects: Array[Rect2], p_stack_global_positi
 # this phase because measuring a key changes a minimum size, which arrange
 # must not do.
 func _phase_draw() -> void:
-	if _is_dirty(Artifact.LEGEND_KEYS):
+	if _stale_artifacts.is_stale(Artifact.LEGEND_KEYS):
 		_legend_builder.controller.legend.refresh_keys()
-		_mark_clean(Artifact.LEGEND_KEYS)
+		_stale_artifacts.clear(Artifact.LEGEND_KEYS)
 
 	_redraw_dirty_panes()
 
 	# Hand over to arrange. A scatter builds its markers from the layout rather
 	# than from a draw call, so a stale one is a reason to sort as well.
-	if _is_dirty(Artifact.LAYOUT) or _has_dirty_scatter():
+	if _stale_artifacts.is_stale(Artifact.LAYOUT) or _has_dirty_scatter():
 		_pane_stack.queue_sort()
-	_mark_clean(Artifact.LAYOUT)
-
-
-# Marks p_artifact and everything under it in _DEPENDENTS as due for a
-# recompute.
-func _invalidate(p_artifact: Artifact) -> void:
-	if p_artifact == Artifact.DRAW:
-		# Draw is held per pane and per overlay, so the whole-plot form of it
-		# spreads over those flags rather than sitting in _dirty.
-		_set_all_pane_flags(_xy_dirty_panes, true)
-		_set_all_pane_flags(_bars_dirty_panes, true)
-		_set_all_pane_flags(_scatter_dirty_panes, true)
-		_set_all_pane_flags(_line_dirty_panes, true)
-	else:
-		_dirty[p_artifact] = true
-
-	_invalidate_dependents(p_artifact)
-
-
-# Same, for an artifact that has just been recomputed into a value differing
-# from the one before it. The artifact itself is up to date, what reads it is
-# not.
-func _invalidate_dependents(p_artifact: Artifact) -> void:
-	if not _DEPENDENTS.has(p_artifact):
-		return
-	for dependent: Artifact in _DEPENDENTS[p_artifact]:
-		_invalidate(dependent)
-
-
-func _is_dirty(p_artifact: Artifact) -> bool:
-	return _dirty[p_artifact]
-
-
-func _mark_clean(p_artifact: Artifact) -> void:
-	_dirty[p_artifact] = false
+	_stale_artifacts.clear(Artifact.LAYOUT)
 
 
 # Registers one tracker per user resource a refresh has to watch. A tracker
@@ -912,13 +886,13 @@ func _on_xy_style_changed(_p_change: Tracker.Change) -> void:
 			renderer.set_resolved_xy_style(_resolved_xy_style)
 
 	_apply_pane_gap()
-	_invalidate(Artifact.DRAW)
-	_invalidate(Artifact.LEGEND_KEYS)
+	_stale_artifacts.mark(Artifact.DRAW)
+	_stale_artifacts.mark(Artifact.LEGEND_KEYS)
 
 	# The theme feeds the cascade too, so what the layout cares about is
 	# whether the resolved values differ, not what the user resource reported.
 	if _resolved_xy_style.has_layout_affecting_change(previous):
-		_invalidate(Artifact.LAYOUT)
+		_stale_artifacts.mark(Artifact.LAYOUT)
 
 
 # Every TauPaneStyle property is visual, and the pane renderer is its only
@@ -939,7 +913,7 @@ func _on_bar_style_changed(_p_change: Tracker.Change, p_pane_index: int) -> void
 	_resolved_bar_styles[p_pane_index] = resolved
 	renderer.set_resolved_bar_style(resolved)
 	_bars_dirty_panes[p_pane_index] = true
-	_invalidate(Artifact.LEGEND_KEYS)
+	_stale_artifacts.mark(Artifact.LEGEND_KEYS)
 
 
 # See _on_bar_style_changed.
@@ -949,7 +923,7 @@ func _on_scatter_style_changed(_p_change: Tracker.Change, p_pane_index: int) -> 
 	_resolved_scatter_styles[p_pane_index] = resolved
 	renderer.set_resolved_scatter_style(resolved)
 	_scatter_dirty_panes[p_pane_index] = true
-	_invalidate(Artifact.LEGEND_KEYS)
+	_stale_artifacts.mark(Artifact.LEGEND_KEYS)
 
 
 # See _on_bar_style_changed.
@@ -959,7 +933,7 @@ func _on_line_style_changed(_p_change: Tracker.Change, p_pane_index: int) -> voi
 	_resolved_line_styles[p_pane_index] = resolved
 	renderer.set_resolved_line_style(resolved)
 	_line_dirty_panes[p_pane_index] = true
-	_invalidate(Artifact.LEGEND_KEYS)
+	_stale_artifacts.mark(Artifact.LEGEND_KEYS)
 
 
 # The legend rebuilds itself from the resolved style.
@@ -973,9 +947,9 @@ func _on_legend_style_changed(_p_change: Tracker.Change) -> void:
 # stops at the pane that owns the bars. hoverable sits on this config, and a renderer
 # caches hit records only while it is set.
 func _on_bar_config_changed(p_change: Tracker.Change, p_pane_index: int) -> void:
-	_invalidate(Artifact.HIT_RECORDS)
+	_stale_artifacts.mark(Artifact.HIT_RECORDS)
 	if p_change == Tracker.Change.LAYOUT:
-		_invalidate(Artifact.DOMAIN)
+		_stale_artifacts.mark(Artifact.DOMAIN)
 	else:
 		_bars_dirty_panes[p_pane_index] = true
 
@@ -983,16 +957,16 @@ func _on_bar_config_changed(p_change: Tracker.Change, p_pane_index: int) -> void
 # See _on_bar_config_changed. A scatter carries no hit records to enable.
 func _on_scatter_config_changed(p_change: Tracker.Change, p_pane_index: int) -> void:
 	if p_change == Tracker.Change.LAYOUT:
-		_invalidate(Artifact.DOMAIN)
+		_stale_artifacts.mark(Artifact.DOMAIN)
 	else:
 		_scatter_dirty_panes[p_pane_index] = true
 
 
 # See _on_bar_config_changed.
 func _on_line_config_changed(p_change: Tracker.Change, p_pane_index: int) -> void:
-	_invalidate(Artifact.HIT_RECORDS)
+	_stale_artifacts.mark(Artifact.HIT_RECORDS)
 	if p_change == Tracker.Change.LAYOUT:
-		_invalidate(Artifact.DOMAIN)
+		_stale_artifacts.mark(Artifact.DOMAIN)
 	else:
 		_line_dirty_panes[p_pane_index] = true
 
@@ -1022,7 +996,7 @@ func _apply_stretch_ratios() -> void:
 
 		_panes[pane_index].size_flags_stretch_ratio = stretch_ratio
 		_axis_title_layout.set_stretch_ratio_for_pane(pane_index, stretch_ratio)
-		_invalidate(Artifact.LAYOUT)
+		_stale_artifacts.mark(Artifact.LAYOUT)
 
 
 # Only a bar or a line overlay stacks.
@@ -1189,10 +1163,15 @@ func _has_dirty_scatter() -> bool:
 # styles are re-resolved from the layer under them rather than from a change
 # the user made.
 func _mark_all_dirty() -> void:
-	_invalidate(Artifact.DOMAIN)
-	_invalidate(Artifact.HOVER_STYLES)
+	_stale_artifacts.mark(Artifact.DOMAIN)
+	_stale_artifacts.mark(Artifact.HOVER_STYLES)
 	for tracker in _style_trackers:
 		tracker.force_change()
+
+
+func _mark_all_panes_dirty() -> void:
+	_set_all_pane_flags(_xy_dirty_panes, true)
+	_mark_overlays_dirty()
 
 
 # The samples changed but nothing around them did, so the overlays repaint and
