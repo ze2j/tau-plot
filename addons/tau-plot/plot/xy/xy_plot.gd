@@ -60,6 +60,8 @@ const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_typ
 const Pane := preload("res://addons/tau-plot/plot/xy/pane.gd").Pane
 const PaneRenderer := preload("res://addons/tau-plot/plot/xy/pane_renderer.gd").PaneRenderer
 const OverlayRenderer := preload("res://addons/tau-plot/plot/xy/overlay_renderer.gd").OverlayRenderer
+const SeriesPartition := preload("res://addons/tau-plot/plot/xy/series_partition.gd").SeriesPartition
+const OverlaySeries := preload("res://addons/tau-plot/plot/xy/series_partition.gd").OverlaySeries
 
 const BarRenderer := preload("res://addons/tau-plot/plot/xy/bar/bar_renderer.gd").BarRenderer
 const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visual_attributes.gd").BarVisualAttributes
@@ -90,22 +92,16 @@ var _xy_domain: XYDomain = null
 var _domain_config: TauXYConfig = null
 var _xy_domain_overrides: XYDomainOverrides = null
 var _xy_layout: XYLayout = null
-var _bar_config_per_pane: Array[TauBarConfig] = []			# Elements may be null, one per pane
-var _scatter_config_per_pane: Array[TauScatterConfig] = []	# Elements may be null, one per pane
-var _line_config_per_pane: Array[TauLineConfig] = []		# Elements may be null, one per pane
 var _series_bindings: Array[TauXYSeriesBinding] = []
 var _series_assignment: SeriesAxisAssignment = null
+
+var _series_partition: SeriesPartition = null
 
 # The PaneStack that holds all panes.
 var _pane_stack: PaneStack = null
 
 # Each pane, in stack order. Elements are never null.
 var _panes: Array[Pane] = []
-
-# Per-pane series partitioning
-var _bar_series_ids_per_pane: Array[PackedInt64Array] = []
-var _scatter_series_ids_per_pane: Array[PackedInt64Array] = []
-var _line_series_ids_per_pane: Array[PackedInt64Array] = []
 
 # Plot-wide resolved TauXYStyle instance (produced by the three-layer cascade).
 # Every renderer holds a copy of it.
@@ -203,8 +199,7 @@ func setup(
 	_queue_refresh = p_queue_refresh
 
 	# Create the axis title layout from our own scene children.
-	_axis_title_layout = XYAxisTitleLayout.new(
-		%LeftAxisTitles, %RightAxisTitles, %TopAxisTitles, %BottomAxisTitles)
+	_axis_title_layout = XYAxisTitleLayout.new(%LeftAxisTitles, %RightAxisTitles, %TopAxisTitles, %BottomAxisTitles)
 
 	_series_bindings = p_series_bindings
 	_domain_config = p_xy_config
@@ -214,173 +209,30 @@ func setup(
 	_dataset = p_dataset
 	_dataset.changed.connect(_on_dataset_changed)
 
-	# Per-pane partitioning structures
 	var pane_count := p_xy_config.panes.size()
-	_bar_config_per_pane.resize(pane_count)
-	_bar_config_per_pane.fill(null)
-	_scatter_config_per_pane.resize(pane_count)
-	_scatter_config_per_pane.fill(null)
-	_line_config_per_pane.resize(pane_count)
-	_line_config_per_pane.fill(null)
-	_bar_series_ids_per_pane.clear()
-	_scatter_series_ids_per_pane.clear()
-	_line_series_ids_per_pane.clear()
 
-	# Visual attributes arrive in binding-iteration order, which is neither dense over
-	# the pane's series nor in the order the renderers index them by. Key them by
-	# series id here and lay them out once the series id order below is final.
-	var bar_va_by_sid_per_pane: Array[Dictionary] = []
-	var scatter_va_by_sid_per_pane: Array[Dictionary] = []
-	var line_va_by_sid_per_pane: Array[Dictionary] = []
-	for i in range(pane_count):
-		_bar_series_ids_per_pane.append(PackedInt64Array())
-		_scatter_series_ids_per_pane.append(PackedInt64Array())
-		_line_series_ids_per_pane.append(PackedInt64Array())
-		bar_va_by_sid_per_pane.append({})
-		scatter_va_by_sid_per_pane.append({})
-		line_va_by_sid_per_pane.append({})
-
-	# Extract series bindings
+	# The y axis of a series does not depend on the overlay drawing it, so the
+	# assignment is read straight off the bindings.
 	_series_assignment = SeriesAxisAssignment.new(pane_count)
 	for binding in p_series_bindings:
-		var sid := binding.series_id
-		var pane_index := binding.pane_index
-		_series_assignment.assign(sid, pane_index, binding.y_axis_id)
+		_series_assignment.assign(binding.series_id, binding.pane_index, binding.y_axis_id)
 
-		match binding.overlay_type:
-			PaneOverlayType.BAR:
-				if sid not in _bar_series_ids_per_pane[pane_index]:
-					_bar_series_ids_per_pane[pane_index].append(sid)
-
-				if _bar_config_per_pane[pane_index] == null:
-					var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
-					# BarValidator rejects a bar binding whose pane holds no TauBarConfig.
-					_bar_config_per_pane[pane_index] = pane_config.get_overlay_config(PaneOverlayType.BAR) as TauBarConfig
-
-				if binding.visual_attributes != null:
-					# Type is guaranteed by validation (BarValidator._validate_bar_visuals).
-					bar_va_by_sid_per_pane[pane_index][sid] = binding.visual_attributes as BarVisualAttributes
-
-			PaneOverlayType.SCATTER:
-				if sid not in _scatter_series_ids_per_pane[pane_index]:
-					_scatter_series_ids_per_pane[pane_index].append(sid)
-
-				if _scatter_config_per_pane[pane_index] == null:
-					var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
-					# ScatterValidator rejects a scatter binding whose pane holds no TauScatterConfig.
-					_scatter_config_per_pane[pane_index] = pane_config.get_overlay_config(PaneOverlayType.SCATTER) as TauScatterConfig
-
-				if binding.visual_attributes != null:
-					# Type is guaranteed by validation (ScatterValidator._validate_scatter_visuals).
-					scatter_va_by_sid_per_pane[pane_index][sid] = binding.visual_attributes as ScatterVisualAttributes
-
-			PaneOverlayType.LINE:
-				if sid not in _line_series_ids_per_pane[pane_index]:
-					_line_series_ids_per_pane[pane_index].append(sid)
-
-				if _line_config_per_pane[pane_index] == null:
-					var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
-					# LineValidator rejects a line binding whose pane holds no TauLineConfig.
-					_line_config_per_pane[pane_index] = pane_config.get_overlay_config(PaneOverlayType.LINE) as TauLineConfig
-
-				if binding.visual_attributes != null:
-					# Type is guaranteed by validation (LineValidator._validate_line_visuals).
-					line_va_by_sid_per_pane[pane_index][sid] = binding.visual_attributes as LineVisualAttributes
-
-			_:
-				# Unknown overlay types are rejected by validation.
-				pass
-
-	# Bindings come in any order, so the ids gathered above are in no useful
-	# order. Both z_order and the stacking layers are defined on dataset order,
-	# so that is the order the renderers must get.
-	for pane_index in range(pane_count):
-		_sort_series_ids_by_dataset_index(_bar_series_ids_per_pane[pane_index])
-		_sort_series_ids_by_dataset_index(_line_series_ids_per_pane[pane_index])
-		_sort_series_ids_by_dataset_index(_scatter_series_ids_per_pane[pane_index])
-
-	# The series id order is settled, so the visual attributes can be laid out against it.
-	var bar_va_per_pane: Array = []     # Array of Array[BarVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
-	var scatter_va_per_pane: Array = [] # Array of Array[ScatterVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
-	var line_va_per_pane: Array = []    # Array of Array[LineVisualAttributes]. FIXME Godot 4.5 does not support nested typed collections.
-	for pane_index in range(pane_count):
-		var bar_va: Array[BarVisualAttributes] = []
-		_align_visual_attributes(bar_va, _bar_series_ids_per_pane[pane_index], bar_va_by_sid_per_pane[pane_index], BarVisualAttributes.new)
-		bar_va_per_pane.append(bar_va)
-
-		var scatter_va: Array[ScatterVisualAttributes] = []
-		_align_visual_attributes(scatter_va, _scatter_series_ids_per_pane[pane_index], scatter_va_by_sid_per_pane[pane_index], ScatterVisualAttributes.new)
-		scatter_va_per_pane.append(scatter_va)
-
-		var line_va: Array[LineVisualAttributes] = []
-		_align_visual_attributes(line_va, _line_series_ids_per_pane[pane_index], line_va_by_sid_per_pane[pane_index], LineVisualAttributes.new)
-		line_va_per_pane.append(line_va)
+	_series_partition = SeriesPartition.new(p_xy_config, p_series_bindings, _dataset)
 
 	# Domain + layout creation
 	_xy_domain_overrides = XYDomainOverrides.new()
 	_xy_domain_overrides.init_panes(pane_count)
 	_xy_domain = XYDomain.new(_dataset, _domain_config, _series_assignment,
-			_bar_series_ids_per_pane, _line_series_ids_per_pane, _xy_domain_overrides)
+			_series_partition.collect_series_ids(PaneOverlayType.BAR),
+			_series_partition.collect_series_ids(PaneOverlayType.LINE),
+			_xy_domain_overrides)
 	_xy_layout = XYLayout.new(_xy_domain)
-
-	# Create the pane stack, stacking along the direction the x axis implies.
-	var x_is_horizontal := Axis.is_horizontal(p_xy_config.x_axis_id)
-	_clear_panes()
-	_create_pane_stack(x_is_horizontal)
-
-	# Create panes dynamically inside _pane_stack
-	_panes.resize(pane_count)
 
 	# Resolve TauXYStyle cascade once against the TauPlot root so that theme
 	# lookups use the TauPlot type variation.
 	_resolved_xy_style = TauXYStyle.resolve(_plot, p_xy_config.style)
 
-	# Pane 0 is top-most (vertical stack) or left-most (horizontal stack).
-	for pane_index in range(pane_count):
-		var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
-		var pane := Pane.new()
-		_panes[pane_index] = pane
-
-		pane.container = MarginContainer.new()
-		pane.container.name = "Pane_%d" % pane_index
-		pane.container.clip_contents = true
-		pane.container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		pane.container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		pane.container.size_flags_stretch_ratio = pane_config.stretch_ratio
-		_pane_stack.add_child(pane.container)
-
-		pane.renderer = PaneRenderer.new(pane_index, _xy_layout)
-		pane.container.add_child(pane.renderer)
-		pane.renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		pane.renderer.set_resolved_xy_style(_resolved_xy_style)
-		# The renderer is already in the tree at this point, so theme lookups work.
-		pane.renderer.set_resolved_pane_style(TauPaneStyle.resolve(pane.renderer, pane_index, pane_config.style))
-		pane.renderer.set_grid_line_config(pane_config.grid_line)
-
-		# Overlay renderers are siblings under the pane and paint in
-		# child order, so the creation order below is the paint order: bars,
-		# then lines, then scatter. It goes from the widest footprint to the narrowest.
-		# TauPaneConfig.overlays does not reorder this.
-		if not _bar_series_ids_per_pane[pane_index].is_empty():
-			_add_overlay(pane, BarRenderer.new(
-				_xy_layout, _dataset, _bar_config_per_pane[pane_index],
-				_series_assignment,
-				pane_index, bar_va_per_pane[pane_index],
-				_bar_series_ids_per_pane[pane_index]))
-
-		if not _line_series_ids_per_pane[pane_index].is_empty():
-			_add_overlay(pane, LineRenderer.new(
-				_xy_layout, _dataset, _line_config_per_pane[pane_index],
-				_series_assignment,
-				pane_index, line_va_per_pane[pane_index],
-				_line_series_ids_per_pane[pane_index]))
-
-		if not _scatter_series_ids_per_pane[pane_index].is_empty():
-			_add_overlay(pane, ScatterRenderer.new(
-				_xy_layout, _dataset, _scatter_config_per_pane[pane_index],
-				_series_assignment,
-				pane_index, scatter_va_per_pane[pane_index],
-				_scatter_series_ids_per_pane[pane_index]))
+	_create_panes(p_xy_config)
 
 	# Axis titles
 	_axis_title_layout.build(p_xy_config, _series_assignment)
@@ -393,8 +245,7 @@ func setup(
 	_build_trackers()
 
 	# The builder creates the legend, places it in the tree, then resolves
-	# the TauLegendStyle cascade against the in-tree legend (TauLegend type
-	# variation) so that theme lookups work correctly.
+	# the TauLegendStyle cascade..
 	_resolved_legend_style = _legend_builder.build(p_dataset, p_series_bindings,
 		_get_legend_key_factory,
 		_get_legend_key_refresher,
@@ -406,21 +257,13 @@ func setup(
 	for pane_index in range(pane_count):
 		_applied_stretch_ratio_per_pane[pane_index] = p_xy_config.panes[pane_index].stretch_ratio
 
-	# Mark everything dirty for initial plot
+	_create_hover(p_hover_enabled)
+
+	# Nothing has been derived yet, so every artifact is stale.
 	_mark_all_dirty()
-	_queue_refresh.call()
-
-	# Hover setup
-	var tooltip_precision_digits := p_hover_config.tooltip_precision_digits if p_hover_config != null else 3
-	var formatter := HoverFormatter.new(_xy_domain, _series_assignment, tooltip_precision_digits)
-
-	_hover_controller = HoverController.new()
-	_hover_controller.setup(
-		_plot, _xy_layout, _domain_config, _dataset, _panes,
-		_resolved_xy_style, formatter,
-		p_hover_enabled, p_hover_config)
 
 	_is_setup = true
+	_queue_refresh.call()
 
 
 func clear() -> void:
@@ -440,12 +283,7 @@ func clear() -> void:
 	_xy_domain_overrides = null
 	_xy_layout = null
 	_series_assignment = null
-	_bar_config_per_pane.clear()
-	_scatter_config_per_pane.clear()
-	_line_config_per_pane.clear()
-	_bar_series_ids_per_pane.clear()
-	_scatter_series_ids_per_pane.clear()
-	_line_series_ids_per_pane.clear()
+	_series_partition = null
 	_resolved_xy_style = null
 	_resolved_legend_style = null
 	_user_legend_style = null
@@ -843,37 +681,6 @@ func _attach_legend_outside(p_legend: Control, p_position: Position) -> void:
 			hbox.move_child(p_legend, hbox.get_child_count() - 1)
 
 
-func _sort_series_ids_by_dataset_index(p_ids: PackedInt64Array) -> void:
-	# Insertion sort. PackedInt64Array exposes no sort_custom, and the per-pane
-	# series count is small enough that anything more elaborate is overkill.
-	var count := p_ids.size()
-	for sorted_count in range(count):
-		# Pick the next unsorted element and find where it belongs in the already-sorted [0, sorted_count) part.
-		var current_sid := p_ids[sorted_count]
-		var current_dataset_index := _dataset.get_series_index_by_id(current_sid)
-		var insert_at := sorted_count
-		while insert_at > 0 and _dataset.get_series_index_by_id(p_ids[insert_at - 1]) > current_dataset_index:
-			p_ids[insert_at] = p_ids[insert_at - 1]
-			insert_at -= 1
-		p_ids[insert_at] = current_sid
-
-
-# Lays visual attributes out in the pane's series id order, which is the order the
-# renderers index them by. A series with no user-supplied attributes gets an empty
-# instance rather than null: every buffer inside it is already null, so the existing
-# per-buffer null checks cover the gap and the per-sample path needs no element check.
-# Only one instance can exist per series, since xy_plot_validator rejects duplicate
-# (pane_index, overlay_type, series_id) bindings.
-#
-# r_aligned carries the element type of the overlay, which p_make_empty produces
-# an instance of. Godot 4.5 has no way to write that as a return type here.
-func _align_visual_attributes(r_aligned: Array, p_series_ids: PackedInt64Array, p_va_by_sid: Dictionary, p_make_empty: Callable) -> void:
-	r_aligned.resize(p_series_ids.size())
-	for i in range(p_series_ids.size()):
-		var sid := p_series_ids[i]
-		r_aligned[i] = p_va_by_sid[sid] if p_va_by_sid.has(sid) else p_make_empty.call()
-
-
 # Asks every dirty renderer to redraw, and lowers its flag.
 #
 # Godot draws after it has run the pending sorts. A redraw asked for here is
@@ -977,6 +784,76 @@ func _on_dataset_changed(p_change: DatasetChange) -> void:
 	_queue_refresh.call()
 
 
+# Builds the pane stack and fills it with one pane per config entry, each
+# holding a pane renderer and the overlay renderers the partition gave it.
+#
+# Pane 0 is top-most in a vertical stack, left-most in a horizontal one.
+func _create_panes(p_xy_config: TauXYConfig) -> void:
+	_clear_panes()
+	# The stack runs along the direction the x axis implies.
+	_create_pane_stack(Axis.is_horizontal(p_xy_config.x_axis_id))
+
+	_panes.resize(p_xy_config.panes.size())
+	for pane_index in range(_panes.size()):
+		var pane_config: TauPaneConfig = p_xy_config.panes[pane_index]
+		var pane := Pane.new()
+		_panes[pane_index] = pane
+
+		pane.container = MarginContainer.new()
+		pane.container.name = "Pane_%d" % pane_index
+		pane.container.clip_contents = true
+		pane.container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		pane.container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pane.container.size_flags_stretch_ratio = pane_config.stretch_ratio
+		_pane_stack.add_child(pane.container)
+
+		pane.renderer = PaneRenderer.new(pane_index, _xy_layout)
+		pane.container.add_child(pane.renderer)
+		pane.renderer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		pane.renderer.set_resolved_xy_style(_resolved_xy_style)
+		# The renderer is already in the tree at this point, so theme lookups work.
+		pane.renderer.set_resolved_pane_style(TauPaneStyle.resolve(pane.renderer, pane_index, pane_config.style))
+		pane.renderer.set_grid_line_config(pane_config.grid_line)
+
+		# Overlay renderers are siblings under the pane and paint in child
+		# order, so the partition order is the paint order.
+		for overlay_series: OverlaySeries in _series_partition.panes[pane_index].overlays:
+			_add_overlay(pane, _create_overlay_renderer(pane_index, overlay_series))
+
+
+# The overlay type picks the renderer, and each of them indexes its own concrete
+# visual attributes type, which the partition holds as the base one.
+func _create_overlay_renderer(p_pane_index: int, p_overlay: OverlaySeries) -> OverlayRenderer:
+	match p_overlay.overlay_type:
+		PaneOverlayType.BAR:
+			var attributes: Array[BarVisualAttributes] = []
+			attributes.assign(p_overlay.visual_attributes)
+			return BarRenderer.new(_xy_layout, _dataset, p_overlay.config as TauBarConfig, _series_assignment, p_pane_index, attributes, p_overlay.series_ids)
+		PaneOverlayType.LINE:
+			var attributes: Array[LineVisualAttributes] = []
+			attributes.assign(p_overlay.visual_attributes)
+			return LineRenderer.new(_xy_layout, _dataset, p_overlay.config as TauLineConfig, _series_assignment, p_pane_index, attributes, p_overlay.series_ids)
+		PaneOverlayType.SCATTER:
+			var attributes: Array[ScatterVisualAttributes] = []
+			attributes.assign(p_overlay.visual_attributes)
+			return ScatterRenderer.new(_xy_layout, _dataset, p_overlay.config as TauScatterConfig, _series_assignment, p_pane_index, attributes, p_overlay.series_ids)
+	return null
+
+
+# Creates the hover controller and the formatter it reports values through.
+func _create_hover(p_enabled: bool) -> void:
+	# The hover config is optional. A default instance stands in for a missing
+	# one, so TauHoverConfig stays the only place its defaults are written down.
+	var config_or_default := _hover_config if _hover_config != null else TauHoverConfig.new()
+	var formatter := HoverFormatter.new(_xy_domain, _series_assignment, config_or_default.tooltip_precision_digits)
+
+	_hover_controller = HoverController.new()
+	_hover_controller.setup(
+		_plot, _xy_layout, _domain_config, _dataset, _panes,
+		_resolved_xy_style, formatter,
+		p_enabled, _hover_config)
+
+
 # Parents an overlay renderer to its pane and resolves its style. The renderer
 # has to be in the tree before the cascade runs, since the theme is one of its
 # layers.
@@ -1042,15 +919,16 @@ func _apply_stacking_domain_overrides_y() -> void:
 
 
 func _apply_bar_stacking_for_pane(p_pane_index: int) -> void:
-	if _bar_series_ids_per_pane[p_pane_index].is_empty():
+	var bar_overlay := _series_partition.panes[p_pane_index].find_overlay(PaneOverlayType.BAR)
+	if bar_overlay == null:
 		return
 
-	var pane_bar_config: TauBarConfig = _bar_config_per_pane[p_pane_index]
+	var pane_bar_config := bar_overlay.config as TauBarConfig
 	if pane_bar_config.mode != TauBarConfig.BarMode.STACKED:
 		return
 
 	# Stacked bar series in a pane share one y axis, so any series id resolves it.
-	var first_bar_sid: int = _bar_series_ids_per_pane[p_pane_index][0]
+	var first_bar_sid: int = bar_overlay.series_ids[0]
 	var stacked_y_axis_id: int = _series_assignment.get_y_axis_id_for_series(first_bar_sid, p_pane_index)
 
 	var pane_config: TauPaneConfig = _domain_config.panes[p_pane_index]
@@ -1069,15 +947,16 @@ func _apply_bar_stacking_for_pane(p_pane_index: int) -> void:
 
 
 func _apply_line_stacking_for_pane(p_pane_index: int) -> void:
-	if _line_series_ids_per_pane[p_pane_index].is_empty():
+	var line_overlay := _series_partition.panes[p_pane_index].find_overlay(PaneOverlayType.LINE)
+	if line_overlay == null:
 		return
 
-	var pane_line_config: TauLineConfig = _line_config_per_pane[p_pane_index]
+	var pane_line_config := line_overlay.config as TauLineConfig
 	if pane_line_config.mode != TauLineConfig.LineMode.STACKED:
 		return
 
 	# Stacked line series in a pane share one y axis, so any series id resolves it.
-	var first_line_sid: int = _line_series_ids_per_pane[p_pane_index][0]
+	var first_line_sid: int = line_overlay.series_ids[0]
 	var stacked_y_axis_id: int = _series_assignment.get_y_axis_id_for_series(first_line_sid, p_pane_index)
 
 	var pane_config: TauPaneConfig = _domain_config.panes[p_pane_index]
