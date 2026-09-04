@@ -7,6 +7,11 @@ const TickSequence := preload("res://addons/tau-plot/plot/xy/tick_sequence.gd").
 # Draws the axes, ticks and tick labels of a single pane.
 # It relies on XYLayout for pane_rect, mappings, ticks and formatting policy.
 class PaneRenderer extends Control:
+
+	## Raised when what the pane renderer draws no longer matches what's
+	## expected. Lowered once the redraw is queued.
+	var dirty: bool = true
+
 	var _pane_index: int = 0
 	var _layout: XYLayout
 	var _xy_style: TauXYStyle = null
@@ -35,6 +40,14 @@ class PaneRenderer extends Control:
 		match what:
 			NOTIFICATION_RESIZED:
 				queue_redraw()
+
+
+	## Queues the redraw a dirty pane renderer needs and lowers the flag.
+	func queue_paint() -> void:
+		if not dirty:
+			return
+		queue_redraw()
+		dirty = false
 
 
 	## Enables or disables mouse capture for hover hit testing.

@@ -10,6 +10,7 @@ const BarVisualAttributes := preload("res://addons/tau-plot/plot/xy/bar/bar_visu
 const BarHitRecord := preload("res://addons/tau-plot/plot/xy/bar/bar_hit_record.gd").BarHitRecord
 const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_series_values.gd").StackedSeriesValues
 const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highlight.gd").HoverHighlight
+const OverlayRenderer := preload("res://addons/tau-plot/plot/xy/overlay_renderer.gd").OverlayRenderer
 
 
 # Draws bar overlays from a XYLayout + Dataset.
@@ -26,7 +27,7 @@ const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highl
 # - GROUPED/STACKED require SHARED_X,
 # - CATEGORICAL requires SHARED_X,
 # - STACKED requires SHARED y-axis and linear Y scale.
-class BarRenderer extends Control:
+class BarRenderer extends OverlayRenderer:
 	var _layout: XYLayout = null
 	var _dataset: Dataset = null
 	var _bar_config: TauBarConfig = null
@@ -44,9 +45,8 @@ class BarRenderer extends Control:
 	# Must be provided at construction. Empty means this renderer has no series to draw.
 	var _bar_series_ids: PackedInt64Array = PackedInt64Array()
 
-	# Resolved style instances pushed by xy_plot. Treat as read-only.
+	# Resolved style instance produced by resolve_style(). Treat as read-only.
 	var _bar_style: TauBarStyle = null
-	var _xy_style: TauXYStyle = null
 	var _geometry_cache: BarGeometry = null
 
 	const _MIN_BAR_WIDTH_PX: float = 1.0
@@ -112,21 +112,30 @@ class BarRenderer extends Control:
 			NOTIFICATION_RESIZED:
 				queue_redraw()
 
-	func get_config() -> TauBarConfig:
+	func get_config() -> TauPaneOverlayConfig:
 		return _bar_config
 
-	## Receives the resolved TauBarStyle from xy_plot after cascade resolution.
-	func set_resolved_bar_style(p_style: TauBarStyle) -> void:
-		_bar_style = p_style
+
+	func get_user_style() -> TauStyle:
+		return _bar_config.style
 
 
-	## Receives the resolved TauXYStyle from xy_plot after cascade resolution.
-	func set_resolved_xy_style(p_style: TauXYStyle) -> void:
-		_xy_style = p_style
+	func resolve_style() -> void:
+		_bar_style = TauBarStyle.resolve(self, _pane_index, _bar_config.style)
 
 
-	## Updates the hover highlight state. Called by HoverController when the
-	## hovered sample changes or when highlight is activated/deactivated.
+	func queue_paint() -> void:
+		if not dirty:
+			return
+		queue_redraw()
+		dirty = false
+
+
+	# The bars are drawn in _draw().
+	func on_geometry_settled() -> void:
+		pass
+
+
 	func set_hover_state(p_active: bool, p_series_id: int, p_sample_index: int, p_color_callback: Callable) -> void:
 		var changed := (p_active != _highlight_active or p_series_id != _hovered_series_id
 			or p_sample_index != _hovered_sample_index or _hover_group_mode)
@@ -169,16 +178,11 @@ class BarRenderer extends Control:
 		return _hit_records
 
 
-	## Creates a legend key Control for a bar overlay: a filled square with alpha.
-	## Reads fill color and alpha from resolved styles on this renderer instance.
-	## Does not set custom_minimum_size, so the legend applies its default key_size_px.
+	## A bar key is a filled square carrying the series color and alpha.
 	func create_legend_key_control(p_global_series_index: int) -> Control:
 		return _BarLegendKey.new(_resolve_legend_style_box(p_global_series_index))
 
 
-	## Re-resolves the appearance of a legend key created by
-	## create_legend_key_control() and repaints it, so a style change costs no
-	## rebuild of the legend row.
 	func refresh_legend_key_control(p_global_series_index: int, p_control: Control) -> void:
 		(p_control as _BarLegendKey).set_style_box(_resolve_legend_style_box(p_global_series_index))
 
