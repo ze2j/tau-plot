@@ -10,7 +10,7 @@ Holds all X and Y sample data for one or more named series and notifies the plot
 
 `Dataset` is the data model of [`TauPlot`](tau_plot.md). It carries all sample values passed to a plot via
 [`TauPlot.plot_xy()`](tau_plot.md#plot_xy). Every mutation
-emits the [`changed`](#changed) signal with a [`DatasetChange`](dataset_change.md) describing what moved, which the plot
+emits the [`changed`](#changed) signal with a [`DatasetChange`](dataset_change.md) describing what changed, which the plot
 uses internally to trigger the minimum required update. Callers never need to refresh the plot
 manually after modifying a dataset.
 

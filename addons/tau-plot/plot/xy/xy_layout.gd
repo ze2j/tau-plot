@@ -26,9 +26,10 @@ class XYLayout extends RefCounted:
 	## [method update]. Deriving them inside the mapping functions would repeat
 	## all four for every mapped value.
 	class AxisMapping extends RefCounted:
-		# The domain offset, the inversion and the pixel extent all collapse
-		# into this pair. On a logarithmic axis it applies to the logarithm of
-		# the value: the ratio cancels the base, so the raw log() is used.
+		# The domain offset, the inversion and the axis length in pixels all
+		# collapse into this pair. On a logarithmic axis it applies to the
+		# logarithm of the value: the ratio cancels the base, so the raw log()
+		# is used.
 		var _scale_px: float = 0.0
 		var _offset_px: float = 0.0
 		var _is_log: bool = false
@@ -596,7 +597,7 @@ class XYLayout extends RefCounted:
 
 
 	## Computes x axis tick sequences once.
-	## The x domain is shared across all panes and the pixel extent along x
+	## The x domain is shared across all panes and the x axis length in pixels
 	## is identical for every pane, so one computation is sufficient.
 	## Stores results in [member x_ticks], [member secondary_x_ticks],
 	## [member x_categorical_visible], and [member secondary_x_categorical_visible].
@@ -737,7 +738,7 @@ class XYLayout extends RefCounted:
 	## Computes the tick sequence or categorical visibility for a primary or
 	## secondary x axis. Results are stored on this XYLayout instance.
 	## [param p_is_primary_x] True for the primary x axis, false for secondary.
-	## [param p_view_rect] A pane view rect (used to determine the available pixel extent).
+	## [param p_view_rect] A pane view rect (used to determine the available axis length in pixels).
 	func _compute_x_ticks_once(p_is_primary_x: bool, p_view_rect: Rect2) -> void:
 		var x_axis_cfg: TauAxisConfig
 		var categories: PackedStringArray

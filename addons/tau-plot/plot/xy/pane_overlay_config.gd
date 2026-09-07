@@ -68,6 +68,11 @@ var visual_callbacks: VisualCallbacks = null
 
 #region Internal, not public API, may change without notice.
 
+# Returns the copy of this config that change detection compares against later.
+func make_snapshot() -> TauPaneOverlayConfig:
+	return duplicate()
+
+
 func is_equal_to(p_other: TauPaneOverlayConfig) -> bool:
 	if p_other == null:
 		return false

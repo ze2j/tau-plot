@@ -49,6 +49,11 @@ const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 
 #region Internal, not public API, may change without notice.
 
+# Returns the copy of this config that change detection compares against later.
+func make_snapshot() -> TauGridLineConfig:
+	return duplicate()
+
+
 func is_equal_to(p_other: TauGridLineConfig) -> bool:
 	if p_other == null:
 		return false

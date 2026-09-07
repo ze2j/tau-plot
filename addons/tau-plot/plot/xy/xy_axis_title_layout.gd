@@ -22,8 +22,10 @@ class XYAxisTitleLayout extends RefCounted:
 	var _top_container: BoxContainer = null
 	var _bottom_container: BoxContainer = null
 
-	# Controls per edge. The two edges along the stacking direction hold one
-	# entry per pane, the two across it hold a single entry.
+	# Titles per edge, null where there is none. The two edges along the
+	# stacking direction hold one entry per pane, the two across it hold a
+	# single entry. The spacers standing in for the missing titles are held by
+	# the containers alone.
 	var _titles_left: Array = []
 	var _titles_right: Array = []
 	var _titles_top: Array = []
@@ -103,21 +105,20 @@ class XYAxisTitleLayout extends RefCounted:
 
 
 	## Gives every title control the data area rectangle it aligns with.
-	func update_insets(p_xy_layout: XYLayout, p_panes: Array) -> void:
-		if p_xy_layout == null:
-			return
+	## [param p_pane_rects] Rect of every pane, in PaneStack-local coordinates and in pane order.
+	## [param p_stack_global_position] Global position of the pane stack, which
+	## turns the pane rects into global coordinates.
+	func update_insets(p_xy_layout: XYLayout, p_pane_rects: Array[Rect2], p_stack_global_position: Vector2) -> void:
 		var pane_count := p_xy_layout.pane_layouts.size()
 		for i in range(pane_count):
-			if i >= p_panes.size() or p_panes[i] == null:
-				continue
 			var pane_rect: Rect2 = p_xy_layout.pane_layouts[i].pane_rect
-			var pane: Control = p_panes[i]
+			var pane_global := p_stack_global_position + p_pane_rects[i].position
 
 			# Global coordinates, so the alignment is correct whatever the
 			# nesting depth of each title container.
-			var data_left_global := pane.global_position.x + pane_rect.position.x
+			var data_left_global := pane_global.x + pane_rect.position.x
 			var data_right_global := data_left_global + pane_rect.size.x
-			var data_top_global := pane.global_position.y + pane_rect.position.y
+			var data_top_global := pane_global.y + pane_rect.position.y
 			var data_bottom_global := data_top_global + pane_rect.size.y
 
 			if _panes_stack_vertically:
@@ -147,11 +148,11 @@ class XYAxisTitleLayout extends RefCounted:
 	## [param p_stretch_ratio] The stretch ratio of the pane.
 	func set_stretch_ratio_for_pane(p_pane_index: int, p_stretch_ratio: float) -> void:
 		if _panes_stack_vertically:
-			_titles_left[p_pane_index].size_flags_stretch_ratio = p_stretch_ratio
-			_titles_right[p_pane_index].size_flags_stretch_ratio = p_stretch_ratio
+			_set_pane_control_ratio(_left_container, p_pane_index, p_stretch_ratio)
+			_set_pane_control_ratio(_right_container, p_pane_index, p_stretch_ratio)
 		else:
-			_titles_top[p_pane_index].size_flags_stretch_ratio = p_stretch_ratio
-			_titles_bottom[p_pane_index].size_flags_stretch_ratio = p_stretch_ratio
+			_set_pane_control_ratio(_top_container, p_pane_index, p_stretch_ratio)
+			_set_pane_control_ratio(_bottom_container, p_pane_index, p_stretch_ratio)
 
 
 	## Updates the separation theme override on all four title containers.
@@ -190,24 +191,24 @@ class XYAxisTitleLayout extends RefCounted:
 		var text := cfg.title if cfg != null else ""
 		var has_series := _axis_has_series(p_axis_id, p_xy_config, p_pane_index, p_series_assignment)
 
+		var title: Control = null
 		if not text.is_empty() and has_series:
-			var label := _OrientedTitle.instantiate()
-			_fill_along_container(label, p_is_vertical_container)
-			label.size_flags_stretch_ratio = p_pane_config.stretch_ratio
-			label.text = text
-			label.title_orientation = _resolve_title_orientation(cfg.title_orientation, p_axis_id)
-			label.title_alignment = cfg.title_alignment
-			label.text_alignment = cfg.title_text_alignment
-			p_container.add_child(label)
-			p_titles_array[p_pane_index] = label
-			return true
+			title = _OrientedTitle.instantiate()
+			title.text = text
+			title.title_orientation = _resolve_title_orientation(cfg.title_orientation, p_axis_id)
+			title.title_alignment = cfg.title_alignment
+			title.text_alignment = cfg.title_text_alignment
 
-		var spacer := Control.new()
-		_fill_along_container(spacer, p_is_vertical_container)
-		spacer.size_flags_stretch_ratio = p_pane_config.stretch_ratio
-		p_container.add_child(spacer)
-		p_titles_array[p_pane_index] = spacer
-		return p_has_any
+		# Every pane owns a control on the edge, so the container splits its
+		# length the way the stack does. A pane with no title owns a bare spacer,
+		# which the container holds and the titles array does not.
+		var control: Control = title if title != null else Control.new()
+		_fill_along_container(control, p_is_vertical_container)
+		control.size_flags_stretch_ratio = p_pane_config.stretch_ratio
+		p_container.add_child(control)
+
+		p_titles_array[p_pane_index] = title
+		return p_has_any or title != null
 
 
 	## Builds the single control of an edge running across the stack, which
@@ -253,12 +254,16 @@ class XYAxisTitleLayout extends RefCounted:
 			p_control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 
+	# An edge running along the stacking direction holds one control per pane,
+	# added in pane order, so the child index is the pane index.
+	static func _set_pane_control_ratio(p_container: BoxContainer, p_pane_index: int, p_stretch_ratio: float) -> void:
+		var control: Control = p_container.get_child(p_pane_index)
+		control.size_flags_stretch_ratio = p_stretch_ratio
+
+
 	static func _apply_data_area(p_titles: Array, p_index: int,
 			p_begin_global: float, p_end_global: float, p_aligns_horizontally: bool) -> void:
-		if p_index >= p_titles.size() or p_titles[p_index] == null:
-			return
-		# Spacers carry no alignment.
-		if not &"data_begin_global" in p_titles[p_index]:
+		if p_titles[p_index] == null:
 			return
 		var ctrl: Control = p_titles[p_index]
 		ctrl.aligns_horizontally = p_aligns_horizontally
@@ -267,10 +272,9 @@ class XYAxisTitleLayout extends RefCounted:
 
 
 	static func _clear_edge(p_container: BoxContainer, p_titles: Array) -> void:
-		for node in p_titles:
-			if node != null and is_instance_valid(node):
-				p_container.remove_child(node)
-				node.queue_free()
+		for node in p_container.get_children():
+			p_container.remove_child(node)
+			node.queue_free()
 		p_titles.clear()
 
 

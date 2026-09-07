@@ -9,6 +9,7 @@ const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attribut
 const ScatterVisualAttributes := preload("res://addons/tau-plot/plot/xy/scatter/scatter_visual_attributes.gd").ScatterVisualAttributes
 const MarkerShape := preload("res://addons/tau-plot/plot/xy/scatter/scatter_style.gd").MarkerShape
 const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highlight.gd").HoverHighlight
+const OverlayRenderer := preload("res://addons/tau-plot/plot/xy/overlay_renderer.gd").OverlayRenderer
 
 const SCATTER_SHADER: Shader = preload("res://addons/tau-plot/plot/xy/scatter/scatter.gdshader")
 
@@ -23,10 +24,10 @@ const SCATTER_SHADER: Shader = preload("res://addons/tau-plot/plot/xy/scatter/sc
 # ShaderMaterial handles all shapes (including CROSS and PLUS via SDF).
 #
 # Update flow:
-#   plot.gd calls update_scatter() when data/layout changes.
-#   update_scatter() iterates series in draw order, writing transform, color,
-#   and custom data directly into each series MultiMesh.
-class ScatterRenderer extends Control:
+#   The markers are rebuilt from the settled pane geometry. Series are walked
+#   in draw order, writing transform, color and custom data directly into each
+#   series MultiMesh.
+class ScatterRenderer extends OverlayRenderer:
 	var _layout: XYLayout = null
 	var _dataset: Dataset = null
 	var _scatter_config: TauScatterConfig = null
@@ -52,11 +53,10 @@ class ScatterRenderer extends Control:
 	# Cache
 	var _geometry_cache: ScatterGeometry = null
 
-	# Resolved style instances pushed by xy_plot. Treat as read-only.
+	# Resolved style instance produced by resolve_style(). Treat as read-only.
 	var _scatter_style: TauScatterStyle = null
-	var _xy_style: TauXYStyle = null
 
-	# Hover hit-testing caches. Rebuilt every update_scatter() call.
+	# Hover hit-testing caches. Rebuilt every _update_scatter() call.
 	# Parallel arrays: index i describes the i-th visible marker.
 	var _hover_screen_positions: PackedVector2Array = PackedVector2Array()
 	var _hover_series_ids: PackedInt64Array = PackedInt64Array()
@@ -99,22 +99,31 @@ class ScatterRenderer extends Control:
 		_build_shared_material()
 
 
-	func get_config() -> TauScatterConfig:
+	func get_config() -> TauPaneOverlayConfig:
 		return _scatter_config
 
 
-	## Receives the resolved TauScatterStyle from xy_plot after cascade resolution.
-	func set_resolved_scatter_style(p_style: TauScatterStyle) -> void:
-		_scatter_style = p_style
+	func get_user_style() -> TauStyle:
+		return _scatter_config.style
 
 
-	## Receives the resolved TauXYStyle from xy_plot after cascade resolution.
-	func set_resolved_xy_style(p_style: TauXYStyle) -> void:
-		_xy_style = p_style
+	func resolve_style() -> void:
+		_scatter_style = TauScatterStyle.resolve(self, _pane_index, _scatter_config.style)
 
 
-	## Updates the hover highlight state. Called by HoverController when the
-	## hovered sample changes or when highlight is activated/deactivated.
+	# A dirty scatter waits for on_geometry_settled().
+	func queue_paint() -> void:
+		pass
+
+	# The markers are written into the MultiMesh against the pane geometry, and
+	# only the sort settles one.
+	func on_geometry_settled() -> void:
+		if not dirty:
+			return
+		_update_scatter()
+		dirty = false
+
+
 	func set_hover_state(p_active: bool, p_series_id: int, p_sample_index: int, p_color_callback: Callable) -> void:
 		var changed := p_active != _highlight_active or p_series_id != _hovered_series_id or p_sample_index != _hovered_sample_index
 		_highlight_active = p_active
@@ -124,14 +133,29 @@ class ScatterRenderer extends Control:
 		if changed:
 			_update_hover_instances()
 
-	####################################################################################################
-	# Public API
-	####################################################################################################
+	## Creates a legend key Control for a scatter overlay using the same SDF shader
+	## as the main scatter rendering path. The returned Control hosts a single-instance
+	## MultiMeshInstance2D that renders the marker shape with fill color, alpha,
+	## outline color, and outline width, producing a pixel-perfect match.
+	##
+	## Reads all visual properties from resolved styles on this renderer instance:
+	## fill color, alpha, marker shape, outline color, outline width, marker size.
+	## For DATA_UNITS marker size policy, computes size at the domain midpoint.
+	func create_legend_key_control(p_global_series_index: int) -> Control:
+		var key := _ScatterLegendKey.new(_unit_quad_mesh, _shared_material)
+		_write_legend_key(p_global_series_index, key)
+		return key
 
-	# Called by plot.gd instead of queue_redraw().
+
+	## Under the DATA_UNITS marker size policy the requested box follows the
+	## current layout, so call this after the layout update.
+	func refresh_legend_key_control(p_global_series_index: int, p_control: Control) -> void:
+		_write_legend_key(p_global_series_index, p_control as _ScatterLegendKey)
+
+
 	# Iterates series in draw order, writing marker data directly into each
 	# series MultiMesh. No intermediate marker objects or batch grouping.
-	func update_scatter() -> void:
+	func _update_scatter() -> void:
 		var pane_rect := _layout.get_pane_rect(_pane_index)
 		if pane_rect.size.x <= 0.0 or pane_rect.size.y <= 0.0:
 			_hide_all_entries()
@@ -177,28 +201,6 @@ class ScatterRenderer extends Control:
 						marker_count = _write_series_per_series_x(pane_rect, series_index, series_id, entry)
 
 			entry.mm.visible_instance_count = marker_count
-
-
-	## Creates a legend key Control for a scatter overlay using the same SDF shader
-	## as the main scatter rendering path. The returned Control hosts a single-instance
-	## MultiMeshInstance2D that renders the marker shape with fill color, alpha,
-	## outline color, and outline width, producing a pixel-perfect match.
-	##
-	## Reads all visual properties from resolved styles on this renderer instance:
-	## fill color, alpha, marker shape, outline color, outline width, marker size.
-	## For DATA_UNITS marker size policy, computes size at the domain midpoint.
-	func create_legend_key_control(p_global_series_index: int) -> Control:
-		var key := _ScatterLegendKey.new(_unit_quad_mesh, _shared_material)
-		_write_legend_key(p_global_series_index, key)
-		return key
-
-
-	## Re-resolves the appearance of a legend key created by
-	## create_legend_key_control(), so a style change costs no rebuild of the
-	## legend row. Under the DATA_UNITS marker size policy the requested box
-	## follows the current layout, so call it after the layout update.
-	func refresh_legend_key_control(p_global_series_index: int, p_control: Control) -> void:
-		_write_legend_key(p_global_series_index, p_control as _ScatterLegendKey)
 
 
 	####################################################################################################

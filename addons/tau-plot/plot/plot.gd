@@ -170,7 +170,9 @@ func _notification(what: int) -> void:
 			if _refresh_requested:
 				_schedule_refresh()
 		NOTIFICATION_RESIZED:
-			_refresh()
+			# Godot resizes the descendants one deferred step at a time, so
+			# nothing below this node has its new size yet.
+			queue_refresh()
 		NOTIFICATION_THEME_CHANGED:
 			if _xy_plot != null:
 				_xy_plot.on_theme_changed()
@@ -237,10 +239,10 @@ func reset() -> void:
 
 func _refresh() -> void:
 	if _xy_plot != null:
-		_xy_plot.refresh(global_position, _effective_legend_config().position)
+		_xy_plot.refresh()
 
 
-# Waits one frame so the layout settles before the refresh measures it.
+# Defers to the next frame so repeated requests coalesce into one refresh.
 # Outside the tree there is nothing to lay out, so the request waits for NOTIFICATION_ENTER_TREE.
 func _schedule_refresh() -> void:
 	if _refresh_scheduled or not is_inside_tree():

@@ -82,7 +82,7 @@ class DatasetChangeAnalyzer extends RefCounted:
 
 		# Check X bounds (shared axis)
 		if p_x_changed:
-			var x_axis_cfg := p_domain.get_x_axis_config()
+			var x_axis_cfg := p_domain.config.x_axis
 
 			# Categorical X axis: X change always needs update
 			if x_axis_cfg.type == TauAxisConfig.Type.CATEGORICAL:

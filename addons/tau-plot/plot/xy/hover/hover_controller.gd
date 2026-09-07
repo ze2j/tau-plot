@@ -10,23 +10,26 @@ const PaneRenderer := preload("res://addons/tau-plot/plot/xy/pane_renderer.gd").
 const BarRenderer := preload("res://addons/tau-plot/plot/xy/bar/bar_renderer.gd").BarRenderer
 const ScatterRenderer := preload("res://addons/tau-plot/plot/xy/scatter/scatter_renderer.gd").ScatterRenderer
 const LineRenderer := preload("res://addons/tau-plot/plot/xy/line/line_renderer.gd").LineRenderer
+const BarHitTester := preload("res://addons/tau-plot/plot/xy/bar/bar_hit_tester.gd").BarHitTester
+const ScatterHitTester := preload("res://addons/tau-plot/plot/xy/scatter/scatter_hit_tester.gd").ScatterHitTester
+const LineHitTester := preload("res://addons/tau-plot/plot/xy/line/line_hit_tester.gd").LineHitTester
+const OverlayRenderer := preload("res://addons/tau-plot/plot/xy/overlay_renderer.gd").OverlayRenderer
+const Pane := preload("res://addons/tau-plot/plot/xy/pane.gd").Pane
+const Dataset := preload("res://addons/tau-plot/model/dataset.gd").Dataset
 const PaneOverlayType := preload("res://addons/tau-plot/plot/xy/pane_overlay_type.gd").PaneOverlayType
 
 
 ## Handles input dispatch, hover mode resolution, hit aggregation across
 ## overlays, tooltip lifecycle (create/position/show/hide/destroy), and
-## signal emission. Hit testing goes exclusively through the OverlayHitTester
-## interface.
+## signal emission. It builds one OverlayHitTester per overlay and tests
+## exclusively through that interface.
 class HoverController extends RefCounted:
 	# External references (provided via setup).
 	var _plot: PanelContainer = null
 	var _layout: XYLayout = null
 	var _domain_config: TauXYConfig = null
-	var _panes: Array[Container] = []
-	var _pane_renderers: Array[PaneRenderer] = []
-	var _bar_renderers: Array[BarRenderer] = []
-	var _scatter_renderers: Array[ScatterRenderer] = []
-	var _line_renderers: Array[LineRenderer] = []
+	var _dataset: Dataset = null
+	var _panes: Array[Pane] = []
 	var _resolved_xy_style: TauXYStyle = null
 
 	# Hover state.
@@ -60,30 +63,23 @@ class HoverController extends RefCounted:
 			p_plot: Control,
 			p_layout: XYLayout,
 			p_domain_config: TauXYConfig,
-			p_panes: Array[Container],
-			p_pane_renderers: Array[PaneRenderer],
-			p_bar_renderers: Array[BarRenderer],
-			p_scatter_renderers: Array[ScatterRenderer],
-			p_line_renderers: Array[LineRenderer],
+			p_dataset: Dataset,
+			p_panes: Array[Pane],
 			p_resolved_xy_style: TauXYStyle,
 			p_formatter: HoverFormatter,
-			p_hit_testers_per_pane: Array, # Array[Array[OverlayHitTester]] FIXME Godot 4.5 does not support nested typed collections.
 			p_enabled: bool,
 			p_config: TauHoverConfig) -> void:
 		_plot = p_plot
 		_layout = p_layout
 		_domain_config = p_domain_config
+		_dataset = p_dataset
 		_panes = p_panes
-		_pane_renderers = p_pane_renderers
-		_bar_renderers = p_bar_renderers
-		_scatter_renderers = p_scatter_renderers
-		_line_renderers = p_line_renderers
 		_resolved_xy_style = p_resolved_xy_style
 		_formatter = p_formatter
-		_hit_testers_per_pane = p_hit_testers_per_pane
 		_enabled = p_enabled
 		_hover_config = p_config
 
+		_create_hit_testers()
 		_apply_to_pane_renderers()
 		refresh_hit_records_enabled()
 		_resolve_tooltip_style()
@@ -107,11 +103,8 @@ class HoverController extends RefCounted:
 		_plot = null
 		_layout = null
 		_domain_config = null
+		_dataset = null
 		_panes = []
-		_pane_renderers = []
-		_bar_renderers = []
-		_scatter_renderers = []
-		_line_renderers = []
 		_resolved_xy_style = null
 		_formatter = null
 		_hover_config = null
@@ -134,15 +127,14 @@ class HoverController extends RefCounted:
 	## and the overlay config is hoverable. Disables it otherwise, so the
 	## renderer stops building records no one reads.
 	func refresh_hit_records_enabled() -> void:
-		for renderer: BarRenderer in _bar_renderers:
-			if renderer == null:
-				continue  # Pane has no bar overlay.
-			renderer.set_hit_records_enabled(_enabled and renderer.get_config().hoverable)
+		for pane: Pane in _panes:
+			var bar := pane.find_overlay(PaneOverlayType.BAR) as BarRenderer
+			if bar != null:
+				bar.set_hit_records_enabled(_enabled and bar.get_config().hoverable)
 
-		for renderer: LineRenderer in _line_renderers:
-			if renderer == null:
-				continue  # Pane has no line overlay.
-			renderer.set_hit_records_enabled(_enabled and renderer.get_config().hoverable)
+			var line := pane.find_overlay(PaneOverlayType.LINE) as LineRenderer
+			if line != null:
+				line.set_hit_records_enabled(_enabled and line.get_config().hoverable)
 
 
 	## Replaces the TauHoverConfig at runtime and re-resolves styles.
@@ -183,13 +175,42 @@ class HoverController extends RefCounted:
 
 
 	####################################################################
+	# Private: hit tester creation
+	####################################################################
+
+	## Builds one hit tester per overlay, in the order the pane paints them.
+	func _create_hit_testers() -> void:
+		_hit_testers_per_pane.clear()
+		for pane_index: int in range(_panes.size()):
+			var testers: Array[OverlayHitTester] = []
+			for overlay: OverlayRenderer in _panes[pane_index].overlays:
+				testers.append(_create_hit_tester(pane_index, overlay))
+			_hit_testers_per_pane.append(testers)
+
+
+	## A tester reads the cache the renderer of its overlay fills. The two come
+	## as a pair, and the overlay type picks which pair.
+	func _create_hit_tester(p_pane_index: int, p_overlay: OverlayRenderer) -> OverlayHitTester:
+		var config := p_overlay.get_config()
+		match config.overlay_type:
+			PaneOverlayType.BAR:
+				return BarHitTester.new(p_pane_index, config as TauBarConfig, p_overlay as BarRenderer, _dataset, _layout)
+			PaneOverlayType.SCATTER:
+				return ScatterHitTester.new(p_pane_index, config as TauScatterConfig, p_overlay as ScatterRenderer, _dataset, _layout)
+			PaneOverlayType.LINE:
+				return LineHitTester.new(p_pane_index, config as TauLineConfig, p_overlay as LineRenderer, _dataset, _layout)
+		return null
+
+
+	####################################################################
 	# Private: pane renderer wiring
 	####################################################################
 
 	## Activates or deactivates mouse capture on all pane renderers based
 	## on the current _enabled state.
 	func _apply_to_pane_renderers() -> void:
-		for pane_renderer: PaneRenderer in _pane_renderers:
+		for pane: Pane in _panes:
+			var pane_renderer := pane.renderer
 			if _enabled:
 				pane_renderer.set_hover_active(true, _on_pane_input)
 				if not pane_renderer.mouse_exited.is_connected(pane_renderer.on_mouse_exited):
@@ -482,7 +503,7 @@ class HoverController extends RefCounted:
 		for pane_index: int in range(_panes.size()):
 			var overlay := CrosshairOverlay.new()
 			overlay.name = "CrosshairOverlay_%d" % pane_index
-			_panes[pane_index].add_child(overlay)
+			_panes[pane_index].container.add_child(overlay)
 			overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			_crosshair_overlays.append(overlay)
 
@@ -564,12 +585,10 @@ class HoverController extends RefCounted:
 	## and the resolved hover mode is X_ALIGNED. Used to decide whether to
 	## highlight the whole group and center the tooltip on the category.
 	func _is_grouped_bar_x_aligned(p_pane_index: int) -> bool:
-		if p_pane_index < 0 or p_pane_index >= _bar_renderers.size():
-			return false
-		var renderer: BarRenderer = _bar_renderers[p_pane_index]
-		if renderer == null:
+		var bar := _panes[p_pane_index].find_overlay(PaneOverlayType.BAR) as BarRenderer
+		if bar == null:
 			return false   # Pane has no bar overlay.
-		if renderer.get_config().mode != TauBarConfig.BarMode.GROUPED:
+		if (bar.get_config() as TauBarConfig).mode != TauBarConfig.BarMode.GROUPED:
 			return false
 		return _resolve_mode(p_pane_index) == HoverMode.X_ALIGNED
 
@@ -644,53 +663,34 @@ class HoverController extends RefCounted:
 
 		var emphasized_panes := _collect_emphasized_panes(bar_hits_by_pane, scatter_hits_by_pane, line_hits_by_pane, bar_sample_index_by_pane)
 
-		for pane_index: int in range(_bar_renderers.size()):
-			var renderer: BarRenderer = _bar_renderers[pane_index]
-			if renderer == null:
-				continue  # Pane has no bar overlay.
-			if not renderer.get_config().hoverable or not emphasized_panes.has(pane_index):
-				renderer.set_hover_state(false, -1, -1, Callable())
-				continue
+		var hits_by_pane_per_overlay := {
+			PaneOverlayType.BAR: bar_hits_by_pane,
+			PaneOverlayType.SCATTER: scatter_hits_by_pane,
+			PaneOverlayType.LINE: line_hits_by_pane,
+		}
 
-			# Use group highlight for GROUPED bars in X_ALIGNED mode.
-			if _is_grouped_bar_x_aligned(pane_index):
-				var sample_idx: int = bar_sample_index_by_pane.get(pane_index, -1)
-				if sample_idx >= 0:
-					renderer.set_hover_state_group(true, sample_idx, highlight_cb)
-				else:
-					renderer.set_hover_state(true, -1, -1, highlight_cb)
-			else:
-				var hit: SampleHit = bar_hits_by_pane.get(pane_index)
+		for pane_index: int in range(_panes.size()):
+			for overlay: OverlayRenderer in _panes[pane_index].overlays:
+				var overlay_type := overlay.get_config().overlay_type
+				if not overlay.get_config().hoverable or not emphasized_panes.has(pane_index):
+					overlay.set_hover_state(false, -1, -1, Callable())
+					continue
+
+				# Use group highlight for GROUPED bars in X_ALIGNED mode.
+				if overlay_type == PaneOverlayType.BAR and _is_grouped_bar_x_aligned(pane_index):
+					var sample_idx: int = bar_sample_index_by_pane.get(pane_index, -1)
+					if sample_idx >= 0:
+						(overlay as BarRenderer).set_hover_state_group(true, sample_idx, highlight_cb)
+					else:
+						overlay.set_hover_state(true, -1, -1, highlight_cb)
+					continue
+
+				var hits_by_pane: Dictionary = hits_by_pane_per_overlay[overlay_type]
+				var hit: SampleHit = hits_by_pane.get(pane_index)
 				if hit != null:
-					renderer.set_hover_state(true, hit.series_id, hit.sample_index, highlight_cb)
+					overlay.set_hover_state(true, hit.series_id, hit.sample_index, highlight_cb)
 				else:
-					renderer.set_hover_state(true, -1, -1, highlight_cb)
-
-		for pane_index: int in range(_scatter_renderers.size()):
-			var renderer: ScatterRenderer = _scatter_renderers[pane_index]
-			if renderer == null:
-				continue  # Pane has no scatter overlay.
-			if not renderer.get_config().hoverable or not emphasized_panes.has(pane_index):
-				renderer.set_hover_state(false, -1, -1, Callable())
-				continue
-			var hit: SampleHit = scatter_hits_by_pane.get(pane_index)
-			if hit != null:
-				renderer.set_hover_state(true, hit.series_id, hit.sample_index, highlight_cb)
-			else:
-				renderer.set_hover_state(true, -1, -1, highlight_cb)
-
-		for pane_index: int in range(_line_renderers.size()):
-			var renderer: LineRenderer = _line_renderers[pane_index]
-			if renderer == null:
-				continue  # Pane has no line overlay.
-			if not renderer.get_config().hoverable or not emphasized_panes.has(pane_index):
-				renderer.set_hover_state(false, -1, -1, Callable())
-				continue
-			var hit: SampleHit = line_hits_by_pane.get(pane_index)
-			if hit != null:
-				renderer.set_hover_state(true, hit.series_id, hit.sample_index, highlight_cb)
-			else:
-				renderer.set_hover_state(true, -1, -1, highlight_cb)
+					overlay.set_hover_state(true, -1, -1, highlight_cb)
 
 
 	## Returns the set of pane indices where at least one overlay ends up with
@@ -717,26 +717,12 @@ class HoverController extends RefCounted:
 		return emphasized
 
 
-	## Clears hover state on all bar, scatter, and line renderers,
-	## returning them to normal (non-highlighted) drawing.
+	## Clears hover state on every overlay, returning them to normal
+	## (non-highlighted) drawing.
 	func _clear_renderers_hover_state() -> void:
-		for pane_index: int in range(_bar_renderers.size()):
-			var renderer: BarRenderer = _bar_renderers[pane_index]
-			if renderer == null:
-				continue  # Pane has no bar overlay.
-			renderer.set_hover_state(false, -1, -1, Callable())
-
-		for pane_index: int in range(_scatter_renderers.size()):
-			var renderer: ScatterRenderer = _scatter_renderers[pane_index]
-			if renderer == null:
-				continue  # Pane has no scatter overlay.
-			renderer.set_hover_state(false, -1, -1, Callable())
-
-		for pane_index: int in range(_line_renderers.size()):
-			var renderer: LineRenderer = _line_renderers[pane_index]
-			if renderer == null:
-				continue  # Pane has no line overlay.
-			renderer.set_hover_state(false, -1, -1, Callable())
+		for pane: Pane in _panes:
+			for overlay: OverlayRenderer in pane.overlays:
+				overlay.set_hover_state(false, -1, -1, Callable())
 
 
 	####################################################################
@@ -747,7 +733,7 @@ class HoverController extends RefCounted:
 	## to the TauPlot root PanelContainer).
 	func _pane_to_plot_local(p_pane_index: int, p_local_pos: Vector2) -> Vector2:
 		# Convert from pane-local to global, then from global to plot-local.
-		var global_pos := _panes[p_pane_index].global_position + p_local_pos
+		var global_pos := _panes[p_pane_index].container.global_position + p_local_pos
 		return global_pos - _plot.global_position
 
 
