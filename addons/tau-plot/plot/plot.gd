@@ -30,6 +30,7 @@ const Float64Buffer := preload("res://addons/tau-plot/model/float64_buffer.gd").
 const Int32Buffer := preload("res://addons/tau-plot/model/int32_buffer.gd").Int32Buffer
 const StringBuffer := preload("res://addons/tau-plot/model/string_buffer.gd").StringBuffer
 
+const _PlotArea := preload("res://addons/tau-plot/plot/plot_area.gd").PlotArea
 const _XYPlotValidator := preload("res://addons/tau-plot/plot/xy/xy_plot_validator.gd").XYPlotValidator
 const _ValidationResult := preload("res://addons/tau-plot/plot/validation_result.gd").ValidationResult
 const _XYPlotScene := preload("res://addons/tau-plot/plot/xy/xy_plot.tscn")
@@ -126,7 +127,7 @@ var _default_legend_config := TauLegendConfig.new()
 
 # Child nodes
 var _plot_title: RichTextLabel
-var _plot_vbox: VBoxContainer
+var _plot_area: _PlotArea
 
 # Active plot-type node (only one is non-null at a time).
 var _xy_plot = null
@@ -135,20 +136,22 @@ var _xy_plot = null
 func _init() -> void:
 	theme_type_variation = &"TauPlot"
 
-	# PlotVBox
-	_plot_vbox = VBoxContainer.new()
-	_plot_vbox.name = "PlotVBox"
-	_plot_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_plot_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_plot_vbox.add_theme_constant_override("separation", 0)
-	# INTERNAL_MODE_FRONT makes PlotVBox invisible to PanelContainer's layout
-	# sorting. Without it, PanelContainer.queue_sort() would treat PlotVBox as
-	# a regular child and force-fit it alongside any other non-internal children
-	# (such as the legend overlay or the hover tooltip). Internal children are
-	# excluded from Container._sort_children(), so PlotVBox keeps its own
-	# size-flag-driven stretch behaviour and is not disrupted when other nodes
-	# are added to or removed from the TauPlot PanelContainer at runtime.
-	add_child(_plot_vbox, false, Node.INTERNAL_MODE_FRONT)
+	# Nothing inside the plot may paint outside it. A node that is top_level
+	# leaves this canvas item and escapes the clip, so it has to clip itself.
+	# The hover tooltip is the one part allowed to leave, which is what a
+	# tooltip is for.
+	clip_contents = true
+
+	_plot_area = _PlotArea.new()
+	_plot_area.name = "PlotArea"
+	_plot_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_plot_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# INTERNAL_MODE_FRONT keeps the area out of a get_children() walk of the plot
+	# and pins it ahead of everything added later. It does not keep it out of
+	# PanelContainer's layout: both the sort and get_minimum_size() count the
+	# internal children in, and skip only a top_level or hidden child. The inside
+	# legend overlay is top_level for that reason, which is the trick that works.
+	add_child(_plot_area, false, Node.INTERNAL_MODE_FRONT)
 
 	# Title
 	_plot_title = RichTextLabel.new()
@@ -156,9 +159,15 @@ func _init() -> void:
 	_plot_title.visible = false
 	_plot_title.theme_type_variation = &"TauPlotTitle"
 	_plot_title.bbcode_enabled = true
+	# The title is the one part of the plot that may size it, and it does so the
+	# way an autowrapped Label does. The wrap is what keeps the minimum width at
+	# a pixel while fit_content turns the wrapped text into a minimum height, so
+	# a long title takes more lines instead of more width. A title too tall for
+	# the plot is shortened by whoever typed it.
+	_plot_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_plot_title.fit_content = true
 	_plot_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_plot_vbox.add_child(_plot_title)
+	_plot_area.set_title(_plot_title)
 
 
 func _notification(what: int) -> void:
@@ -170,7 +179,9 @@ func _notification(what: int) -> void:
 			if _refresh_requested:
 				_schedule_refresh()
 		NOTIFICATION_RESIZED:
-			_refresh()
+			# Godot resizes the descendants one deferred step at a time, so
+			# nothing below this node has its new size yet.
+			queue_refresh()
 		NOTIFICATION_THEME_CHANGED:
 			if _xy_plot != null:
 				_xy_plot.on_theme_changed()
@@ -194,7 +205,7 @@ func plot_xy(p_dataset: Dataset, p_xy_config: TauXYConfig, p_series_bindings: Ar
 	_xy_plot = _XYPlotScene.instantiate()
 	_xy_plot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_xy_plot.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_plot_vbox.add_child(_xy_plot)
+	_plot_area.set_content(_xy_plot)
 
 	_xy_plot.setup(
 		self, queue_refresh,
@@ -237,10 +248,10 @@ func reset() -> void:
 
 func _refresh() -> void:
 	if _xy_plot != null:
-		_xy_plot.refresh(global_position, _effective_legend_config().position)
+		_xy_plot.refresh()
 
 
-# Waits one frame so the layout settles before the refresh measures it.
+# Defers to the next frame so repeated requests coalesce into one refresh.
 # Outside the tree there is nothing to lay out, so the request waits for NOTIFICATION_ENTER_TREE.
 func _schedule_refresh() -> void:
 	if _refresh_scheduled or not is_inside_tree():
@@ -262,6 +273,6 @@ func _effective_legend_config() -> TauLegendConfig:
 func _reset_active_plot() -> void:
 	if _xy_plot != null:
 		_xy_plot.clear()
-		_xy_plot.get_parent().remove_child(_xy_plot)
+		_plot_area.clear_content()
 		_xy_plot.queue_free()
 		_xy_plot = null

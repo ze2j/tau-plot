@@ -69,7 +69,7 @@ class ScatterGeometry extends RefCounted:
 	####################################################################################################
 
 	func _is_log_x_scale() -> bool:
-		var h_config := _layout.domain.get_x_axis_config()
+		var h_config := _layout.domain.config.x_axis
 		return (h_config != null and
 				h_config.type == TauAxisConfig.Type.CONTINUOUS and
 				h_config.scale == TauAxisConfig.Scale.LOGARITHMIC)

@@ -9,6 +9,7 @@ const LineHitRecord := preload("res://addons/tau-plot/plot/xy/line/line_hit_reco
 const LineLegendKey := preload("res://addons/tau-plot/plot/xy/line/line_legend_key.gd").LineLegendKey
 const StackedSeriesValues := preload("res://addons/tau-plot/plot/xy/stacked_series_values.gd").StackedSeriesValues
 const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highlight.gd").HoverHighlight
+const OverlayRenderer := preload("res://addons/tau-plot/plot/xy/overlay_renderer.gd").OverlayRenderer
 
 
 # Draws line overlays from an XYLayout + Dataset.
@@ -144,7 +145,7 @@ const HoverHighlight := preload("res://addons/tau-plot/plot/xy/hover/hover_highl
 # - A fill mixes themed fields with user fields, so the constraints between
 #   them are checked here rather than by validation, once per resolved style
 #   and never per draw. A fill that breaks one still draws, degraded.
-class LineRenderer extends Control:
+class LineRenderer extends OverlayRenderer:
 	# Number of sub-segments inserted between two consecutive samples by
 	# SMOOTH_MONOTONE. The value balances visual smoothness on a typical
 	# screen against the per-segment cost paid by draw_polyline_colors().
@@ -179,9 +180,8 @@ class LineRenderer extends Control:
 	# series to draw.
 	var _line_series_ids: PackedInt64Array = PackedInt64Array()
 
-	# Resolved style instances. Treat as read-only.
+	# Resolved style instance produced by resolve_style(). Treat as read-only.
 	var _line_style: TauLineStyle = null
-	var _xy_style: TauXYStyle = null
 
 	# One-shot guard for the non-monotonic SMOOTH_MONOTONE fallback warning.
 	# Reset is intentionally absent: a single warning per renderer instance
@@ -243,24 +243,34 @@ class LineRenderer extends Control:
 				queue_redraw()
 
 
-	func get_config() -> TauLineConfig:
+	func get_config() -> TauPaneOverlayConfig:
 		return _line_config
 
 
-	## Sets the resolved [TauLineStyle] used for subsequent draws, and reports
-	## the fill settings that cannot be drawn as configured.
-	func set_resolved_line_style(p_style: TauLineStyle) -> void:
-		_line_style = p_style
+	func get_user_style() -> TauStyle:
+		return _line_config.style
+
+
+	## Also reports the fill settings that cannot be drawn as configured.
+	func resolve_style() -> void:
+		_line_style = TauLineStyle.resolve(self, _pane_index, _line_config.style)
 		_report_fill_issues()
 
 
-	## Sets the resolved [TauXYStyle] used for subsequent draws.
-	func set_resolved_xy_style(p_style: TauXYStyle) -> void:
-		_xy_style = p_style
+	func queue_paint() -> void:
+		if not dirty:
+			return
+		queue_redraw()
+		dirty = false
 
 
-	## Updates the hover highlight state. A change triggers a redraw so the
-	## line is repainted with the new emphasis slice and dimming pattern.
+	# The lines are drawn in _draw().
+	func on_geometry_settled() -> void:
+		pass
+
+
+	## A change triggers a redraw so the line is repainted with the new
+	## emphasis slice and dimming pattern.
 	func set_hover_state(p_active: bool, p_series_id: int, p_sample_index: int, p_color_callback: Callable) -> void:
 		var changed := p_active != _highlight_active or p_series_id != _hovered_series_id or p_sample_index != _hovered_sample_index
 		_highlight_active = p_active
@@ -312,19 +322,13 @@ class LineRenderer extends Control:
 		return color
 
 
-	## Creates a legend key Control for a line overlay: a segment across the box,
-	## with the series' fill band under it when the series fills.
-	##
-	## Reads the stroke and the fill from the resolved styles on this renderer
-	## instance, at the per-series granularity the draw path uses. Leaves the box
-	## to the legend, which sizes a line key wider than tall.
+	## A line legend key is a segment across the box, with the series fill band
+	## under it when the series fills. Stroke and fill are read at the per-series
+	## granularity the draw path uses.
 	func create_legend_key_control(p_global_series_index: int) -> Control:
 		return LineLegendKey.new(_resolve_legend_key_spec(p_global_series_index))
 
 
-	## Re-resolves the appearance of a legend key created by
-	## create_legend_key_control() and repaints it, so a style change costs no
-	## rebuild of the legend row.
 	func refresh_legend_key_control(p_global_series_index: int, p_control: Control) -> void:
 		(p_control as LineLegendKey).set_spec(_resolve_legend_key_spec(p_global_series_index))
 

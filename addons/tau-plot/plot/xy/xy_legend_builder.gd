@@ -35,8 +35,8 @@ class XYLegendBuilder extends RefCounted:
 	var controller: LegendController = null
 
 
-	func _init(p_plot: PanelContainer, p_attach_outside: Callable) -> void:
-		controller = LegendController.new(p_plot, p_attach_outside)
+	func _init(p_plot: PanelContainer, p_attach_outside: Callable, p_detach_outside: Callable) -> void:
+		controller = LegendController.new(p_plot, p_attach_outside, p_detach_outside)
 
 
 	## Collects series infos from XY bindings and delegates to the controller.

@@ -74,7 +74,7 @@ const APPEND_INTERVAL := 0.5
 const NEXT_X_START := 4.0
 
 func _make_plot(p_plot: TauPlot, p_title: String, p_legend_position: TauLegendConfig.Position) -> void:
-	var series_names := PackedStringArray(["A", "B", "C"])
+	var series_names := PackedStringArray(["ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "E = mc²", "Zeta"])
 	var dataset := TauPlot.Dataset.make_shared_x_continuous(series_names, X_INIT, [Y_A_INIT, Y_B_INIT, Y_C_INIT], CAPACITY)
 	_datasets.append(dataset)
 
