@@ -122,21 +122,21 @@ class XYAxisTitleLayout extends RefCounted:
 			var data_bottom_global := data_top_global + pane_rect.size.y
 
 			if _panes_stack_vertically:
-				_apply_data_area(_titles_left, i, data_top_global, data_bottom_global, false)
-				_apply_data_area(_titles_right, i, data_top_global, data_bottom_global, false)
+				_apply_data_area(_titles_left, i, data_top_global, data_bottom_global)
+				_apply_data_area(_titles_right, i, data_top_global, data_bottom_global)
 				# One control for the whole edge, aligned with the pane that
 				# draws the axis.
 				if _is_pane_nearest_to_edge(i, pane_count, AxisId.TOP):
-					_apply_data_area(_titles_top, 0, data_left_global, data_right_global, true)
+					_apply_data_area(_titles_top, 0, data_left_global, data_right_global)
 				if _is_pane_nearest_to_edge(i, pane_count, AxisId.BOTTOM):
-					_apply_data_area(_titles_bottom, 0, data_left_global, data_right_global, true)
+					_apply_data_area(_titles_bottom, 0, data_left_global, data_right_global)
 			else:
-				_apply_data_area(_titles_top, i, data_left_global, data_right_global, true)
-				_apply_data_area(_titles_bottom, i, data_left_global, data_right_global, true)
+				_apply_data_area(_titles_top, i, data_left_global, data_right_global)
+				_apply_data_area(_titles_bottom, i, data_left_global, data_right_global)
 				if _is_pane_nearest_to_edge(i, pane_count, AxisId.LEFT):
-					_apply_data_area(_titles_left, 0, data_top_global, data_bottom_global, false)
+					_apply_data_area(_titles_left, 0, data_top_global, data_bottom_global)
 				if _is_pane_nearest_to_edge(i, pane_count, AxisId.RIGHT):
-					_apply_data_area(_titles_right, 0, data_top_global, data_bottom_global, false)
+					_apply_data_area(_titles_right, 0, data_top_global, data_bottom_global)
 
 
 	## Sets the stretch ratio of the title controls of one pane.
@@ -194,6 +194,7 @@ class XYAxisTitleLayout extends RefCounted:
 		var title: Control = null
 		if not text.is_empty() and has_series:
 			title = _OrientedTitle.instantiate()
+			title.aligns_horizontally = not p_is_vertical_container
 			title.text = text
 			title.title_orientation = _resolve_title_orientation(cfg.title_orientation, p_axis_id)
 			title.title_alignment = cfg.title_alignment
@@ -238,6 +239,7 @@ class XYAxisTitleLayout extends RefCounted:
 
 		var label := _OrientedTitle.instantiate()
 		_fill_along_container(label, p_is_vertical_container)
+		label.aligns_horizontally = not p_is_vertical_container
 		label.text = text
 		label.title_orientation = _resolve_title_orientation(cfg.title_orientation, p_axis_id)
 		label.title_alignment = cfg.title_alignment
@@ -262,11 +264,10 @@ class XYAxisTitleLayout extends RefCounted:
 
 
 	static func _apply_data_area(p_titles: Array, p_index: int,
-			p_begin_global: float, p_end_global: float, p_aligns_horizontally: bool) -> void:
+			p_begin_global: float, p_end_global: float) -> void:
 		if p_titles[p_index] == null:
 			return
 		var ctrl: Control = p_titles[p_index]
-		ctrl.aligns_horizontally = p_aligns_horizontally
 		ctrl.data_begin_global = p_begin_global
 		ctrl.data_end_global = p_end_global
 

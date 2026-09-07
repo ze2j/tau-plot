@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Breaking changes
+
+- `TauLegendStyle.max_size_px` left at `0` now caps the legend at two thirds of the plot area on the side it takes. Technically a breaking change, but it only affects the plots where the legend takes more than two thirds of the space the plot occupies. Set `max_size_px` to a value large enough for the legend to get the old room back. Before: no cap outside the data area, the data area minus `margin_px` inside it. (#53)
+
+### Fixed
+
+- `TauPlot` now clips what it draws, the hover tooltip aside. (#53)
+- The legend no longer sets `custom_minimum_size` on the side it spans, so it never grows the plot: entries wrap, a name too long is cut with an ellipsis and read in full in a tooltip, and the entries left over are reached by scrolling. (#53)
+- The legend scrollbar is shown as soon as an entry is out of view, and stays. Before: it appeared on its own when the content grew, moved where the entries wrap, and could hide again. (#53)
+- `TauLegendConfig.flow_direction` now decides the side `TauLegendStyle.max_size_px` caps at an inside position. Before: the position alone decided. (#53)
+- An axis title sets `custom_minimum_size` on one axis only, so a long title no longer grows the plot along its axis and is cut instead. (#53)
+- A long plot title wraps rather than raising the minimum width of the plot. (#53)
+
+
 ## v0.2.0 - 2026-08-25
 
 ### Breaking changes
