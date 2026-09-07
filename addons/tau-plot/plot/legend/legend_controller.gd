@@ -5,7 +5,10 @@ const FlowDirection = TauLegendConfig.FlowDirection
 
 
 ## Manages the Legend node lifecycle: placement in the scene tree, flow direction,
-## inside-overlay positioning, and size constraints.
+## and inside-overlay positioning.
+##
+## The legend sizes itself. What the controller gives it is where it sits: the
+## family of its position, and the data area for the INSIDE_* family.
 ##
 ## Plot-type agnostic. Does not know how to build legend content from data.
 ## Each plot type (XY, pie, radar) composes a LegendController and provides:
@@ -26,25 +29,29 @@ class LegendController extends RefCounted:
 	## non-internal, non-top-level child to fill the panel's content rect,
 	## snapping the overlay (and the legend inside it) to the panel origin
 	## and breaking INSIDE legend placement.
+	##
+	## top_level also detaches the node from the canvas item of its parent, so
+	## the overlay escapes the clipping of every node above it. It clips itself
+	## instead, which is what keeps an inside legend off its neighbours.
 	var _inside_overlay: Control = null
-
-	## Cached values for repositioning on resize.
-	var _inside_position: Position = Position.OUTSIDE_BOTTOM
-	var _inside_style: TauLegendStyle = null
 
 	var _plot: PanelContainer = null
 
-	## Plot-type callback for outside positions.
-	## Signature: func(p_legend: Control, p_position: Position) -> void
-	## The callback must add the legend as a child of the appropriate container.
-	## The controller has already configured size_flags and max_size before
-	## calling this.
+	## Plot-type callback for outside positions. It must add the legend to the
+	## container that sizes it.
+	## Signature: func(p_legend: Legend, p_position: Position) -> void
 	var _attach_outside: Callable = Callable()
 
+	## Plot-type callback that removes the legend from that container, which
+	## keeps a reference to it.
+	## Signature: func() -> void
+	var _detach_outside: Callable = Callable()
 
-	func _init(p_plot: PanelContainer, p_attach_outside: Callable) -> void:
+
+	func _init(p_plot: PanelContainer, p_attach_outside: Callable, p_detach_outside: Callable) -> void:
 		_plot = p_plot
 		_attach_outside = p_attach_outside
+		_detach_outside = p_detach_outside
 
 
 	## Creates a fresh Legend node and populates it with the given series infos.
@@ -75,16 +82,18 @@ class LegendController extends RefCounted:
 		# to the correct position in the scene tree.
 		_plot.remove_child(legend)
 
-		place(p_position)
+		# The flow direction tells the legend which way the entries run and
+		# which side the cap applies to inside the data area, so it is settled
+		# before place() hands over the position family.
 		apply_flow_direction(p_position, p_flow)
+		place(p_position)
 		return resolved_style
 
 
 	## Removes the legend from the scene tree and frees it.
 	func destroy() -> void:
-		if legend != null and is_instance_valid(legend):
-			if legend.get_parent() != null:
-				legend.get_parent().remove_child(legend)
+		if legend != null:
+			_detach()
 			legend.queue_free()
 		legend = null
 		_destroy_inside_overlay()
@@ -95,9 +104,7 @@ class LegendController extends RefCounted:
 		if legend == null:
 			return
 
-		# Remove legend from its current parent.
-		if legend.get_parent() != null:
-			legend.get_parent().remove_child(legend)
+		_detach()
 
 		# Discard any previous inside overlay.
 		_destroy_inside_overlay()
@@ -111,46 +118,12 @@ class LegendController extends RefCounted:
 		legend.grow_horizontal = Control.GROW_DIRECTION_END
 		legend.grow_vertical = Control.GROW_DIRECTION_END
 
-		var style := legend.get_resolved_legend_style()
-		if style == null:
-			push_error("LegendController.place(): resolved legend style is null")
-			return
+		legend.set_position_family(position_family(p_position))
 
 		match p_position:
-			Position.OUTSIDE_BOTTOM:
-				legend.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-				legend.size_flags_vertical = Control.SIZE_SHRINK_END
-				if style.max_size_px > 0:
-					legend.max_size = Vector2(0, style.max_size_px)
-				else:
-					legend.max_size = Vector2.ZERO
-				_attach_outside.call(legend, p_position)
-
-			Position.OUTSIDE_TOP:
-				legend.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-				legend.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-				if style.max_size_px > 0:
-					legend.max_size = Vector2(0, style.max_size_px)
-				else:
-					legend.max_size = Vector2.ZERO
-				_attach_outside.call(legend, p_position)
-
-			Position.OUTSIDE_LEFT:
-				legend.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-				legend.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-				if style.max_size_px > 0:
-					legend.max_size = Vector2(style.max_size_px, 0)
-				else:
-					legend.max_size = Vector2.ZERO
-				_attach_outside.call(legend, p_position)
-
-			Position.OUTSIDE_RIGHT:
-				legend.size_flags_horizontal = Control.SIZE_SHRINK_END
-				legend.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-				if style.max_size_px > 0:
-					legend.max_size = Vector2(style.max_size_px, 0)
-				else:
-					legend.max_size = Vector2.ZERO
+			# Outside positions: the container computes the whole rect.
+			Position.OUTSIDE_TOP, Position.OUTSIDE_BOTTOM, \
+			Position.OUTSIDE_LEFT, Position.OUTSIDE_RIGHT:
 				_attach_outside.call(legend, p_position)
 
 			# Inside positions: the legend floats over the data area via an overlay.
@@ -159,13 +132,11 @@ class LegendController extends RefCounted:
 				_inside_overlay.name = "LegendOverlay"
 				_inside_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				_inside_overlay.top_level = true
+				_inside_overlay.clip_contents = true
 				_plot.add_child(_inside_overlay)
 
-				_inside_position = p_position
-				_inside_style = style
-
 				_inside_overlay.add_child(legend)
-				_configure_inside_anchors(p_position, style)
+				_configure_inside_anchors(p_position, legend.get_resolved_legend_style())
 
 
 	## Resolves and applies the legend flow direction.
@@ -174,6 +145,18 @@ class LegendController extends RefCounted:
 			return
 		var resolved := resolve_flow_direction(p_position, p_flow)
 		legend.set_flow_vertical(resolved == FlowDirection.VERTICAL)
+
+
+	## Returns which side the container gives a legend at p_position, which is
+	## what decides the side the legend claims and the side max_size_px caps.
+	static func position_family(p_position: Position) -> Legend.PositionFamily:
+		match p_position:
+			Position.OUTSIDE_TOP, Position.OUTSIDE_BOTTOM:
+				return Legend.PositionFamily.TOP_BOTTOM
+			Position.OUTSIDE_LEFT, Position.OUTSIDE_RIGHT:
+				return Legend.PositionFamily.LEFT_RIGHT
+			_:
+				return Legend.PositionFamily.INSIDE
 
 
 	## Resolves AUTO flow direction based on position.
@@ -189,7 +172,8 @@ class LegendController extends RefCounted:
 				return FlowDirection.VERTICAL
 
 
-	## Updates the inside overlay rect and legend max_size constraint.
+	## Updates the inside overlay rect and hands the new data area to the
+	## legend, which is what an inside legend sizes itself against.
 	## Does nothing unless the legend is at an inside position.
 	## [param p_data_area_global] The data area union rect, in global
 	## coordinates, which is the space the overlay is positioned in since it
@@ -202,30 +186,9 @@ class LegendController extends RefCounted:
 		if area.x <= 0.0 or area.y <= 0.0:
 			return
 
-		var style := legend.get_resolved_legend_style()
-		if style == null:
-			return
-
 		_inside_overlay.global_position = p_data_area_global.position
 		_inside_overlay.size = area
-
-		# Compute max_size so the legend does not exceed the data area.
-		var margin := float(style.margin_px)
-		var max_w := area.x - 2.0 * margin
-		var max_h := area.y - 2.0 * margin
-
-		# Further cap the cross-axis if max_size_px is set.
-		var is_horizontal_flow := (
-			_inside_position == Position.INSIDE_TOP or
-			_inside_position == Position.INSIDE_BOTTOM
-		)
-		if style.max_size_px > 0:
-			if is_horizontal_flow:
-				max_h = min(max_h, float(style.max_size_px))
-			else:
-				max_w = min(max_w, float(style.max_size_px))
-
-		legend.max_size = Vector2(max_w, max_h)
+		legend.set_data_area(area)
 
 
 	####################################################################################################
@@ -233,14 +196,20 @@ class LegendController extends RefCounted:
 	####################################################################################################
 
 
+	## Removes the legend from the plot area or from the inside overlay.
+	func _detach() -> void:
+		_detach_outside.call()
+		if legend.get_parent() != null:
+			legend.get_parent().remove_child(legend)
+
+
 	## Frees the inside overlay if it exists.
 	func _destroy_inside_overlay() -> void:
-		if _inside_overlay != null and is_instance_valid(_inside_overlay):
+		if _inside_overlay != null:
 			if _inside_overlay.get_parent() != null:
 				_inside_overlay.get_parent().remove_child(_inside_overlay)
 			_inside_overlay.queue_free()
 		_inside_overlay = null
-		_inside_style = null
 
 
 	## Configures the legend's anchors, offsets, and grow directions for INSIDE

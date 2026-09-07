@@ -36,6 +36,7 @@ const SeriesAxisAssignment := preload("res://addons/tau-plot/plot/xy/series_axis
 const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 const XYLegendBuilder := preload("res://addons/tau-plot/plot/xy/xy_legend_builder.gd").XYLegendBuilder
+const Legend := preload("res://addons/tau-plot/plot/legend/legend.gd").Legend
 
 const Tracker := preload("res://addons/tau-plot/plot/tracker.gd").Tracker
 const NotifiedTracker := preload("res://addons/tau-plot/plot/tracker.gd").NotifiedTracker
@@ -50,6 +51,7 @@ const StackedNormalization := preload("res://addons/tau-plot/plot/xy/stacked_nor
 const StackedNegativePolicy := preload("res://addons/tau-plot/plot/xy/stacked_negative_policy.gd").StackedNegativePolicy
 const XYLayout := preload("res://addons/tau-plot/plot/xy/xy_layout.gd").XYLayout
 const PaneStack := preload("res://addons/tau-plot/plot/xy/pane_stack.gd").PaneStack
+const PlotArea := preload("res://addons/tau-plot/plot/plot_area.gd").PlotArea
 const XYAxisTitleLayout := preload("res://addons/tau-plot/plot/xy/xy_axis_title_layout.gd").XYAxisTitleLayout
 const VisualAttributes := preload("res://addons/tau-plot/plot/xy/visual_attributes.gd").VisualAttributes
 const VisualCallbacks := preload("res://addons/tau-plot/plot/xy/visual_callbacks.gd").VisualCallbacks
@@ -75,6 +77,8 @@ const LineVisualAttributes := preload("res://addons/tau-plot/plot/xy/line/line_v
 
 # External references (provided via setup)
 var _plot: PanelContainer = null
+
+var _plot_area: PlotArea = null
 var _queue_refresh: Callable
 
 # True between the end of setup() and the start of clear().
@@ -95,6 +99,7 @@ var _xy_layout: XYLayout = null
 var _series_bindings: Array[TauXYSeriesBinding] = []
 var _series_assignment: SeriesAxisAssignment = null
 
+# What each pane draws, read off the series bindings.
 var _series_partition: SeriesPartition = null
 
 # The PaneStack that holds all panes.
@@ -195,7 +200,8 @@ func setup(
 		p_hover_config: TauHoverConfig = null) -> void:
 
 	_plot = p_plot
-	_legend_builder = XYLegendBuilder.new(p_plot, _attach_legend_outside)
+	_plot_area = p_plot.get_node("PlotArea") as PlotArea
+	_legend_builder = XYLegendBuilder.new(p_plot, _attach_legend_outside, _detach_legend_outside)
 	_queue_refresh = p_queue_refresh
 
 	# Create the axis title layout from our own scene children.
@@ -278,6 +284,7 @@ func clear() -> void:
 	_reset_dataset()
 
 	_plot = null
+	_plot_area = null
 	_xy_domain = null
 	_domain_config = null
 	_xy_domain_overrides = null
@@ -326,9 +333,10 @@ func set_legend_enabled(p_enabled: bool) -> void:
 func set_legend_config(p_config: TauLegendConfig) -> void:
 	_user_legend_style = p_config.style
 
-	# Update position and flow direction.
-	_legend_builder.controller.place(p_config.position)
+	# The flow direction tells the legend which axis it spans, so it is settled
+	# before place() constrains it.
 	_legend_builder.controller.apply_flow_direction(p_config.position, p_config.flow_direction)
+	_legend_builder.controller.place(p_config.position)
 
 
 func set_hover_enabled(p_enabled: bool) -> void:
@@ -658,27 +666,15 @@ func _get_legend_key_refresher(p_overlay_type: PaneOverlayType, p_pane_index: in
 	return _panes[p_pane_index].find_overlay(p_overlay_type).refresh_legend_key_control
 
 
-## Callback for LegendController: attaches the legend node at the correct
-## position in the XY scene tree for outside legend positions.
-func _attach_legend_outside(p_legend: Control, p_position: Position) -> void:
-	match p_position:
-		Position.OUTSIDE_TOP:
-			var vbox := _plot.get_node("PlotVBox")
-			vbox.add_child(p_legend)
-			# After Title (child 0).
-			vbox.move_child(p_legend, 1)
-		Position.OUTSIDE_BOTTOM:
-			var vbox := _plot.get_node("PlotVBox")
-			vbox.add_child(p_legend)
-			vbox.move_child(p_legend, vbox.get_child_count() - 1)
-		Position.OUTSIDE_LEFT:
-			var hbox := $HBoxContainer
-			hbox.add_child(p_legend)
-			hbox.move_child(p_legend, 0)
-		Position.OUTSIDE_RIGHT:
-			var hbox := $HBoxContainer
-			hbox.add_child(p_legend)
-			hbox.move_child(p_legend, hbox.get_child_count() - 1)
+## Callback for LegendController: adds the legend to the plot area, which sizes
+## it from p_position.
+func _attach_legend_outside(p_legend: Legend, p_position: Position) -> void:
+	_plot_area.set_legend(p_legend, p_position)
+
+
+## Callback for LegendController: removes the legend from the plot area.
+func _detach_legend_outside() -> void:
+	_plot_area.clear_legend()
 
 
 # Asks every dirty renderer to redraw, and lowers its flag.
