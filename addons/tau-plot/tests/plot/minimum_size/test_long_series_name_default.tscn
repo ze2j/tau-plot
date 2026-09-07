@@ -255,7 +255,7 @@ script = ExtResource("1_5md11")
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test legend with long series name and default max size (uncapped)"
+text = "Test legend with long series name and default max size (capped at 2/3)"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]

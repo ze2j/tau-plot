@@ -122,7 +122,7 @@ class PlotArea extends Container:
 	func _take_legend_width(p_legend: Legend, p_area: Rect2) -> Rect2:
 		var room := maxf(p_area.size.x - _content.get_combined_minimum_size().x, 0.0)
 		var cap := Legend.get_cap_px(room, p_area.size.x, p_legend.get_max_size_px())
-		var claim := p_legend.update_desired_size(p_area.size.y, cap).x
+		var claim := p_legend.plan_box_size(p_area.size.y, cap).x
 		var kept := Vector2(p_area.size.x - claim, p_area.size.y)
 
 		if _legend_position == Position.OUTSIDE_LEFT:
@@ -139,7 +139,7 @@ class PlotArea extends Container:
 	func _take_legend_height(p_legend: Legend, p_area: Rect2) -> Rect2:
 		var room := maxf(p_area.size.y - _content.get_combined_minimum_size().y, 0.0)
 		var cap := Legend.get_cap_px(room, p_area.size.y, p_legend.get_max_size_px())
-		var claim := p_legend.update_desired_size(p_area.size.x, cap).y
+		var claim := p_legend.plan_box_size(p_area.size.x, cap).y
 		var kept := Vector2(p_area.size.x, p_area.size.y - claim)
 
 		if _legend_position == Position.OUTSIDE_TOP:

@@ -10,10 +10,22 @@
 ## and it is the only size the legend asks for.
 ##
 ## The legend never decides that size alone. The given side and the maximum of
-## the claimed side both come from the container, through update_desired_size().
-## Inside the data area both come from that area. Names too long are cut with
-## an ellipsis, extra entries scroll.
-class Legend extends Control:
+## the claimed side both come from the container, through plan_box_size().
+## Inside the data area the legend covers that area and both sides come from
+## it. Names too long are cut with an ellipsis, extra entries scroll.
+##
+## The entries sit in a box. The legend places that box in the space it was
+## given. Outside the data area the box is centered on the span. Inside, the
+## box alignment picks the corner or the edge it goes against.
+##
+## The legend places every entry itself, at an exact rect. A name is therefore
+## cut against the width the measurement gave it, and not against a width some
+## other node settled afterwards.
+##
+## A measurement writes nothing, so a container can measure the legend during
+## its own sort. The result is applied later, in the sort of the legend. The
+## legend sets no minimum size, at any position.
+class Legend extends Container:
 
 	## Which side the parent gives the legend, and therefore which side the
 	## legend claims and [member TauLegendStyle.max_size_px] caps.
@@ -21,7 +33,7 @@ class Legend extends Control:
 	{
 		TOP_BOTTOM,		# The parent gives the width, the legend claims a height.
 		LEFT_RIGHT,		# The parent gives the height, the legend claims a width.
-		INSIDE,			# The data area gives both sides, the legend claims its box.
+		INSIDE,			# The data area gives both sides, the legend claims nothing.
 	}
 
 	## Describes one key visual in a LegendItem.
@@ -60,10 +72,6 @@ class Legend extends Control:
 		var series_name: String = ""
 		var keys: Array[KeyInfo] = []
 
-	# Minimum size of the claimed side. At 0 a legend with no room left
-	# disappears instead of pushing the plot.
-	const _LEGEND_FLOOR_PX := 0.0
-
 	# Share of the plot an uncapped legend may take.
 	const _MAX_SIZE_FRACTION := 2./3.
 
@@ -72,16 +80,20 @@ class Legend extends Control:
 
 	var _box: PanelContainer = null
 	var _scroll: ScrollContainer = null
-	var _flow: FlowContainer = null
-	var _legend_items: Array[Control] = []
-	var _align_key_columns: bool = false
+	var _entry_area: Control = null
+	var _legend_items: Array[_LegendItem] = []
+
+	# True when the entries run top to bottom and wrap into new columns.
+	var _flow_vertical: bool = false
 
 	var _family: PositionFamily = PositionFamily.TOP_BOTTOM
-	var _data_area: Vector2 = Vector2.ZERO
 
-	# Size the last measurement settled on the box, and what the legend claims
-	# from its parent.
-	var _box_size: Vector2 = Vector2.ZERO
+	# Position of the box in the data area, as a share of the space left free
+	# on each axis. PositionFamily.INSIDE only.
+	var _box_alignment: Vector2 = Vector2(0.5, 0.5)
+
+	# Layout of the last measurement, waiting to be applied.
+	var _plan: _LayoutPlan = _LayoutPlan.new()
 
 
 	func _init() -> void:
@@ -91,16 +103,13 @@ class Legend extends Control:
 		# painted over the plot.
 		clip_contents = true
 
-		# The legend spans the side its parent gives it, so the box is placed
-		# by hand at the middle of that span. All four anchors sit at the
-		# center and the offsets carry half the box size, which centers the box
-		# on both axes whatever the position.
+		# The node is larger than the box. Only the box takes the mouse, so the
+		# space around it stays free for the plot.
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+		# The sort gives the box its rect, so no anchor is set here.
 		_box = PanelContainer.new()
 		_box.name = "Box"
-		_box.anchor_left = 0.5
-		_box.anchor_right = 0.5
-		_box.anchor_top = 0.5
-		_box.anchor_bottom = 0.5
 		add_child(_box)
 
 		# Measurement decides the scroll modes, so both start off.
@@ -110,24 +119,12 @@ class Legend extends Control:
 		_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		_box.add_child(_scroll)
 
-		# The box hugs the entries, so a line shorter than the longest one is
-		# centered rather than left hanging on one edge.
-		_flow = FlowContainer.new()
-		_flow.name = "Flow"
-		_flow.alignment = FlowContainer.ALIGNMENT_CENTER
-		_scroll.add_child(_flow)
-
-
-	# Zero on the given side, so the legend never raises the minimum size of the
-	# plot. Inside the data area no container sizes the legend, so it reports
-	# the box size of the last measurement.
-	func _get_minimum_size() -> Vector2:
-		match _family:
-			PositionFamily.TOP_BOTTOM:
-				return Vector2(0.0, _LEGEND_FLOOR_PX)
-			PositionFamily.LEFT_RIGHT:
-				return Vector2(_LEGEND_FLOOR_PX, 0.0)
-		return _box_size
+		# A plain Control, not a container: the legend already walked the
+		# entries to measure itself, so a container here would lay them out a
+		# second time and could land on another result.
+		_entry_area = Control.new()
+		_entry_area.name = "EntryArea"
+		_scroll.add_child(_entry_area)
 
 
 	## Populates the legend from the given series information.
@@ -149,28 +146,32 @@ class Legend extends Control:
 	## allocation per frame.
 	func refresh_keys() -> void:
 		for item in _legend_items:
-			(item as _LegendItem).refresh_keys()
+			item.refresh_keys()
 		_apply_key_column_width()
 		_remeasure()
 
 
-	## Answers how big the legend wants to be, for a container about to place
-	## it. Outside positions only.
+	## Measures the box against the space the container offers, and returns the
+	## size it takes. Outside positions only.
 	##
-	## Both sides are measured from the entries and the style, and neither goes
-	## above the limits. Names too long for the claimed side are cut, and the
-	## entries left over are reached by scrolling. So the answer never makes the
-	## plot bigger, whatever the legend holds.
+	## Both sides come out of the entries and the style, and neither goes above
+	## the limits. A name too long for the claimed side is cut with an ellipsis.
+	## The entries left over are reached by scrolling. So the answer never makes
+	## the plot bigger, whatever the legend holds.
+	##
+	## No size is written here, so a container can call this during its own
+	## sort. The layout is applied later, in the sort of the legend.
 	##
 	## [param p_given_px] Size of the given side.
 	## [param p_cap_px] Maximum size of the claimed side.
-	func update_desired_size(p_given_px: float, p_cap_px: float) -> Vector2:
+	func plan_box_size(p_given_px: float, p_cap_px: float) -> Vector2:
+		var limits := Vector2(p_cap_px, p_given_px)
 		if _family == PositionFamily.TOP_BOTTOM:
-			_measure(Vector2(p_given_px, p_cap_px))
-		else:
-			_measure(Vector2(p_cap_px, p_given_px))
-		# We got the answer, return it.
-		return _box_size
+			limits = Vector2(p_given_px, p_cap_px)
+
+		_plan = _plan_layout(limits)
+		queue_sort()
+		return _plan.box_size
 
 
 	func get_max_size_px() -> int:
@@ -192,21 +193,20 @@ class Legend extends Control:
 	## Sets whether the entries run left to right and wrap into new rows, or top
 	## to bottom and wrap into new columns.
 	##
-	## The flow container fills the scroll viewport along the flow, so the
-	## entries wrap where the measurement expects them to, and takes its own
-	## depth across it, so the scroll container has something to scroll.
+	## The entry area fills the scroll viewport along the flow, so a box wider
+	## than the entries keeps them centered, and takes its own depth across it,
+	## so the scroll container has something to scroll.
 	##
 	## Only a vertical flow stacks the series names into a column, so it is the
 	## only one that aligns the key strips.
 	func set_flow_vertical(p_vertical: bool) -> void:
-		_flow.vertical = p_vertical
-		_align_key_columns = p_vertical
+		_flow_vertical = p_vertical
 		if p_vertical:
-			_flow.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			_flow.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			_entry_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			_entry_area.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		else:
-			_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			_flow.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			_entry_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_entry_area.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 
 		_apply_key_column_width()
 		_remeasure()
@@ -220,13 +220,15 @@ class Legend extends Control:
 		_remeasure()
 
 
-	## Gives the legend the size of the data area it floats over. Only read for
-	## [constant PositionFamily.INSIDE], where that area gives both limits.
-	func set_data_area(p_size: Vector2) -> void:
-		if _data_area == p_size:
+	## Sets the position of the box in the data area, as a share of the space
+	## left free on each axis. [code]0[/code] is the left or the top edge,
+	## [code]0.5[/code] the middle, [code]1[/code] the right or the bottom edge.
+	## Only read for [constant PositionFamily.INSIDE].
+	func set_box_alignment(p_alignment: Vector2) -> void:
+		if _box_alignment == p_alignment:
 			return
-		_data_area = p_size
-		_remeasure()
+		_box_alignment = p_alignment
+		queue_sort()
 
 
 	## Returns the current resolved TauLegendStyle.
@@ -242,6 +244,11 @@ class Legend extends Control:
 		_rebuild()
 
 
+	func _notification(p_what: int) -> void:
+		if p_what == NOTIFICATION_SORT_CHILDREN:
+			_sort_legend()
+
+
 	####################################################################################################
 	# Private
 	####################################################################################################
@@ -252,7 +259,7 @@ class Legend extends Control:
 			return
 
 		for item in _legend_items:
-			_flow.remove_child(item)
+			_entry_area.remove_child(item)
 			item.queue_free()
 		_legend_items.clear()
 
@@ -260,24 +267,24 @@ class Legend extends Control:
 		# panel, so the padding around the entries comes with the background.
 		_box.add_theme_stylebox_override(&"panel", _style.background)
 
-		_flow.add_theme_constant_override(&"h_separation", _style.item_gap_px)
-		_flow.add_theme_constant_override(&"v_separation", _style.item_gap_px)
-
 		for info in _series_infos:
 			var item := _LegendItem.new(info, _style)
-			_flow.add_child(item)
+			_entry_area.add_child(item)
 			_legend_items.append(item)
 
 		_apply_key_column_width()
 		_remeasure()
 
 
-	# Inside the data area the legend knows both limits and measures now.
-	# Outside, only the container knows them, so ask it to sort. The cast is
-	# null while the legend moves from one position to another.
+	# Asks for a new measurement.
+	#
+	# Inside the data area the legend knows its limits, so its own sort is
+	# enough. Outside, only the container knows them, so it is asked to sort
+	# too. The cast is null while the legend moves from one position to
+	# another.
 	func _remeasure() -> void:
+		queue_sort()
 		if _family == PositionFamily.INSIDE:
-			_measure(_get_inside_limits())
 			return
 
 		var container := get_parent() as Container
@@ -285,96 +292,174 @@ class Legend extends Control:
 			container.queue_sort()
 
 
-	# Sizes the box, the entries and the scrollbars in one pass over the entries.
-	func _measure(p_limits: Vector2) -> void:
+	# Applies the last measurement and places the box.
+	#
+	# Inside the data area the limits come from the size of the legend, so the
+	# measurement runs here. Outside, the container has measured the legend
+	# before placing it.
+	#
+	# Every write waits for this sort. Godot drops a sort asked for by a
+	# container that is sorting, and a minimum size change only travels on a
+	# deferred call.
+	func _sort_legend() -> void:
 		if _style == null:
 			return
 
-		var padding := _padding()
+		if _family == PositionFamily.INSIDE:
+			_plan = _plan_layout(_get_inside_limits())
+
+		_apply_layout(_plan)
+		fit_child_in_rect(_box, _get_box_rect(_plan.box_size))
+
+
+	# Measures the box, the entries and the scrollbar. Nothing is written
+	# outside the plan.
+	func _plan_layout(p_limits: Vector2) -> _LayoutPlan:
+		var plan := _LayoutPlan.new()
+
+		var padding := _get_padding()
 		var content_limits := Vector2(
 			maxf(p_limits.x - padding.x, 0.0),
 			maxf(p_limits.y - padding.y, 0.0))
 
-		var vertical := _flow.vertical
+		var vertical := _flow_vertical
 		var limit_along := content_limits.y if vertical else content_limits.x
 		var limit_across := content_limits.x if vertical else content_limits.y
 
-		var content := _run_entries(limit_along, limit_across)
+		var extent := _run_entries(limit_along, limit_across, plan)
 
 		# A scrollbar across the flow takes room along it, so the entries are
 		# cut and wrapped once more against what is left. Two passes are
 		# enough and the result does not depend on the order they run in.
 		var scrollbar_px := 0.0
-		if content.y > limit_across:
-			scrollbar_px = _scrollbar_thickness_px()
-			content = _run_entries(maxf(limit_along - scrollbar_px, 0.0), limit_across)
-		_apply_scroll_modes(scrollbar_px > 0.0)
+		if extent.y > limit_across:
+			scrollbar_px = _get_scrollbar_thickness_px()
+			extent = _run_entries(maxf(limit_along - scrollbar_px, 0.0), limit_across, plan)
+		plan.scrolls = scrollbar_px > 0.0
 
-		var along := content.x + scrollbar_px
-		var across := content.y
-		var box_content := Vector2(across, along) if vertical else Vector2(along, across)
-		var box_size := (box_content + padding).min(p_limits)
-
-		_box.offset_left = -0.5 * box_size.x
-		_box.offset_right = 0.5 * box_size.x
-		_box.offset_top = -0.5 * box_size.y
-		_box.offset_bottom = 0.5 * box_size.y
-
-		if box_size != _box_size:
-			_box_size = box_size
-			update_minimum_size()
+		var scrollbar_size := Vector2(0.0, scrollbar_px) if vertical else Vector2(scrollbar_px, 0.0)
+		plan.content_size = Vector2(extent.y, extent.x) if vertical else extent
+		plan.box_size = (plan.content_size + scrollbar_size + padding).min(p_limits)
+		return plan
 
 
-	# Walks the entries the way FlowContainer will, and returns what they take
-	# as (along the flow, across the flow).
+	# Writes the layout of a plan. Called from the sort of the legend only.
+	#
+	# A rebuild changes the entries and asks the container for a new
+	# measurement. The sort can run before that measurement, so the plan can
+	# hold more rects than there are entries. The extra rects are dropped and
+	# the next sort writes the right ones.
+	func _apply_layout(p_plan: _LayoutPlan) -> void:
+		# The only minimum size written from a sort. It gives the scrollbar
+		# its range and cannot leave the legend, whose own minimum size is
+		# zero.
+		_entry_area.custom_minimum_size = p_plan.content_size
+		_apply_scroll_modes(p_plan.scrolls)
+
+		for i in range(mini(p_plan.entry_rects.size(), _legend_items.size())):
+			_legend_items[i].set_entry_rect(p_plan.entry_rects[i])
+
+
+	# Cuts the entries into lines, then places them. Returns what they take as
+	# (along the flow, across the flow). Every entry rect is written into
+	# p_plan.
 	#
 	# Every entry is cut to the width limit on the way, so the run along the
 	# flow never passes p_limit_along. The depth across the flow can pass
 	# p_limit_across, which is what asks for a scrollbar.
-	func _run_entries(p_limit_along: float, p_limit_across: float) -> Vector2:
-		var vertical := _flow.vertical
+	func _run_entries(p_limit_along: float, p_limit_across: float, p_plan: _LayoutPlan) -> Vector2:
+		var vertical := _flow_vertical
 		var width_limit := p_limit_across if vertical else p_limit_along
 		var gap := float(_style.item_gap_px)
 
-		var line_run := 0.0		# what the current line takes along the flow
-		var line_thick := 0.0	# how deep the current line is across the flow
-		var total_thick := 0.0	# the finished lines and the gaps between them
-		var count := 0			# entries on the current line
-		var longest_run := 0.0
+		var entry_runs := PackedFloat32Array()
+		entry_runs.resize(_legend_items.size())
+		var lines: Array[_EntryLine] = []
+		var line: _EntryLine = null
 
-		for item in _legend_items:
-			var entry := item as _LegendItem
+		for i in range(_legend_items.size()):
+			var entry := _legend_items[i]
 			var natural := entry.get_natural_size()
-			var entry_size := Vector2(minf(natural.x, width_limit), natural.y)
-			entry.set_entry_width(entry_size.x)
+			# The floor wins over the limit. An entry laid out under it grows
+			# back to it and the surplus is clipped, so counting the floor
+			# here is what keeps the measurement and the drawing in step.
+			var width := maxf(minf(natural.x, width_limit), entry.get_minimum_width())
+			var run := natural.y if vertical else width
+			var thickness := width if vertical else natural.y
+			entry_runs[i] = run
 
-			var entry_along := entry_size.y if vertical else entry_size.x
-			var entry_across := entry_size.x if vertical else entry_size.y
+			# The first entry of a line always fits, whatever its run, so a
+			# name wider than the limit still gets its own line.
+			var line_run := run if line == null else line.run + gap + run
+			if line == null or line_run > p_limit_along:
+				line = _EntryLine.new()
+				line.first_entry = i
+				lines.append(line)
+				line_run = run
 
-			if count > 0:
-				line_run += gap
-			if line_run + entry_along > p_limit_along:
-				total_thick += line_thick + gap
-				line_run = 0.0
-				line_thick = 0.0
-				count = 0
+			line.run = line_run
+			line.thickness = maxf(line.thickness, thickness)
+			line.entry_count += 1
 
-			line_run += entry_along
-			line_thick = maxf(line_thick, entry_across)
-			count += 1
-			longest_run = maxf(longest_run, line_run)
-
-		return Vector2(longest_run, total_thick + line_thick)
+		return _place_entries(lines, entry_runs, p_plan)
 
 
-	# The data area less the margin, capped across the flow. All of it is free
-	# space, since the legend floats over it.
+	# Turns lines into one rect per entry, in the coordinates of the entry
+	# area, and returns the extent they take.
+	#
+	# A line shorter than the longest one is centered along the flow rather
+	# than left hanging on one edge. Every entry of a line takes the whole
+	# thickness of that line, so the series names of a column share one width
+	# and the entries of a row share one height.
+	func _place_entries(p_lines: Array[_EntryLine], p_entry_runs: PackedFloat32Array, p_plan: _LayoutPlan) -> Vector2:
+		var vertical := _flow_vertical
+		var gap := float(_style.item_gap_px)
+
+		var extent_along := 0.0
+		var extent_across := 0.0
+		for line in p_lines:
+			extent_along = maxf(extent_along, line.run)
+			extent_across += line.thickness
+		extent_across += maxf(float(p_lines.size() - 1), 0.0) * gap
+
+		# Every rect is written below, so a second walk replaces the first one.
+		p_plan.entry_rects.resize(p_entry_runs.size())
+
+		var offset_across := 0.0
+		for line in p_lines:
+			var offset_along := 0.5 * (extent_along - line.run)
+			for i in range(line.first_entry, line.first_entry + line.entry_count):
+				var run: float = p_entry_runs[i]
+				if vertical:
+					p_plan.entry_rects[i] = Rect2(offset_across, offset_along, line.thickness, run)
+				else:
+					p_plan.entry_rects[i] = Rect2(offset_along, offset_across, run, line.thickness)
+				offset_along += run + gap
+			offset_across += line.thickness + gap
+
+		return Vector2(extent_along, extent_across)
+
+
+	# Rect of the box in the legend. Outside the data area the box is centered
+	# on the span. Inside, it goes against the corner or the edge of the box
+	# alignment, one margin away from it.
+	func _get_box_rect(p_box_size: Vector2) -> Rect2:
+		if _family != PositionFamily.INSIDE:
+			return Rect2(0.5 * (size - p_box_size), p_box_size)
+
+		var margin := Vector2(float(_style.margin_px), float(_style.margin_px))
+		return Rect2(margin + _box_alignment * (size - p_box_size - 2.0 * margin), p_box_size)
+
+
+	# The legend covers the data area, so its size gives the limits. The margin
+	# is taken out and the cap applies across the flow. All of it is free
+	# space, since the legend floats over the data area.
 	func _get_inside_limits() -> Vector2:
 		var margin := 2.0 * float(_style.margin_px)
 		var limits := Vector2(
-			maxf(_data_area.x - margin, 0.0),
-			maxf(_data_area.y - margin, 0.0))
-		if _flow.vertical:
+			maxf(size.x - margin, 0.0),
+			maxf(size.y - margin, 0.0))
+		if _flow_vertical:
 			limits.x = get_cap_px(limits.x, limits.x, _style.max_size_px)
 		else:
 			limits.y = get_cap_px(limits.y, limits.y, _style.max_size_px)
@@ -383,14 +468,14 @@ class Legend extends Control:
 
 	# Space the background takes around the entries, as (left plus right, top
 	# plus bottom).
-	func _padding() -> Vector2:
+	func _get_padding() -> Vector2:
 		return Vector2(
 			_style.background.get_margin(SIDE_LEFT) + _style.background.get_margin(SIDE_RIGHT),
 			_style.background.get_margin(SIDE_TOP) + _style.background.get_margin(SIDE_BOTTOM))
 
 
-	func _scrollbar_thickness_px() -> float:
-		if _flow.vertical:
+	func _get_scrollbar_thickness_px() -> float:
+		if _flow_vertical:
 			return _scroll.get_h_scroll_bar().get_combined_minimum_size().y
 		return _scroll.get_v_scroll_bar().get_combined_minimum_size().x
 
@@ -403,7 +488,7 @@ class Legend extends Control:
 	# entries wrap, and possibly hide the bar again.
 	func _apply_scroll_modes(p_scrolls: bool) -> void:
 		var mode := ScrollContainer.SCROLL_MODE_SHOW_ALWAYS if p_scrolls else ScrollContainer.SCROLL_MODE_DISABLED
-		if _flow.vertical:
+		if _flow_vertical:
 			_scroll.horizontal_scroll_mode = mode
 			_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		else:
@@ -422,11 +507,50 @@ class Legend extends Control:
 	## construction, so this runs without waiting for a layout pass.
 	func _apply_key_column_width() -> void:
 		var column_width: float = 0.0
-		if _align_key_columns:
+		if _flow_vertical:
 			for item in _legend_items:
-				column_width = maxf(column_width, (item as _LegendItem).get_natural_key_width())
+				column_width = maxf(column_width, item.get_natural_key_width())
 		for item in _legend_items:
-			(item as _LegendItem).set_key_column_width(column_width)
+			item.set_key_column_width(column_width)
+
+
+	####################################################################################################
+	# LayoutPlan (inner class)
+	####################################################################################################
+
+	## Describes the layout settled by one measurement.
+	class _LayoutPlan extends RefCounted:
+		## Size of the box, never above the limits of the measurement.
+		var box_size: Vector2 = Vector2.ZERO
+
+		## What the entries take. It can pass the box across the flow, which
+		## is the part the scrollbar reaches.
+		var content_size: Vector2 = Vector2.ZERO
+
+		## Rect of every entry in the entry area, in the order of the entries.
+		var entry_rects: Array[Rect2] = []
+
+		## True when the entries need a scrollbar across the flow.
+		var scrolls: bool = false
+
+
+	####################################################################################################
+	# EntryLine (inner class)
+	####################################################################################################
+
+	## One row or column of entries, as the entry walk cut it.
+	class _EntryLine extends RefCounted:
+		## Index of the first entry of the line.
+		var first_entry: int = 0
+
+		## Number of entries on the line.
+		var entry_count: int = 0
+
+		## What the entries and the gaps between them take along the flow.
+		var run: float = 0.0
+
+		## How deep the line is across the flow.
+		var thickness: float = 0.0
 
 
 	####################################################################################################
@@ -463,8 +587,8 @@ class Legend extends Control:
 			_label.add_theme_font_size_override(&"font_size", _style.font_size)
 			_label.add_theme_color_override(&"font_color", _style.font_color)
 			# A Label that trims asks for one pixel of width, which is how the
-			# entry can be laid out narrower than its name and let the width
-			# set on the entry decide instead.
+			# entry can be laid out narrower than its name and let the rect
+			# given to the entry decide instead.
 			_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			_label.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -494,14 +618,19 @@ class Legend extends Control:
 			_update_natural_size()
 
 
-		## Sets the width the entry is laid out at. Below the natural width the
-		## series name is cut with an ellipsis, and the whole name moves to the
-		## tooltip.
-		func set_entry_width(p_width: float) -> void:
-			# Only the width is pinned. The height stays free, so reading the
-			# natural height back later cannot drift upwards.
-			custom_minimum_size = Vector2(p_width, 0.0)
-			tooltip_text = _series_info.series_name if p_width < _natural_size.x else ""
+		## Smallest width the entry can be drawn at: the key strip, the gap and
+		## one pixel of series name. At that width the name is gone and the
+		## entry shows its keys alone.
+		func get_minimum_width() -> float:
+			return get_combined_minimum_size().x
+
+
+		## Places the entry at p_rect. Below the natural width the series name
+		## is cut with an ellipsis, and the whole name moves to the tooltip.
+		func set_entry_rect(p_rect: Rect2) -> void:
+			position = p_rect.position
+			size = p_rect.size
+			tooltip_text = _series_info.series_name if p_rect.size.x < _natural_size.x else ""
 
 
 		# The width comes from the font rather than from the Label, which
