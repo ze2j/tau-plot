@@ -89,14 +89,17 @@ class_name TauLegendStyle extends TauStyle
 
 ## Maximum size of the legend in pixels: its height when it is above or below
 ## the plot, its width when it is on the left or the right. Inside the data
-## area, its size across the flow direction.
+## area it caps the width when the flow is vertical, the height when the flow
+## is horizontal. An [code]AUTO[/code] flow is vertical, except at
+## [code]INSIDE_TOP[/code] and [code]INSIDE_BOTTOM[/code].
 ##
-## [code]0[/code] means uncapped: the legend may reduce significantly the plot area.
+## [code]0[/code] caps that side at two thirds of the plot.
 ##
 ## This is a maximum, not a target: a legend that needs less stays smaller.
 ## Names too long are cut with an ellipsis and shown in full in a tooltip, and
-## the entries left over are reached by scrolling. The legend never makes the
-## plot bigger.
+## the entries left over are reached by scrolling. The name is cut without the
+## ellipsis when about six characters or fewer fit (Godot behavior). The legend
+## never makes the plot bigger.
 @export var max_size_px: int = 0:
 	set(value):
 		max_size_px = maxi(value, 0)
