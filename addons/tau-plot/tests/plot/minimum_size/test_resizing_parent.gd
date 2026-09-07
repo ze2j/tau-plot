@@ -6,6 +6,10 @@ var _t: float = 0.0
 
 var _datasets: Array[TauPlot.Dataset] = []
 var _state: Array[Dictionary] = []
+var _slots: Array[_PlotSlot] = []
+
+var _last_fit_report: String = ""
+
 
 func _ready() -> void:
 	_create_timer()
@@ -22,6 +26,7 @@ func _create_timer() -> void:
 func _setup_all_tests() -> void:
 	_datasets.clear()
 	_state.clear()
+	_slots.clear()
 
 	_setup_test_1()
 	_setup_test_2()
@@ -52,6 +57,8 @@ func _on_tick() -> void:
 	_step_test_11()
 	_step_test_12()
 
+	_report_fit()
+
 ####################################################################################################
 # Shared initial data
 ####################################################################################################
@@ -73,10 +80,68 @@ const CAPACITY := 64
 const APPEND_INTERVAL := 0.5
 const NEXT_X_START := 4.0
 
-func _make_plot(p_plot: TauPlot, p_title: String, p_legend_position: TauLegendConfig.Position) -> void:
-	var series_names := PackedStringArray(["A", "B", "C"])
+# Smallest share of its slot
+# Not zero as the title claims a minimum height of its own.
+const SPAN_MIN := Vector2(0.20, 0.20)
+
+# In seconds
+const SPAN_PERIOD := Vector2(5.0, 7.0)
+
+
+class _PlotSlot extends Control:
+
+	const _SLOT_COLOR := Color(0.10, 0.10, 0.13)
+	const _GIVEN_COLOR := Color(0.30, 0.85, 0.40)
+	const _TAKEN_COLOR := Color(0.95, 0.20, 0.20)
+
+	var plot: TauPlot = null
+
+	var _given := Rect2()
+
+
+	func _init() -> void:
+		size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+
+	func own(p_plot: TauPlot) -> void:
+		plot = p_plot
+		add_child(plot)
+		plot.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		plot.grow_horizontal = Control.GROW_DIRECTION_END
+		plot.grow_vertical = Control.GROW_DIRECTION_END
+
+
+	func set_span(p_span: Vector2) -> void:
+		var given_size := (size * p_span).round()
+		_given = Rect2(((size - given_size) * 0.5).round(), given_size)
+		plot.position = _given.position
+		plot.size = _given.size
+		queue_redraw()
+
+
+	func fits() -> bool:
+		return plot.size.x <= _given.size.x + 0.5 and plot.size.y <= _given.size.y + 0.5
+
+
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), _SLOT_COLOR)
+		draw_rect(_given, _GIVEN_COLOR, false, 1.0)
+		if not fits():
+			draw_rect(Rect2(plot.position, plot.size), _TAKEN_COLOR, false, 2.0)
+
+
+
+func _make_plot(p_title: String, p_legend_position: TauLegendConfig.Position) -> void:
+	var series_names := PackedStringArray(["One very long series name", "A shorter one", "SN"])
 	var dataset := TauPlot.Dataset.make_shared_x_continuous(series_names, X_INIT, [Y_A_INIT, Y_B_INIT, Y_C_INIT], CAPACITY)
 	_datasets.append(dataset)
+
+	var plot := TauPlot.new()
+	var slot := _PlotSlot.new()
+	%Grid.add_child(slot)
+	slot.own(plot)
+	_slots.append(slot)
 
 	var legend_config := TauLegendConfig.new()
 	legend_config.position = p_legend_position
@@ -93,8 +158,8 @@ func _make_plot(p_plot: TauPlot, p_title: String, p_legend_position: TauLegendCo
 	legend_background.content_margin_top = 4
 	legend_config.style.background = legend_background
 
-	p_plot.title = p_title
-	p_plot.legend_config = legend_config
+	plot.title = p_title
+	plot.legend_config = legend_config
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
@@ -166,12 +231,13 @@ func _make_plot(p_plot: TauPlot, p_title: String, p_legend_position: TauLegendCo
 
 	var bindings: Array[TauXYSeriesBinding] = [sb_bot, sb_mid, sb_top]
 
-	p_plot.plot_xy(dataset, config, bindings)
+	plot.plot_xy(dataset, config, bindings)
 
 	_state.append({
 		"dataset": dataset,
 		"next_x": NEXT_X_START,
 		"last_append_t": 0.0,
+		"title": p_title,
 	})
 
 
@@ -191,15 +257,42 @@ func _update_plot(p_state_index: int) -> void:
 	st["next_x"] = next_x + 1.0
 	st["last_append_t"] = _t
 
+
+func _resize_slot(p_state_index: int) -> void:
+	_slots[p_state_index].set_span(Vector2(
+		_span_fraction(SPAN_MIN.x, SPAN_PERIOD.x),
+		_span_fraction(SPAN_MIN.y, SPAN_PERIOD.y)))
+
+
+func _span_fraction(p_min: float, p_period: float) -> float:
+	var wave := 0.5 - 0.5 * cos(TAU * _t / p_period)
+	return p_min + (1.0 - p_min) * wave
+
+
+func _report_fit() -> void:
+	var over := PackedStringArray()
+	for i in _slots.size():
+		if not _slots[i].fits():
+			over.append(_state[i]["title"])
+
+	var report := "every plot fits the rect it is given"
+	if not over.is_empty():
+		report = "larger than the rect it is given: %s" % ", ".join(over)
+	if report == _last_fit_report:
+		return
+	_last_fit_report = report
+	print(report)
+
 ####################################################################################################
 # Test 1
 ####################################################################################################
 
 func _setup_test_1() -> void:
-	_make_plot(%TestPlot1, "OUTSIDE_TOP", TauLegendConfig.Position.OUTSIDE_TOP)
+	_make_plot("OUTSIDE_TOP", TauLegendConfig.Position.OUTSIDE_TOP)
 
 
 func _step_test_1() -> void:
+	_resize_slot(0)
 	_update_plot(0)
 
 ####################################################################################################
@@ -207,10 +300,11 @@ func _step_test_1() -> void:
 ####################################################################################################
 
 func _setup_test_2() -> void:
-	_make_plot(%TestPlot2, "OUTSIDE_RIGHT", TauLegendConfig.Position.OUTSIDE_RIGHT)
+	_make_plot("OUTSIDE_RIGHT", TauLegendConfig.Position.OUTSIDE_RIGHT)
 
 
 func _step_test_2() -> void:
+	_resize_slot(1)
 	_update_plot(1)
 
 ####################################################################################################
@@ -218,10 +312,11 @@ func _step_test_2() -> void:
 ####################################################################################################
 
 func _setup_test_3() -> void:
-	_make_plot(%TestPlot3, "OUTSIDE_BOTTOM", TauLegendConfig.Position.OUTSIDE_BOTTOM)
+	_make_plot("OUTSIDE_BOTTOM", TauLegendConfig.Position.OUTSIDE_BOTTOM)
 
 
 func _step_test_3() -> void:
+	_resize_slot(2)
 	_update_plot(2)
 
 ####################################################################################################
@@ -229,10 +324,11 @@ func _step_test_3() -> void:
 ####################################################################################################
 
 func _setup_test_4() -> void:
-	_make_plot(%TestPlot4, "OUTSIDE_LEFT", TauLegendConfig.Position.OUTSIDE_LEFT)
+	_make_plot("OUTSIDE_LEFT", TauLegendConfig.Position.OUTSIDE_LEFT)
 
 
 func _step_test_4() -> void:
+	_resize_slot(3)
 	_update_plot(3)
 
 ####################################################################################################
@@ -240,10 +336,11 @@ func _step_test_4() -> void:
 ####################################################################################################
 
 func _setup_test_5() -> void:
-	_make_plot(%TestPlot5, "INSIDE_TOP", TauLegendConfig.Position.INSIDE_TOP)
+	_make_plot("INSIDE_TOP", TauLegendConfig.Position.INSIDE_TOP)
 
 
 func _step_test_5() -> void:
+	_resize_slot(4)
 	_update_plot(4)
 
 ####################################################################################################
@@ -251,10 +348,11 @@ func _step_test_5() -> void:
 ####################################################################################################
 
 func _setup_test_6() -> void:
-	_make_plot(%TestPlot6, "INSIDE_RIGHT", TauLegendConfig.Position.INSIDE_RIGHT)
+	_make_plot("INSIDE_RIGHT", TauLegendConfig.Position.INSIDE_RIGHT)
 
 
 func _step_test_6() -> void:
+	_resize_slot(5)
 	_update_plot(5)
 
 ####################################################################################################
@@ -262,10 +360,11 @@ func _step_test_6() -> void:
 ####################################################################################################
 
 func _setup_test_7() -> void:
-	_make_plot(%TestPlot7, "INSIDE_BOTTOM", TauLegendConfig.Position.INSIDE_BOTTOM)
+	_make_plot("INSIDE_BOTTOM", TauLegendConfig.Position.INSIDE_BOTTOM)
 
 
 func _step_test_7() -> void:
+	_resize_slot(6)
 	_update_plot(6)
 
 
@@ -274,10 +373,11 @@ func _step_test_7() -> void:
 ####################################################################################################
 
 func _setup_test_8() -> void:
-	_make_plot(%TestPlot8, "INSIDE_LEFT", TauLegendConfig.Position.INSIDE_LEFT)
+	_make_plot("INSIDE_LEFT", TauLegendConfig.Position.INSIDE_LEFT)
 
 
 func _step_test_8() -> void:
+	_resize_slot(7)
 	_update_plot(7)
 
 
@@ -286,10 +386,11 @@ func _step_test_8() -> void:
 ####################################################################################################
 
 func _setup_test_9() -> void:
-	_make_plot(%TestPlot9, "INSIDE_TOP_RIGHT", TauLegendConfig.Position.INSIDE_TOP_RIGHT)
+	_make_plot("INSIDE_TOP_RIGHT", TauLegendConfig.Position.INSIDE_TOP_RIGHT)
 
 
 func _step_test_9() -> void:
+	_resize_slot(8)
 	_update_plot(8)
 
 ####################################################################################################
@@ -297,10 +398,11 @@ func _step_test_9() -> void:
 ####################################################################################################
 
 func _setup_test_10() -> void:
-	_make_plot(%TestPlot10, "INSIDE_BOTTOM_RIGHT", TauLegendConfig.Position.INSIDE_BOTTOM_RIGHT)
+	_make_plot("INSIDE_BOTTOM_RIGHT", TauLegendConfig.Position.INSIDE_BOTTOM_RIGHT)
 
 
 func _step_test_10() -> void:
+	_resize_slot(9)
 	_update_plot(9)
 
 
@@ -309,10 +411,11 @@ func _step_test_10() -> void:
 ####################################################################################################
 
 func _setup_test_11() -> void:
-	_make_plot(%TestPlot11, "INSIDE_BOTTOM_LEFT", TauLegendConfig.Position.INSIDE_BOTTOM_LEFT)
+	_make_plot("INSIDE_BOTTOM_LEFT", TauLegendConfig.Position.INSIDE_BOTTOM_LEFT)
 
 
 func _step_test_11() -> void:
+	_resize_slot(10)
 	_update_plot(10)
 
 ####################################################################################################
@@ -320,8 +423,9 @@ func _step_test_11() -> void:
 ####################################################################################################
 
 func _setup_test_12() -> void:
-	_make_plot(%TestPlot12, "INSIDE_TOP_LEFT", TauLegendConfig.Position.INSIDE_TOP_LEFT)
+	_make_plot("INSIDE_TOP_LEFT", TauLegendConfig.Position.INSIDE_TOP_LEFT)
 
 
 func _step_test_12() -> void:
+	_resize_slot(11)
 	_update_plot(11)

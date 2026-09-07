@@ -92,6 +92,7 @@ var _rotated_extent := Vector2.ZERO
 
 func _ready() -> void:
 	_label = $RichTextLabel
+	clip_contents = true
 	_label.anchor_left = 0.0
 	_label.anchor_top = 0.0
 	_label.anchor_right = 0.0
@@ -126,8 +127,9 @@ func _apply_orientation() -> void:
 			push_error("TitleOrientation.AUTO has not been resolved")
 
 
-# Measures the text, applies the rotation, and sizes the control to what the
-# rotated text needs.
+# Measures the text, applies the rotation, and compute custom_minimum_size.
+# Only the thickness of the result is claimed, never the length.
+# For an horizontal orientation it's the height, otherwise it's the width.
 func _recompute_layout() -> void:
 	if _label == null:
 		return
@@ -153,7 +155,7 @@ func _recompute_layout() -> void:
 	match title_orientation:
 		TitleOrientation.HORIZONTAL:
 			_label.rotation_degrees = 0.0
-			custom_minimum_size = unrotated_size
+			custom_minimum_size = Vector2(0.0, unrotated_size.y)
 			_base_position = Vector2.ZERO
 			_rotated_extent = unrotated_size
 			_in_recompute = false
@@ -163,34 +165,34 @@ func _recompute_layout() -> void:
 		TitleOrientation.VERTICAL:
 			_label.rotation_degrees = -90.0
 
+			# The rotation turns the text box around its origin, so the bounding box of
+			# the four rotated corners gives the size to ask for, and its negated
+			# minimum brings the text back inside.
+			var t := Transform2D(_label.rotation, Vector2.ZERO)
+
+			var corners := PackedVector2Array([
+				Vector2(0.0, 0.0),
+				Vector2(unrotated_size.x, 0.0),
+				Vector2(0.0, unrotated_size.y),
+				Vector2(unrotated_size.x, unrotated_size.y),
+			])
+
+			var min_p := t * corners[0]
+			var max_p := min_p
+			for i in range(1, corners.size()):
+				var p := t * corners[i]
+				min_p = min_p.min(p)
+				max_p = max_p.max(p)
+
+			_rotated_extent = max_p - min_p
+			custom_minimum_size = Vector2(_rotated_extent.x, 0.0)
+			_base_position = -min_p
+
+			_in_recompute = false
+			_update_alignment()
+
 		TitleOrientation.AUTO:
 			push_error("TitleOrientation.AUTO has not been resolved")
-
-	# The rotation turns the text box around its origin, so the bounding box of
-	# the four rotated corners gives the size to ask for, and its negated
-	# minimum brings the text back inside.
-	var t := Transform2D(_label.rotation, Vector2.ZERO)
-
-	var corners := PackedVector2Array([
-		Vector2(0.0, 0.0),
-		Vector2(unrotated_size.x, 0.0),
-		Vector2(0.0, unrotated_size.y),
-		Vector2(unrotated_size.x, unrotated_size.y),
-	])
-
-	var min_p := t * corners[0]
-	var max_p := min_p
-	for i in range(1, corners.size()):
-		var p := t * corners[i]
-		min_p = min_p.min(p)
-		max_p = max_p.max(p)
-
-	_rotated_extent = max_p - min_p
-	custom_minimum_size = _rotated_extent
-	_base_position = -min_p
-
-	_in_recompute = false
-	_update_alignment()
 
 
 # Positions the label from the current control rect and the data area.

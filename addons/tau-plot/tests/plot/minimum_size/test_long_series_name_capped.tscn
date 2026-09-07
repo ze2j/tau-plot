@@ -1,11 +1,11 @@
-[gd_scene load_steps=41 format=3 uid="uid://cguld5qi12esn"]
+[gd_scene load_steps=41 format=3 uid="uid://bbljepu1ainn2"]
 
-[ext_resource type="Script" uid="uid://m6ovn6nicc85" path="res://addons/tau-plot/tests/plot/legend/test_legend_position.gd" id="1_sptrt"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_sptrt"]
-[ext_resource type="Script" uid="uid://uhgixxbpx26l" path="res://addons/tau-plot/plot/legend/legend_config.gd" id="3_2h5ys"]
-[ext_resource type="Script" uid="uid://byus5xc02avlw" path="res://addons/tau-plot/plot/legend/legend_style.gd" id="4_c3p3i"]
+[ext_resource type="Script" uid="uid://c6w8tgnkj1h5n" path="res://addons/tau-plot/tests/plot/minimum_size/test_long_series_name_capped.gd" id="1_qli5k"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_oev0r"]
+[ext_resource type="Script" uid="uid://uhgixxbpx26l" path="res://addons/tau-plot/plot/legend/legend_config.gd" id="3_f4nm8"]
+[ext_resource type="Script" uid="uid://byus5xc02avlw" path="res://addons/tau-plot/plot/legend/legend_style.gd" id="4_m7d4n"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2h5ys"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qli5k"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -16,15 +16,16 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_c3p3i"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_2h5ys")
+[sub_resource type="Resource" id="Resource_ye7k6"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_qli5k")
+max_size_px = 32
 
-[sub_resource type="Resource" id="Resource_b4qox"]
-script = ExtResource("3_2h5ys")
-style = SubResource("Resource_c3p3i")
+[sub_resource type="Resource" id="Resource_v5sgl"]
+script = ExtResource("3_f4nm8")
+style = SubResource("Resource_ye7k6")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_m7n3i"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y2hq3"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -35,16 +36,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_4a12n"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_m7n3i")
+[sub_resource type="Resource" id="Resource_0mp5b"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_y2hq3")
+max_size_px = 120
 
-[sub_resource type="Resource" id="Resource_3dv7g"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_pog1w"]
+script = ExtResource("3_f4nm8")
 position = 3
-style = SubResource("Resource_4a12n")
+style = SubResource("Resource_0mp5b")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_emcq8"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_f2fah"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -55,16 +57,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_kc4g5"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_emcq8")
+[sub_resource type="Resource" id="Resource_0voin"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_f2fah")
+max_size_px = 32
 
-[sub_resource type="Resource" id="Resource_v1y1j"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_nv0n1"]
+script = ExtResource("3_f4nm8")
 position = 1
-style = SubResource("Resource_kc4g5")
+style = SubResource("Resource_0voin")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gjbs3"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_owuer"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -75,16 +78,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_diagf"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_gjbs3")
+[sub_resource type="Resource" id="Resource_k5eri"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_owuer")
+max_size_px = 120
 
-[sub_resource type="Resource" id="Resource_liqos"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_gf2ik"]
+script = ExtResource("3_f4nm8")
 position = 2
-style = SubResource("Resource_diagf")
+style = SubResource("Resource_k5eri")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qxf1o"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kmyo3"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -95,16 +99,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_luy8i"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_qxf1o")
+[sub_resource type="Resource" id="Resource_26xj7"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_kmyo3")
+max_size_px = 32
 
-[sub_resource type="Resource" id="Resource_yke2a"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_rsgvb"]
+script = ExtResource("3_f4nm8")
 position = 4
-style = SubResource("Resource_luy8i")
+style = SubResource("Resource_26xj7")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0qeuj"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jrk76"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -115,16 +120,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_oriij"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_0qeuj")
+[sub_resource type="Resource" id="Resource_wita4"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_jrk76")
+max_size_px = 120
 
-[sub_resource type="Resource" id="Resource_t8xha"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_a7upk"]
+script = ExtResource("3_f4nm8")
 position = 7
-style = SubResource("Resource_oriij")
+style = SubResource("Resource_wita4")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_r8h2e"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_a8me8"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -135,16 +141,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_56wxs"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_r8h2e")
+[sub_resource type="Resource" id="Resource_8ly1d"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_a8me8")
+max_size_px = 32
 
-[sub_resource type="Resource" id="Resource_s2kxy"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_8u6vd"]
+script = ExtResource("3_f4nm8")
 position = 5
-style = SubResource("Resource_56wxs")
+style = SubResource("Resource_8ly1d")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_iodjx"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_538d0"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -155,16 +162,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_y4ism"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_iodjx")
+[sub_resource type="Resource" id="Resource_4kir4"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_538d0")
+max_size_px = 120
 
-[sub_resource type="Resource" id="Resource_vot0b"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_05kc1"]
+script = ExtResource("3_f4nm8")
 position = 6
-style = SubResource("Resource_y4ism")
+style = SubResource("Resource_4kir4")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8midp"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fyand"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -175,16 +183,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_aqnao"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_8midp")
+[sub_resource type="Resource" id="Resource_h5yjd"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_fyand")
+max_size_px = 120
 
-[sub_resource type="Resource" id="Resource_lq48i"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_7qco0"]
+script = ExtResource("3_f4nm8")
 position = 9
-style = SubResource("Resource_aqnao")
+style = SubResource("Resource_h5yjd")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wprxq"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_s7k45"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -195,16 +204,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_lt11o"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_wprxq")
+[sub_resource type="Resource" id="Resource_keook"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_s7k45")
+max_size_px = 120
 
-[sub_resource type="Resource" id="Resource_tglcv"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_hdhn5"]
+script = ExtResource("3_f4nm8")
 position = 11
-style = SubResource("Resource_lt11o")
+style = SubResource("Resource_keook")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2vqc4"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_77f3m"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -215,16 +225,17 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_5kd1i"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_2vqc4")
+[sub_resource type="Resource" id="Resource_avcnn"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_77f3m")
+max_size_px = 120
 
-[sub_resource type="Resource" id="Resource_rky4f"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_rgimb"]
+script = ExtResource("3_f4nm8")
 position = 10
-style = SubResource("Resource_5kd1i")
+style = SubResource("Resource_avcnn")
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_206pv"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d12e4"]
 content_margin_left = 4.0
 content_margin_top = 4.0
 content_margin_right = 4.0
@@ -235,14 +246,15 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="Resource" id="Resource_mybmd"]
-script = ExtResource("4_c3p3i")
-background = SubResource("StyleBoxFlat_206pv")
+[sub_resource type="Resource" id="Resource_xwyxw"]
+script = ExtResource("4_m7d4n")
+background = SubResource("StyleBoxFlat_d12e4")
+max_size_px = 120
 
-[sub_resource type="Resource" id="Resource_bkfgq"]
-script = ExtResource("3_2h5ys")
+[sub_resource type="Resource" id="Resource_rxagv"]
+script = ExtResource("3_f4nm8")
 position = 8
-style = SubResource("Resource_mybmd")
+style = SubResource("Resource_xwyxw")
 
 [node name="LegendTests" type="VBoxContainer"]
 anchors_preset = 15
@@ -250,12 +262,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_sptrt")
+script = ExtResource("1_qli5k")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test legend position with flow direction = AUTO"
+text = "Test legend with long series name and positive max size"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -272,9 +284,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "OUTSIDE_TOP"
-legend_config = SubResource("Resource_b4qox")
+legend_config = SubResource("Resource_v5sgl")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -284,9 +296,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "OUTSIDE_RIGHT"
-legend_config = SubResource("Resource_3dv7g")
+legend_config = SubResource("Resource_pog1w")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -296,9 +308,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "OUTSIDE_BOTTOM"
-legend_config = SubResource("Resource_v1y1j")
+legend_config = SubResource("Resource_nv0n1")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -308,9 +320,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "OUTSIDE_LEFT"
-legend_config = SubResource("Resource_liqos")
+legend_config = SubResource("Resource_gf2ik")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -320,9 +332,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "INSIDE_TOP"
-legend_config = SubResource("Resource_yke2a")
+legend_config = SubResource("Resource_rsgvb")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
@@ -332,9 +344,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "INSIDE_RIGHT"
-legend_config = SubResource("Resource_t8xha")
+legend_config = SubResource("Resource_a7upk")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
@@ -344,9 +356,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "INSIDE_BOTTOM"
-legend_config = SubResource("Resource_s2kxy")
+legend_config = SubResource("Resource_8u6vd")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
@@ -356,9 +368,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "INSIDE_LEFT"
-legend_config = SubResource("Resource_vot0b")
+legend_config = SubResource("Resource_05kc1")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot9" type="PanelContainer" parent="GridContainer"]
@@ -368,9 +380,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "INSIDE_TOP_RIGHT"
-legend_config = SubResource("Resource_lq48i")
+legend_config = SubResource("Resource_7qco0")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot10" type="PanelContainer" parent="GridContainer"]
@@ -380,9 +392,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "INSIDE_BOTTOM_RIGHT"
-legend_config = SubResource("Resource_tglcv")
+legend_config = SubResource("Resource_hdhn5")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot11" type="PanelContainer" parent="GridContainer"]
@@ -392,9 +404,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "INSIDE_BOTTOM_LEFT"
-legend_config = SubResource("Resource_rky4f")
+legend_config = SubResource("Resource_rgimb")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot12" type="PanelContainer" parent="GridContainer"]
@@ -404,7 +416,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_sptrt")
+script = ExtResource("2_oev0r")
 title = "INSIDE_TOP_LEFT"
-legend_config = SubResource("Resource_bkfgq")
+legend_config = SubResource("Resource_rxagv")
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
