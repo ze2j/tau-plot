@@ -17,13 +17,13 @@ class TickResolver extends RefCounted:
 	################################################################################################
 
 	static func compute_ticks_for_continuous_axis(p_axis_min: float,
-												  p_axis_max: float,
-												  p_scale: TauAxisConfig.Scale,
-												  p_count_preferred: int,
-												  p_overlap_strategy: TauAxisConfig.OverlapStrategy,
-												  p_available_pixels: float,
-												  p_min_spacing_px: float,
-												  p_measure_label_func: Callable) -> TickSequence:
+			p_axis_max: float,
+			p_scale: TauAxisConfig.Scale,
+			p_count_preferred: int,
+			p_overlap_strategy: TauAxisConfig.OverlapStrategy,
+			p_available_pixels: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> TickSequence:
 
 		match p_scale:
 			TauAxisConfig.Scale.LOGARITHMIC:
@@ -47,10 +47,10 @@ class TickResolver extends RefCounted:
 	################################################################################################
 
 	static func compute_categorical_label_visibility(p_categories: PackedStringArray,
-													 p_overlap_strategy: TauAxisConfig.OverlapStrategy,
-													 p_available_pixels: float,
-													 p_min_spacing_px: float,
-													 p_measure_label_func: Callable) -> PackedInt32Array:
+			p_overlap_strategy: TauAxisConfig.OverlapStrategy,
+			p_available_pixels: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> PackedInt32Array:
 
 		var category_count := p_categories.size()
 		if category_count == 0:
@@ -94,12 +94,12 @@ class TickResolver extends RefCounted:
 	################################################################################################
 
 	static func _compute_linear_ticks_with_overlap_handling(p_axis_min: float,
-															p_axis_max: float,
-															p_count_preferred: int,
-															p_overlap_strategy: TauAxisConfig.OverlapStrategy,
-															p_available_pixels: float,
-															p_min_spacing_px: float,
-															p_measure_label_func: Callable) -> TickSequence:
+			p_axis_max: float,
+			p_count_preferred: int,
+			p_overlap_strategy: TauAxisConfig.OverlapStrategy,
+			p_available_pixels: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> TickSequence:
 
 		var tick_info := _compute_nice_linear_ticks(p_axis_min, p_axis_max, p_count_preferred)
 		if tick_info == null:
@@ -117,7 +117,8 @@ class TickResolver extends RefCounted:
 
 			TauAxisConfig.OverlapStrategy.SKIP_LABELS:
 				return _resolve_overlap_by_skipping_labels(
-					tick_info, p_available_pixels, p_min_spacing_px, p_measure_label_func
+					tick_info, p_axis_min, p_axis_max,
+					p_available_pixels, p_min_spacing_px, p_measure_label_func
 				)
 
 			_:
@@ -126,12 +127,13 @@ class TickResolver extends RefCounted:
 
 
 	static func _resolve_overlap_by_reducing_count(p_initial_tick_info: _TickInfo,
-												   p_axis_min: float,
-												   p_axis_max: float,
-												   p_available_pixels: float,
-												   p_min_spacing_px: float,
-												   p_measure_label_func: Callable) -> TickSequence:
+			p_axis_min: float,
+			p_axis_max: float,
+			p_available_pixels: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> TickSequence:
 
+		var axis_ruler := _AxisRuler.new(p_axis_min, p_axis_max, p_available_pixels, false)
 		var current_preferred := p_initial_tick_info.ticks.size()
 
 		while current_preferred >= 2:
@@ -139,7 +141,9 @@ class TickResolver extends RefCounted:
 			if tick_info == null:
 				break
 
-			if not _would_labels_overlap(tick_info.ticks, tick_info.decimals, p_available_pixels, p_min_spacing_px, p_measure_label_func):
+			# The step drives the decimals, so a new tick set formats differently.
+			var measure_tick_label := _make_tick_label_measure_func(tick_info.decimals, false, p_measure_label_func)
+			if not _would_labels_overlap(tick_info.ticks, axis_ruler, p_min_spacing_px, measure_tick_label):
 				return _make_ticks_all_labeled(tick_info.ticks, tick_info, false)
 
 			current_preferred -= 1
@@ -148,18 +152,23 @@ class TickResolver extends RefCounted:
 
 
 	static func _resolve_overlap_by_skipping_labels(p_tick_info: _TickInfo,
-													p_available_pixels: float,
-													p_min_spacing_px: float,
-													p_measure_label_func: Callable) -> TickSequence:
+			p_axis_min: float,
+			p_axis_max: float,
+			p_available_pixels: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> TickSequence:
 
 		var all_ticks := p_tick_info.ticks
 		var decimals := p_tick_info.decimals
+		var axis_ruler := _AxisRuler.new(p_axis_min, p_axis_max, p_available_pixels, false)
+		var measure_tick_label := _make_tick_label_measure_func(decimals, false, p_measure_label_func)
 		var skip_factor := 1
 
 		while skip_factor < all_ticks.size():
 			var labeled_indices := _compute_labeled_indices_with_skip(all_ticks.size(), skip_factor)
+			var labeled_ticks := _select_values_at_indices(all_ticks, labeled_indices)
 
-			if not _would_labeled_ticks_overlap(all_ticks, labeled_indices, decimals, p_available_pixels, p_min_spacing_px, p_measure_label_func):
+			if not _would_labels_overlap(labeled_ticks, axis_ruler, p_min_spacing_px, measure_tick_label):
 				return TickSequence.new(all_ticks, [], labeled_indices, decimals, false, false)
 
 			skip_factor += 1
@@ -174,11 +183,11 @@ class TickResolver extends RefCounted:
 	################################################################################################
 
 	static func _compute_log_ticks_with_overlap_handling(p_axis_min: float,
-														 p_axis_max: float,
-														 p_overlap_strategy: TauAxisConfig.OverlapStrategy,
-														 p_available_pixels: float,
-														 p_min_spacing_px: float,
-														 p_measure_label_func: Callable) -> TickSequence:
+			p_axis_max: float,
+			p_overlap_strategy: TauAxisConfig.OverlapStrategy,
+			p_available_pixels: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> TickSequence:
 
 		if p_axis_min <= 0.0 or p_axis_max <= 0.0 or p_axis_min >= p_axis_max:
 			push_error("TickResolver: Invalid log domain")
@@ -202,14 +211,14 @@ class TickResolver extends RefCounted:
 
 			_:
 				labeled_indices = _determine_labeled_log_ticks(
-					major_ticks, p_available_pixels, p_min_spacing_px, p_measure_label_func
+					major_ticks, p_axis_min, p_axis_max,
+					p_available_pixels, p_min_spacing_px, p_measure_label_func
 				)
 
 		return TickSequence.new(major_ticks, minor_ticks, labeled_indices, 0, false, true)
 
 
-	static func _compute_log_major_ticks(p_min: float,
-										 p_max: float) -> Array[float]:
+	static func _compute_log_major_ticks(p_min: float, p_max: float) -> Array[float]:
 		var log_min := log(p_min) / log(10.0)
 		var log_max := log(p_max) / log(10.0)
 		var first_exp := int(ceil(log_min))
@@ -224,9 +233,7 @@ class TickResolver extends RefCounted:
 		return major_ticks
 
 
-	static func _compute_log_minor_ticks(p_min: float,
-										 p_max: float,
-										 p_available_pixels: float) -> Array[float]:
+	static func _compute_log_minor_ticks(p_min: float,  p_max: float, p_available_pixels: float) -> Array[float]:
 		var first_exp := int(floor(log(p_min) / log(10.0)))
 		var last_exp := int(floor(log(p_max) / log(10.0)))
 
@@ -247,17 +254,23 @@ class TickResolver extends RefCounted:
 
 
 	static func _determine_labeled_log_ticks(p_major_ticks: Array[float],
-											 p_available_pixels: float,
-											 p_min_spacing_px: float,
-											 p_measure_label_func: Callable) -> PackedInt32Array:
+			p_axis_min: float,
+			p_axis_max: float,
+			p_available_pixels: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> PackedInt32Array:
 
-		if not _would_log_labels_overlap(p_major_ticks, _make_all_indices(p_major_ticks.size()), p_available_pixels, p_min_spacing_px, p_measure_label_func):
+		var axis_ruler := _AxisRuler.new(p_axis_min, p_axis_max, p_available_pixels, true)
+		var measure_tick_label := _make_tick_label_measure_func(0, true, p_measure_label_func)
+
+		if not _would_labels_overlap(p_major_ticks, axis_ruler, p_min_spacing_px, measure_tick_label):
 			return _make_all_indices(p_major_ticks.size())
 
 		var skip_factor := 2
 		while skip_factor < p_major_ticks.size():
 			var labeled_indices := _compute_labeled_indices_with_skip(p_major_ticks.size(), skip_factor)
-			if not _would_log_labels_overlap(p_major_ticks, labeled_indices, p_available_pixels, p_min_spacing_px, p_measure_label_func):
+			var labeled_ticks := _select_values_at_indices(p_major_ticks, labeled_indices)
+			if not _would_labels_overlap(labeled_ticks, axis_ruler, p_min_spacing_px, measure_tick_label):
 				return labeled_indices
 			skip_factor += 1
 
@@ -270,9 +283,9 @@ class TickResolver extends RefCounted:
 	################################################################################################
 
 	static func _would_categorical_labels_overlap(p_categories: PackedStringArray,
-												  p_pixels_per_category: float,
-												  p_min_spacing_px: float,
-												  p_measure_label_func: Callable) -> bool:
+			p_pixels_per_category: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> bool:
 
 		var max_label_width := 0.0
 		for category in p_categories:
@@ -283,10 +296,10 @@ class TickResolver extends RefCounted:
 
 
 	static func _would_categorical_subset_overlap(p_categories: PackedStringArray,
-												  p_visible_indices: PackedInt32Array,
-												  p_pixels_per_category: float,
-												  p_min_spacing_px: float,
-												  p_measure_label_func: Callable) -> bool:
+			p_visible_indices: PackedInt32Array,
+			p_pixels_per_category: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> bool:
 
 		if p_visible_indices.size() <= 1:
 			return false
@@ -307,8 +320,7 @@ class TickResolver extends RefCounted:
 		return false
 
 
-	static func _compute_categorical_visible_indices(p_count: int,
-													 p_skip_factor: int) -> PackedInt32Array:
+	static func _compute_categorical_visible_indices(p_count: int, p_skip_factor: int) -> PackedInt32Array:
 		var indices := PackedInt32Array()
 		for i in range(p_count):
 			if i % p_skip_factor == 0:
@@ -321,87 +333,77 @@ class TickResolver extends RefCounted:
 	# Overlap Detection
 	################################################################################################
 
-	static func _would_labels_overlap(p_ticks: Array[float],
-									p_decimals: int,
-									p_available_pixels: float,
-									p_min_spacing_px: float,
-									p_measure_label_func: Callable) -> bool:
+	# Measures the pixel distance between two values of one axis.
+	#
+	# The distance comes from the axis domain and the pixel length of the axis,
+	# which is the ratio the renderer uses to place a value. The axis origin and
+	# [member TauAxisConfig.inverted] are left out because neither changes a
+	# distance.
+	class _AxisRuler extends RefCounted:
+		var _is_log_scale: bool = false
+		var _pixels_per_unit: float = 0.0
 
-		if p_ticks.size() <= 1:
+		func _init(p_axis_min: float,
+				p_axis_max: float,
+				p_available_pixels: float,
+				p_is_log_scale: bool) -> void:
+			_is_log_scale = p_is_log_scale
+			var domain_span := _convert_value_to_axis_unit(p_axis_max) - _convert_value_to_axis_unit(p_axis_min)
+			_pixels_per_unit = p_available_pixels / domain_span
+
+		## Returns the pixel distance between two axis values. Never negative.
+		func measure_distance_px(p_first_value: float, p_second_value: float) -> float:
+			var unit_span := _convert_value_to_axis_unit(p_second_value) - _convert_value_to_axis_unit(p_first_value)
+			return absf(unit_span) * _pixels_per_unit
+
+		# A logarithmic axis is linear in the logarithm of the value, which is
+		# where the renderer places it. The base cancels in the ratio, so the raw
+		# log() is used.
+		func _convert_value_to_axis_unit(p_value: float) -> float:
+			return log(p_value) if _is_log_scale else p_value
+
+
+	# Tells whether any two neighbouring labels of the given tick values overlap.
+	# Two labels overlap when the space they need is wider than the pixel
+	# distance between their ticks.
+	#
+	# The values are the ticks that carry a label, already in axis order.
+	static func _would_labels_overlap(p_labeled_values: Array[float],
+			p_axis_ruler: _AxisRuler,
+			p_min_spacing_px: float,
+			p_measure_tick_label_func: Callable) -> bool:
+
+		if p_labeled_values.size() <= 1:
 			return false
 
-		var pixels_per_tick := p_available_pixels / float(p_ticks.size() - 1)
-		var shared_ticks := TickSequence.new(p_ticks, [], _make_all_indices(p_ticks.size()), p_decimals, false, false)
-		var max_label_width := 0.0
+		var previous_value := p_labeled_values[0]
+		var previous_label_size: Vector2 = p_measure_tick_label_func.call(previous_value)
 
-		for tick_val in p_ticks:
-			var label_size: Vector2 = p_measure_label_func.call(shared_ticks.format_value(tick_val))
-			if label_size.x > max_label_width:
-				max_label_width = label_size.x
-
-		return (max_label_width + p_min_spacing_px) > pixels_per_tick
-
-
-	static func _would_labeled_ticks_overlap(p_ticks: Array[float],
-											p_labeled_indices: PackedInt32Array,
-											p_decimals: int,
-											p_available_pixels: float,
-											p_min_spacing_px: float,
-											p_measure_label_func: Callable) -> bool:
-
-		if p_labeled_indices.size() <= 1:
-			return false
-
-		var shared_ticks := TickSequence.new(p_ticks, [], _make_all_indices(p_ticks.size()), p_decimals, false, false)
-		var pixels_per_tick := p_available_pixels / float(p_ticks.size() - 1) if p_ticks.size() > 1 else p_available_pixels
-
-		for i in range(p_labeled_indices.size() - 1):
-			var idx1 := p_labeled_indices[i]
-			var idx2 := p_labeled_indices[i + 1]
-
-			var size1: Vector2 = p_measure_label_func.call(shared_ticks.format_value(p_ticks[idx1]))
-			var size2: Vector2 = p_measure_label_func.call(shared_ticks.format_value(p_ticks[idx2]))
-
-			var pixel_span := pixels_per_tick * float(idx2 - idx1)
-			if (size1.x * 0.5) + (size2.x * 0.5) + p_min_spacing_px > pixel_span:
+		for i in range(1, p_labeled_values.size()):
+			var value := p_labeled_values[i]
+			var label_size: Vector2 = p_measure_tick_label_func.call(value)
+			var needed_px := (previous_label_size.x * 0.5) + (label_size.x * 0.5) + p_min_spacing_px
+			if needed_px > p_axis_ruler.measure_distance_px(previous_value, value):
 				return true
+			previous_value = value
+			previous_label_size = label_size
 
 		return false
 
 
-	static func _would_log_labels_overlap(p_major_ticks: Array[float],
-										p_labeled_indices: PackedInt32Array,
-										p_available_pixels: float,
-										p_min_spacing_px: float,
-										p_measure_label_func: Callable) -> bool:
-
-		if p_labeled_indices.size() <= 1 or p_major_ticks.size() < 2:
-			return false
-
-		var shared_ticks := TickSequence.new(p_major_ticks, [], _make_all_indices(p_major_ticks.size()), 0, false, true)
-		var log_total_range := log(p_major_ticks[p_major_ticks.size() - 1] / p_major_ticks[0])
-
-		for i in range(p_labeled_indices.size() - 1):
-			var idx1 := p_labeled_indices[i]
-			var idx2 := p_labeled_indices[i + 1]
-			var tick1 := p_major_ticks[idx1]
-			var tick2 := p_major_ticks[idx2]
-
-			var size1: Vector2 = p_measure_label_func.call(shared_ticks.format_value(tick1))
-			var size2: Vector2 = p_measure_label_func.call(shared_ticks.format_value(tick2))
-
-			var pixel_span := p_available_pixels * (log(tick2 / tick1) / log_total_range)
-			if (size1.x * 0.5) + (size2.x * 0.5) + p_min_spacing_px > pixel_span:
-				return true
-
-		return false
+	# Returns a function that measures the drawn label of a tick value. It holds
+	# the formatter, so the overlap test works on values and stays free of
+	# formatting concerns.
+	static func _make_tick_label_measure_func(p_decimals: int, p_is_log_scale: bool, p_measure_label_func: Callable) -> Callable:
+		var formatter := TickSequence.new([], [], PackedInt32Array(), p_decimals, false, p_is_log_scale)
+		return func(p_value: float) -> Vector2:
+			return p_measure_label_func.call(formatter.format_value(p_value))
 
 	################################################################################################
 	# Utilities
 	################################################################################################
 
-	static func _compute_labeled_indices_with_skip(p_tick_count: int,
-												   p_skip_factor: int) -> PackedInt32Array:
+	static func _compute_labeled_indices_with_skip(p_tick_count: int, p_skip_factor: int) -> PackedInt32Array:
 		var indices := PackedInt32Array()
 		for i in range(p_tick_count):
 			if i % p_skip_factor == 0:
@@ -409,6 +411,14 @@ class TickResolver extends RefCounted:
 		if p_tick_count > 0 and (p_tick_count - 1) % p_skip_factor != 0:
 			indices.append(p_tick_count - 1)
 		return indices
+
+
+	static func _select_values_at_indices(p_values: Array[float], p_indices: PackedInt32Array) -> Array[float]:
+		var selected: Array[float] = []
+		selected.resize(p_indices.size())
+		for i in range(p_indices.size()):
+			selected[i] = p_values[p_indices[i]]
+		return selected
 
 
 	static func _make_all_indices(p_count: int) -> PackedInt32Array:
@@ -419,9 +429,7 @@ class TickResolver extends RefCounted:
 		return indices
 
 
-	static func _make_ticks_all_labeled(p_ticks: Array[float],
-											p_tick_info: _TickInfo,
-											p_is_log: bool) -> TickSequence:
+	static func _make_ticks_all_labeled(p_ticks: Array[float], p_tick_info: _TickInfo, p_is_log: bool) -> TickSequence:
 		return TickSequence.new(p_ticks, [], _make_all_indices(p_ticks.size()), p_tick_info.decimals, false, p_is_log)
 
 	################################################################################################
@@ -442,9 +450,7 @@ class TickResolver extends RefCounted:
 			decimals = TickResolver._infer_decimals_from_step(p_step)
 
 
-	static func _compute_nice_linear_ticks(p_min: float,
-									   p_max: float,
-									   p_tick_count_preferred: int) -> _TickInfo:
+	static func _compute_nice_linear_ticks(p_min: float, p_max: float, p_tick_count_preferred: int) -> _TickInfo:
 		var preferred := max(p_tick_count_preferred, 2)
 		if p_min >= p_max:
 			return null

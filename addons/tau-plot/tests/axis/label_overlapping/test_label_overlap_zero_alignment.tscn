@@ -31,6 +31,7 @@ size_flags_vertical = 3
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer/CenterContainer1"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -47,6 +48,7 @@ size_flags_vertical = 3
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer/CenterContainer2"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -63,6 +65,7 @@ size_flags_vertical = 3
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer/CenterContainer3"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -79,6 +82,7 @@ size_flags_vertical = 3
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer/CenterContainer4"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -95,6 +99,7 @@ size_flags_vertical = 3
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer/CenterContainer5"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -111,6 +116,7 @@ size_flags_vertical = 3
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer/CenterContainer6"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(600, 500)
 layout_mode = 2
 size_flags_horizontal = 3
