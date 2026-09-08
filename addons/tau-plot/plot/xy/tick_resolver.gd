@@ -28,7 +28,7 @@ class TickResolver extends RefCounted:
 		match p_scale:
 			TauAxisConfig.Scale.LOGARITHMIC:
 				return _compute_log_ticks_with_overlap_handling(
-					p_axis_min, p_axis_max, p_overlap_strategy,
+					p_axis_min, p_axis_max, p_count_preferred, p_overlap_strategy,
 					p_available_pixels, p_min_spacing_px, p_measure_label_func
 				)
 
@@ -117,7 +117,7 @@ class TickResolver extends RefCounted:
 
 			TauAxisConfig.OverlapStrategy.SKIP_LABELS:
 				return _resolve_overlap_by_skipping_labels(
-					tick_info, p_axis_min, p_axis_max,
+					tick_info, p_axis_min, p_axis_max, false,
 					p_available_pixels, p_min_spacing_px, p_measure_label_func
 				)
 
@@ -151,16 +151,18 @@ class TickResolver extends RefCounted:
 		return TickSequence.new()
 
 
+	# Keeps every tick and removes labels until no two of them overlap.
 	static func _resolve_overlap_by_skipping_labels(p_tick_info: _TickInfo,
 			p_axis_min: float,
 			p_axis_max: float,
+			p_is_log_axis: bool,
 			p_available_pixels: float,
 			p_min_spacing_px: float,
 			p_measure_label_func: Callable) -> TickSequence:
 
 		var all_ticks := p_tick_info.ticks
 		var decimals := p_tick_info.decimals
-		var axis_ruler := _AxisRuler.new(p_axis_min, p_axis_max, p_available_pixels, false)
+		var axis_ruler := _AxisRuler.new(p_axis_min, p_axis_max, p_available_pixels, p_is_log_axis)
 		var measure_tick_label := _make_tick_label_measure_func(decimals, false, p_measure_label_func)
 		var skip_factor := 1
 
@@ -184,6 +186,7 @@ class TickResolver extends RefCounted:
 
 	static func _compute_log_ticks_with_overlap_handling(p_axis_min: float,
 			p_axis_max: float,
+			p_count_preferred: int,
 			p_overlap_strategy: TauAxisConfig.OverlapStrategy,
 			p_available_pixels: float,
 			p_min_spacing_px: float,
@@ -195,6 +198,15 @@ class TickResolver extends RefCounted:
 
 		var major_ticks := _compute_log_major_ticks(p_axis_min, p_axis_max)
 		var minor_ticks := _compute_log_minor_ticks(p_axis_min, p_axis_max, p_available_pixels)
+
+		# A domain such as [1.01, 1.05] holds no power of ten and no coefficient
+		# position either. Fewer than two ticks read as an empty axis, so round
+		# values replace the logarithmic tick set.
+		if major_ticks.size() + minor_ticks.size() < 2:
+			return _compute_round_value_fallback_ticks(
+				p_axis_min, p_axis_max, p_count_preferred, p_overlap_strategy,
+				p_available_pixels, p_min_spacing_px, p_measure_label_func
+			)
 
 		# A domain narrower than one decade holds no power of ten. The minor
 		# ticks then carry the labels, and keep their rank and their style.
@@ -221,6 +233,38 @@ class TickResolver extends RefCounted:
 			labeled_major_indices, labeled_minor_indices,
 			0, false, true
 		)
+
+
+	# Returns round value ticks for a logarithmic domain too narrow to hold two
+	# logarithmic ticks.
+	#
+	# The axis stays logarithmic. Only the way the tick values are picked
+	# changes. The renderer still places them through the logarithmic
+	# transform, so they are evenly spaced in value but not in pixels.
+	#
+	# The ticks are all major and all label candidates. Their text comes from
+	# the linear formatter, so the step decides the decimals.
+	static func _compute_round_value_fallback_ticks(p_axis_min: float,
+			p_axis_max: float,
+			p_count_preferred: int,
+			p_overlap_strategy: TauAxisConfig.OverlapStrategy,
+			p_available_pixels: float,
+			p_min_spacing_px: float,
+			p_measure_label_func: Callable) -> TickSequence:
+
+		var tick_info := _compute_nice_linear_ticks(p_axis_min, p_axis_max, p_count_preferred)
+		if tick_info == null:
+			return TickSequence.new()
+
+		match p_overlap_strategy:
+			TauAxisConfig.OverlapStrategy.NONE:
+				return _make_ticks_all_labeled(tick_info.ticks, tick_info, false)
+
+			_:
+				return _resolve_overlap_by_skipping_labels(
+					tick_info, p_axis_min, p_axis_max, true,
+					p_available_pixels, p_min_spacing_px, p_measure_label_func
+				)
 
 
 	static func _compute_log_major_ticks(p_min: float, p_max: float) -> Array[float]:

@@ -98,13 +98,15 @@ enum TextAlignment
 var format_tick_label: Callable = Callable()
 
 ################################################################################################
-# Tick count preferences (Linear scales only - logarithmic scales ignore these)
+# Tick count preferences
 ################################################################################################
 
 @export_group("Tick Count (Linear Scale)")
 
 ## Preferred number of ticks (at least 2). The resolver will try to stay close to this count
 ## while choosing round step values and avoiding label overlap.
+## A logarithmic axis places its ticks on the powers of ten and ignores this count, except on a
+## domain too narrow to hold them, where round values are used instead.
 @export var tick_count_preferred: int = 5
 
 ################################################################################################
