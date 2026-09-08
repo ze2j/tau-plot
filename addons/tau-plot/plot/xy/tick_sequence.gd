@@ -18,6 +18,12 @@ class TickSequence extends RefCounted:
 	## Empty array means no labels are shown (though ticks are still drawn).
 	var labeled_major_indices: PackedInt32Array = PackedInt32Array()
 
+	## Indices into minor_ticks array indicating which ticks should display labels.
+	## All indices must be valid (< minor_ticks.size()).
+	## A label never changes the rank of a tick, so a labeled minor tick keeps
+	## the minor tick mark and the minor grid line.
+	var labeled_minor_indices: PackedInt32Array = PackedInt32Array()
+
 	## Number of decimal digits for fixed-point formatting (when use_scientific is false)
 	var decimals: int = 0
 
@@ -31,14 +37,16 @@ class TickSequence extends RefCounted:
 	func _init(
 		p_major_ticks: Array[float] = [],
 		p_minor_ticks: Array[float] = [],
-		p_labeled_indices: PackedInt32Array = PackedInt32Array(),
+		p_labeled_major_indices: PackedInt32Array = PackedInt32Array(),
+		p_labeled_minor_indices: PackedInt32Array = PackedInt32Array(),
 		p_decimals: int = 0,
 		p_use_scientific: bool = false,
 		p_is_log_scale: bool = false
 	) -> void:
 		major_ticks = p_major_ticks
 		minor_ticks = p_minor_ticks
-		labeled_major_indices = p_labeled_indices
+		labeled_major_indices = p_labeled_major_indices
+		labeled_minor_indices = p_labeled_minor_indices
 		decimals = max(p_decimals, 0)
 		use_scientific = p_use_scientific
 		is_log_scale = p_is_log_scale
@@ -48,6 +56,14 @@ class TickSequence extends RefCounted:
 	func should_show_label(p_major_tick_index: int) -> bool:
 		for idx in labeled_major_indices:
 			if idx == p_major_tick_index:
+				return true
+		return false
+
+
+	## Returns true if the minor tick at the given index should display a label
+	func should_show_minor_label(p_minor_tick_index: int) -> bool:
+		for idx in labeled_minor_indices:
+			if idx == p_minor_tick_index:
 				return true
 		return false
 

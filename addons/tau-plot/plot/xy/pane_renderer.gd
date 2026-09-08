@@ -543,17 +543,11 @@ class PaneRenderer extends Control:
 				if not p_should_show_cat_label_fn.is_null() and not p_should_show_cat_label_fn.call(i):
 					continue
 				var label: String = p_decorate_fn.call(p_categories[i])
-				var label_size := _measure_label(label)
 				# By default a horizontal axis displays the first category on the left,
 				# when inverted the first category is on the right.
 				var slot := (n - 1 - i) if p_cfg.inverted else i
 				var label_center_x := p_pane_rect.position.x + (float(slot) + 0.5) * step_px
-				var label_y: float
-				if is_bottom:
-					label_y = axis_y + tick_length + label_gap
-				else:
-					label_y = axis_y - tick_length - label_gap - label_size.y
-				_draw_label(label, Vector2(label_center_x - label_size.x * 0.5, label_y))
+				_draw_horizontal_label(label, label_center_x, axis_y, is_bottom, tick_length, label_gap)
 			return
 
 		# Continuous path.
@@ -567,20 +561,19 @@ class PaneRenderer extends Control:
 
 			if p_ticks.should_show_label(i):
 				var label: String = p_decorate_fn.call(p_ticks.format_value(t))
-				var label_size := _measure_label(label)
-				var label_y: float
-				if is_bottom:
-					label_y = axis_y + tick_length + label_gap
-				else:
-					label_y = axis_y - tick_length - label_gap - label_size.y
-				_draw_label(label, Vector2(x - label_size.x * 0.5, label_y))
+				_draw_horizontal_label(label, x, axis_y, is_bottom, tick_length, label_gap)
 
 		# Minor ticks
 		var minor_tick_length := tick_length * _xy_style.minor_tick_length_ratio
 		var minor_tick_thickness := float(_xy_style.x_minor_tick_thickness_px) if is_x_axis else float(_xy_style.y_minor_tick_thickness_px)
-		for t in p_ticks.minor_ticks:
+		for i in range(p_ticks.minor_ticks.size()):
+			var t := p_ticks.minor_ticks[i]
 			var x: float = p_map_fn.call(t)
 			draw_line(Vector2(x, axis_y), Vector2(x, axis_y + tick_dir * minor_tick_length), p_axis_color, minor_tick_thickness)
+
+			if p_ticks.should_show_minor_label(i):
+				var label: String = p_decorate_fn.call(p_ticks.format_value(t))
+				_draw_horizontal_label(label, x, axis_y, is_bottom, tick_length, label_gap)
 
 
 	## Draws ticks and labels along a vertical edge (LEFT or RIGHT).
@@ -623,17 +616,11 @@ class PaneRenderer extends Control:
 				if not p_should_show_cat_label_fn.is_null() and not p_should_show_cat_label_fn.call(i):
 					continue
 				var label: String = p_decorate_fn.call(p_categories[i])
-				var label_size := _measure_label(label)
 				# By default a vertical axis displays the first category at the bottom,
 				# when inverted the first category is at the top.
 				var slot := i if p_cfg.inverted else (n - 1 - i)
 				var label_center_y := p_pane_rect.position.y + (float(slot) + 0.5) * step_px
-				var label_x: float
-				if is_left:
-					label_x = axis_x - tick_length - label_gap - label_size.x
-				else:
-					label_x = axis_x + tick_length + label_gap
-				_draw_label(label, Vector2(label_x, label_center_y - label_size.y * 0.5))
+				_draw_vertical_label(label, label_center_y, axis_x, is_left, tick_length, label_gap)
 			return
 
 		# Continuous path.
@@ -648,17 +635,56 @@ class PaneRenderer extends Control:
 
 			if p_ticks.should_show_label(i):
 				var label: String = p_decorate_fn.call(p_ticks.format_value(t))
-				var label_size := _measure_label(label)
-				var label_x: float
-				if is_left:
-					label_x = axis_x - tick_length - label_gap - label_size.x
-				else:
-					label_x = axis_x + tick_length + label_gap
-				_draw_label(label, Vector2(label_x, y - label_size.y * 0.5))
+				_draw_vertical_label(label, y, axis_x, is_left, tick_length, label_gap)
 
 		# Minor ticks
 		var minor_tick_length := tick_length * _xy_style.minor_tick_length_ratio
 		var minor_tick_thickness := float(_xy_style.x_minor_tick_thickness_px) if is_x_axis else float(_xy_style.y_minor_tick_thickness_px)
-		for t in p_ticks.minor_ticks:
+		for i in range(p_ticks.minor_ticks.size()):
+			var t := p_ticks.minor_ticks[i]
 			var y: float = p_map_fn.call(t)
 			draw_line(Vector2(axis_x, y), Vector2(axis_x + tick_dir * minor_tick_length, y), p_axis_color, minor_tick_thickness)
+
+			if p_ticks.should_show_minor_label(i):
+				var label: String = p_decorate_fn.call(p_ticks.format_value(t))
+				_draw_vertical_label(label, y, axis_x, is_left, tick_length, label_gap)
+
+
+	# Draws one label of a horizontal edge, centered on the given pixel column.
+	# The major tick length sets the distance to the axis line for every rank,
+	# so all labels of the edge sit on one line.
+	func _draw_horizontal_label(
+		p_text: String,
+		p_center_x: float,
+		p_axis_y: float,
+		p_is_bottom: bool,
+		p_tick_length: float,
+		p_label_gap: float
+	) -> void:
+		var label_size := _measure_label(p_text)
+		var label_y: float
+		if p_is_bottom:
+			label_y = p_axis_y + p_tick_length + p_label_gap
+		else:
+			label_y = p_axis_y - p_tick_length - p_label_gap - label_size.y
+		_draw_label(p_text, Vector2(p_center_x - label_size.x * 0.5, label_y))
+
+
+	# Draws one label of a vertical edge, centered on the given pixel row.
+	# The major tick length sets the distance to the axis line for every rank,
+	# so all labels of the edge sit on one column.
+	func _draw_vertical_label(
+		p_text: String,
+		p_center_y: float,
+		p_axis_x: float,
+		p_is_left: bool,
+		p_tick_length: float,
+		p_label_gap: float
+	) -> void:
+		var label_size := _measure_label(p_text)
+		var label_x: float
+		if p_is_left:
+			label_x = p_axis_x - p_tick_length - p_label_gap - label_size.x
+		else:
+			label_x = p_axis_x + p_tick_length + p_label_gap
+		_draw_label(p_text, Vector2(label_x, p_center_y - label_size.y * 0.5))
