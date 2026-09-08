@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://dksmjiakarmvy"]
 
-[ext_resource type="Script" uid="uid://b101t6d3g2j5j" path="res://addons/tau-plot/tests/axis/label_overlapping/test_label_overlap_x_continuous_linear.gd" id="1_mkwqu"]
+[ext_resource type="Script" uid="uid://b101t6d3g2j5j" path="res://addons/tau-plot/tests/plot/tick_label_overlapping/test_label_overlap_x_continuous_linear.gd" id="1_mkwqu"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_l6bwy"]
 
 [node name="Bars" type="VBoxContainer"]
@@ -38,7 +38,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_l6bwy")
-title = "[NONE] with default min_label_spacing_px"
+title = "[NONE] 12 ticks on [0, 1e6], default spacing => every tick labeled, labels may overlap"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -56,7 +56,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_l6bwy")
-title = "[REDUCE_COUNT] with default min_label_spacing_px"
+title = "[REDUCE_COUNT] 12 ticks on [0, 1e6], default spacing => fewer ticks, every tick labeled"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -74,7 +74,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_l6bwy")
-title = "[SKIP_LABELS] with default min_label_spacing_px"
+title = "[SKIP_LABELS] 12 ticks on [0, 1e6], default spacing => all ticks kept, some labels dropped"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -92,7 +92,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_l6bwy")
-title = "[NONE] with min_label_spacing_px = 100"
+title = "[NONE] 12 ticks on [0, 1e6], spacing 100 => same as test 1, spacing is ignored"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -110,7 +110,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_l6bwy")
-title = "[REDUCE_COUNT] with min_label_spacing_px = 100"
+title = "[REDUCE_COUNT] 12 ticks on [0, 1e6], spacing 100 => fewer ticks than test 2"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -128,6 +128,6 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_l6bwy")
-title = "[SKIP_LABELS] with min_label_spacing_px = 100"
+title = "[SKIP_LABELS] 12 ticks on [0, 1e6], spacing 100 => fewer labels than test 3, same ticks"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bt1vt4733kbi" path="res://addons/tau-plot/tests/plot/grid_lines/test_grid_lines_multi_pane.gd" id="1_srq5i"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_srq5i"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="GridLines" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -26,44 +26,48 @@ columns = 2
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_srq5i")
-title = "Major and minor grid lines on both axes in all panes"
+title = "Stacked panes, major and minor everywhere => both panes show solid white and dashed blue lines"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_srq5i")
-title = "Major and minor grid lines on all axes in all panes, except for bottom pane (only major)"
+title = "Stacked panes, minor off in the bottom pane => no dashed blue line there, solid white lines unchanged"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_srq5i")
-title = "Major and minor grid lines on both axes in all panes"
+title = "Side by side panes, major and minor everywhere => both panes show solid white and dashed blue lines"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_srq5i")
-title = "Major and minor grid lines on all axes in all panes, except for right pane (only major)"
+title = "Side by side panes, minor off in the right pane => no dashed blue line there, solid white lines unchanged"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

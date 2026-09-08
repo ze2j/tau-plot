@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://dgdj40wm2ygoe"]
+[gd_scene load_steps=3 format=3 uid="uid://dossh7dnbslt8"]
 
-[ext_resource type="Script" uid="uid://cxyyy8f3a6hgj" path="res://addons/tau-plot/tests/axis/inverted/test_categorical_x_axis_inversion.gd" id="1_su0w7"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_31sga"]
+[ext_resource type="Script" uid="uid://c86qiqrp8e5mm" path="res://addons/tau-plot/tests/plot/inverted_axis/test_continuous_y_axis_inversion.gd" id="1_20f1u"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_5kgyj"]
 
 [node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_su0w7")
+script = ExtResource("1_20f1u")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test categorical x-axis inversion"
+text = "Test continuous y-axis inversion"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -30,8 +30,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_31sga")
-title = "BOTTOM x-axis not inverted"
+script = ExtResource("2_5kgyj")
+title = "LEFT y-axis not inverted"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -41,8 +41,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_31sga")
-title = "BOTTOM x-axis inverted"
+script = ExtResource("2_5kgyj")
+title = "LEFT y-axis inverted"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -52,8 +52,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_31sga")
-title = "TOP x-axis not inverted"
+script = ExtResource("2_5kgyj")
+title = "RIGHT y-axis not inverted"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -63,8 +63,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_31sga")
-title = "TOP x-axis inverted"
+script = ExtResource("2_5kgyj")
+title = "RIGHT y-axis inverted"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -74,8 +74,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_31sga")
-title = "LEFT x-axis not inverted"
+script = ExtResource("2_5kgyj")
+title = "TOP y-axis not inverted"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -85,8 +85,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_31sga")
-title = "LEFT x-axis inverted"
+script = ExtResource("2_5kgyj")
+title = "TOP y-axis inverted"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -96,8 +96,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_31sga")
-title = "RIGHT x-axis not inverted"
+script = ExtResource("2_5kgyj")
+title = "BOTTOM y-axis not inverted"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -107,7 +107,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_31sga")
-title = "RIGHT x-axis inverted"
+script = ExtResource("2_5kgyj")
+title = "BOTTOM y-axis inverted"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

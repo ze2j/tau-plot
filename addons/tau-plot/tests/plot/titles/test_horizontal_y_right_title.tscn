@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://ddy83bs8jsarj"]
+[gd_scene load_steps=3 format=3 uid="uid://dhvgjxc25xca"]
 
-[ext_resource type="Script" uid="uid://bi6lhrr6if8or" path="res://addons/tau-plot/tests/axis/titles/test_horizontal_y_left_title.gd" id="1_rvmko"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_k7kw6"]
+[ext_resource type="Script" uid="uid://dgdtk4jmy1vjq" path="res://addons/tau-plot/tests/plot/titles/test_horizontal_y_right_title.gd" id="1_uipwx"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_gc6tb"]
 
 [node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_rvmko")
+script = ExtResource("1_uipwx")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test LEFT axis title and text alignment with HORIZONTAL orientation  "
+text = "Test RIGHT axis title and text alignment with HORIZONTAL orientation  "
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -30,7 +30,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_k7kw6")
+script = ExtResource("2_gc6tb")
 title = "title_alignment = BEGIN + title_text_alignment = LEFT"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -40,7 +40,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_k7kw6")
+script = ExtResource("2_gc6tb")
 title = "title_alignment = BEGIN + title_text_alignment = CENTER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -50,7 +50,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_k7kw6")
+script = ExtResource("2_gc6tb")
 title = "title_alignment = BEGIN + title_text_alignment = RIGHT"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -60,7 +60,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_k7kw6")
+script = ExtResource("2_gc6tb")
 title = "title_alignment = CENTER + title_text_alignment = LEFT"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -70,7 +70,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_k7kw6")
+script = ExtResource("2_gc6tb")
 title = "title_alignment = CENTER + title_text_alignment = CENTER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -80,7 +80,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_k7kw6")
+script = ExtResource("2_gc6tb")
 title = "title_alignment = CENTER + title_text_alignment = RIGHT"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -90,7 +90,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_k7kw6")
+script = ExtResource("2_gc6tb")
 title = "title_alignment = END + title_text_alignment = LEFT"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -100,7 +100,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_k7kw6")
+script = ExtResource("2_gc6tb")
 title = "title_alignment = END + title_text_alignment = CENTER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -110,6 +110,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_k7kw6")
+script = ExtResource("2_gc6tb")
 title = "title_alignment = END + title_text_alignment = RIGHT"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

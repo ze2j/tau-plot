@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://dpayn3bkqmumi"]
 
-[ext_resource type="Script" uid="uid://c43e7p88iujju" path="res://addons/tau-plot/tests/axis/label_overlapping/test_label_overlap_y_continuous_log.gd" id="1_t255h"]
+[ext_resource type="Script" uid="uid://c43e7p88iujju" path="res://addons/tau-plot/tests/plot/tick_label_overlapping/test_label_overlap_y_continuous_log.gd" id="1_t255h"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_xrbnb"]
 
 [node name="Bars" type="VBoxContainer"]
@@ -32,13 +32,13 @@ size_flags_vertical = 3
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer/CenterContainer1"]
 unique_name_in_owner = true
 clip_contents = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(500, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_xrbnb")
-title = "[NONE] with default min_label_spacing_px"
+title = "[NONE] domain [1e-9, 1e9], default spacing => one label per decade, labels may overlap"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -50,13 +50,13 @@ size_flags_vertical = 3
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer/CenterContainer2"]
 unique_name_in_owner = true
 clip_contents = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(500, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_xrbnb")
-title = "[REDUCE_COUNT] with default min_label_spacing_px"
+title = "[REDUCE_COUNT] domain [1e-9, 1e9], default spacing => warns and falls back to SKIP_LABELS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -68,13 +68,13 @@ size_flags_vertical = 3
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer/CenterContainer3"]
 unique_name_in_owner = true
 clip_contents = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(500, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_xrbnb")
-title = "[SKIP_LABELS] with default min_label_spacing_px"
+title = "[SKIP_LABELS] domain [1e-9, 1e9], default spacing => all ticks kept, decades skipped until labels fit"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -86,13 +86,13 @@ size_flags_vertical = 3
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer/CenterContainer4"]
 unique_name_in_owner = true
 clip_contents = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(500, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_xrbnb")
-title = "[NONE] with min_label_spacing_px = 100"
+title = "[NONE] domain [1e-9, 1e9], spacing 100 => one label per decade, labels may overlap"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -104,13 +104,13 @@ size_flags_vertical = 3
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer/CenterContainer5"]
 unique_name_in_owner = true
 clip_contents = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(500, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_xrbnb")
-title = "[REDUCE_COUNT] with min_label_spacing_px = 100"
+title = "[REDUCE_COUNT] domain [1e-9, 1e9], spacing 100 => warns and falls back to SKIP_LABELS"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -122,12 +122,12 @@ size_flags_vertical = 3
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer/CenterContainer6"]
 unique_name_in_owner = true
 clip_contents = true
-custom_minimum_size = Vector2(500, 500)
+custom_minimum_size = Vector2(500, 300)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_xrbnb")
-title = "[SKIP_LABELS] with min_label_spacing_px = 100"
+title = "[SKIP_LABELS] domain [1e-9, 1e9], spacing 100 => all ticks kept, decades skipped until labels fit"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

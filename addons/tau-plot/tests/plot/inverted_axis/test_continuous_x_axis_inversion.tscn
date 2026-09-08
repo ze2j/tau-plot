@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://dhvgjxc25xca"]
+[gd_scene load_steps=3 format=3 uid="uid://bdqvvole02srl"]
 
-[ext_resource type="Script" uid="uid://dgdtk4jmy1vjq" path="res://addons/tau-plot/tests/axis/titles/test_horizontal_y_right_title.gd" id="1_uipwx"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_gc6tb"]
+[ext_resource type="Script" uid="uid://esopp0mxi533" path="res://addons/tau-plot/tests/plot/inverted_axis/test_continuous_x_axis_inversion.gd" id="1_n1v05"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_il284"]
 
 [node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_uipwx")
+script = ExtResource("1_n1v05")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test RIGHT axis title and text alignment with HORIZONTAL orientation  "
+text = "Test continuous x-axis inversion"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -22,7 +22,7 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/h_separation = 0
 theme_override_constants/v_separation = 0
-columns = 3
+columns = 2
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
@@ -30,8 +30,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_gc6tb")
-title = "title_alignment = BEGIN + title_text_alignment = LEFT"
+script = ExtResource("2_il284")
+title = "BOTTOM x-axis not inverted"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -40,8 +41,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_gc6tb")
-title = "title_alignment = BEGIN + title_text_alignment = CENTER"
+script = ExtResource("2_il284")
+title = "BOTTOM x-axis inverted"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -50,8 +52,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_gc6tb")
-title = "title_alignment = BEGIN + title_text_alignment = RIGHT"
+script = ExtResource("2_il284")
+title = "TOP x-axis not inverted"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -60,8 +63,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_gc6tb")
-title = "title_alignment = CENTER + title_text_alignment = LEFT"
+script = ExtResource("2_il284")
+title = "TOP x-axis inverted"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -70,8 +74,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_gc6tb")
-title = "title_alignment = CENTER + title_text_alignment = CENTER"
+script = ExtResource("2_il284")
+title = "LEFT x-axis not inverted"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
@@ -80,8 +85,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_gc6tb")
-title = "title_alignment = CENTER + title_text_alignment = RIGHT"
+script = ExtResource("2_il284")
+title = "LEFT x-axis inverted"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
@@ -90,8 +96,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_gc6tb")
-title = "title_alignment = END + title_text_alignment = LEFT"
+script = ExtResource("2_il284")
+title = "RIGHT x-axis not inverted"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
@@ -100,16 +107,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_gc6tb")
-title = "title_alignment = END + title_text_alignment = CENTER"
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="TestPlot9" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("2_gc6tb")
-title = "title_alignment = END + title_text_alignment = RIGHT"
+script = ExtResource("2_il284")
+title = "RIGHT x-axis inverted"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

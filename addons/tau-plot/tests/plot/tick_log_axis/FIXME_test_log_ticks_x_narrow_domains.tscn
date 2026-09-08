@@ -1,20 +1,20 @@
-[gd_scene load_steps=3 format=3 uid="uid://bdqvvole02srl"]
+[gd_scene load_steps=3 format=3 uid="uid://dpx8flrk35y4y"]
 
-[ext_resource type="Script" uid="uid://esopp0mxi533" path="res://addons/tau-plot/tests/axis/inverted/test_continuous_x_axis_inversion.gd" id="1_n1v05"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_il284"]
+[ext_resource type="Script" uid="uid://ts6mdcp22i78" path="res://addons/tau-plot/tests/plot/tick_log_axis/FIXME_test_log_ticks_x_narrow_domains.gd" id="1_xbrfv"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_mjcxi"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="Test" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_n1v05")
+script = ExtResource("1_xbrfv")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test continuous x-axis inversion"
+text = "Test ticks on a logarithmic x-axis with a narrow domain"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -26,88 +26,72 @@ columns = 2
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_il284")
-title = "BOTTOM x-axis not inverted"
+script = ExtResource("2_mjcxi")
+title = "[2, 5] => no major tick, ticks 2 3 4 5 all minor and all labeled, dashed blue lines on 3 and 4 only"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_il284")
-title = "BOTTOM x-axis inverted"
+script = ExtResource("2_mjcxi")
+title = "[1.2, 8] => no major tick, ticks 2 to 8 all minor and all labeled, dashed blue lines on 2 to 7"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_il284")
-title = "TOP x-axis not inverted"
+script = ExtResource("2_mjcxi")
+title = "[8, 30] => major tick at 10 with a solid white line, dashed blue lines on 9 and 20, none on 8 and 30"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_il284")
-title = "TOP x-axis inverted"
+script = ExtResource("2_mjcxi")
+title = "[8, 12] => major tick at 10 with a solid white line, dashed blue line on 9, none on 8"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_il284")
-title = "LEFT x-axis not inverted"
+script = ExtResource("2_mjcxi")
+title = "[4.5, 5.5] => round value fallback, ticks 4.5 5 5.5 all major and all labeled, one solid white line on 5"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_il284")
-title = "LEFT x-axis inverted"
-legend_enabled = false
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("2_il284")
-title = "RIGHT x-axis not inverted"
-legend_enabled = false
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("2_il284")
-title = "RIGHT x-axis inverted"
+script = ExtResource("2_mjcxi")
+title = "[1.01, 1.05] => round value fallback, ticks 1.01 to 1.05 all major and all labeled, solid white lines on 1.02 1.03 1.04"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

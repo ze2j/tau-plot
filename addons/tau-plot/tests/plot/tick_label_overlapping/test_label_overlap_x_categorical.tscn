@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://k62hcyo7pgb0"]
+[gd_scene load_steps=3 format=3 uid="uid://du2dtvwkhqo2p"]
 
-[ext_resource type="Script" uid="uid://cp3p76ea8v2sj" path="res://addons/tau-plot/tests/axis/titles/test_axis_titles.gd" id="1_tnyeb"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_n0sd0"]
+[ext_resource type="Script" uid="uid://b5junh5431j" path="res://addons/tau-plot/tests/plot/tick_label_overlapping/test_label_overlap_x_categorical.gd" id="1_u36sl"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_6v36r"]
 
 [node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_tnyeb")
+script = ExtResource("1_u36sl")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test axis titles alignment and orientation"
+text = "Test overlap strategy for categorical x-axis"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -22,94 +22,76 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/h_separation = 0
 theme_override_constants/v_separation = 0
-columns = 3
+columns = 2
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_n0sd0")
-title = "X label: BEGIN"
+script = ExtResource("2_6v36r")
+title = "[NONE] 12 chars categories => labels overlap freely"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_n0sd0")
-title = "X label: CENTER"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] 12 chars categories => some labels hidden"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_n0sd0")
-title = "X label: END"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] Animate category char count [1, 12] => labels grow and get skipped"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_n0sd0")
-title = "Left Y labels: VERTICAL + BEGIN"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] Animate min_x_label_spacing_px [0, 100] => labels disappear progressively"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_n0sd0")
-title = "Left Y labels: VERTICAL + CENTER"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] 1 category, animate char count [1, 100] => label always shown"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_n0sd0")
-title = "Left Y labels: VERTICAL + END"
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("2_n0sd0")
-title = "Right Y labels: VERTICAL + BEGIN"
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("2_n0sd0")
-title = "Right Y labels: VERTICAL + CENTER"
-metadata/_custom_type_script = "uid://dnhvsf2wip771"
-
-[node name="TestPlot9" type="PanelContainer" parent="GridContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_type_variation = &"TauPlot"
-script = ExtResource("2_n0sd0")
-title = "Right Y labels: VERTICAL + END"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] 1 category, animate min_x_label_spacing_px [500, 1500] => label always shown"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

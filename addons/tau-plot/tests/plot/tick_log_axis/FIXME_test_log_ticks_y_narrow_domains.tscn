@@ -1,20 +1,20 @@
-[gd_scene load_steps=3 format=3 uid="uid://du2dtvwkhqo2p"]
+[gd_scene load_steps=3 format=3 uid="uid://1uqyq1kwqkbw"]
 
-[ext_resource type="Script" uid="uid://b5junh5431j" path="res://addons/tau-plot/tests/axis/label_overlapping/test_label_overlap_x_categorical.gd" id="1_u36sl"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_6v36r"]
+[ext_resource type="Script" uid="uid://doga37cuj6iw5" path="res://addons/tau-plot/tests/plot/tick_log_axis/FIXME_test_log_ticks_y_narrow_domains.gd" id="1_bvj4i"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_6xmsc"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="Tests" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_u36sl")
+script = ExtResource("1_bvj4i")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test overlap strategy for categorical x-axis"
+text = "Test ticks on a logarithmic y-axis with a narrow domain"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -31,8 +31,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_6v36r")
-title = "[NONE] 12 chars categories => labels overlap freely"
+script = ExtResource("2_6xmsc")
+title = "[2, 5] => no major tick, ticks 2 3 4 5 all minor, all labeled, dashed blue lines only"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -43,8 +43,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] 12 chars categories => some labels hidden"
+script = ExtResource("2_6xmsc")
+title = "[1.2, 8] => no major tick, ticks 2 to 8 all minor, all labeled, dashed blue lines only"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -55,8 +55,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] Animate category char count [1, 12] => labels grow and get skipped"
+script = ExtResource("2_6xmsc")
+title = "[8, 30] => major tick at 10 with a solid white line, minor ticks 8 9 20 30"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -67,8 +67,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] Animate min_x_label_spacing_px [0, 100] => labels disappear progressively"
+script = ExtResource("2_6xmsc")
+title = "[0.0002, 0.0005] => no major tick, ticks 2e-4 to 5e-4 all minor, wide labels must fit in the left margin"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -79,8 +79,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] 1 category, animate char count [1, 100] => label always shown"
+script = ExtResource("2_6xmsc")
+title = "[4.5, 5.5] => round value fallback, ticks 4.5 5 5.5 all major and all labeled"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -91,7 +91,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] 1 category, animate min_x_label_spacing_px [500, 1500] => label always shown"
+script = ExtResource("2_6xmsc")
+title = "[1.01, 1.05] => round value fallback, ticks 1.01 to 1.05 all major and all labeled"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
