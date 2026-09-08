@@ -1,7 +1,7 @@
 @tool
 extends Control
 
-const PERIOD := 4.0
+const PERIOD := 8.0
 
 var _timer: Timer = null
 var _t: float = 0.0
@@ -138,13 +138,13 @@ func _setup_test_3() -> void:
 	_test_3_dataset = _make_dataset(10, 1)
 	_make_plot(
 		%TestPlot3,
-		"[SKIP_LABELS] 10 categories, char count animated in [1, 12] over 4 s => labels grow and get dropped",
+		"[SKIP_LABELS] 10 categories, char count animated in [1, 64] over 8 s => labels grow and get dropped",
 		_test_3_dataset,
 		TauAxisConfig.OverlapStrategy.SKIP_LABELS,
 		TauAxisConfig.new().min_label_spacing_px)
 
 func _step_test_3() -> void:
-	var char_count := 1 + int(_compute_triangle(_t, PERIOD) * 11.0)
+	var char_count := 1 + int(_compute_triangle(_t, PERIOD) * 63.0)
 	if char_count == _test_3_char_count:
 		return
 	_test_3_char_count = char_count
@@ -161,13 +161,13 @@ func _step_test_3() -> void:
 func _setup_test_4() -> void:
 	_test_4_x_axis = _make_plot(
 		%TestPlot4,
-		"[SKIP_LABELS] 10 categories of 6 chars, spacing animated in [0, 100] over 4 s => labels disappear progressively",
+		"[SKIP_LABELS] 10 categories of 6 chars, spacing animated in [0, 500] over 8 s => labels disappear progressively",
 		_make_dataset(10, 6),
 		TauAxisConfig.OverlapStrategy.SKIP_LABELS,
 		0)
 
 func _step_test_4() -> void:
-	_test_4_x_axis.min_label_spacing_px = int(_compute_triangle(_t, PERIOD) * 100.0)
+	_test_4_x_axis.min_label_spacing_px = int(_compute_triangle(_t, PERIOD) * 500.0)
 	%TestPlot4.refresh_now()
 
 ####################################################################################################
@@ -178,7 +178,7 @@ func _setup_test_5() -> void:
 	_test_5_dataset = _make_dataset(1, 1)
 	_make_plot(
 		%TestPlot5,
-		"[SKIP_LABELS] 1 category, char count animated in [1, 100] over 4 s => the label is always drawn",
+		"[SKIP_LABELS] 1 category, char count animated in [1, 100] over 8 s => the label is always drawn",
 		_test_5_dataset,
 		TauAxisConfig.OverlapStrategy.SKIP_LABELS,
 		TauAxisConfig.new().min_label_spacing_px)
@@ -198,7 +198,7 @@ func _step_test_5() -> void:
 func _setup_test_6() -> void:
 	_test_6_x_axis = _make_plot(
 		%TestPlot6,
-		"[SKIP_LABELS] 1 category, spacing animated in [500, 1500] over 4 s => the label is always drawn",
+		"[SKIP_LABELS] 1 category, spacing animated in [500, 1500] over 8 s => the label is always drawn",
 		_make_dataset(1, 1),
 		TauAxisConfig.OverlapStrategy.SKIP_LABELS,
 		500)
