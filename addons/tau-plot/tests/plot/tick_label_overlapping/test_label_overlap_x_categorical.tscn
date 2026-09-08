@@ -32,7 +32,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
-title = "[NONE] 12 chars categories => labels overlap freely"
+title = "[NONE] 10 categories of 12 chars => every label drawn, labels overlap freely"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -44,7 +44,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] 12 chars categories => some labels hidden"
+title = "[SKIP_LABELS] 10 categories of 12 chars => bars unchanged, some labels dropped, last one kept"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -56,7 +56,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] Animate category char count [1, 12] => labels grow and get skipped"
+title = "[SKIP_LABELS] 10 categories, char count animated in [1, 32] over 8 s => labels grow and get dropped"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -68,7 +68,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] Animate min_x_label_spacing_px [0, 100] => labels disappear progressively"
+title = "[SKIP_LABELS] 10 categories of 6 chars, spacing animated in [0, 500] over 8 s => labels disappear progressively"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -80,7 +80,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] 1 category, animate char count [1, 100] => label always shown"
+title = "[SKIP_LABELS] 1 category, char count animated in [1, 100] over 8 s => the label is always drawn"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -92,6 +92,6 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6v36r")
-title = "[SKIP_LABELS] 1 category, animate min_x_label_spacing_px [500, 1500] => label always shown"
+title = "[SKIP_LABELS] 1 category, spacing animated in [500, 1500] over 8 s => the label is always drawn"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
