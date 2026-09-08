@@ -71,16 +71,18 @@ class TickResolver extends RefCounted:
 				push_warning("TickResolver: Strategy not implemented for categorical, using NONE")
 				return PackedInt32Array()
 
-		var pixels_per_category := p_available_pixels / float(category_count)
+		var would_pair_overlap := _make_category_pair_overlap_func(
+			p_categories, p_available_pixels, p_min_spacing_px, p_measure_label_func
+		)
 
-		if not _would_categorical_labels_overlap(p_categories, pixels_per_category, p_min_spacing_px, p_measure_label_func):
+		if not _would_any_labeled_pair_overlap(_make_all_indices(category_count), would_pair_overlap):
 			return PackedInt32Array()
 
 		var skip_factor := 2
 		while skip_factor <= category_count:
-			var visible_indices := _compute_categorical_visible_indices(category_count, skip_factor)
+			var visible_indices := _compute_labeled_indices_with_skip(category_count, skip_factor, would_pair_overlap)
 
-			if not _would_categorical_subset_overlap(p_categories, visible_indices, pixels_per_category, p_min_spacing_px, p_measure_label_func):
+			if not _would_any_labeled_pair_overlap(visible_indices, would_pair_overlap):
 				return visible_indices
 
 			skip_factor += 1
@@ -143,7 +145,12 @@ class TickResolver extends RefCounted:
 
 			# The step drives the decimals, so a new tick set formats differently.
 			var measure_tick_label := _make_tick_label_measure_func(tick_info.decimals, false, p_measure_label_func)
-			if not _would_labels_overlap(tick_info.ticks, axis_ruler, p_min_spacing_px, measure_tick_label):
+			var would_pair_overlap := _make_tick_pair_overlap_func(
+				tick_info.ticks, axis_ruler, p_min_spacing_px, measure_tick_label
+			)
+			var all_indices := _make_all_indices(tick_info.ticks.size())
+
+			if not _would_any_labeled_pair_overlap(all_indices, would_pair_overlap):
 				return _make_ticks_all_labeled(tick_info.ticks, tick_info, false)
 
 			current_preferred -= 1
@@ -164,13 +171,15 @@ class TickResolver extends RefCounted:
 		var decimals := p_tick_info.decimals
 		var axis_ruler := _AxisRuler.new(p_axis_min, p_axis_max, p_available_pixels, p_is_log_axis)
 		var measure_tick_label := _make_tick_label_measure_func(decimals, false, p_measure_label_func)
+		var would_pair_overlap := _make_tick_pair_overlap_func(
+			all_ticks, axis_ruler, p_min_spacing_px, measure_tick_label
+		)
 		var skip_factor := 1
 
 		while skip_factor < all_ticks.size():
-			var labeled_indices := _compute_labeled_indices_with_skip(all_ticks.size(), skip_factor)
-			var labeled_ticks := _select_values_at_indices(all_ticks, labeled_indices)
+			var labeled_indices := _compute_labeled_indices_with_skip(all_ticks.size(), skip_factor, would_pair_overlap)
 
-			if not _would_labels_overlap(labeled_ticks, axis_ruler, p_min_spacing_px, measure_tick_label):
+			if not _would_any_labeled_pair_overlap(labeled_indices, would_pair_overlap):
 				return TickSequence.new(all_ticks, [], labeled_indices, PackedInt32Array(), decimals, false, false)
 
 			skip_factor += 1
@@ -195,6 +204,12 @@ class TickResolver extends RefCounted:
 		if p_axis_min <= 0.0 or p_axis_max <= 0.0 or p_axis_min >= p_axis_max:
 			push_error("TickResolver: Invalid log domain")
 			return TickSequence.new()
+
+		# A logarithmic axis takes its ticks from the powers of ten, so it has no
+		# tick count to reduce.
+		if p_overlap_strategy == TauAxisConfig.OverlapStrategy.REDUCE_COUNT:
+			push_warning("TickResolver: REDUCE_COUNT invalid for logarithmic axes. Using SKIP_LABELS.")
+			p_overlap_strategy = TauAxisConfig.OverlapStrategy.SKIP_LABELS
 
 		var major_ticks := _compute_log_major_ticks(p_axis_min, p_axis_max)
 		var minor_ticks := _compute_log_minor_ticks(p_axis_min, p_axis_max, p_available_pixels)
@@ -313,16 +328,17 @@ class TickResolver extends RefCounted:
 
 		var axis_ruler := _AxisRuler.new(p_axis_min, p_axis_max, p_available_pixels, true)
 		var measure_tick_label := _make_tick_label_measure_func(0, true, p_measure_label_func)
+		var would_pair_overlap := _make_tick_pair_overlap_func(
+			p_candidate_ticks, axis_ruler, p_min_spacing_px, measure_tick_label
+		)
+		var skip_factor := 1
 
-		if not _would_labels_overlap(p_candidate_ticks, axis_ruler, p_min_spacing_px, measure_tick_label):
-			return _make_all_indices(p_candidate_ticks.size())
-
-		var skip_factor := 2
 		while skip_factor < p_candidate_ticks.size():
-			var labeled_indices := _compute_labeled_indices_with_skip(p_candidate_ticks.size(), skip_factor)
-			var labeled_ticks := _select_values_at_indices(p_candidate_ticks, labeled_indices)
-			if not _would_labels_overlap(labeled_ticks, axis_ruler, p_min_spacing_px, measure_tick_label):
+			var labeled_indices := _compute_labeled_indices_with_skip(p_candidate_ticks.size(), skip_factor, would_pair_overlap)
+
+			if not _would_any_labeled_pair_overlap(labeled_indices, would_pair_overlap):
 				return labeled_indices
+
 			skip_factor += 1
 
 		if p_candidate_ticks.size() >= 2:
@@ -333,52 +349,25 @@ class TickResolver extends RefCounted:
 	# Categorical
 	################################################################################################
 
-	static func _would_categorical_labels_overlap(p_categories: PackedStringArray,
-			p_pixels_per_category: float,
+	# Returns a function that tells whether the labels of two categories
+	# overlap, given their positions in the category array.
+	#
+	# A categorical axis gives one slot to each category, so the category index
+	# is the axis value and the domain runs from 0 to the category count.
+	static func _make_category_pair_overlap_func(p_categories: PackedStringArray,
+			p_available_pixels: float,
 			p_min_spacing_px: float,
-			p_measure_label_func: Callable) -> bool:
+			p_measure_label_func: Callable) -> Callable:
 
-		var max_label_width := 0.0
-		for category in p_categories:
-			var label_size: Vector2 = p_measure_label_func.call(category)
-			max_label_width = max(max_label_width, label_size.x)
+		var axis_ruler := _AxisRuler.new(0.0, float(p_categories.size()), p_available_pixels, false)
+		var measure_category_label := func(p_position: float) -> Vector2:
+			return p_measure_label_func.call(p_categories[int(p_position)])
 
-		return (max_label_width + p_min_spacing_px) > p_pixels_per_category
-
-
-	static func _would_categorical_subset_overlap(p_categories: PackedStringArray,
-			p_visible_indices: PackedInt32Array,
-			p_pixels_per_category: float,
-			p_min_spacing_px: float,
-			p_measure_label_func: Callable) -> bool:
-
-		if p_visible_indices.size() <= 1:
-			return false
-
-		for i in range(p_visible_indices.size() - 1):
-			var idx1 := p_visible_indices[i]
-			var idx2 := p_visible_indices[i + 1]
-			var label1 := p_categories[idx1]
-			var label2 := p_categories[idx2]
-			var size1: Vector2 = p_measure_label_func.call(label1)
-			var size2: Vector2 = p_measure_label_func.call(label2)
-			var category_span := float(idx2 - idx1)
-			var pixel_span := p_pixels_per_category * category_span
-			var label_extent := (size1.x * 0.5) + (size2.x * 0.5) + p_min_spacing_px
-			if label_extent > pixel_span:
-				return true
-
-		return false
-
-
-	static func _compute_categorical_visible_indices(p_count: int, p_skip_factor: int) -> PackedInt32Array:
-		var indices := PackedInt32Array()
-		for i in range(p_count):
-			if i % p_skip_factor == 0:
-				indices.append(i)
-		if p_count > 0 and (p_count - 1) % p_skip_factor != 0:
-			indices.append(p_count - 1)
-		return indices
+		return func(p_first_index: int, p_second_index: int) -> bool:
+			return _would_label_pair_overlap(
+				float(p_first_index), float(p_second_index),
+				axis_ruler, p_min_spacing_px, measure_category_label
+			)
 
 	################################################################################################
 	# Overlap Detection
@@ -414,32 +403,46 @@ class TickResolver extends RefCounted:
 			return log(p_value) if _is_log_scale else p_value
 
 
-	# Tells whether any two neighbouring labels of the given tick values overlap.
-	# Two labels overlap when the space they need is wider than the pixel
-	# distance between their ticks.
-	#
-	# The values are the ticks that carry a label, already in axis order.
-	static func _would_labels_overlap(p_labeled_values: Array[float],
+	# Tells whether the labels of two ticks overlap. They overlap when the space
+	# the two labels need is wider than the pixel distance between the ticks.
+	static func _would_label_pair_overlap(p_first_value: float,
+			p_second_value: float,
 			p_axis_ruler: _AxisRuler,
 			p_min_spacing_px: float,
 			p_measure_tick_label_func: Callable) -> bool:
 
-		if p_labeled_values.size() <= 1:
-			return false
+		var first_size: Vector2 = p_measure_tick_label_func.call(p_first_value)
+		var second_size: Vector2 = p_measure_tick_label_func.call(p_second_value)
+		var needed_px := (first_size.x * 0.5) + (second_size.x * 0.5) + p_min_spacing_px
+		return needed_px > p_axis_ruler.measure_distance_px(p_first_value, p_second_value)
 
-		var previous_value := p_labeled_values[0]
-		var previous_label_size: Vector2 = p_measure_tick_label_func.call(previous_value)
 
-		for i in range(1, p_labeled_values.size()):
-			var value := p_labeled_values[i]
-			var label_size: Vector2 = p_measure_tick_label_func.call(value)
-			var needed_px := (previous_label_size.x * 0.5) + (label_size.x * 0.5) + p_min_spacing_px
-			if needed_px > p_axis_ruler.measure_distance_px(previous_value, value):
+	# Tells whether any two neighbouring labels overlap.
+	#
+	# The indices point into the candidate array, in axis order.
+	static func _would_any_labeled_pair_overlap(p_labeled_indices: PackedInt32Array,
+			p_would_pair_overlap_func: Callable) -> bool:
+
+		for i in range(p_labeled_indices.size() - 1):
+			if p_would_pair_overlap_func.call(p_labeled_indices[i], p_labeled_indices[i + 1]):
 				return true
-			previous_value = value
-			previous_label_size = label_size
 
 		return false
+
+
+	# Returns a function that tells whether the labels of two ticks overlap,
+	# given their positions in the tick array. It holds the ruler and the label
+	# measurement, so the label selection works on indices alone.
+	static func _make_tick_pair_overlap_func(p_ticks: Array[float],
+			p_axis_ruler: _AxisRuler,
+			p_min_spacing_px: float,
+			p_measure_tick_label_func: Callable) -> Callable:
+
+		return func(p_first_index: int, p_second_index: int) -> bool:
+			return _would_label_pair_overlap(
+				p_ticks[p_first_index], p_ticks[p_second_index],
+				p_axis_ruler, p_min_spacing_px, p_measure_tick_label_func
+			)
 
 
 	# Returns a function that measures the drawn label of a tick value. It holds
@@ -454,22 +457,36 @@ class TickResolver extends RefCounted:
 	# Utilities
 	################################################################################################
 
-	static func _compute_labeled_indices_with_skip(p_tick_count: int, p_skip_factor: int) -> PackedInt32Array:
+	# Returns the candidate indices that carry a label, one candidate out of
+	# p_skip_factor.
+	#
+	# The last candidate always carries a label. When it is off the stride, the
+	# strided label before it is dropped instead of kept beside it. Those two sit
+	# one candidate apart, so they overlap where the stride does not, and keeping
+	# both makes the caller grow the stride for no reason.
+	#
+	# The first candidate is never dropped. A first and last pair is already the
+	# sparsest label set.
+	static func _compute_labeled_indices_with_skip(p_candidate_count: int,
+			p_skip_factor: int,
+			p_would_pair_overlap_func: Callable) -> PackedInt32Array:
+
 		var indices := PackedInt32Array()
-		for i in range(p_tick_count):
+		for i in range(p_candidate_count):
 			if i % p_skip_factor == 0:
 				indices.append(i)
-		if p_tick_count > 0 and (p_tick_count - 1) % p_skip_factor != 0:
-			indices.append(p_tick_count - 1)
+
+		var last_index := p_candidate_count - 1
+		if last_index % p_skip_factor == 0:
+			return indices
+
+		var last_strided_position := indices.size() - 1
+		if last_strided_position > 0 and p_would_pair_overlap_func.call(indices[last_strided_position], last_index):
+			indices[last_strided_position] = last_index
+			return indices
+
+		indices.append(last_index)
 		return indices
-
-
-	static func _select_values_at_indices(p_values: Array[float], p_indices: PackedInt32Array) -> Array[float]:
-		var selected: Array[float] = []
-		selected.resize(p_indices.size())
-		for i in range(p_indices.size()):
-			selected[i] = p_values[p_indices[i]]
-		return selected
 
 
 	static func _make_all_indices(p_count: int) -> PackedInt32Array:

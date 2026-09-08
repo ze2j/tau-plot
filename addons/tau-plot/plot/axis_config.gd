@@ -120,7 +120,8 @@ enum OverlapStrategy
 	## No overlap prevention (user's responsibility).
 	NONE,
 	## Reduce the number of ticks until labels no longer overlap.
-	## Not valid for CATEGORICAL type: falls back to SKIP_LABELS.
+	## Only valid for a CONTINUOUS axis on a LINEAR scale. A CATEGORICAL axis
+	## and a LOGARITHMIC scale fall back to SKIP_LABELS.
 	REDUCE_COUNT,
 	## Keep all ticks but skip rendering labels that would overlap.
 	SKIP_LABELS,
@@ -133,7 +134,8 @@ enum OverlapStrategy
 }
 
 ## Strategy for preventing tick labels from overlapping each other.
-## [b]Note:[/b] REDUCE_COUNT is not valid for CATEGORICAL type and will fall back to SKIP_LABELS.
+## [b]Note:[/b] REDUCE_COUNT only applies to a CONTINUOUS axis on a LINEAR scale.
+## A CATEGORICAL axis and a LOGARITHMIC scale fall back to SKIP_LABELS.
 @export var overlap_strategy: OverlapStrategy = OverlapStrategy.SKIP_LABELS
 
 ## Minimum spacing in pixels between adjacent tick labels.
