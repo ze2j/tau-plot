@@ -12,6 +12,9 @@ class PaneRenderer extends Control:
 	## expected. Lowered once the redraw is queued.
 	var dirty: bool = true
 
+	# Keeps a grid line off the pane edge, where the axis line is drawn.
+	const _GRID_LINE_EDGE_MARGIN_PX: float = 0.5
+
 	var _pane_index: int = 0
 	var _layout: XYLayout
 	var _xy_style: TauXYStyle = null
@@ -111,61 +114,30 @@ class PaneRenderer extends Control:
 		var axis_color := _xy_style.axis_color
 		var pane_layout := _layout.get_pane_layout(_pane_index)
 
-		var x_left := pane_rect.position.x
-		var x_right := pane_rect.position.x + pane_rect.size.x
-		var y_top := pane_rect.position.y
-		var y_bottom := pane_rect.position.y + pane_rect.size.y
-
 		var x_cfg := _get_x_config()
 		var categories: PackedStringArray = _layout.domain.x_categories
 		var x_axis_id := _layout.domain.config.x_axis_id
 
-		# ---- Phase 1: Axis lines ----
+		# ---- Phase 1: Grid lines ----
+
+		_draw_grid_lines(pane_layout, pane_rect, x_axis_id)
+
+		# ---- Phase 2: Axis lines ----
 
 		# Primary X axis line
 		if x_cfg != null and pane_layout.draws_x:
-			match x_axis_id:
-				AxisId.BOTTOM:
-					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
-				AxisId.TOP:
-					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
-				AxisId.LEFT:
-					draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), axis_color)
-				AxisId.RIGHT:
-					draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), axis_color)
+			_draw_edge_line(x_axis_id, pane_rect, axis_color)
 
 		# Secondary X axis line
 		if _layout.domain.config.secondary_x_axis != null and pane_layout.draws_secondary_x:
-			var secondary_edge := Axis.get_opposite(x_axis_id)
-			match secondary_edge:
-				AxisId.BOTTOM:
-					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
-				AxisId.TOP:
-					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
-				AxisId.LEFT:
-					draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), axis_color)
-				AxisId.RIGHT:
-					draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), axis_color)
+			_draw_edge_line(Axis.get_opposite(x_axis_id), pane_rect, axis_color)
 
 		# Y axis lines
 		var y_axes: Array[AxisId] = Axis.get_orthogonal_axes(x_axis_id)
 		for axis_id in y_axes:
-			var ticks = pane_layout.y_ticks.get(axis_id)
-			if ticks == null:
+			if not pane_layout.y_ticks.has(axis_id):
 				continue
-			match axis_id:
-				AxisId.LEFT:
-					draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), axis_color)
-				AxisId.RIGHT:
-					draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), axis_color)
-				AxisId.BOTTOM:
-					draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), axis_color)
-				AxisId.TOP:
-					draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), axis_color)
-
-		# ---- Phase 2: Grid lines ----
-
-		_draw_grid_lines(pane_layout, pane_rect, x_axis_id)
+			_draw_edge_line(axis_id, pane_rect, axis_color)
 
 		# ---- Phase 3: Ticks and labels ----
 
@@ -215,12 +187,36 @@ class PaneRenderer extends Control:
 
 
 	####################################################################################################
+	# Private -- Axis line drawing
+	####################################################################################################
+
+	## Draws the line running along one edge of the pane rectangle.
+	##
+	## [param p_axis_id] Which physical edge to draw.
+	## [param p_pane_rect] The pane data-area rectangle.
+	## [param p_color] Line color.
+	func _draw_edge_line(p_axis_id: AxisId, p_pane_rect: Rect2, p_color: Color) -> void:
+		var x_left := p_pane_rect.position.x
+		var x_right := p_pane_rect.position.x + p_pane_rect.size.x
+		var y_top := p_pane_rect.position.y
+		var y_bottom := p_pane_rect.position.y + p_pane_rect.size.y
+
+		match p_axis_id:
+			AxisId.BOTTOM:
+				draw_line(Vector2(x_left, y_bottom), Vector2(x_right, y_bottom), p_color)
+			AxisId.TOP:
+				draw_line(Vector2(x_left, y_top), Vector2(x_right, y_top), p_color)
+			AxisId.LEFT:
+				draw_line(Vector2(x_left, y_top), Vector2(x_left, y_bottom), p_color)
+			AxisId.RIGHT:
+				draw_line(Vector2(x_right, y_top), Vector2(x_right, y_bottom), p_color)
+
+
+	####################################################################################################
 	# Private -- Grid line drawing
 	####################################################################################################
 
 	## Draws all enabled grid lines for this pane.
-	## Called between axis lines and tick/label drawing so that grid lines sit
-	## behind ticks but in front of the axis lines.
 	func _draw_grid_lines(
 		p_pane_layout: XYLayout.PaneLayout,
 		p_pane_rect: Rect2,
@@ -357,6 +353,7 @@ class PaneRenderer extends Control:
 	## Draws grid lines for an array of tick values.
 	##
 	## [param p_tick_values] Array of domain values where lines are drawn.
+	##   Values that fall on or outside a pane edge are skipped.
 	## [param p_pane_rect] The pane data-area rectangle.
 	## [param p_is_x_grid_line] True for X grid lines (perpendicular to x axis),
 	##   false for Y grid lines (perpendicular to y axis).
@@ -403,8 +400,14 @@ class PaneRenderer extends Control:
 		var rect_y_min := p_pane_rect.position.y
 		var rect_y_max := p_pane_rect.position.y + p_pane_rect.size.y
 
+		var pos_min: float = rect_x_min if line_is_vertical else rect_y_min
+		var pos_max: float = rect_x_max if line_is_vertical else rect_y_max
+
 		for tick_val in p_tick_values:
 			var px: float = p_map_fn.call(tick_val)
+			# The pane edges belong to the axis lines.
+			if px <= pos_min + _GRID_LINE_EDGE_MARGIN_PX or px >= pos_max - _GRID_LINE_EDGE_MARGIN_PX:
+				continue
 			var from: Vector2
 			var to: Vector2
 			if line_is_vertical:
@@ -540,17 +543,11 @@ class PaneRenderer extends Control:
 				if not p_should_show_cat_label_fn.is_null() and not p_should_show_cat_label_fn.call(i):
 					continue
 				var label: String = p_decorate_fn.call(p_categories[i])
-				var label_size := _measure_label(label)
 				# By default a horizontal axis displays the first category on the left,
 				# when inverted the first category is on the right.
 				var slot := (n - 1 - i) if p_cfg.inverted else i
 				var label_center_x := p_pane_rect.position.x + (float(slot) + 0.5) * step_px
-				var label_y: float
-				if is_bottom:
-					label_y = axis_y + tick_length + label_gap
-				else:
-					label_y = axis_y - tick_length - label_gap - label_size.y
-				_draw_label(label, Vector2(label_center_x - label_size.x * 0.5, label_y))
+				_draw_horizontal_label(label, label_center_x, axis_y, is_bottom, tick_length, label_gap)
 			return
 
 		# Continuous path.
@@ -564,20 +561,19 @@ class PaneRenderer extends Control:
 
 			if p_ticks.should_show_label(i):
 				var label: String = p_decorate_fn.call(p_ticks.format_value(t))
-				var label_size := _measure_label(label)
-				var label_y: float
-				if is_bottom:
-					label_y = axis_y + tick_length + label_gap
-				else:
-					label_y = axis_y - tick_length - label_gap - label_size.y
-				_draw_label(label, Vector2(x - label_size.x * 0.5, label_y))
+				_draw_horizontal_label(label, x, axis_y, is_bottom, tick_length, label_gap)
 
 		# Minor ticks
 		var minor_tick_length := tick_length * _xy_style.minor_tick_length_ratio
 		var minor_tick_thickness := float(_xy_style.x_minor_tick_thickness_px) if is_x_axis else float(_xy_style.y_minor_tick_thickness_px)
-		for t in p_ticks.minor_ticks:
+		for i in range(p_ticks.minor_ticks.size()):
+			var t := p_ticks.minor_ticks[i]
 			var x: float = p_map_fn.call(t)
 			draw_line(Vector2(x, axis_y), Vector2(x, axis_y + tick_dir * minor_tick_length), p_axis_color, minor_tick_thickness)
+
+			if p_ticks.should_show_minor_label(i):
+				var label: String = p_decorate_fn.call(p_ticks.format_value(t))
+				_draw_horizontal_label(label, x, axis_y, is_bottom, tick_length, label_gap)
 
 
 	## Draws ticks and labels along a vertical edge (LEFT or RIGHT).
@@ -620,17 +616,11 @@ class PaneRenderer extends Control:
 				if not p_should_show_cat_label_fn.is_null() and not p_should_show_cat_label_fn.call(i):
 					continue
 				var label: String = p_decorate_fn.call(p_categories[i])
-				var label_size := _measure_label(label)
 				# By default a vertical axis displays the first category at the bottom,
 				# when inverted the first category is at the top.
 				var slot := i if p_cfg.inverted else (n - 1 - i)
 				var label_center_y := p_pane_rect.position.y + (float(slot) + 0.5) * step_px
-				var label_x: float
-				if is_left:
-					label_x = axis_x - tick_length - label_gap - label_size.x
-				else:
-					label_x = axis_x + tick_length + label_gap
-				_draw_label(label, Vector2(label_x, label_center_y - label_size.y * 0.5))
+				_draw_vertical_label(label, label_center_y, axis_x, is_left, tick_length, label_gap)
 			return
 
 		# Continuous path.
@@ -645,17 +635,56 @@ class PaneRenderer extends Control:
 
 			if p_ticks.should_show_label(i):
 				var label: String = p_decorate_fn.call(p_ticks.format_value(t))
-				var label_size := _measure_label(label)
-				var label_x: float
-				if is_left:
-					label_x = axis_x - tick_length - label_gap - label_size.x
-				else:
-					label_x = axis_x + tick_length + label_gap
-				_draw_label(label, Vector2(label_x, y - label_size.y * 0.5))
+				_draw_vertical_label(label, y, axis_x, is_left, tick_length, label_gap)
 
 		# Minor ticks
 		var minor_tick_length := tick_length * _xy_style.minor_tick_length_ratio
 		var minor_tick_thickness := float(_xy_style.x_minor_tick_thickness_px) if is_x_axis else float(_xy_style.y_minor_tick_thickness_px)
-		for t in p_ticks.minor_ticks:
+		for i in range(p_ticks.minor_ticks.size()):
+			var t := p_ticks.minor_ticks[i]
 			var y: float = p_map_fn.call(t)
 			draw_line(Vector2(axis_x, y), Vector2(axis_x + tick_dir * minor_tick_length, y), p_axis_color, minor_tick_thickness)
+
+			if p_ticks.should_show_minor_label(i):
+				var label: String = p_decorate_fn.call(p_ticks.format_value(t))
+				_draw_vertical_label(label, y, axis_x, is_left, tick_length, label_gap)
+
+
+	# Draws one label of a horizontal edge, centered on the given pixel column.
+	# The major tick length sets the distance to the axis line for every rank,
+	# so all labels of the edge sit on one line.
+	func _draw_horizontal_label(
+		p_text: String,
+		p_center_x: float,
+		p_axis_y: float,
+		p_is_bottom: bool,
+		p_tick_length: float,
+		p_label_gap: float
+	) -> void:
+		var label_size := _measure_label(p_text)
+		var label_y: float
+		if p_is_bottom:
+			label_y = p_axis_y + p_tick_length + p_label_gap
+		else:
+			label_y = p_axis_y - p_tick_length - p_label_gap - label_size.y
+		_draw_label(p_text, Vector2(p_center_x - label_size.x * 0.5, label_y))
+
+
+	# Draws one label of a vertical edge, centered on the given pixel row.
+	# The major tick length sets the distance to the axis line for every rank,
+	# so all labels of the edge sit on one column.
+	func _draw_vertical_label(
+		p_text: String,
+		p_center_y: float,
+		p_axis_x: float,
+		p_is_left: bool,
+		p_tick_length: float,
+		p_label_gap: float
+	) -> void:
+		var label_size := _measure_label(p_text)
+		var label_x: float
+		if p_is_left:
+			label_x = p_axis_x - p_tick_length - p_label_gap - label_size.x
+		else:
+			label_x = p_axis_x + p_tick_length + p_label_gap
+		_draw_label(p_text, Vector2(label_x, p_center_y - label_size.y * 0.5))

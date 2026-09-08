@@ -98,13 +98,15 @@ enum TextAlignment
 var format_tick_label: Callable = Callable()
 
 ################################################################################################
-# Tick count preferences (Linear scales only - logarithmic scales ignore these)
+# Tick count preferences
 ################################################################################################
 
 @export_group("Tick Count (Linear Scale)")
 
 ## Preferred number of ticks (at least 2). The resolver will try to stay close to this count
 ## while choosing round step values and avoiding label overlap.
+## A logarithmic axis places its ticks on the powers of ten and ignores this count, except on a
+## domain too narrow to hold them, where round values are used instead.
 @export var tick_count_preferred: int = 5
 
 ################################################################################################
@@ -118,7 +120,8 @@ enum OverlapStrategy
 	## No overlap prevention (user's responsibility).
 	NONE,
 	## Reduce the number of ticks until labels no longer overlap.
-	## Not valid for CATEGORICAL type: falls back to SKIP_LABELS.
+	## Only valid for a CONTINUOUS axis on a LINEAR scale. A CATEGORICAL axis
+	## and a LOGARITHMIC scale fall back to SKIP_LABELS.
 	REDUCE_COUNT,
 	## Keep all ticks but skip rendering labels that would overlap.
 	SKIP_LABELS,
@@ -131,7 +134,8 @@ enum OverlapStrategy
 }
 
 ## Strategy for preventing tick labels from overlapping each other.
-## [b]Note:[/b] REDUCE_COUNT is not valid for CATEGORICAL type and will fall back to SKIP_LABELS.
+## [b]Note:[/b] REDUCE_COUNT only applies to a CONTINUOUS axis on a LINEAR scale.
+## A CATEGORICAL axis and a LOGARITHMIC scale fall back to SKIP_LABELS.
 @export var overlap_strategy: OverlapStrategy = OverlapStrategy.SKIP_LABELS
 
 ## Minimum spacing in pixels between adjacent tick labels.

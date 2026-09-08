@@ -1,20 +1,20 @@
-[gd_scene load_steps=3 format=3 uid="uid://by6vpbsghsxy0"]
+[gd_scene load_steps=3 format=3 uid="uid://du2dtvwkhqo2p"]
 
-[ext_resource type="Script" uid="uid://hc4sov3rxr6e" path="res://addons/tau-plot/tests/plot/grid_lines/test_grid_lines_basics.gd" id="1_usaaj"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_usaaj"]
+[ext_resource type="Script" uid="uid://b5junh5431j" path="res://addons/tau-plot/tests/plot/tick_label_overlapping/test_label_overlap_x_categorical.gd" id="1_u36sl"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_6v36r"]
 
-[node name="GridLines" type="VBoxContainer"]
+[node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_usaaj")
+script = ExtResource("1_u36sl")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test grid lines basics"
+text = "Test overlap strategy for categorical x-axis"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -22,7 +22,7 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/h_separation = 0
 theme_override_constants/v_separation = 0
-columns = 3
+columns = 2
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
@@ -31,8 +31,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_usaaj")
-title = "No grid line => empty pane background"
+script = ExtResource("2_6v36r")
+title = "[NONE] 10 categories of 12 chars => every label drawn, labels overlap freely"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
@@ -42,8 +43,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_usaaj")
-title = "X major only => vertical solid white lines on the X ticks"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] 10 categories of 12 chars => bars unchanged, some labels dropped, last one kept"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
@@ -53,8 +55,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_usaaj")
-title = "Y major only => horizontal solid white lines on the Y ticks"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] 10 categories, char count animated in [1, 32] over 8 s => labels grow and get dropped"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
@@ -64,8 +67,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_usaaj")
-title = "X major and Y major => full solid white grid"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] 10 categories of 6 chars, spacing animated in [0, 500] over 8 s => labels disappear progressively"
+legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
@@ -75,8 +79,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_usaaj")
-title = "X minor only => nothing drawn, a linear axis has no minor tick"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] 1 category, char count animated in [1, 100] over 8 s => the label is always drawn"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -87,7 +91,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_usaaj")
-title = "X and Y, major and minor => full solid white grid, no dashed blue line"
+script = ExtResource("2_6v36r")
+title = "[SKIP_LABELS] 1 category, spacing animated in [500, 1500] over 8 s => the label is always drawn"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

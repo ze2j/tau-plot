@@ -1,6 +1,9 @@
 @tool
 extends Control
 
+const LOG_MIN_EXP := -9.0
+const LOG_MAX_EXP := 9.0
+
 func _ready() -> void:
 	_setup_test_1()
 	_setup_test_2()
@@ -28,7 +31,7 @@ func _make_log_dataset(p_log_min_exp: float, p_log_max_exp: float) -> TauPlot.Da
 
 
 func _make_plot(p_plot: TauPlot, p_title: String, p_strategy: TauAxisConfig.OverlapStrategy, p_min_label_spacing: int) -> void:
-	var dataset := _make_log_dataset(-9.0, 9.0)
+	var dataset := _make_log_dataset(LOG_MIN_EXP, LOG_MAX_EXP)
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
@@ -64,40 +67,39 @@ func _make_plot(p_plot: TauPlot, p_title: String, p_strategy: TauAxisConfig.Over
 ####################################################################################################
 
 func _setup_test_1() -> void:
-	_make_plot(%TestPlot1, "[NONE] with default min_label_spacing_px", TauAxisConfig.OverlapStrategy.NONE, TauAxisConfig.new().min_label_spacing_px)
-
+	_make_plot(%TestPlot1, "[NONE] domain [1e-9, 1e9], default spacing => one label per decade, labels may overlap", TauAxisConfig.OverlapStrategy.NONE, TauAxisConfig.new().min_label_spacing_px)
 
 ####################################################################################################
 # Test 2
 ####################################################################################################
 
 func _setup_test_2() -> void:
-	_make_plot(%TestPlot2, "[REDUCE_COUNT] with default min_label_spacing_px", TauAxisConfig.OverlapStrategy.REDUCE_COUNT, TauAxisConfig.new().min_label_spacing_px)
+	_make_plot(%TestPlot2, "[REDUCE_COUNT] domain [1e-9, 1e9], default spacing => warns and falls back to SKIP_LABELS", TauAxisConfig.OverlapStrategy.REDUCE_COUNT, TauAxisConfig.new().min_label_spacing_px)
 
 ####################################################################################################
 # Test 3
 ####################################################################################################
 
 func _setup_test_3() -> void:
-	_make_plot(%TestPlot3, "[SKIP_LABELS] with default min_label_spacing_px", TauAxisConfig.OverlapStrategy.SKIP_LABELS, TauAxisConfig.new().min_label_spacing_px)
+	_make_plot(%TestPlot3, "[SKIP_LABELS] domain [1e-9, 1e9], default spacing => all ticks kept, decades skipped until labels fit", TauAxisConfig.OverlapStrategy.SKIP_LABELS, TauAxisConfig.new().min_label_spacing_px)
 
 ####################################################################################################
 # Test 4
 ####################################################################################################
 
 func _setup_test_4() -> void:
-	_make_plot(%TestPlot4, "[NONE] with min_label_spacing_px = 100", TauAxisConfig.OverlapStrategy.NONE, 100)
+	_make_plot(%TestPlot4, "[NONE] domain [1e-9, 1e9], spacing 100 => one label per decade, labels may overlap", TauAxisConfig.OverlapStrategy.NONE, 100)
 
 ####################################################################################################
 # Test 5
 ####################################################################################################
 
 func _setup_test_5() -> void:
-	_make_plot(%TestPlot5, "[REDUCE_COUNT] with min_label_spacing_px = 100", TauAxisConfig.OverlapStrategy.REDUCE_COUNT, 100)
+	_make_plot(%TestPlot5, "[REDUCE_COUNT] domain [1e-9, 1e9], spacing 100 => warns and falls back to SKIP_LABELS", TauAxisConfig.OverlapStrategy.REDUCE_COUNT, 100)
 
 ####################################################################################################
 # Test 6
 ####################################################################################################
 
 func _setup_test_6() -> void:
-	_make_plot(%TestPlot6, "[SKIP_LABELS] with min_label_spacing_px = 100", TauAxisConfig.OverlapStrategy.SKIP_LABELS, 100)
+	_make_plot(%TestPlot6, "[SKIP_LABELS] domain [1e-9, 1e9], spacing 100 => all ticks kept, decades skipped until labels fit", TauAxisConfig.OverlapStrategy.SKIP_LABELS, 100)

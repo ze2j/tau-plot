@@ -1,6 +1,10 @@
 @tool
 extends Control
 
+const MAJOR_GRID_LINE_COLOR := Color(1.0, 1.0, 1.0, 0.35)
+const MINOR_GRID_LINE_COLOR := Color(0.35, 0.75, 1.0, 0.55)
+const MINOR_GRID_LINE_DASH_PX := 4
+
 var x_a := PackedFloat64Array([
 	 1.9, -1.4,  3.2,  0.7, -2.1,  2.6,
 	-0.8,  1.3,  3.5, -0.2,  2.1, -1.9,
@@ -45,240 +49,138 @@ func _ready() -> void:
 	_setup_test_3()
 	_setup_test_4()
 
+####################################################################################################
+# Helpers
+####################################################################################################
+
+func _apply_rank_style(p_pane: TauPaneConfig) -> void:
+	p_pane.style.x_major_grid_line_color = MAJOR_GRID_LINE_COLOR
+	p_pane.style.y_major_grid_line_color = MAJOR_GRID_LINE_COLOR
+	p_pane.style.x_minor_grid_line_color = MINOR_GRID_LINE_COLOR
+	p_pane.style.y_minor_grid_line_color = MINOR_GRID_LINE_COLOR
+	p_pane.style.x_minor_grid_line_dash_px = MINOR_GRID_LINE_DASH_PX
+	p_pane.style.y_minor_grid_line_dash_px = MINOR_GRID_LINE_DASH_PX
+
+
+func _assign_y_axis(p_pane: TauPaneConfig, p_axis_id: TauPlot.AxisId, p_axis: TauAxisConfig) -> void:
+	match p_axis_id:
+		TauPlot.AxisId.LEFT:
+			p_pane.y_left_axis = p_axis
+		TauPlot.AxisId.RIGHT:
+			p_pane.y_right_axis = p_axis
+		TauPlot.AxisId.TOP:
+			p_pane.y_top_axis = p_axis
+		TauPlot.AxisId.BOTTOM:
+			p_pane.y_bottom_axis = p_axis
+
+
+func _make_plot(
+		p_plot: TauPlot,
+		p_title: String,
+		p_x_axis_id: TauPlot.AxisId,
+		p_linear_y_axis_id: TauPlot.AxisId,
+		p_log_y_axis_id: TauPlot.AxisId,
+		p_grid_y_source_axis_id: TauPlot.AxisId) -> void:
+	var series_names := PackedStringArray(["A (linear)", "B (logarithmic)"])
+	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
+
+	var x_axis := TauAxisConfig.new()
+	x_axis.title = "X-axis"
+	x_axis.type = TauAxisConfig.Type.CONTINUOUS
+	x_axis.scale = TauAxisConfig.Scale.LINEAR
+	x_axis.tick_count_preferred = 8
+
+	var linear_y_axis := TauAxisConfig.new()
+	linear_y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	linear_y_axis.scale = TauAxisConfig.Scale.LINEAR
+	linear_y_axis.tick_count_preferred = 20
+
+	var log_y_axis := TauAxisConfig.new()
+	log_y_axis.type = TauAxisConfig.Type.CONTINUOUS
+	log_y_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
+	log_y_axis.include_zero_in_domain = false
+	log_y_axis.tick_count_preferred = 20
+
+	var grid_line_config := TauGridLineConfig.new()
+	grid_line_config.y_major_enabled = true
+	grid_line_config.y_minor_enabled = true
+	grid_line_config.y_source_axis_id = p_grid_y_source_axis_id
+
+	var pane_config := TauPaneConfig.new()
+	pane_config.overlays = [TauScatterConfig.new()]
+	pane_config.grid_line = grid_line_config
+	_assign_y_axis(pane_config, p_linear_y_axis_id, linear_y_axis)
+	_assign_y_axis(pane_config, p_log_y_axis_id, log_y_axis)
+	_apply_rank_style(pane_config)
+
+	var xy_config := TauXYConfig.new()
+	xy_config.x_axis = x_axis
+	xy_config.x_axis_id = p_x_axis_id
+	xy_config.panes = [pane_config]
+
+	var sb_a := TauXYSeriesBinding.new()
+	sb_a.series_id = dataset.get_series_id_by_index(0)
+	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
+	sb_a.y_axis_id = p_linear_y_axis_id
+
+	var sb_b := TauXYSeriesBinding.new()
+	sb_b.series_id = dataset.get_series_id_by_index(1)
+	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
+	sb_b.y_axis_id = p_log_y_axis_id
+
+	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
+
+	p_plot.title = p_title
+	p_plot.plot_xy(dataset, xy_config, bindings)
 
 ####################################################################################################
 # Test 1
 ####################################################################################################
 
 func _setup_test_1() -> void:
-	var series_names := PackedStringArray(["A (linear)", "B (logarithmic)"])
-
-	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
-
-	%TestPlot1.title = "Use LEFT y-axis"
-
-	var x_axis := TauAxisConfig.new()
-	x_axis.title = " X-axis"
-	x_axis.type = TauAxisConfig.Type.CONTINUOUS
-	x_axis.scale = TauAxisConfig.Scale.LINEAR
-	x_axis.tick_count_preferred = 8
-
-	var y_axis_left := TauAxisConfig.new()
-	y_axis_left.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis_left.scale = TauAxisConfig.Scale.LINEAR
-	y_axis_left.tick_count_preferred = 20
-
-	var y_axis_right := TauAxisConfig.new()
-	y_axis_right.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis_right.scale = TauAxisConfig.Scale.LOGARITHMIC
-	y_axis_right.include_zero_in_domain = false
-	y_axis_right.tick_count_preferred = 20
-
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.y_major_enabled = true
-	grid_line_config.y_minor_enabled = true
-	grid_line_config.y_source_axis_id = TauPlot.AxisId.LEFT
-
-	var scatter_config := TauScatterConfig.new()
-
-	var pane_config := TauPaneConfig.new()
-	pane_config.y_left_axis = y_axis_left
-	pane_config.y_right_axis = y_axis_right
-	pane_config.overlays = [scatter_config]
-	pane_config.grid_line = grid_line_config
-
-	var xy_config := TauXYConfig.new()
-	xy_config.x_axis = x_axis
-	xy_config.panes = [pane_config]
-
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_a.y_axis_id = TauPlot.AxisId.LEFT
-
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_b.y_axis_id = TauPlot.AxisId.RIGHT
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
-
-	%TestPlot1.plot_xy(dataset, xy_config, bindings)
+	_make_plot(
+		%TestPlot1,
+		"Grid from the LEFT y-axis (linear) => solid white lines only, a linear axis has no minor tick",
+		TauPlot.AxisId.BOTTOM,
+		TauPlot.AxisId.LEFT,
+		TauPlot.AxisId.RIGHT,
+		TauPlot.AxisId.LEFT)
 
 ####################################################################################################
 # Test 2
 ####################################################################################################
 
 func _setup_test_2() -> void:
-	var series_names := PackedStringArray(["A (linear)", "B (logarithmic)"])
-
-	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
-
-	%TestPlot2.title = "Use RIGHT y-axis"
-
-	var x_axis := TauAxisConfig.new()
-	x_axis.title = " X-axis"
-	x_axis.type = TauAxisConfig.Type.CONTINUOUS
-	x_axis.scale = TauAxisConfig.Scale.LINEAR
-	x_axis.tick_count_preferred = 8
-
-	var y_axis_left := TauAxisConfig.new()
-	y_axis_left.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis_left.scale = TauAxisConfig.Scale.LINEAR
-	y_axis_left.tick_count_preferred = 20
-
-	var y_axis_right := TauAxisConfig.new()
-	y_axis_right.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis_right.scale = TauAxisConfig.Scale.LOGARITHMIC
-	y_axis_right.include_zero_in_domain = false
-	y_axis_right.tick_count_preferred = 20
-
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.y_major_enabled = true
-	grid_line_config.y_minor_enabled = true
-	grid_line_config.y_source_axis_id = TauPlot.AxisId.RIGHT
-
-	var scatter_config := TauScatterConfig.new()
-
-	var pane_config := TauPaneConfig.new()
-	pane_config.y_left_axis = y_axis_left
-	pane_config.y_right_axis = y_axis_right
-	pane_config.overlays = [scatter_config]
-	pane_config.grid_line = grid_line_config
-
-	var xy_config := TauXYConfig.new()
-	xy_config.x_axis = x_axis
-	xy_config.panes = [pane_config]
-
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_a.y_axis_id = TauPlot.AxisId.LEFT
-
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_b.y_axis_id = TauPlot.AxisId.RIGHT
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
-
-	%TestPlot2.plot_xy(dataset, xy_config, bindings)
+	_make_plot(
+		%TestPlot2,
+		"Grid from the RIGHT y-axis (log) => solid white on the powers of ten, dashed blue between them",
+		TauPlot.AxisId.BOTTOM,
+		TauPlot.AxisId.LEFT,
+		TauPlot.AxisId.RIGHT,
+		TauPlot.AxisId.RIGHT)
 
 ####################################################################################################
 # Test 3
 ####################################################################################################
+
 func _setup_test_3() -> void:
-	var series_names := PackedStringArray(["A (linear)", "B (logarithmic)"])
+	_make_plot(
+		%TestPlot3,
+		"Grid from the TOP y-axis (linear) => vertical solid white lines only",
+		TauPlot.AxisId.LEFT,
+		TauPlot.AxisId.TOP,
+		TauPlot.AxisId.BOTTOM,
+		TauPlot.AxisId.TOP)
 
-	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
-
-	%TestPlot3.title = "Use TOP y-axis"
-
-	var x_axis := TauAxisConfig.new()
-	x_axis.title = " X-axis"
-	x_axis.type = TauAxisConfig.Type.CONTINUOUS
-	x_axis.scale = TauAxisConfig.Scale.LINEAR
-	x_axis.tick_count_preferred = 8
-
-	var y_axis_top := TauAxisConfig.new()
-	y_axis_top.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis_top.scale = TauAxisConfig.Scale.LINEAR
-	y_axis_top.tick_count_preferred = 20
-
-	var y_axis_bottom := TauAxisConfig.new()
-	y_axis_bottom.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis_bottom.scale = TauAxisConfig.Scale.LOGARITHMIC
-	y_axis_bottom.include_zero_in_domain = false
-	y_axis_bottom.tick_count_preferred = 20
-
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.y_major_enabled = true
-	grid_line_config.y_minor_enabled = true
-	grid_line_config.y_source_axis_id = TauPlot.AxisId.TOP
-
-	var scatter_config := TauScatterConfig.new()
-
-	var pane_config := TauPaneConfig.new()
-	pane_config.y_top_axis = y_axis_top
-	pane_config.y_bottom_axis = y_axis_bottom
-	pane_config.overlays = [scatter_config]
-	pane_config.grid_line = grid_line_config
-
-	var xy_config := TauXYConfig.new()
-	xy_config.x_axis_id = TauPlot.AxisId.LEFT
-	xy_config.x_axis = x_axis
-	xy_config.panes = [pane_config]
-
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_a.y_axis_id = TauPlot.AxisId.TOP
-
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_b.y_axis_id = TauPlot.AxisId.BOTTOM
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
-
-	%TestPlot3.plot_xy(dataset, xy_config, bindings)
-
-#####################################################################################################
-## Test 4
-#####################################################################################################
+####################################################################################################
+# Test 4
+####################################################################################################
 
 func _setup_test_4() -> void:
-	var series_names := PackedStringArray(["A (linear)", "B (logarithmic)"])
-
-	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
-
-	%TestPlot4.title = "Use BOTTOM y-axis"
-
-	var x_axis := TauAxisConfig.new()
-	x_axis.title = " X-axis"
-	x_axis.type = TauAxisConfig.Type.CONTINUOUS
-	x_axis.scale = TauAxisConfig.Scale.LINEAR
-	x_axis.tick_count_preferred = 8
-
-	var y_axis_top := TauAxisConfig.new()
-	y_axis_top.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis_top.scale = TauAxisConfig.Scale.LINEAR
-	y_axis_top.tick_count_preferred = 20
-
-	var y_axis_bottom := TauAxisConfig.new()
-	y_axis_bottom.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis_bottom.scale = TauAxisConfig.Scale.LOGARITHMIC
-	y_axis_bottom.include_zero_in_domain = false
-	y_axis_bottom.tick_count_preferred = 20
-
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.y_major_enabled = true
-	grid_line_config.y_minor_enabled = true
-	grid_line_config.y_source_axis_id = TauPlot.AxisId.BOTTOM
-
-	var scatter_config := TauScatterConfig.new()
-
-	var pane_config := TauPaneConfig.new()
-	pane_config.y_top_axis = y_axis_top
-	pane_config.y_bottom_axis = y_axis_bottom
-	pane_config.overlays = [scatter_config]
-	pane_config.grid_line = grid_line_config
-
-	var xy_config := TauXYConfig.new()
-	xy_config.x_axis_id = TauPlot.AxisId.LEFT
-	xy_config.x_axis = x_axis
-	xy_config.panes = [pane_config]
-
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_a.y_axis_id = TauPlot.AxisId.TOP
-
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_b.y_axis_id = TauPlot.AxisId.BOTTOM
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
-
-	%TestPlot4.plot_xy(dataset, xy_config, bindings)
+	_make_plot(
+		%TestPlot4,
+		"Grid from the BOTTOM y-axis (log) => vertical solid white on the powers of ten, dashed blue between them",
+		TauPlot.AxisId.LEFT,
+		TauPlot.AxisId.TOP,
+		TauPlot.AxisId.BOTTOM,
+		TauPlot.AxisId.BOTTOM)

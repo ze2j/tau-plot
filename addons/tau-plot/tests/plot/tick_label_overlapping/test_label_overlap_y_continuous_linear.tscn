@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://dpayn3bkqmumi"]
+[gd_scene load_steps=3 format=3 uid="uid://bm8ltijfikiqd"]
 
-[ext_resource type="Script" uid="uid://c43e7p88iujju" path="res://addons/tau-plot/tests/axis/label_overlapping/test_label_overlap_y_continuous_log.gd" id="1_t255h"]
-[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_xrbnb"]
+[ext_resource type="Script" uid="uid://b8niwils5cr7m" path="res://addons/tau-plot/tests/plot/tick_label_overlapping/test_label_overlap_y_continuous_linear.gd" id="1_dmbk2"]
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_6bs8r"]
 
 [node name="Bars" type="VBoxContainer"]
 anchors_preset = 15
@@ -9,12 +9,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_t255h")
+script = ExtResource("1_dmbk2")
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "Test overlap strategy for continuous logarithmic x-axis"
+text = "Test overlap strategy for continuous linear y-axis"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="."]
@@ -31,13 +31,14 @@ size_flags_vertical = 3
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer/CenterContainer1"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(500, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_xrbnb")
-title = "[NONE] with default min_label_spacing_px"
+script = ExtResource("2_6bs8r")
+title = "[NONE] spacing 0 => every tick labeled, labels overlap"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -48,13 +49,14 @@ size_flags_vertical = 3
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer/CenterContainer2"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(500, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_xrbnb")
-title = "[REDUCE_COUNT] with default min_label_spacing_px"
+script = ExtResource("2_6bs8r")
+title = "[REDUCE_COUNT] spacing 0 => fewer ticks, every tick labeled"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -65,13 +67,14 @@ size_flags_vertical = 3
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer/CenterContainer3"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(500, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_xrbnb")
-title = "[SKIP_LABELS] with default min_label_spacing_px"
+script = ExtResource("2_6bs8r")
+title = "[SKIP_LABELS] spacing 0 => all ticks kept, some labels dropped"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -82,13 +85,14 @@ size_flags_vertical = 3
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer/CenterContainer4"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(500, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_xrbnb")
-title = "[NONE] with min_label_spacing_px = 100"
+script = ExtResource("2_6bs8r")
+title = "[NONE] spacing 100 => same as test 1, spacing is ignored"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -99,13 +103,14 @@ size_flags_vertical = 3
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer/CenterContainer5"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(500, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_xrbnb")
-title = "[REDUCE_COUNT] with min_label_spacing_px = 100"
+script = ExtResource("2_6bs8r")
+title = "[REDUCE_COUNT] spacing 100 => fewer ticks, every tick labeled"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
@@ -116,12 +121,13 @@ size_flags_vertical = 3
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer/CenterContainer6"]
 unique_name_in_owner = true
+clip_contents = true
 custom_minimum_size = Vector2(500, 500)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
-script = ExtResource("2_xrbnb")
-title = "[SKIP_LABELS] with min_label_spacing_px = 100"
+script = ExtResource("2_6bs8r")
+title = "[SKIP_LABELS] spacing 100 => all ticks kept, some labels dropped"
 legend_enabled = false
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

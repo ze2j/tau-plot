@@ -632,11 +632,7 @@ class XYLayout extends RefCounted:
 					continue
 
 				var y_axis_domain := _get_y_axis_domain(pane_index, y_axis_id)
-				if y_axis_domain == null:
-					continue
 				var y_axis_config := y_axis_domain.config
-				if y_axis_config == null:
-					continue
 
 				# The TickResolver runs overlap detection along the y axis screen
 				# direction. It needs the label extent along that direction as the
@@ -852,10 +848,7 @@ class XYLayout extends RefCounted:
 				if not y_draws or y_axis_id not in pane_layout.y_ticks:
 					continue
 				var y_ticks: TickSequence = pane_layout.y_ticks[y_axis_id]
-				var y_axis_domain := domain.get_pane_domain(i).get_y_axis_domain(y_axis_id)
-				if y_axis_domain == null:
-					continue
-				var result := _measure_y_axis_labels(y_ticks, y_axis_domain.min_val, y_axis_domain.max_val, i, y_axis_id)
+				var result := _measure_y_axis_labels(y_ticks, i, y_axis_id)
 				reserved[y_axis_id] = result.x
 				y_half_extent = max(y_half_extent, result.y)
 
@@ -968,27 +961,33 @@ class XYLayout extends RefCounted:
 			data_area_union = Rect2()
 
 
+	## Returns the values of the ticks that carry a label, in ascending order.
+	## A label sits on a major tick or on a minor tick, so both ranks are read.
+	## The two ranks interleave along the axis, so the merged list is sorted
+	## back into axis order.
+	static func _collect_labeled_tick_values(p_ticks: TickSequence) -> Array[float]:
+		var values: Array[float] = []
+		for index in p_ticks.labeled_major_indices:
+			values.append(p_ticks.major_ticks[index])
+		for index in p_ticks.labeled_minor_indices:
+			values.append(p_ticks.minor_ticks[index])
+		values.sort()
+		return values
+
+
 	## Measures y-axis labels and returns Vector2(reserved_depth, half_extent).
 	## reserved_depth: space consumed perpendicular to the y axis direction
 	##   (label extent across the edge + tick gap + tick perpendicular size).
 	## half_extent: half of the label extent along the y axis direction at
 	##   endpoints, used for overshoot correction.
-	func _measure_y_axis_labels(p_ticks: TickSequence, p_min: float, p_max: float, p_pane_index: int, p_y_axis_id: AxisId) -> Vector2:
+	func _measure_y_axis_labels(p_ticks: TickSequence, p_pane_index: int, p_y_axis_id: AxisId) -> Vector2:
 		var max_w := 0.0
 		var max_h := 0.0
-		if p_ticks.major_ticks.is_empty():
-			var label_min := _decorate_y_label(String.num(p_min), p_pane_index, p_y_axis_id)
-			var label_max := _decorate_y_label(String.num(p_max), p_pane_index, p_y_axis_id)
-			var size_min := _measure_label(label_min)
-			var size_max := _measure_label(label_max)
-			max_w = max(size_min.x, size_max.x)
-			max_h = max(size_min.y, size_max.y)
-		else:
-			for t in p_ticks.major_ticks:
-				var label := _decorate_y_label(p_ticks.format_value(t), p_pane_index, p_y_axis_id)
-				var lsize := _measure_label(label)
-				max_w = max(max_w, lsize.x)
-				max_h = max(max_h, lsize.y)
+		for value in _collect_labeled_tick_values(p_ticks):
+			var label := _decorate_y_label(p_ticks.format_value(value), p_pane_index, p_y_axis_id)
+			var lsize := _measure_label(label)
+			max_w = max(max_w, lsize.x)
+			max_h = max(max_h, lsize.y)
 
 		# x horizontal: y axis is vertical. Labels sit to the left/right of the axis.
 		#   reserved_depth = label width + gap + tick width (horizontal space).
@@ -1019,17 +1018,7 @@ class XYLayout extends RefCounted:
 	##   (half of the widest/tallest endpoint label, depending on orientation).
 	func _measure_x_axis_labels(p_is_primary_x: bool) -> Vector2:
 		var categories: PackedStringArray = domain.x_categories
-		var x_axis_cfg: TauAxisConfig
-		var x_min: float
-		var x_max: float
-		if p_is_primary_x:
-			x_axis_cfg = domain.config.x_axis
-			x_min = domain.x_axis_domain.min_val
-			x_max = domain.x_axis_domain.max_val
-		else:
-			x_axis_cfg = domain.config.secondary_x_axis
-			x_min = _secondary_x_domain_min
-			x_max = _secondary_x_domain_max
+		var x_axis_cfg: TauAxisConfig = domain.config.x_axis if p_is_primary_x else domain.config.secondary_x_axis
 		if x_axis_cfg == null:
 			return Vector2.ZERO
 		var ticks: TickSequence = x_ticks if p_is_primary_x else secondary_x_ticks
@@ -1050,28 +1039,16 @@ class XYLayout extends RefCounted:
 					max_label_w = max(max_label_w, sz.x)
 					max_label_h = max(max_label_h, sz.y)
 			TauAxisConfig.Type.CONTINUOUS:
-				if x_min >= x_max:
-					return Vector2.ZERO
-				if ticks == null or ticks.major_ticks.is_empty():
-					var label_min: String = decorate_fn.call(String.num(x_min))
-					var label_max: String = decorate_fn.call(String.num(x_max))
-					var size_min := _measure_label(label_min)
-					var size_max := _measure_label(label_max)
-					max_label_w = max(size_min.x, size_max.x)
-					max_label_h = max(size_min.y, size_max.y)
-					first_size = size_min
-					last_size = size_max
-				else:
-					for j in range(ticks.major_ticks.size()):
-						var t := ticks.major_ticks[j]
-						var label: String = decorate_fn.call(ticks.format_value(t))
-						var sz := _measure_label(label)
-						max_label_w = max(max_label_w, sz.x)
-						max_label_h = max(max_label_h, sz.y)
-						if j == 0:
-							first_size = sz
-						if j == ticks.major_ticks.size() - 1:
-							last_size = sz
+				var labeled_values := _collect_labeled_tick_values(ticks)
+				for j in range(labeled_values.size()):
+					var label: String = decorate_fn.call(ticks.format_value(labeled_values[j]))
+					var sz := _measure_label(label)
+					max_label_w = max(max_label_w, sz.x)
+					max_label_h = max(max_label_h, sz.y)
+					if j == 0:
+						first_size = sz
+					if j == labeled_values.size() - 1:
+						last_size = sz
 
 		# x horizontal: labels sit below/above the axis line.
 		#   reserved_depth = label height + gap + tick height (vertical space).

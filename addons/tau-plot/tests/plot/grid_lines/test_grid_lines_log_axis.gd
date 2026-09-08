@@ -5,44 +5,6 @@ const MAJOR_GRID_LINE_COLOR := Color(1.0, 1.0, 1.0, 0.35)
 const MINOR_GRID_LINE_COLOR := Color(0.35, 0.75, 1.0, 0.55)
 const MINOR_GRID_LINE_DASH_PX := 4
 
-var x_a := PackedFloat64Array([
-	 1.9, -1.4,  3.2,  0.7, -2.1,  2.6,
-	-0.8,  1.3,  3.5, -0.2,  2.1, -1.9,
-	 0.4,  2.9, -2.4,  1.6,  0.0,  3.6,
-	-0.5,  2.3, -1.1,  1.1,  2.8, -1.7,
-	 3.0, -2.0,  1.4, -0.3,  2.4,  0.9,
-	-1.5,  3.3,  1.8, -2.2,  2.7,  0.2,
-	 1.0, -0.7,  3.4, -1.2,  2.0,  0.5,
-	-2.3,  1.7,  2.5, -0.1,  3.1, -1.6
-])
-var y_a := PackedFloat64Array([
-	 2.2,  1.3,  1.7,  1.0,  0.9,  1.5,
-	 1.8,  2.1,  1.4,  1.6,  1.9,  1.2,
-	 1.4,  1.8,  1.1,  2.3,  1.7,  1.5,
-	 1.3,  1.6,  1.0,  2.0,  1.4,  1.2,
-	 1.9,  1.1,  2.2,  1.5,  1.7,  1.3,
-	 1.0,  1.8,  2.0,  0.9,  1.6,  1.4,
-	 2.1,  1.2,  1.5,  1.7,  2.3,  1.6,
-	 1.0,  1.9,  1.4,  1.8,  2.0,  1.3
-])
-
-var x_b := PackedFloat64Array([
-	-2.7,  0.9, -1.8,  2.4, -3.1,  1.2,
-	-0.4,  1.9, -2.2,  0.1,  2.7, -1.0,
-	 0.6, -3.3,  1.5, -0.9,
-	 2.1, -2.5,  0.4,  1.7, -1.3,  2.6,
-	-0.2,  1.0, -2.9,  0.8,  2.3, -1.6,
-	 1.3, -3.0,  0.0,  1.8
-])
-var y_b := PackedFloat64Array([
-	 1.1,  2.4,  0.8,  1.3,  1.6,  0.5,
-	 1.7,  1.9,  1.0,  1.5,  1.2,  1.4,
-	 2.0,  1.8,  1.1,  1.6,
-	 1.9,  0.9,  1.4,  2.1,  1.0,  1.3,
-	 1.6,  2.2,  1.7,  1.2,  1.5,  0.8,
-	 1.1,  1.4,  1.8,  2.0
-])
-
 func _ready() -> void:
 	_setup_test_1()
 	_setup_test_2()
@@ -54,6 +16,24 @@ func _ready() -> void:
 ####################################################################################################
 # Helpers
 ####################################################################################################
+
+func _make_dataset() -> TauPlot.Dataset:
+	var series_names := PackedStringArray(["A", "B"])
+	var x_a := PackedFloat64Array([0.1, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0])
+	var x_b := PackedFloat64Array()
+	var y_a := PackedFloat64Array()
+	var y_b := PackedFloat64Array()
+	x_b.resize(x_a.size())
+	y_a.resize(x_a.size())
+	y_b.resize(x_a.size())
+
+	for i in range(x_a.size()):
+		x_b[i] = 1.2 * x_a[i]
+		y_a[i] = 2.0 * pow(10.0, float(i) * 0.25)
+		y_b[i] = 1.0 * pow(10.0, float(i) * 0.25)
+
+	return TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
+
 
 func _apply_rank_style(p_pane: TauPaneConfig) -> void:
 	p_pane.style.x_major_grid_line_color = MAJOR_GRID_LINE_COLOR
@@ -74,18 +54,19 @@ func _make_grid_line_config(p_x_major: bool, p_x_minor: bool, p_y_major: bool, p
 
 
 func _make_plot(p_plot: TauPlot, p_title: String, p_grid_line_config: TauGridLineConfig) -> void:
-	var series_names := PackedStringArray(["A", "B"])
-	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
+	var dataset := _make_dataset()
 
 	var x_axis := TauAxisConfig.new()
+	x_axis.title = "X (log scale)"
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
-	x_axis.scale = TauAxisConfig.Scale.LINEAR
-	x_axis.tick_count_preferred = 8
+	x_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
+	x_axis.include_zero_in_domain = false
 
 	var y_axis_left := TauAxisConfig.new()
+	y_axis_left.title = "Y (log scale)"
 	y_axis_left.type = TauAxisConfig.Type.CONTINUOUS
-	y_axis_left.scale = TauAxisConfig.Scale.LINEAR
-	y_axis_left.tick_count_preferred = 20
+	y_axis_left.scale = TauAxisConfig.Scale.LOGARITHMIC
+	y_axis_left.include_zero_in_domain = false
 
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis_left
@@ -110,6 +91,7 @@ func _make_plot(p_plot: TauPlot, p_title: String, p_grid_line_config: TauGridLin
 	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
 
 	p_plot.title = p_title
+	p_plot.legend_enabled = false
 	p_plot.plot_xy(dataset, xy_config, bindings)
 
 ####################################################################################################
@@ -124,32 +106,32 @@ func _setup_test_1() -> void:
 ####################################################################################################
 
 func _setup_test_2() -> void:
-	_make_plot(%TestPlot2, "X major only => vertical solid white lines on the X ticks", _make_grid_line_config(true, false, false, false))
+	_make_plot(%TestPlot2, "X major only => one solid white line per power of ten", _make_grid_line_config(true, false, false, false))
 
 ####################################################################################################
 # Test 3
 ####################################################################################################
 
 func _setup_test_3() -> void:
-	_make_plot(%TestPlot3, "Y major only => horizontal solid white lines on the Y ticks", _make_grid_line_config(false, false, true, false))
+	_make_plot(%TestPlot3, "X minor only => dashed blue lines on the 2 to 9 positions, none on the powers of ten", _make_grid_line_config(false, true, false, false))
 
 ####################################################################################################
 # Test 4
 ####################################################################################################
 
 func _setup_test_4() -> void:
-	_make_plot(%TestPlot4, "X major and Y major => full solid white grid", _make_grid_line_config(true, false, true, false))
+	_make_plot(%TestPlot4, "X major and minor => solid white on the powers of ten, dashed blue between them", _make_grid_line_config(true, true, false, false))
 
 ####################################################################################################
 # Test 5
 ####################################################################################################
 
 func _setup_test_5() -> void:
-	_make_plot(%TestPlot5, "X minor only => nothing drawn, a linear axis has no minor tick", _make_grid_line_config(false, true, false, false))
+	_make_plot(%TestPlot5, "Y major and minor => solid white on the powers of ten, dashed blue between them", _make_grid_line_config(false, false, true, true))
 
 ####################################################################################################
 # Test 6
 ####################################################################################################
 
 func _setup_test_6() -> void:
-	_make_plot(%TestPlot6, "X and Y, major and minor => full solid white grid, no dashed blue line", _make_grid_line_config(true, true, true, true))
+	_make_plot(%TestPlot6, "X and Y, major and minor => full grid, every rank readable", _make_grid_line_config(true, true, true, true))
