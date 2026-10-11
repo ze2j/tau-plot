@@ -49,14 +49,11 @@ class XYLayout extends RefCounted:
 		## [param p_origin] Pixel of the axis start.
 		## [param p_extent] Pixel length of the axis.
 		## [param p_invert] True when higher values map to lower pixels.
-		## [param p_degenerate_px] Pixel returned when the domain is collapsed
-		##   or the pane has no extent. Explicit because the x and y mappings
-		##   answer differently there.
-		func _init(p_min: float, p_max: float, p_is_log: bool, p_origin: float, p_extent: float, p_invert: bool, p_degenerate_px: float) -> void:
+		func _init(p_min: float, p_max: float, p_is_log: bool, p_origin: float, p_extent: float, p_invert: bool) -> void:
 			_is_log = p_is_log
 			if p_min >= p_max or p_extent <= 0.0:
 				_degenerate = true
-				_fallback_px = p_degenerate_px
+				_fallback_px = p_origin
 				return
 
 			var start_px: float = p_origin + p_extent if p_invert else p_origin
@@ -514,13 +511,13 @@ class XYLayout extends RefCounted:
 
 			pane_layout.x_mapping = AxisMapping.new(
 				domain.x_axis_domain.min_val, domain.x_axis_domain.max_val, x_is_log,
-				x_origin, x_extent, x_flip, x_origin)
+				x_origin, x_extent, x_flip)
 
 			if p_has_secondary_x:
 				pane_layout.secondary_x_mapping = AxisMapping.new(
 					_secondary_x_domain_min, _secondary_x_domain_max,
 					domain.config.secondary_x_axis.scale == TauAxisConfig.Scale.LOGARITHMIC,
-					x_origin, x_extent, not _x_is_horizontal, x_origin)
+					x_origin, x_extent, not _x_is_horizontal)
 
 			for y_axis_id in p_y_axes:
 				var y_axis_domain := _get_y_axis_domain(i, y_axis_id)
@@ -530,11 +527,10 @@ class XYLayout extends RefCounted:
 				# screen-Y = up). x vertical: y is horizontal, values increase
 				# with screen-X, no inversion. Same XOR with "inverted" as x.
 				var y_flip: bool = _x_is_horizontal != y_axis_domain.config.inverted
-				var y_start_px: float = y_origin + y_extent if y_flip else y_origin
 				pane_layout.y_mappings[y_axis_id] = AxisMapping.new(
 					y_axis_domain.min_val, y_axis_domain.max_val,
 					y_axis_domain.scale == TauAxisConfig.Scale.LOGARITHMIC,
-					y_origin, y_extent, y_flip, y_start_px)
+					y_origin, y_extent, y_flip)
 
 
 	## Returns the pixel size (width, height) of a label string using the current style font.
