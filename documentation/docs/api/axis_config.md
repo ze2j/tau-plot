@@ -174,6 +174,8 @@ The mapping scale. Default is [`LINEAR`](#scale-enum).
 
 Only used when [`type`](#type) is [`CONTINUOUS`](#type-enum). Controls whether data values are distributed evenly or logarithmically along the axis.
 
+On [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis), the scale only picks the label values, not where the labels sit.
+
 ---
 
 ### inverted
@@ -182,7 +184,7 @@ Only used when [`type`](#type) is [`CONTINUOUS`](#type-enum). Controls whether d
 
 By default, a vertical axis draws the minimum value at the bottom and the maximum at the top. A horizontal axis draws the minimum on the left and the maximum on the right. If `true`, both directions are flipped. Default is `false`.
 
-Works with both `CONTINUOUS` and `CATEGORICAL` axes. Has no effect when the `TauAxisConfig` is assigned to [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis), because the secondary axis domain is derived from the primary through [`TauXYConfig.secondary_x_axis_transform`](xy_config.md#secondary_x_axis_transform).
+Works with both `CONTINUOUS` and `CATEGORICAL` axes. Has no effect on [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis).
 
 ---
 
@@ -192,7 +194,7 @@ Works with both `CONTINUOUS` and `CATEGORICAL` axes. Has no effect when the `Tau
 
 If `true`, the computed domain is expanded so that zero is always within the visible range. Default is `true`.
 
-Only used when [`type`](#type) is [`CONTINUOUS`](#type-enum) and [`range_override_enabled`](#range_override_enabled) is `false`. Has no effect when the `TauAxisConfig` is assigned to [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis). Useful for bar charts where bars originate from zero. Set to `false` when the data range does not contain zero and showing it would waste visible space.
+Only used when [`type`](#type) is [`CONTINUOUS`](#type-enum) and [`range_override_enabled`](#range_override_enabled) is `false`. Has no effect on [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis). Useful for bar charts where bars originate from zero. Set to `false` when the data range does not contain zero and showing it would waste visible space.
 
 ---
 
@@ -292,7 +294,9 @@ If `true`, the axis domain is fixed to [`min_override`](#min_override) and [`max
 
 Only used when [`type`](#type) is [`CONTINUOUS`](#type-enum). When enabled, [`include_zero_in_domain`](#include_zero_in_domain) and [`domain_padding_mode`](#domain_padding_mode) have no effect.
 
-Enabling it puts the two bounds under validation, on every axis of the plot. [`min_override`](#min_override) above [`max_override`](#max_override) is a validation error, and on a [`LOGARITHMIC`](#scale-enum) axis a bound at or below `0.0` is a validation error. Either one aborts [`TauPlot.plot_xy()`](tau_plot.md#plot_xy).
+Has no effect on [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis).
+
+Enabling it puts the two bounds under validation, on every axis of the plot except [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis). [`min_override`](#min_override) above [`max_override`](#max_override) is a validation error, and on a [`LOGARITHMIC`](#scale-enum) axis a bound at or below `0.0` is a validation error. Either one aborts [`TauPlot.plot_xy()`](tau_plot.md#plot_xy).
 
 ---
 
@@ -302,7 +306,7 @@ Enabling it puts the two bounds under validation, on every axis of the plot. [`m
 
 The minimum value of the fixed axis domain. Default is `0.0`.
 
-Only used when [`range_override_enabled`](#range_override_enabled) is `true`. Must be at or below [`max_override`](#max_override), and strictly above `0.0` when [`scale`](#scale) is [`LOGARITHMIC`](#scale-enum).
+Only used when [`range_override_enabled`](#range_override_enabled) is `true`. Has no effect on [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis). Must be at or below [`max_override`](#max_override), and strictly above `0.0` when [`scale`](#scale) is [`LOGARITHMIC`](#scale-enum).
 
 ---
 
@@ -312,7 +316,7 @@ Only used when [`range_override_enabled`](#range_override_enabled) is `true`. Mu
 
 The maximum value of the fixed axis domain. Default is `1.0`.
 
-Only used when [`range_override_enabled`](#range_override_enabled) is `true`. Must be at or above [`min_override`](#min_override), and strictly above `0.0` when [`scale`](#scale) is [`LOGARITHMIC`](#scale-enum).
+Only used when [`range_override_enabled`](#range_override_enabled) is `true`. Has no effect on [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis). Must be at or above [`min_override`](#min_override), and strictly above `0.0` when [`scale`](#scale) is [`LOGARITHMIC`](#scale-enum).
 
 ---
 
@@ -322,7 +326,7 @@ Only used when [`range_override_enabled`](#range_override_enabled) is `true`. Mu
 
 The strategy for padding the computed domain beyond the data min and max. Default is [`AUTO`](#domainpaddingmode).
 
-Only used when [`type`](#type) is [`CONTINUOUS`](#type-enum) and [`range_override_enabled`](#range_override_enabled) is `false`. Has no effect when the `TauAxisConfig` is assigned to [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis), because the secondary axis domain is derived from the primary through [`TauXYConfig.secondary_x_axis_transform`](xy_config.md#secondary_x_axis_transform).
+Only used when [`type`](#type) is [`CONTINUOUS`](#type-enum) and [`range_override_enabled`](#range_override_enabled) is `false`. Has no effect on [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis).
 
 ---
 
@@ -332,7 +336,7 @@ Only used when [`type`](#type) is [`CONTINUOUS`](#type-enum) and [`range_overrid
 
 The padding amount applied to the min side of the domain. Default is `0.05`.
 
-Ignored when [`domain_padding_mode`](#domain_padding_mode) is [`AUTO`](#domainpaddingmode) or [`NONE`](#domainpaddingmode). In [`FRACTION`](#domainpaddingmode) mode, `0.05` means 5% of the data span. In [`DATA_UNITS`](#domainpaddingmode) mode, the value is in data units. On a [`LOGARITHMIC`](#scale-enum) scale with [`FRACTION`](#domainpaddingmode) mode, the fraction applies to the log-span.
+Ignored when [`domain_padding_mode`](#domain_padding_mode) is [`AUTO`](#domainpaddingmode) or [`NONE`](#domainpaddingmode). Has no effect on [`TauXYConfig.secondary_x_axis`](xy_config.md#secondary_x_axis). In [`FRACTION`](#domainpaddingmode) mode, `0.05` means 5% of the data span. In [`DATA_UNITS`](#domainpaddingmode) mode, the value is in data units. On a [`LOGARITHMIC`](#scale-enum) scale with [`FRACTION`](#domainpaddingmode) mode, the fraction applies to the log-span.
 
 ---
 

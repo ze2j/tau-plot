@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=2 format=3 uid="uid://cv8lqhvuk5g60"]
 
 [ext_resource type="Script" uid="uid://dx5qfga4rdtvp" path="res://addons/tau-plot/tests/axis/degenerate_domains/test_degenerate_domains.gd" id="1_test"]
 

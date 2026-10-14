@@ -79,7 +79,7 @@ func _make_degenerate_layout(p_x_axis_id: AxisId, p_x_inverted: bool,
 	var pane_layout := XYLayout.PaneLayout.new()
 	pane_layout.pane_rect = Rect2(10.0, 20.0, 100.0, 200.0)
 	layout.pane_layouts = [pane_layout]
-	layout._compute_axis_mappings([y_axis_id], false)
+	layout._compute_axis_mappings([y_axis_id])
 	return layout
 
 

@@ -192,8 +192,8 @@ class PaneRenderer extends Control:
 				pane_rect,
 				axis_color,
 				_decorate_secondary_x,
-				categories,
-				func(idx: int) -> bool: return _layout.should_show_secondary_x_categorical_label(_pane_index, idx),
+				PackedStringArray(),
+				Callable(),
 				func(val: float) -> float: return _layout.map_secondary_x_to_px(_pane_index, val),
 				secondary_x_cfg)
 
@@ -311,7 +311,8 @@ class PaneRenderer extends Control:
 	## Otherwise compares [member TauGridLineConfig.x_source_axis_id] against the
 	## primary and secondary x edge positions to decide which tick sequence
 	## to return. Returns null if X grid lines are disabled or the selected
-	## axis has no ticks.
+	## axis has no ticks. The secondary x axis has none while its range is
+	## invalid.
 	func _resolve_grid_line_x_ticks() -> TickSequence:
 		if not _grid_line_config.x_major_enabled and not _grid_line_config.x_minor_enabled:
 			return null
@@ -325,10 +326,7 @@ class PaneRenderer extends Control:
 		var source := _grid_line_config.x_source_axis_id
 
 		if source == secondary_x_position:
-			if _layout.secondary_x_ticks != null:
-				return _layout.secondary_x_ticks
-			push_error("TauGridLineConfig.x_source_axis_id points to the secondary x axis edge (%d) but that axis has no ticks" % source)
-			return null
+			return _layout.secondary_x_ticks
 
 		if source != x_axis_id:
 			push_error("TauGridLineConfig.x_source_axis_id (%d) does not match the primary (%d) or secondary (%d) x axis edge" % [source, x_axis_id, secondary_x_position])
