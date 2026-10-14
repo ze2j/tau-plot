@@ -382,6 +382,19 @@ class XYLayout extends RefCounted:
 		return center
 
 
+	## Maps a categorical x-axis boundary (0 through category count) to pixels.
+	func map_x_category_boundary_to_px(p_pane_index: int, p_boundary_index: int) -> float:
+		var pane_layout := pane_layouts[p_pane_index]
+		var origin: float = pane_layout.pane_rect.position.x if _x_is_horizontal else pane_layout.pane_rect.position.y
+		var extent: float = pane_layout.pane_rect.size.x if _x_is_horizontal else pane_layout.pane_rect.size.y
+		var count := domain.x_categories.size()
+		if count <= 0 or extent <= 0.0:
+			return origin
+		var fraction := clampf(float(p_boundary_index) / float(count), 0.0, 1.0)
+		var flip: bool = (not _x_is_horizontal) != domain.config.x_axis.inverted
+		return origin + extent * (1.0 - fraction if flip else fraction)
+
+
 	## Maps a y-axis data value to a pixel coordinate along the y axis direction.
 	## Returns a screen-Y pixel when x is horizontal, or screen-X when x is vertical.
 	## [param p_pane_index] Zero-based pane index.
