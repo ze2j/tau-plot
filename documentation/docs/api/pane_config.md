@@ -149,7 +149,7 @@ Alignment requires the pane to hold exactly two Y axes, both using [`TauAxisConf
 
 An axis with [`TauAxisConfig.range_override_enabled`](axis_config.md#range_override_enabled) is never modified. If both axes have it enabled, alignment is skipped. If only one does, only the other axis is adjusted. If neither does, the axis requiring the least domain expansion is adjusted.
 
-Every precondition above is checked silently. When one is unmet the two domains are left as computed, with no error and no warning.
+If any precondition above is unmet, it is a validation error, and the two domains are left as computed.
 
 ## Related Classes
 

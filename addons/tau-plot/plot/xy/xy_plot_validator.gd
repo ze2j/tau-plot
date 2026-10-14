@@ -172,6 +172,9 @@ class XYPlotValidator extends RefCounted:
 			if pane_cfg.stretch_ratio <= 0.0:
 				p_result.add_error("XYPlotValidator: pane %d: stretch_ratio is %f, expected a value greater than 0" % [pane_index, pane_cfg.stretch_ratio])
 
+			if pane_cfg.align_y_axes_at_zero:
+				_validate_zero_alignment(p_xy_config, pane_cfg, pane_index, p_result)
+
 			var seen_types := {}
 			for overlay_cfg in pane_cfg.overlays:
 				if overlay_cfg == null:
@@ -181,6 +184,33 @@ class XYPlotValidator extends RefCounted:
 					p_result.add_error("XYPlotValidator: pane %d: overlays holds more than one config of overlay_type %d" % [pane_index, int(overlay_cfg.overlay_type)])
 					continue
 				seen_types[overlay_cfg.overlay_type] = true
+
+
+	static func _validate_zero_alignment(p_xy_config: TauXYConfig, p_pane: TauPaneConfig,
+			p_pane_index: int, p_result: ValidationResult) -> void:
+		var axis_configs: Array[TauAxisConfig] = []
+		for axis_id in Axis.get_orthogonal_axes(p_xy_config.x_axis_id):
+			var axis_config := p_pane.get_y_axis_config(axis_id)
+			if axis_config != null:
+				axis_configs.append(axis_config)
+
+		if axis_configs.size() != 2:
+			p_result.add_error("XYPlotValidator: pane %d: align_y_axes_at_zero requires exactly two y axes" % p_pane_index)
+			return
+
+		var overridden_count := 0
+		for axis_config in axis_configs:
+			if axis_config.scale != TauAxisConfig.Scale.LINEAR:
+				p_result.add_error("XYPlotValidator: pane %d: align_y_axes_at_zero requires linear y axes" % p_pane_index)
+			if axis_config.range_override_enabled:
+				overridden_count += 1
+				if axis_config.min_override > 0.0 or axis_config.max_override < 0.0:
+					p_result.add_error("XYPlotValidator: pane %d: an overridden y-axis range used for zero alignment must contain zero" % p_pane_index)
+			elif not axis_config.include_zero_in_domain:
+				p_result.add_error("XYPlotValidator: pane %d: y axes used for zero alignment must include zero in their domain" % p_pane_index)
+
+		if overridden_count == 2:
+			p_result.add_error("XYPlotValidator: pane %d: align_y_axes_at_zero cannot adjust two overridden y-axis ranges" % p_pane_index)
 
 
 	####################################################################################################
