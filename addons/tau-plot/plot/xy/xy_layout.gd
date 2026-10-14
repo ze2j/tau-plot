@@ -128,10 +128,6 @@ class XYLayout extends RefCounted:
 	## Empty means all are visible. Rebuilt by [method update].
 	var x_categorical_visible: PackedInt32Array = PackedInt32Array()
 
-	## Indices of visible category labels for the secondary x axis.
-	## Empty means all are visible. Rebuilt by [method update].
-	var secondary_x_categorical_visible: PackedInt32Array = PackedInt32Array()
-
 	## Resolved domain bounds for the secondary x axis, derived from the
 	## primary x domain via [member TauXYConfig.secondary_x_axis_transform].
 	## When [member TauAxisConfig.range_override_enabled] is set on the secondary
@@ -191,7 +187,6 @@ class XYLayout extends RefCounted:
 		x_ticks = null
 		secondary_x_ticks = null
 		x_categorical_visible = PackedInt32Array()
-		secondary_x_categorical_visible = PackedInt32Array()
 		_secondary_x_domain_min = 0.0
 		_secondary_x_domain_max = 1.0
 
@@ -467,17 +462,6 @@ class XYLayout extends RefCounted:
 		return false
 
 
-	## Returns true if the category label at [param p_category_index] should be
-	## shown for the secondary x axis on pane [param p_pane_index].
-	func should_show_secondary_x_categorical_label(_p_pane_index: int, p_category_index: int) -> bool:
-		if secondary_x_categorical_visible.is_empty():
-			return true
-		for idx in secondary_x_categorical_visible:
-			if idx == p_category_index:
-				return true
-		return false
-
-
 	################################################################################################
 	# Private
 	################################################################################################
@@ -608,8 +592,8 @@ class XYLayout extends RefCounted:
 	## Computes x axis tick sequences once.
 	## The x domain is shared across all panes and the x axis length in pixels
 	## is identical for every pane, so one computation is sufficient.
-	## Stores results in [member x_ticks], [member secondary_x_ticks],
-	## [member x_categorical_visible], and [member secondary_x_categorical_visible].
+	## Stores results in [member x_ticks], [member secondary_x_ticks] and
+	## [member x_categorical_visible].
 	func _compute_x_ticks(p_has_x: bool, p_has_secondary_x: bool) -> void:
 		if _pane_view_rects.is_empty():
 			return
@@ -750,17 +734,14 @@ class XYLayout extends RefCounted:
 	## [param p_view_rect] A pane view rect (used to determine the available axis length in pixels).
 	func _compute_x_ticks_once(p_is_primary_x: bool, p_view_rect: Rect2) -> void:
 		var x_axis_cfg: TauAxisConfig
-		var categories: PackedStringArray
 		var x_min: float
 		var x_max: float
 		if p_is_primary_x:
 			x_axis_cfg = domain.config.x_axis
-			categories = domain.x_categories
 			x_min = domain.x_axis_domain.min_val
 			x_max = domain.x_axis_domain.max_val
 		else:
 			x_axis_cfg = domain.config.secondary_x_axis
-			categories = PackedStringArray()  # Secondary is always continuous.
 			x_min = _secondary_x_domain_min
 			x_max = _secondary_x_domain_max
 		var decorate_fn: Callable
@@ -773,15 +754,12 @@ class XYLayout extends RefCounted:
 
 		match x_axis_cfg.type:
 			TauAxisConfig.Type.CATEGORICAL:
-				var vis := TickResolver.compute_categorical_label_visibility(
-					categories, x_axis_cfg.overlap_strategy, x_axis_extent_px,
+				# Only the primary x axis can be categorical.
+				x_categorical_visible = TickResolver.compute_categorical_label_visibility(
+					domain.x_categories, x_axis_cfg.overlap_strategy, x_axis_extent_px,
 					float(x_axis_cfg.min_label_spacing_px),
 					func(label: String) -> Vector2: return _measure_label(decorate_fn.call(label))
 				)
-				if p_is_primary_x:
-					x_categorical_visible = vis
-				else:
-					secondary_x_categorical_visible = vis
 			TauAxisConfig.Type.CONTINUOUS:
 				var ticks := TickResolver.compute_ticks_for_continuous_axis(
 					x_min, x_max, x_axis_cfg.scale, x_axis_cfg.tick_count_preferred,

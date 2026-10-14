@@ -192,8 +192,8 @@ class PaneRenderer extends Control:
 				pane_rect,
 				axis_color,
 				_decorate_secondary_x,
-				categories,
-				func(idx: int) -> bool: return _layout.should_show_secondary_x_categorical_label(_pane_index, idx),
+				PackedStringArray(),
+				Callable(),
 				func(val: float) -> float: return _layout.map_secondary_x_to_px(_pane_index, val),
 				secondary_x_cfg)
 
