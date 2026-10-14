@@ -5,6 +5,7 @@ export_presets.cfg
 # Docs
 documentation/.venv/
 documentation/site/
+asset_store/
 
 # Python
 __pycache__/

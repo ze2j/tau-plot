@@ -1,0 +1,38 @@
+[gd_resource type="Theme" load_steps=3 format=3 uid="uid://dhf8yo6ltn2nx"]
+
+[sub_resource type="StyleBoxFlat" id="bar_sb"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+shadow_color = Color(0, 0, 0, 0.29411766)
+shadow_size = 2
+shadow_offset = Vector2(2, 2)
+
+[sub_resource type="StyleBoxFlat" id="panel_bg"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.12326967, 0.14388257, 0.18044192, 1)
+
+[resource]
+TauAxisTitle/base_type = &"RichTextLabel"
+TauAxisTitle/colors/default_color = Color(0.22, 0.22, 0.28, 1)
+TauBar/base_type = &"Control"
+TauBar/styles/bar_style_box = SubResource("bar_sb")
+TauPane/base_type = &"Control"
+TauPane/colors/pane_y_major_grid_line_color = Color(0.37642685, 0.37975776, 0.4323936, 1)
+TauPane/constants/pane_y_major_grid_line_dash = 12
+TauPlot/base_type = &"PanelContainer"
+TauPlot/colors/font_color = Color(0.75070834, 0.75120384, 0.7957031, 1)
+TauPlot/colors/xy_axis_color = Color(0.70796657, 0.7079665, 0.7079666, 1)
+TauPlot/constants/xy_padding_bottom = 18
+TauPlot/constants/xy_padding_left = 18
+TauPlot/constants/xy_padding_right = 6
+TauPlot/constants/xy_padding_top = 6
+TauPlot/constants/xy_x_major_tick_length = 12
+TauPlot/constants/xy_y_major_tick_length = 12
+TauPlot/font_sizes/font_size = 11
+TauPlot/styles/panel = SubResource("panel_bg")
+TauPlotTitle/base_type = &"RichTextLabel"
+TauPlotTitle/colors/default_color = Color(0.22, 0.22, 0.28, 1)
