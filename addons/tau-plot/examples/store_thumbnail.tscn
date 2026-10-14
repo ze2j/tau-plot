@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3 uid="uid://bi3kycyn6v4yw"]
+
+[ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="1_6dw2s"]
+[ext_resource type="Script" uid="uid://cmoxfgm723iqv" path="res://addons/tau-plot/examples/store_thumbnail.gd" id="1_m4fc7"]
+[ext_resource type="Theme" uid="uid://dhf8yo6ltn2nx" path="res://addons/tau-plot/examples/store_thumbnail.tres" id="2_b33h6"]
+
+[node name="StoreThumbnail" type="CenterContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_m4fc7")
+
+[node name="TauPlot" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(1080, 1080)
+layout_mode = 2
+theme = ExtResource("2_b33h6")
+theme_type_variation = &"TauPlot"
+script = ExtResource("1_6dw2s")
+hover_enabled = false
+metadata/_custom_type_script = "uid://dnhvsf2wip771"
