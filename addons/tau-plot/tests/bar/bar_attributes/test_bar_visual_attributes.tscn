@@ -26,6 +26,7 @@ columns = 3
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -36,6 +37,7 @@ metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -46,6 +48,7 @@ metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -56,6 +59,7 @@ metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -66,6 +70,7 @@ metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot5" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -76,6 +81,7 @@ metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot6" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -86,6 +92,7 @@ metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot7" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -96,20 +103,20 @@ metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot8" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6umc3")
-title = "Right Y labels: VERTICAL + CENTER"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot9" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_6umc3")
-title = "Right Y labels: VERTICAL + END"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"

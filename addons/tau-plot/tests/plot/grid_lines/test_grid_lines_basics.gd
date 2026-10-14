@@ -1,6 +1,10 @@
 @tool
 extends Control
 
+const MAJOR_GRID_LINE_COLOR := Color(1.0, 1.0, 1.0, 0.35)
+const MINOR_GRID_LINE_COLOR := Color(0.35, 0.75, 1.0, 0.55)
+const MINOR_GRID_LINE_DASH_PX := 4
+
 var x_a := PackedFloat64Array([
 	 1.9, -1.4,  3.2,  0.7, -2.1,  2.6,
 	-0.8,  1.3,  3.5, -0.2,  2.1, -1.9,
@@ -47,13 +51,31 @@ func _ready() -> void:
 	_setup_test_5()
 	_setup_test_6()
 
+####################################################################################################
+# Helpers
+####################################################################################################
 
-func _make_plot_linear(p_plot: TauPlot, p_grid_line_config: TauGridLineConfig, p_title: String):
+func _apply_rank_style(p_pane: TauPaneConfig) -> void:
+	p_pane.style.x_major_grid_line_color = MAJOR_GRID_LINE_COLOR
+	p_pane.style.y_major_grid_line_color = MAJOR_GRID_LINE_COLOR
+	p_pane.style.x_minor_grid_line_color = MINOR_GRID_LINE_COLOR
+	p_pane.style.y_minor_grid_line_color = MINOR_GRID_LINE_COLOR
+	p_pane.style.x_minor_grid_line_dash_px = MINOR_GRID_LINE_DASH_PX
+	p_pane.style.y_minor_grid_line_dash_px = MINOR_GRID_LINE_DASH_PX
+
+
+func _make_grid_line_config(p_x_major: bool, p_x_minor: bool, p_y_major: bool, p_y_minor: bool) -> TauGridLineConfig:
+	var grid_line_config := TauGridLineConfig.new()
+	grid_line_config.x_major_enabled = p_x_major
+	grid_line_config.x_minor_enabled = p_x_minor
+	grid_line_config.y_major_enabled = p_y_major
+	grid_line_config.y_minor_enabled = p_y_minor
+	return grid_line_config
+
+
+func _make_plot(p_plot: TauPlot, p_title: String, p_grid_line_config: TauGridLineConfig) -> void:
 	var series_names := PackedStringArray(["A", "B"])
-
 	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
-
-	p_plot.title = p_title
 
 	var x_axis := TauAxisConfig.new()
 	x_axis.type = TauAxisConfig.Type.CONTINUOUS
@@ -65,12 +87,11 @@ func _make_plot_linear(p_plot: TauPlot, p_grid_line_config: TauGridLineConfig, p
 	y_axis_left.scale = TauAxisConfig.Scale.LINEAR
 	y_axis_left.tick_count_preferred = 20
 
-	var scatter_config := TauScatterConfig.new()
-
 	var pane_config := TauPaneConfig.new()
 	pane_config.y_left_axis = y_axis_left
-	pane_config.overlays = [scatter_config]
+	pane_config.overlays = [TauScatterConfig.new()]
 	pane_config.grid_line = p_grid_line_config
+	_apply_rank_style(pane_config)
 
 	var xy_config := TauXYConfig.new()
 	xy_config.x_axis = x_axis
@@ -88,6 +109,7 @@ func _make_plot_linear(p_plot: TauPlot, p_grid_line_config: TauGridLineConfig, p
 
 	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
 
+	p_plot.title = p_title
 	p_plot.plot_xy(dataset, xy_config, bindings)
 
 ####################################################################################################
@@ -95,231 +117,39 @@ func _make_plot_linear(p_plot: TauPlot, p_grid_line_config: TauGridLineConfig, p
 ####################################################################################################
 
 func _setup_test_1() -> void:
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.x_major_enabled = true
-	_make_plot_linear(%TestPlot1, grid_line_config, "X major only")
+	_make_plot(%TestPlot1, "No grid line => empty pane background", null)
 
 ####################################################################################################
 # Test 2
 ####################################################################################################
 
 func _setup_test_2() -> void:
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.y_major_enabled = true
-	_make_plot_linear(%TestPlot2, grid_line_config, "Y major only")
+	_make_plot(%TestPlot2, "X major only => vertical solid white lines on the X ticks", _make_grid_line_config(true, false, false, false))
 
 ####################################################################################################
 # Test 3
 ####################################################################################################
-func _setup_test_3() -> void:
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.x_major_enabled = true
-	grid_line_config.y_major_enabled = true
-	_make_plot_linear(%TestPlot3, grid_line_config, "X major and Y major")
 
-#####################################################################################################
-## Test 4
-#####################################################################################################
+func _setup_test_3() -> void:
+	_make_plot(%TestPlot3, "Y major only => horizontal solid white lines on the Y ticks", _make_grid_line_config(false, false, true, false))
+
+####################################################################################################
+# Test 4
+####################################################################################################
 
 func _setup_test_4() -> void:
-	var series_names := PackedStringArray(["Series A", "Series B", "Series C"])
-	var x_a := PackedFloat64Array([0.1, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0])
-	var x_b := PackedFloat64Array([0.1, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0].map(func (x) -> float: return 1.1*x))
-	var x_c := PackedFloat64Array([0.1, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0].map(func (x) -> float: return 1.2*x))
+	_make_plot(%TestPlot4, "X major and Y major => full solid white grid", _make_grid_line_config(true, false, true, false))
 
-	var y_a := PackedFloat64Array()
-	var y_b := PackedFloat64Array()
-	var y_c := PackedFloat64Array()
-	y_a.resize(x_a.size())
-	y_b.resize(x_b.size())
-	y_c.resize(x_c.size())
-
-	for i in range(x_a.size()):
-		y_a[i] = 5.0 +  2.5 * sin(float(i) * 0.3)
-	for i in range(x_b.size()):
-		y_b[i] = 4.0 +  2.0 * cos(float(i) * 0.5)
-	for i in range(x_c.size()):
-		y_c[i] = 3.0 +  2.5 * sin(float(i) * 0.7)
-
-	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b, x_c], [y_a, y_b, y_c])
-
-	%TestPlot4.title = "X major and minor"
-
-	var x_axis := TauAxisConfig.new()
-	x_axis.title = "X (log scale)"
-	x_axis.type = TauAxisConfig.Type.CONTINUOUS
-	x_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
-
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (linear)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LINEAR
-	left_axis.range_override_enabled = true
-	left_axis.min_override = 0.01
-	left_axis.max_override = 8.00
-
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.x_major_enabled = true
-	grid_line_config.x_minor_enabled = true
-
-	var scatter_config := TauScatterConfig.new()
-
-	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
-	pane.overlays = [scatter_config]
-	pane.grid_line = grid_line_config
-
-	var config := TauXYConfig.new()
-	config.x_axis = x_axis
-	config.panes = [pane]
-
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_a.y_axis_id = TauPlot.AxisId.LEFT
-
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_b.y_axis_id = TauPlot.AxisId.LEFT
-
-	var sb_c := TauXYSeriesBinding.new()
-	sb_c.series_id = dataset.get_series_id_by_index(2)
-	sb_c.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_c.y_axis_id = TauPlot.AxisId.LEFT
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b, sb_c]
-
-	%TestPlot4.plot_xy(dataset, config, bindings)
-
-
-#####################################################################################################
-## Test 5
-#####################################################################################################
+####################################################################################################
+# Test 5
+####################################################################################################
 
 func _setup_test_5() -> void:
-	var series_names := PackedStringArray(["Series A", "Series B"])
-	var x_a := PackedFloat64Array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
-	var x_b := PackedFloat64Array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0].map(func (x) -> float: return 1.1*x))
+	_make_plot(%TestPlot5, "X minor only => nothing drawn, a linear axis has no minor tick", _make_grid_line_config(false, true, false, false))
 
-	var y_a := PackedFloat64Array()
-	var y_b := PackedFloat64Array()
-	y_a.resize(x_a.size())
-	y_b.resize(x_b.size())
-
-	for i in range(x_a.size()):
-		y_a[i] = 0.5 * pow(10.0, float(i) * 0.1)
-	for i in range(x_b.size()):
-		y_b[i] = 0.25 * pow(10.0, float(i) * 0.1)
-
-	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
-
-	%TestPlot5.title = "Y major and minor"
-	%TestPlot5.legend_enabled = false
-
-	var x_axis := TauAxisConfig.new()
-	x_axis.title = "X (linear)"
-	x_axis.type = TauAxisConfig.Type.CONTINUOUS
-	x_axis.scale = TauAxisConfig.Scale.LINEAR
-
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (log scale)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
-	left_axis.include_zero_in_domain = false
-
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.y_major_enabled = true
-	grid_line_config.y_minor_enabled = true
-
-	var scatter_config := TauScatterConfig.new()
-
-	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
-	pane.overlays = [scatter_config]
-	pane.grid_line = grid_line_config
-
-	var config := TauXYConfig.new()
-	config.x_axis = x_axis
-	config.panes = [pane]
-
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_a.y_axis_id = TauPlot.AxisId.LEFT
-
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_b.y_axis_id = TauPlot.AxisId.LEFT
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
-
-	%TestPlot5.plot_xy(dataset, config, bindings)
-
-
-#####################################################################################################
-## Test 6
-#####################################################################################################
+####################################################################################################
+# Test 6
+####################################################################################################
 
 func _setup_test_6() -> void:
-	var series_names := PackedStringArray(["Series A", "Series B"])
-	var x_a := PackedFloat64Array([0.05, 0.1, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0])
-	var x_b := PackedFloat64Array([0.05, 0.1, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0].map(func (x) -> float: return 1.1*x))
-
-	var y_a := PackedFloat64Array()
-	var y_b := PackedFloat64Array()
-	y_a.resize(x_a.size())
-	y_b.resize(x_b.size())
-
-	for i in range(x_a.size()):
-		y_a[i] = pow(x_a[i], 0.1)
-	for i in range(x_b.size()):
-		y_b[i] = pow(x_b[i], 0.05)
-
-	var dataset := TauPlot.Dataset.make_per_series_x_continuous(series_names, [x_a, x_b], [y_a, y_b])
-
-	%TestPlot6.title = "X and Y major and minor"
-	%TestPlot6.legend_enabled = false
-
-	var x_axis := TauAxisConfig.new()
-	x_axis.title = "X (log scale)"
-	x_axis.type = TauAxisConfig.Type.CONTINUOUS
-	x_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
-
-	var left_axis := TauAxisConfig.new()
-	left_axis.title = "Y (log scale)"
-	left_axis.type = TauAxisConfig.Type.CONTINUOUS
-	left_axis.scale = TauAxisConfig.Scale.LOGARITHMIC
-	left_axis.include_zero_in_domain = false
-
-	var grid_line_config: TauGridLineConfig = TauGridLineConfig.new()
-	grid_line_config.x_major_enabled = true
-	grid_line_config.x_minor_enabled = true
-	grid_line_config.y_major_enabled = true
-	grid_line_config.y_minor_enabled = true
-
-	var scatter_config := TauScatterConfig.new()
-
-	var pane := TauPaneConfig.new()
-	pane.y_left_axis = left_axis
-	pane.overlays = [scatter_config]
-	pane.grid_line = grid_line_config
-
-	var config := TauXYConfig.new()
-	config.x_axis = x_axis
-	config.panes = [pane]
-
-	var sb_a := TauXYSeriesBinding.new()
-	sb_a.series_id = dataset.get_series_id_by_index(0)
-	sb_a.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_a.y_axis_id = TauPlot.AxisId.LEFT
-
-	var sb_b := TauXYSeriesBinding.new()
-	sb_b.series_id = dataset.get_series_id_by_index(1)
-	sb_b.overlay_type = TauXYSeriesBinding.PaneOverlayType.SCATTER
-	sb_b.y_axis_id = TauPlot.AxisId.LEFT
-
-	var bindings: Array[TauXYSeriesBinding] = [sb_a, sb_b]
-
-	%TestPlot6.plot_xy(dataset, config, bindings)
+	_make_plot(%TestPlot6, "X and Y, major and minor => full solid white grid, no dashed blue line", _make_grid_line_config(true, true, true, true))

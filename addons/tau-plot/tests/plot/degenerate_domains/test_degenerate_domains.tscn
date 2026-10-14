@@ -1,0 +1,33 @@
+[gd_scene load_steps=2 format=3 uid="uid://cv8lqhvuk5g60"]
+
+[ext_resource type="Script" uid="uid://dx5qfga4rdtvp" path="res://addons/tau-plot/tests/plot/degenerate_domains/test_degenerate_domains.gd" id="1_test"]
+
+[node name="DegenerateDomains" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 24
+script = ExtResource("1_test")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Test degenerate domain mappings"
+horizontal_alignment = 1
+
+[node name="Description" type="Label" parent="."]
+layout_mode = 2
+text = "A collapsed domain has no direction. Every mapping must therefore use the pane origin, regardless of orientation or inversion."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Results" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 24
+text = "Results are computed when the scene loads."
+horizontal_alignment = 1
+vertical_alignment = 1
