@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://b7t1drh1eyhrr" path="res://addons/tau-plot/tests/plot/grid_lines/test_grid_lines_2_x_axes.gd" id="1_m0a12"]
 [ext_resource type="Script" uid="uid://dnhvsf2wip771" path="res://addons/tau-plot/plot/plot.gd" id="2_m0a12"]
 
-[node name="Bars" type="VBoxContainer"]
+[node name="GridLines" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -26,40 +26,44 @@ columns = 2
 
 [node name="TestPlot1" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_m0a12")
-title = "Use BOTTOM x-axis"
+title = "Grid from the BOTTOM x-axis => lines on the Celsius ticks, solid white on major"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot2" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_m0a12")
-title = "Use TOP x-axis"
+title = "Grid from the TOP x-axis => lines on the Fahrenheit ticks"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot3" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_m0a12")
-title = "Use LEFT x-axis"
+title = "Grid from the LEFT x-axis => horizontal lines on the Celsius ticks"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
 
 [node name="TestPlot4" type="PanelContainer" parent="GridContainer"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"TauPlot"
 script = ExtResource("2_m0a12")
-title = "Use RIGHT x-axis"
+title = "Grid from the RIGHT x-axis => horizontal lines on the Fahrenheit ticks"
 metadata/_custom_type_script = "uid://dnhvsf2wip771"
