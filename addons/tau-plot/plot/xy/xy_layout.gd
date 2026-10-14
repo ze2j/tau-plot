@@ -3,6 +3,7 @@ const AxisDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").AxisDo
 const XYDomain := preload("res://addons/tau-plot/plot/xy/xy_domain.gd").XYDomain
 const TickSequence := preload("res://addons/tau-plot/plot/xy/tick_sequence.gd").TickSequence
 const TickResolver := preload("res://addons/tau-plot/plot/xy/tick_resolver.gd").TickResolver
+const SecondaryXTransform := preload("res://addons/tau-plot/plot/xy/secondary_x_transform.gd").SecondaryXTransform
 const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 const Axis := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").Axis
 
@@ -89,10 +90,6 @@ class XYLayout extends RefCounted:
 		## Transform for the primary x axis on this pane.
 		var x_mapping: AxisMapping = null
 
-		## Transform for the secondary x axis on this pane, or null when the
-		## plot has no secondary x axis.
-		var secondary_x_mapping: AxisMapping = null
-
 		## Transforms for the y axes on this pane, keyed by [enum AxisId].
 		## Only populated for y axes that have a domain.
 		var y_mappings: Dictionary[AxisId, AxisMapping] = {}
@@ -120,7 +117,8 @@ class XYLayout extends RefCounted:
 	## Rebuilt by [method update].
 	var x_ticks: TickSequence = null
 
-	## Tick sequence for the secondary x axis, or null.
+	## Tick sequence for the secondary x axis, or null when the plot has no
+	## secondary x axis or when its range is invalid.
 	## Rebuilt by [method update].
 	var secondary_x_ticks: TickSequence = null
 
@@ -128,13 +126,20 @@ class XYLayout extends RefCounted:
 	## Empty means all are visible. Rebuilt by [method update].
 	var x_categorical_visible: PackedInt32Array = PackedInt32Array()
 
-	## Resolved domain bounds for the secondary x axis, derived from the
-	## primary x domain via [member TauXYConfig.secondary_x_axis_transform].
-	## When [member TauAxisConfig.range_override_enabled] is set on the secondary
-	## config, these hold the overridden range instead.
-	## Only meaningful when [member TauXYConfig.secondary_x_axis] is not null.
-	var _secondary_x_domain_min: float = 0.0
-	var _secondary_x_domain_max: float = 1.0
+	## The secondary x axis transform over the current primary x range.
+	## Null when the plot has no secondary x axis. Rebuilt by [method update].
+	var _secondary_x_transform: SecondaryXTransform = null
+
+	## The secondary x range and ticks of the last valid range. While the range
+	## is invalid, they keep the space the secondary x axis takes, so the plot
+	## does not jump. The ticks are null before the first valid range.
+	var _secondary_x_range_min: float = 0.0
+	var _secondary_x_range_max: float = 1.0
+	var _last_valid_secondary_x_ticks: TickSequence = null
+
+	## True once an invalid secondary x range has been reported. A new layout
+	## comes with each plot_xy() call, which arms the warning again.
+	var _has_warned_invalid_secondary_x_range: bool = false
 
 	## Per-pane view rectangles (the full pane area before insets).
 	## Set via [method set_pane_view_rects] before calling [method update].
@@ -187,8 +192,7 @@ class XYLayout extends RefCounted:
 		x_ticks = null
 		secondary_x_ticks = null
 		x_categorical_visible = PackedInt32Array()
-		_secondary_x_domain_min = 0.0
-		_secondary_x_domain_max = 1.0
+		_secondary_x_transform = null
 
 		_x_is_horizontal = Axis.is_horizontal(domain.config.x_axis_id)
 
@@ -257,12 +261,6 @@ class XYLayout extends RefCounted:
 			pl.draws_x = pane_draws_x
 			pl.draws_secondary_x = pane_draws_secondary_x
 
-		# ---- Secondary x domain ----
-		# Derive the secondary x axis domain from the primary via the transform,
-		# or from the secondary config range override if enabled.
-		if has_secondary_x:
-			_compute_secondary_x_domain()
-
 		# ---- Tick computation ----
 
 		_compute_x_ticks(has_x, has_secondary_x)
@@ -275,7 +273,7 @@ class XYLayout extends RefCounted:
 
 		_compute_all_pane_rects(draws_bottom, draws_top, draws_left, draws_right, y_axes)
 
-		_compute_axis_mappings(y_axes, has_secondary_x)
+		_compute_axis_mappings(y_axes)
 
 
 	## Returns true if [param p_pane_index] is the pane closest to [param p_edge].
@@ -346,14 +344,14 @@ class XYLayout extends RefCounted:
 		return pane_layouts[p_pane_index].x_mapping.to_px(p_x)
 
 
-	## Maps a secondary x-axis data value to a pixel coordinate along the x
-	## axis direction. The secondary axis shares the same pane rectangle and
-	## screen orientation as the primary but uses its own domain bounds and
-	## scale (from [member TauXYConfig.secondary_x_axis]).
+	## Maps a secondary x-axis value to a pixel coordinate along the x axis
+	## direction. The pixel is the one of the primary x value whose transform
+	## gives [param p_x], so both axes agree on every position.
+	## Requires a valid secondary x range, see [member secondary_x_ticks].
 	## [param p_pane_index] Zero-based pane index.
-	## [param p_x] Data value in the secondary x axis domain.
+	## [param p_x] Value on the secondary x axis.
 	func map_secondary_x_to_px(p_pane_index: int, p_x: float) -> float:
-		return pane_layouts[p_pane_index].secondary_x_mapping.to_px(p_x)
+		return pane_layouts[p_pane_index].x_mapping.to_px(_secondary_x_transform.find_primary_value(p_x))
 
 
 	## Maps a categorical x-axis index to the pixel coordinate at the center of
@@ -483,7 +481,7 @@ class XYLayout extends RefCounted:
 
 
 	## Resolves one [AxisMapping] per axis and per pane from the pane rectangles and the domain bounds.
-	func _compute_axis_mappings(p_y_axes: Array[AxisId], p_has_secondary_x: bool) -> void:
+	func _compute_axis_mappings(p_y_axes: Array[AxisId]) -> void:
 		var x_axis_cfg := domain.config.x_axis
 		var x_is_log := x_axis_cfg.scale == TauAxisConfig.Scale.LOGARITHMIC
 		# Notes:
@@ -509,12 +507,6 @@ class XYLayout extends RefCounted:
 			pane_layout.x_mapping = AxisMapping.new(
 				domain.x_axis_domain.min_val, domain.x_axis_domain.max_val, x_is_log,
 				x_origin, x_extent, x_flip)
-
-			if p_has_secondary_x:
-				pane_layout.secondary_x_mapping = AxisMapping.new(
-					_secondary_x_domain_min, _secondary_x_domain_max,
-					domain.config.secondary_x_axis.scale == TauAxisConfig.Scale.LOGARITHMIC,
-					x_origin, x_extent, not _x_is_horizontal)
 
 			for y_axis_id in p_y_axes:
 				var y_axis_domain := _get_y_axis_domain(i, y_axis_id)
@@ -559,36 +551,6 @@ class XYLayout extends RefCounted:
 		return y_axis_config.format_tick_label.call(p_text)
 
 
-	## Derives the secondary x domain from the primary domain.
-	## If the secondary config has [member TauAxisConfig.range_override_enabled],
-	## those bounds are used directly. Otherwise the primary domain endpoints
-	## are transformed via [member TauXYConfig.secondary_x_axis_transform].
-	func _compute_secondary_x_domain() -> void:
-		var secondary_cfg := domain.config.secondary_x_axis
-		if secondary_cfg == null:
-			return
-
-		if secondary_cfg.range_override_enabled:
-			_secondary_x_domain_min = secondary_cfg.min_override
-			_secondary_x_domain_max = secondary_cfg.max_override
-			return
-
-		var transform_fn := domain.config.secondary_x_axis_transform
-		if transform_fn.is_null():
-			# Validator should have caught this. Fall back to primary domain.
-			_secondary_x_domain_min = domain.x_axis_domain.min_val
-			_secondary_x_domain_max = domain.x_axis_domain.max_val
-			return
-
-		var primary_min := domain.x_axis_domain.min_val
-		var primary_max := domain.x_axis_domain.max_val
-		var sec_a: float = transform_fn.call(primary_min)
-		var sec_b: float = transform_fn.call(primary_max)
-		# The transform may flip the direction (e.g. 1/x), so use min/max.
-		_secondary_x_domain_min = minf(sec_a, sec_b)
-		_secondary_x_domain_max = maxf(sec_a, sec_b)
-
-
 	## Computes x axis tick sequences once.
 	## The x domain is shared across all panes and the x axis length in pixels
 	## is identical for every pane, so one computation is sufficient.
@@ -598,11 +560,13 @@ class XYLayout extends RefCounted:
 		if _pane_view_rects.is_empty():
 			return
 		# All panes share the same extent along x, so any view rect works.
+		# x horizontal: available extent is view rect width. x vertical: height.
 		var view_rect := _pane_view_rects[0]
+		var x_axis_extent_px := view_rect.size.x if _x_is_horizontal else view_rect.size.y
 		if p_has_x:
-			_compute_x_ticks_once(true, view_rect)
+			_compute_primary_x_ticks(x_axis_extent_px)
 		if p_has_secondary_x:
-			_compute_x_ticks_once(false, view_rect)
+			_compute_secondary_x_ticks(x_axis_extent_px)
 
 
 	## Computes y axis tick sequences for all panes and y axis positions.
@@ -728,49 +692,62 @@ class XYLayout extends RefCounted:
 		return maxf(extent, 0.0)
 
 
-	## Computes the tick sequence or categorical visibility for a primary or
-	## secondary x axis. Results are stored on this XYLayout instance.
-	## [param p_is_primary_x] True for the primary x axis, false for secondary.
-	## [param p_view_rect] A pane view rect (used to determine the available axis length in pixels).
-	func _compute_x_ticks_once(p_is_primary_x: bool, p_view_rect: Rect2) -> void:
-		var x_axis_cfg: TauAxisConfig
-		var x_min: float
-		var x_max: float
-		if p_is_primary_x:
-			x_axis_cfg = domain.config.x_axis
-			x_min = domain.x_axis_domain.min_val
-			x_max = domain.x_axis_domain.max_val
-		else:
-			x_axis_cfg = domain.config.secondary_x_axis
-			x_min = _secondary_x_domain_min
-			x_max = _secondary_x_domain_max
-		var decorate_fn: Callable
-		if p_is_primary_x:
-			decorate_fn = func(text: String) -> String: return _decorate_x_label(text)
-		else:
-			decorate_fn = func(text: String) -> String: return _decorate_secondary_x_label(text)
-		# x horizontal: available extent is view rect width. x vertical: height.
-		var x_axis_extent_px := p_view_rect.size.x if _x_is_horizontal else p_view_rect.size.y
-
+	## Computes the tick sequence or the categorical label visibility of the
+	## primary x axis.
+	## [param p_x_axis_extent_px] Available axis length in pixels.
+	func _compute_primary_x_ticks(p_x_axis_extent_px: float) -> void:
+		var x_axis_cfg := domain.config.x_axis
+		var measure_label_func := func(label: String) -> Vector2: return _measure_label(_decorate_x_label(label))
 		match x_axis_cfg.type:
 			TauAxisConfig.Type.CATEGORICAL:
-				# Only the primary x axis can be categorical.
 				x_categorical_visible = TickResolver.compute_categorical_label_visibility(
-					domain.x_categories, x_axis_cfg.overlap_strategy, x_axis_extent_px,
-					float(x_axis_cfg.min_label_spacing_px),
-					func(label: String) -> Vector2: return _measure_label(decorate_fn.call(label))
-				)
+					domain.x_categories, x_axis_cfg.overlap_strategy, p_x_axis_extent_px,
+					float(x_axis_cfg.min_label_spacing_px), measure_label_func)
 			TauAxisConfig.Type.CONTINUOUS:
-				var ticks := TickResolver.compute_ticks_for_continuous_axis(
-					x_min, x_max, x_axis_cfg.scale, x_axis_cfg.tick_count_preferred,
-					x_axis_cfg.overlap_strategy, x_axis_extent_px,
-					float(x_axis_cfg.min_label_spacing_px),
-					func(label: String) -> Vector2: return _measure_label(decorate_fn.call(label))
-				)
-				if p_is_primary_x:
-					x_ticks = ticks
-				else:
-					secondary_x_ticks = ticks
+				x_ticks = TickResolver.compute_ticks_for_continuous_axis(
+					domain.x_axis_domain.min_val, domain.x_axis_domain.max_val,
+					x_axis_cfg.scale, x_axis_cfg.tick_count_preferred,
+					x_axis_cfg.overlap_strategy, p_x_axis_extent_px,
+					float(x_axis_cfg.min_label_spacing_px), measure_label_func)
+
+
+	## Computes the tick sequence of the secondary x axis, or leaves it null
+	## when the secondary x range is invalid.
+	##
+	## The tick values are picked over the secondary x range, in the secondary
+	## scale. Each tick sits at the primary x position whose transform gives its
+	## value, and the overlap checks read the labels at those positions.
+	## [param p_x_axis_extent_px] Available axis length in pixels.
+	func _compute_secondary_x_ticks(p_x_axis_extent_px: float) -> void:
+		var secondary_cfg := domain.config.secondary_x_axis
+		_secondary_x_transform = SecondaryXTransform.new(domain.config.secondary_x_axis_transform,
+			domain.x_axis_domain.min_val, domain.x_axis_domain.max_val,
+			domain.config.x_axis.scale == TauAxisConfig.Scale.LOGARITHMIC)
+
+		var invalid_reason := _secondary_x_transform.find_invalid_reason(
+			secondary_cfg.scale == TauAxisConfig.Scale.LOGARITHMIC)
+		if not invalid_reason.is_empty():
+			_warn_invalid_secondary_x_range(invalid_reason)
+			return
+
+		_secondary_x_range_min = _secondary_x_transform.get_secondary_min()
+		_secondary_x_range_max = _secondary_x_transform.get_secondary_max()
+		secondary_x_ticks = TickResolver.compute_ticks_for_continuous_axis(
+			_secondary_x_range_min, _secondary_x_range_max,
+			secondary_cfg.scale, secondary_cfg.tick_count_preferred,
+			secondary_cfg.overlap_strategy, p_x_axis_extent_px,
+			float(secondary_cfg.min_label_spacing_px),
+			func(label: String) -> Vector2: return _measure_label(_decorate_secondary_x_label(label)),
+			func(value: float) -> float: return _secondary_x_transform.find_primary_fraction(value) * p_x_axis_extent_px)
+		_last_valid_secondary_x_ticks = secondary_x_ticks
+
+
+	func _warn_invalid_secondary_x_range(p_reason: String) -> void:
+		if _has_warned_invalid_secondary_x_range:
+			return
+		_has_warned_invalid_secondary_x_range = true
+		push_warning("TauPlot: the secondary x axis hides its labels over the primary x range [%f, %f]: %s. They come back once the range is valid again." % [
+			domain.x_axis_domain.min_val, domain.x_axis_domain.max_val, p_reason])
 
 
 	## Computes the pane_rect for every pane by measuring label/tick space on
@@ -1009,17 +986,20 @@ class XYLayout extends RefCounted:
 		var x_axis_cfg: TauAxisConfig
 		var x_min: float
 		var x_max: float
+		var ticks: TickSequence
 		if p_is_primary_x:
 			x_axis_cfg = domain.config.x_axis
 			x_min = domain.x_axis_domain.min_val
 			x_max = domain.x_axis_domain.max_val
+			ticks = x_ticks
 		else:
+			# The last valid range keeps its space while the range is invalid.
 			x_axis_cfg = domain.config.secondary_x_axis
-			x_min = _secondary_x_domain_min
-			x_max = _secondary_x_domain_max
+			x_min = _secondary_x_range_min
+			x_max = _secondary_x_range_max
+			ticks = _last_valid_secondary_x_ticks
 		if x_axis_cfg == null:
 			return Vector2.ZERO
-		var ticks: TickSequence = x_ticks if p_is_primary_x else secondary_x_ticks
 		var decorate_fn := _decorate_x_label if p_is_primary_x else _decorate_secondary_x_label
 
 		# Collect the maximum label size across both dimensions.
@@ -1037,9 +1017,15 @@ class XYLayout extends RefCounted:
 					max_label_w = max(max_label_w, sz.x)
 					max_label_h = max(max_label_h, sz.y)
 			TauAxisConfig.Type.CONTINUOUS:
-				if x_min >= x_max:
+				if not p_is_primary_x and ticks == null:
+					# No valid secondary x range since plot_xy(). One label
+					# keeps the space.
+					var size_zero := _measure_label(decorate_fn.call("0"))
+					max_label_w = size_zero.x
+					max_label_h = size_zero.y
+				elif x_min >= x_max:
 					return Vector2.ZERO
-				if ticks == null or ticks.major_ticks.is_empty():
+				elif ticks == null or ticks.major_ticks.is_empty():
 					var label_min: String = decorate_fn.call(String.num(x_min))
 					var label_max: String = decorate_fn.call(String.num(x_max))
 					var size_min := _measure_label(label_min)

@@ -23,6 +23,8 @@ enum Scale
 
 ## The scale used to map data values to screen space. Only used when [member type]
 ## is [code]CONTINUOUS[/code].
+## On [member TauXYConfig.secondary_x_axis], the scale only picks the label
+## values. Where a label sits comes from the primary x axis.
 @export var scale: Scale = Scale.LINEAR
 
 ## If [code]true[/code], the visual direction of the axis is reversed.
@@ -31,12 +33,14 @@ enum Scale
 ## For a horizontal axis the minimum value is drawn on the right and the
 ## maximum on the left (the opposite of the default left-to-right direction).
 ## Works with both continuous and categorical axes.
+## Has no effect on [member TauXYConfig.secondary_x_axis].
 @export var inverted: bool = false
 
 ## If [code]true[/code], the axis domain is expanded so that zero is always visible.
 ## Useful for bar charts where bars should start from zero. Disable this when the data
 ## range does not include zero and showing it would waste space (e.g. temperature readings).
 ## Only used when [member type] is [code]CONTINUOUS[/code].
+## Has no effect on [member TauXYConfig.secondary_x_axis].
 @export var include_zero_in_domain: bool = true
 
 ################################################################################################
@@ -146,12 +150,15 @@ enum OverlapStrategy
 ## If [code]true[/code], the axis uses [member min_override] and [member max_override]
 ## instead of computing the range from data. Only used when [member type]
 ## is [code]CONTINUOUS[/code].
+## Has no effect on [member TauXYConfig.secondary_x_axis].
 @export var range_override_enabled: bool = false
 
 ## Minimum value of the axis when [member range_override_enabled] is [code]true[/code].
+## Has no effect on [member TauXYConfig.secondary_x_axis].
 @export var min_override: float = 0.0
 
 ## Maximum value of the axis when [member range_override_enabled] is [code]true[/code].
+## Has no effect on [member TauXYConfig.secondary_x_axis].
 @export var max_override: float = 1.0
 
 ################################################################################################
@@ -178,6 +185,7 @@ enum DomainPaddingMode
 ## How the domain is padded beyond the data min/max.
 ## Only used when [member type] is [code]CONTINUOUS[/code] and
 ## [member range_override_enabled] is [code]false[/code].
+## Has no effect on [member TauXYConfig.secondary_x_axis].
 @export var domain_padding_mode: DomainPaddingMode = DomainPaddingMode.AUTO
 
 ## Padding applied to the min side of the domain.
@@ -185,6 +193,7 @@ enum DomainPaddingMode
 ## For FRACTION mode: fraction of the data span (0.05 = 5%).
 ## For DATA_UNITS mode: fixed value in data units.
 ## For LOGARITHMIC scales with FRACTION mode: fraction of the log-span.
+## Has no effect on [member TauXYConfig.secondary_x_axis].
 @export var domain_padding_min: float = 0.05
 
 ## Padding applied to the max side of the domain.
@@ -192,4 +201,5 @@ enum DomainPaddingMode
 ## For FRACTION mode: fraction of the data span (0.05 = 5%).
 ## For DATA_UNITS mode: fixed value in data units.
 ## For LOGARITHMIC scales with FRACTION mode: fraction of the log-span.
+## Has no effect on [member TauXYConfig.secondary_x_axis].
 @export var domain_padding_max: float = 0.05
