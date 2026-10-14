@@ -136,9 +136,8 @@ class XYPlotValidator extends RefCounted:
 
 	## Validates the secondary x axis configuration when present.
 	## The secondary x axis is display-only and requires a transform callable
-	## to derive its domain from the primary x axis. It must be CONTINUOUS
-	## because a transform from primary values to categorical labels is not
-	## supported.
+	## to derive its values from the primary x axis. Both axes must be
+	## CONTINUOUS because the transform maps a number to a number.
 	static func _validate_secondary_x_axis(p_xy_config: TauXYConfig, p_result: ValidationResult) -> void:
 		var secondary := p_xy_config.secondary_x_axis
 		if secondary == null:
@@ -149,6 +148,9 @@ class XYPlotValidator extends RefCounted:
 
 		if secondary.type != TauAxisConfig.Type.CONTINUOUS:
 			p_result.add_error("XYPlotValidator: secondary_x_axis.type must be CONTINUOUS (CATEGORICAL secondary x axes are not supported)")
+
+		if p_xy_config.x_axis.type != TauAxisConfig.Type.CONTINUOUS:
+			p_result.add_error("XYPlotValidator: secondary_x_axis requires x_axis.type to be CONTINUOUS (a secondary x axis on a CATEGORICAL x axis is not supported)")
 
 
 	####################################################################################################
@@ -221,8 +223,6 @@ class XYPlotValidator extends RefCounted:
 	static func _validate_axis_range_overrides(p_xy_config: TauXYConfig, p_result: ValidationResult) -> void:
 		if p_xy_config.x_axis != null:
 			_validate_axis_range_override(p_xy_config.x_axis, "x_axis", p_result)
-		if p_xy_config.secondary_x_axis != null:
-			_validate_axis_range_override(p_xy_config.secondary_x_axis, "secondary_x_axis", p_result)
 
 		for pane_index in range(p_xy_config.panes.size()):
 			var pane: TauPaneConfig = p_xy_config.panes[pane_index]
