@@ -232,6 +232,19 @@ class PaneRenderer extends Control:
 		var x_is_horizontal := _layout._x_is_horizontal
 
 		# X grid lines: resolve which X axis supplies the tick positions.
+		if (_layout.domain.config.x_axis.type == TauAxisConfig.Type.CATEGORICAL
+				and _grid_line_config.x_major_enabled):
+			var boundaries := PackedFloat64Array()
+			for boundary_index in range(_layout.domain.x_categories.size() + 1):
+				boundaries.append(float(boundary_index))
+			_draw_grid_lines_for_ticks(
+				boundaries, p_pane_rect, true, x_is_horizontal,
+				_resolved_pane_style.x_major_grid_line_color,
+				_resolved_pane_style.x_major_grid_line_thickness_px,
+				_resolved_pane_style.x_major_grid_line_dash_px,
+				func(value: float) -> float:
+					return _layout.map_x_category_boundary_to_px(_pane_index, int(value)))
+
 		var x_ticks: TickSequence = _resolve_grid_line_x_ticks()
 		if x_ticks != null:
 			var x_map_callable: Callable
