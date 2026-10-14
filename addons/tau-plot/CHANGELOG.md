@@ -5,7 +5,9 @@
 ### Breaking changes
 
 - `TauLegendStyle.max_size_px` left at `0` now caps the legend at two thirds of the plot area on the side it takes. Technically a breaking change, but it only affects the plots where the legend takes more than two thirds of the space the plot occupies. Set `max_size_px` to a value large enough for the legend to get the old room back. Before: no cap outside the data area, the data area minus `margin_px` inside it. (#53)
-- `plot_xy()` rejects a `secondary_x_axis` when `x_axis.type` is `CATEGORICAL`. Before: the plot drew the secondary edge with a line, a title and no labels, with no error. After: a validation error. (#TBD)
+- `plot_xy()` rejects a `secondary_x_axis` when `x_axis.type` is `CATEGORICAL`. Before: the plot drew the secondary edge with a line, a title and no labels, with no error. After: a validation error. (#62)
+- On `TauXYConfig.secondary_x_axis`, `TauAxisConfig.scale` now only picks the label values. Where a label sits comes from the primary x axis. Before: the scale also placed the labels, so a `LOGARITHMIC` secondary over a `LINEAR` primary showed labels that did not match the data. After: a `LOGARITHMIC` secondary over a `LINEAR` primary with `10^x` as transform puts `100` where the primary shows `2`. (#62)
+- `TauAxisConfig.range_override_enabled`, `min_override` and `max_override` are ignored on `TauXYConfig.secondary_x_axis`, and `plot_xy()` no longer validates them there. Before: they replaced the secondary range, so the labels no longer matched the data. After: the secondary range always comes from the primary x range through `secondary_x_axis_transform`. Drop these properties from the secondary axis config. (#62)
 
 ### Fixed
 
@@ -15,13 +17,11 @@
 - `TauLegendConfig.flow_direction` now decides the side `TauLegendStyle.max_size_px` caps at an inside position. Before: the position alone decided. (#53)
 - An axis title sets `custom_minimum_size` on one axis only, so a long title no longer grows the plot along its axis and is cut instead. (#53)
 - A long plot title wraps rather than raising the minimum width of the plot. (#53)
-- The secondary x axis follows `TauAxisConfig.inverted` on the primary x axis. Before: its labels ran the default way and no longer matched the data. (#TBD)
-- A decreasing `secondary_x_axis_transform` puts the secondary labels at the right end. Before: the smallest secondary value always sat at the start of the axis. (#TBD)
-- On `TauXYConfig.secondary_x_axis`, `TauAxisConfig.scale` now only picks the label values. Where a label sits comes from the primary x axis. Before: the scale also placed the labels, so a `LOGARITHMIC` secondary over a `LINEAR` primary showed labels that did not match the data. After: a `LOGARITHMIC` secondary over a `LINEAR` primary with `10^x` as transform puts `100` where the primary shows `2`. (#TBD)
-- `TauAxisConfig.range_override_enabled`, `min_override` and `max_override` are ignored on `TauXYConfig.secondary_x_axis`. Before: they replaced the secondary range, so the labels no longer matched the data. After: the secondary range always comes from the primary x range through `secondary_x_axis_transform`. Drop these properties from the secondary axis config. (#TBD)
-- A curved `secondary_x_axis_transform`, `1/x` for example, places every secondary label at the right position. Before: the labels were spread on a straight line between the two ends, so every label in between was wrong. (#TBD)
-- The overlap check of the secondary x axis labels runs on their real positions. Before: it assumed evenly spaced labels, which is wrong as soon as the transform is curved. (#TBD)
-- A secondary x range that turns invalid, because the transform is not monotonic, returns NaN or infinity, or is not strictly positive on a `LOGARITHMIC` secondary, now hides the secondary labels and grid lines and prints one warning per `plot_xy()` call. The space of the axis stays, so the plot does not jump, and the labels come back once the range is valid. (#TBD)
+- The secondary x axis follows `TauAxisConfig.inverted` on the primary x axis. Before: its labels ran the default way and no longer matched the data. (#62)
+- A decreasing `secondary_x_axis_transform` runs the secondary x axis opposite to the primary. Before: the smallest secondary value always sat at the start of the axis. After: each secondary value sits where the primary shows the value it comes from. (#62)
+- A curved `secondary_x_axis_transform`, `1/x` for example, places every secondary label at the right position. Before: the labels were spread on a straight line between the two ends, so every label in between was wrong. (#62)
+- The overlap check of the secondary x axis labels runs on their real positions. Before: it assumed evenly spaced labels, which is wrong as soon as the transform is curved. (#62)
+- A secondary x range that turns invalid, because the transform is not monotonic, returns NaN or infinity, or is not strictly positive on a `LOGARITHMIC` secondary, now hides the secondary labels and grid lines and prints one warning per `plot_xy()` call. The space of the axis stays, so the plot does not jump, and the labels come back once the range is valid. Before: a transform that was not monotonic still showed labels at the wrong positions, NaN or infinity hid the labels with no warning, and a range not strictly positive on a `LOGARITHMIC` secondary hid them and pushed an error each time the plot was laid out. (#62)
 
 
 ## v0.2.0 - 2026-08-25
