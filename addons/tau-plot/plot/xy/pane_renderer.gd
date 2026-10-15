@@ -361,7 +361,7 @@ class PaneRenderer extends Control:
 	## Draws grid lines for an array of tick values.
 	##
 	## [param p_tick_values] Array of domain values where lines are drawn.
-	##   Values that fall on or outside a pane edge are skipped.
+	##   A value on a domain bound draws its line on the pane edge.
 	## [param p_pane_rect] The pane data-area rectangle.
 	## [param p_is_x_grid_line] True for X grid lines (perpendicular to x axis),
 	##   false for Y grid lines (perpendicular to y axis).

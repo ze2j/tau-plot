@@ -22,7 +22,7 @@ The relative size of a pane within the plot area is controlled by [`stretch_rati
 
 Visual appearance is controlled by [`style`](#style). Grid lines are the horizontal and vertical lines drawn across the pane at each tick position, giving readers a reference to read data values against. They are configured through [`grid_line`](#grid_line), which is `null` by default, leaving all grid lines disabled.
 
-When a pane carries two Y axes, [`align_y_axes_at_zero`](#align_y_axes_at_zero) optionally adjusts one or both domains so that the value zero aligns at the same pixel position on both sides of the pane.
+When a pane carries two Y axes, [`align_y_axes_at_zero`](#align_y_axes_at_zero) optionally adjusts one domain so that the value zero aligns at the same pixel position on both sides of the pane.
 
 After [`TauPlot.plot_xy()`](tau_plot.md#plot_xy) succeeds, the plot holds a reference to every `TauPaneConfig` instance it received. Mutating a property at runtime is supported, but requires calling [`TauPlot.queue_refresh()`](tau_plot.md#queue_refresh) to apply the change. Runtime mutation is not yet supported by every property: see [Runtime Configuration Change Limitations](../runtime-configuration-change-limitations.md).
 
@@ -145,9 +145,9 @@ Works like `Control.size_flags_stretch_ratio`. Three panes with ratios `2.0`, `1
 
 When `true`, the plot adjusts Y axis domains so that zero appears at the same pixel position on both sides of the pane. Default is `false`.
 
-Alignment requires the pane to hold exactly two Y axes, both using [`TauAxisConfig.Scale.LINEAR`](axis_config.md#scale-enum), and both guaranteeing zero inside their domain. What counts as that guarantee differs per axis. An axis with [`TauAxisConfig.range_override_enabled`](axis_config.md#range_override_enabled) satisfies it when the overridden range contains zero. An axis without it satisfies it when [`TauAxisConfig.include_zero_in_domain`](axis_config.md#include_zero_in_domain) is `true`.
+Alignment requires the pane to hold exactly two Y axes, both using [`TauAxisConfig.Scale.LINEAR`](axis_config.md#scale-enum), at most one of them with [`TauAxisConfig.range_override_enabled`](axis_config.md#range_override_enabled), and both guaranteeing zero inside their domain. What counts as that guarantee differs per axis. An axis with [`TauAxisConfig.range_override_enabled`](axis_config.md#range_override_enabled) satisfies it when the overridden range contains zero. An axis without it satisfies it when [`TauAxisConfig.include_zero_in_domain`](axis_config.md#include_zero_in_domain) is `true`.
 
-An axis with [`TauAxisConfig.range_override_enabled`](axis_config.md#range_override_enabled) is never modified. If both axes have it enabled, alignment is skipped. If only one does, only the other axis is adjusted. If neither does, the axis requiring the least domain expansion is adjusted.
+An axis with [`TauAxisConfig.range_override_enabled`](axis_config.md#range_override_enabled) is never modified. If one axis has it enabled, only the other axis is adjusted. If neither does, the axis requiring the least domain expansion is adjusted.
 
 If any precondition above is unmet, it is a validation error, and the two domains are left as computed.
 

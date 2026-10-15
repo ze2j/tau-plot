@@ -46,7 +46,8 @@ const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 ## the value zero appears at the same pixel position on both sides.
 ##
 ## The pane must have exactly two y axes, both using
-## [constant TauAxisConfig.Scale.LINEAR] scale. Each axis must also
+## [constant TauAxisConfig.Scale.LINEAR] scale, and at most one of them
+## may have [member TauAxisConfig.range_override_enabled]. Each axis must also
 ## guarantee that zero is inside its range: axes with
 ## [member TauAxisConfig.range_override_enabled] satisfy this when
 ## the specified range contains zero, and axes without
@@ -54,10 +55,11 @@ const AxisId := preload("res://addons/tau-plot/plot/xy/xy_axes.gd").AxisId
 ## [member TauAxisConfig.include_zero_in_domain] is [code]true[/code].
 ##
 ## An axis with [member TauAxisConfig.range_override_enabled] is never
-## modified. If both axes have it enabled, alignment is skipped. If
-## only one axis has it enabled, only the other axis is adjusted.
+## modified. If one axis has it enabled, only the other axis is adjusted.
 ## If neither axis has it enabled, the axis whose domain needs the
 ## least expansion is adjusted.
+##
+## An unmet requirement is a validation error.
 @export var align_y_axes_at_zero: bool = false
 
 

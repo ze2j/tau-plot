@@ -4,19 +4,38 @@
 
 ### Breaking changes
 
-- `TauLegendStyle.max_size_px` left at `0` now caps the legend at two thirds of the plot area on the side it takes. Technically a breaking change, but it only affects the plots where the legend takes more than two thirds of the space the plot occupies. Set `max_size_px` to a value large enough for the legend to get the old room back. Before: no cap outside the data area, the data area minus `margin_px` inside it. (#53)
+- `TauLegendStyle.max_size_px` left at `0` now caps the legend at two thirds of the plot area on the side it takes. It only affects the plots where the legend takes more than two thirds of the space the plot occupies. Set `max_size_px` to a value large enough for the legend to get the old room back. Before: no cap outside the data area, the data area minus `margin_px` inside it. (#53)
+- `TauPaneConfig.align_y_axes_at_zero` with an unmet precondition is now a validation error that names the pane. The pane must hold exactly two `LINEAR` Y axes, each with `include_zero_in_domain` or with a range override that contains zero, and at most one of them with a range override. Before: the alignment was skipped with no error and no warning, so it looked applied while it did nothing. (#59)
 - `plot_xy()` rejects a `secondary_x_axis` when `x_axis.type` is `CATEGORICAL`. Before: the plot drew the secondary edge with a line, a title and no labels, with no error. After: a validation error. (#62)
 - On `TauXYConfig.secondary_x_axis`, `TauAxisConfig.scale` now only picks the label values. Where a label sits comes from the primary x axis. Before: the scale also placed the labels, so a `LOGARITHMIC` secondary over a `LINEAR` primary showed labels that did not match the data. After: a `LOGARITHMIC` secondary over a `LINEAR` primary with `10^x` as transform puts `100` where the primary shows `2`. (#62)
 - `TauAxisConfig.range_override_enabled`, `min_override` and `max_override` are ignored on `TauXYConfig.secondary_x_axis`, and `plot_xy()` no longer validates them there. Before: they replaced the secondary range, so the labels no longer matched the data. After: the secondary range always comes from the primary x range through `secondary_x_axis_transform`. Drop these properties from the secondary axis config. (#62)
 
+### Added
+
+- An example scene, `addons/tau-plot/examples/store_thumbnail.tscn`, that renders the asset store thumbnail. (#63)
+
+### Changed
+
+- `TauAxisConfig.OverlapStrategy.REDUCE_COUNT` on a `LOGARITHMIC` axis prints a warning and falls back to `SKIP_LABELS`, as on a `CATEGORICAL` axis. Before: it acted as `SKIP_LABELS` with no warning. (#54)
+
 ### Fixed
 
+- A plot whose size changes draws at its new size. Before: it could draw with the previous size, so a plot in a `GridContainer` that gained a column was cut in half. (#38)
 - `TauPlot` now clips what it draws, the hover tooltip aside. (#53)
 - The legend no longer sets `custom_minimum_size` on the side it spans, so it never grows the plot: entries wrap, a name too long is cut with an ellipsis and read in full in a tooltip, and the entries left over are reached by scrolling. (#53)
 - The legend scrollbar is shown as soon as an entry is out of view, and stays. Before: it appeared on its own when the content grew, moved where the entries wrap, and could hide again. (#53)
 - `TauLegendConfig.flow_direction` now decides the side `TauLegendStyle.max_size_px` caps at an inside position. Before: the position alone decided. (#53)
 - An axis title sets `custom_minimum_size` on one axis only, so a long title no longer grows the plot along its axis and is cut instead. (#53)
 - A long plot title wraps rather than raising the minimum width of the plot. (#53)
+- Grid lines are drawn under the axis lines. Before: a grid line on a domain bound was painted over the axis line. (#54)
+- A `LOGARITHMIC` axis whose domain holds no power of ten no longer draws outside the data area. Before: it added the closest power of ten as a tick, outside the domain. For `[2, 5]`, a tick, a label and a grid line at `10` were drawn over the label margin. (#54)
+- A `LOGARITHMIC` axis whose domain holds no power of ten labels its minor ticks. For `[2, 5]`, the labels are `2`, `3`, `4` and `5`. Before: those ticks had no label. (#54)
+- A `LOGARITHMIC` axis whose domain is too narrow to hold two ticks, `[1.01, 1.05]` for example, places round values picked as on a `LINEAR` axis, following `TauAxisConfig.tick_count_preferred`. The axis stays logarithmic. Before: it drew no tick at all. (#54)
+- The space kept for tick labels is measured on the labels actually drawn, minor ones included. Before: it was measured on every major tick, labeled or not, or on the domain bounds when the axis had no major tick. (#54)
+- The tick label overlap check runs on the real tick positions. Before: it assumed the first tick sat at the start of the axis and the last one at its end, so it missed overlaps and labels could be drawn on top of each other. (#54)
+- `SKIP_LABELS` keeps as many labels as fit. Before: the stride often jumped to every third label when every second one already fit, because the last label was kept next to the strided label before it, where they overlap. After: the last label replaces that strided label. (#54)
+- A collapsed axis domain, one with no span, maps every value to the left edge of the pane on a horizontal axis and to the top edge on a vertical axis, whatever `TauAxisConfig.inverted`. Before: the X axis did so, but a vertical Y axis used the bottom edge, and an inverted horizontal Y axis used the right edge. (#57)
+- `TauGridLineConfig.x_major_enabled` draws a grid line on every category boundary of a `CATEGORICAL` x axis, the two outer ones included. Before: it drew nothing. Minor grid lines stay off on a `CATEGORICAL` axis. (#60)
 - The secondary x axis follows `TauAxisConfig.inverted` on the primary x axis. Before: its labels ran the default way and no longer matched the data. (#62)
 - A decreasing `secondary_x_axis_transform` runs the secondary x axis opposite to the primary. Before: the smallest secondary value always sat at the start of the axis. After: each secondary value sits where the primary shows the value it comes from. (#62)
 - A curved `secondary_x_axis_transform`, `1/x` for example, places every secondary label at the right position. Before: the labels were spread on a straight line between the two ends, so every label in between was wrong. (#62)
