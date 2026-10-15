@@ -42,9 +42,9 @@ only the most recent N samples are displayed.
 ```gdscript
 # Two sensors sampled at the same timestamps, keeping the last 256 samples.
 var dataset := TauPlot.Dataset.new(
-    TauPlot.Dataset.Mode.SHARED_X,
-    TauPlot.Dataset.XElementType.NUMERIC,
-    256
+	TauPlot.Dataset.Mode.SHARED_X,
+	TauPlot.Dataset.XElementType.NUMERIC,
+	256
 )
 var id_a := dataset.add_series("Sensor A")
 var id_b := dataset.add_series("Sensor B")
@@ -139,10 +139,10 @@ Creates an empty dataset with no series and no samples.
 
 ```gdscript
 make_shared_x_categorical(
-    p_series_names: PackedStringArray,
-    p_x: PackedStringArray,
-    p_y_by_series: Array[PackedFloat64Array],
-    p_capacity: int = -1
+	p_series_names: PackedStringArray,
+	p_x: PackedStringArray,
+	p_y_by_series: Array[PackedFloat64Array],
+	p_capacity: int = -1
 ) -> Dataset
 ```
 
@@ -167,10 +167,10 @@ from bulk arrays. Returns `null` on error.
 
 ```gdscript
 make_shared_x_continuous(
-    p_series_names: PackedStringArray,
-    p_x: PackedFloat64Array,
-    p_y_by_series: Array[PackedFloat64Array],
-    p_capacity: int = -1
+	p_series_names: PackedStringArray,
+	p_x: PackedFloat64Array,
+	p_y_by_series: Array[PackedFloat64Array],
+	p_capacity: int = -1
 ) -> Dataset
 ```
 
@@ -195,10 +195,10 @@ from bulk arrays. Returns `null` on error.
 
 ```gdscript
 make_per_series_x_continuous(
-    p_series_names: PackedStringArray,
-    p_x_by_series: Array[PackedFloat64Array],
-    p_y_by_series: Array[PackedFloat64Array],
-    p_capacity_by_series: PackedInt32Array = PackedInt32Array()
+	p_series_names: PackedStringArray,
+	p_x_by_series: Array[PackedFloat64Array],
+	p_y_by_series: Array[PackedFloat64Array],
+	p_capacity_by_series: PackedInt32Array = PackedInt32Array()
 ) -> Dataset
 ```
 

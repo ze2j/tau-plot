@@ -29,7 +29,7 @@ var flat_box := StyleBoxFlat.new()
 
 var callbacks := TauPlot.BarVisualCallbacks.new()
 callbacks.style_box_callback = func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> StyleBox:
-    return round_box if y_value >= 0.0 else flat_box
+	return round_box if y_value >= 0.0 else flat_box
 
 var bar_overlay := TauBarConfig.new()
 bar_overlay.mode = TauBarConfig.BarMode.INDEPENDENT

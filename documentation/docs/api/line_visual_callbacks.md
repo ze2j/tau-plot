@@ -24,7 +24,7 @@ See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for th
 # Color the curve by threshold: samples over the limit read as an alert.
 var callbacks := TauPlot.LineVisualCallbacks.new()
 callbacks.color_callback = func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> Color:
-    return Color.CRIMSON if y_value > 100.0 else Color.STEEL_BLUE
+	return Color.CRIMSON if y_value > 100.0 else Color.STEEL_BLUE
 
 var line_overlay := TauLineConfig.new()
 line_overlay.line_visual_callbacks = callbacks

@@ -25,10 +25,10 @@ See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for th
 var callbacks := TauPlot.ScatterVisualCallbacks.new()
 
 callbacks.size_callback = func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> float:
-    return 8.0 + abs(y_value) * 2.0
+	return 8.0 + abs(y_value) * 2.0
 
 callbacks.shape_callback = func(series_index: int, sample_index: int, x_value: Variant, y_value: float) -> TauScatterStyle.MarkerShape:
-    return TauScatterStyle.MarkerShape.DIAMOND if abs(y_value) > 10.0 else TauScatterStyle.MarkerShape.CIRCLE
+	return TauScatterStyle.MarkerShape.DIAMOND if abs(y_value) > 10.0 else TauScatterStyle.MarkerShape.CIRCLE
 
 var scatter_overlay := TauScatterConfig.new()
 scatter_overlay.scatter_visual_callbacks = callbacks

@@ -42,7 +42,7 @@ var config := TauXYConfig.new()
 config.x_axis = celsius_axis
 config.secondary_x_axis = fahrenheit_axis
 config.secondary_x_axis_transform = func(c: float) -> float:
-    return c * 1.8 + 32.0
+	return c * 1.8 + 32.0
 config.panes = [pane]
 ```
 
@@ -111,7 +111,7 @@ config.x_axis.range_override_enabled = true
 config.x_axis.min_override = 1.0
 config.x_axis.max_override = 10.0
 config.secondary_x_axis_transform = func(f: float) -> float:
-    return 1.0 / f
+	return 1.0 / f
 ```
 
 The primary X domain depends on the data, so it can break these rules while the data changes. If it does, then the secondary X axis shows no labels, and the plot draws no X grid line from it. Its line, its title, and the space it takes stay, so the plot does not jump. The plot pushes a warning the first time this happens after each [`plot_xy()`](tau_plot.md#plot_xy) call. The labels come back on their own once the domain meets the rules again.

@@ -25,7 +25,7 @@ See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for th
 var series_capacity := dataset.get_series_capacity(series_id)
 var marker_sizes := TauPlot.Float32Buffer.new(series_capacity)
 for i in series_capacity:
-    marker_sizes.append_value(8.0 + i * 0.5)
+	marker_sizes.append_value(8.0 + i * 0.5)
 
 var attributes := TauPlot.ScatterVisualAttributes.new()
 attributes.size_buffer = marker_sizes
