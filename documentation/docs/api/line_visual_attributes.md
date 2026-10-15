@@ -25,7 +25,7 @@ See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for th
 var capacity := dataset.get_series_capacity(series_id)
 var alphas := TauPlot.Float32Buffer.new(capacity)
 for i in capacity:
-    alphas.append_value(float(i + 1) / float(capacity))
+	alphas.append_value(float(i + 1) / float(capacity))
 
 var attributes := TauPlot.LineVisualAttributes.new()
 attributes.alpha_buffer = alphas

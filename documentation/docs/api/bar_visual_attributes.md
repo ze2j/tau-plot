@@ -25,7 +25,7 @@ See [`TauPaneOverlayConfig`](pane_overlay_config.md#per-sample-overrides) for th
 var series_capacity := dataset.get_series_capacity(series_id)
 var colors := TauPlot.ColorBuffer.new(series_capacity)
 for i in series_capacity:
-    colors.append_value(Color(0.2 + i * 0.1, 0.4, 0.8))
+	colors.append_value(Color(0.2 + i * 0.1, 0.4, 0.8))
 
 var attributes := TauPlot.BarVisualAttributes.new()
 attributes.color_buffer = colors

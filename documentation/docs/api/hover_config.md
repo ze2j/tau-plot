@@ -57,7 +57,7 @@ hover.tooltip_precision_digits = 4
 
 # Replace the built-in tooltip text with a custom BBCode string.
 hover.format_tooltip_text = func(hits: Array[TauPlot.SampleHit]) -> String:
-    return "[b]%s[/b]: %.4f" % [hits[0].series_name, hits[0].y_raw_value]
+	return "[b]%s[/b]: %.4f" % [hits[0].series_name, hits[0].y_raw_value]
 
 %MyPlot.hover_config = hover
 %MyPlot.hover_enabled = true

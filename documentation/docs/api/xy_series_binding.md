@@ -44,7 +44,8 @@ sb_volume.y_axis_id = TauPlot.AxisId.LEFT
 # The volume series does not appear in the legend.
 sb_volume.show_in_legend = false
 
-%MyPlot.plot_xy(dataset, config, [sb_price, sb_volume])
+var bindings: Array[TauXYSeriesBinding] = [sb_price, sb_volume]
+%MyPlot.plot_xy(dataset, config, bindings)
 ```
 
 ## Constructor
