@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased]
+## v0.2.1 - 2026-10-15
 
 ### Breaking changes
 
